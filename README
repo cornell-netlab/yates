@@ -1,0 +1,23 @@
+The top-level directory structure of Harald is as follows:
+
+ agent/
+   End host program to communicate with controller and kernel module
+
+ controller/
+   OpenFlow controller that manages network forwarding paths and
+   monitors network load
+
+ data/
+   Topology and traffic matrices data
+
+ kernel/
+   Linux netfilter module that implements randomization at end points
+
+ routing/
+   Implementations of different routing and rate adaptation schemes
+
+ simulate/
+   Programs to simulate routing and visualize outputs
+
+ test/
+   Unit and regresssion tests
