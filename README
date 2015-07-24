@@ -1,4 +1,4 @@
-The top-level directory structure of Harald is as follows:
+The top-level directory structure of the Kulfi is as follows:
 
  agent/
    End host program to communicate with controller and kernel module
