@@ -1,5 +1,8 @@
 open Kulfi_Routing
+open Kulfi_MCF
+
+                
+module Solver =  Kulfi_Routing.Make(Kulfi_MCF)
 
 let () =
-  solve ;
   print_endline "Kulfi Controller"

@@ -2,3 +2,13 @@
 *.mldylib
 *.mllib
 *.native
+INSTALL.txt
+myocamlbuild.ml
+META
+setup.ml
+_build
+_tags
+setup.data
+setup.log
+Makefile
+README.txt

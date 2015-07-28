@@ -12,6 +12,10 @@ Library routing
   Path: routing
   Modules:   
     Kulfi_Routing
+  BuildDepends:
+   ocamlgraph,
+   threads,
+   frenetic
 
 Executable controller
   Install: False
@@ -20,6 +24,17 @@ Executable controller
   MainIs: Kulfi_Controller.ml
   CompiledObject: native
   BuildDepends:
+    routing
+
+Executable simulator
+  Install: False
+  Build$: flag(is_native)
+  Path:   simulate
+  MainIs: Kulfi_Simulator.ml
+  CompiledObject: native
+  BuildDepends:
+    ocamlgraph,
+    frenetic,
     routing
 
 Executable unittest
