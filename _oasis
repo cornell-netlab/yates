@@ -1,0 +1,35 @@
+OASISFormat: 0.4
+Name:        kulfi
+Version:     0.1
+Synopsis:    Traffic engineering framework.
+Authors:     Kulfi team
+License:     LGPL-3.0
+Plugins:     META (0.4), StdFiles (0.4), DevFiles (0.4)
+
+BuildTools: ocamlbuild    
+
+Library routing
+  Path: routing
+  Modules:   
+    Kulfi_Routing
+
+Executable controller
+  Install: False
+  Build$: flag(is_native)
+  Path:   controller
+  MainIs: Kulfi_Controller.ml
+  CompiledObject: native
+  BuildDepends:
+    routing
+
+Executable unittest
+ Install: false
+ Build$: flag(is_native)
+ Path:       test
+ MainIs:     Test.ml
+ CompiledObject: native
+ BuildDepends:
+   oUnit,
+   pa_ounit,
+   pa_ounit.syntax,
+   routing

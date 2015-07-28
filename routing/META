@@ -1,0 +1,11 @@
+# OASIS_START
+# DO NOT EDIT (digest: 97ebb6882b051559888530f3dbb285ed)
+version = "0.1"
+description = "Traffic engineering framework."
+archive(byte) = "routing.cma"
+archive(byte, plugin) = "routing.cma"
+archive(native) = "routing.cmxa"
+archive(native, plugin) = "routing.cmxs"
+exists_if = "routing.cma"
+# OASIS_STOP
+
