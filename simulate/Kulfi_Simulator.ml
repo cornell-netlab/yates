@@ -2,6 +2,7 @@ open Frenetic_Network
 open Net
        
 open Kulfi_Routing
+open Kulfi_Types
 open Kulfi_MCF
 
 
@@ -32,5 +33,5 @@ let () =
     Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set);
     Printf.printf "# pairs = %d\n" (List.length pairs);
     Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
-
-
+    let _ = Solver.solve topo pairs SrcDstSet.empty in
+    ()
