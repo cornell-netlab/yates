@@ -1,0 +1,20 @@
+The desired interface is:
+intput:
+topology * set of demands * output of previous computation
+
+output is data structure:
+source * dest -> set of (path * probabilities)
+
+Or, ideally: 
+An object that describes a prob distribution over paths, with a 
+method to "draw a random sample"
+
+Algorithms:
+  - Distributed gradient descent* (this might become N algorithms)
+  - Centralized optimal MCF
+  - Multiplicative weights (Auerbach and Kandekahr) 
+  - VLB
+  - Raecke
+  - Heuristic MCF (variation with limited churn, yet to be designed)
+  - Shortest Path First 
+  - ECMP
