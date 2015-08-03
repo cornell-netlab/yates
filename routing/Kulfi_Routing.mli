@@ -2,14 +2,14 @@
 open Kulfi_RoutingScheme
 open Kulfi_Types
                        
-module type ALGORITHM = sig
+module type Algorithm = sig
     val solve : topology -> demands -> scheme -> scheme  
 end
 
-module Spf : ALGORITHM
+module Spf : Algorithm
 
-module Ecmp : ALGORITHM
+(* module Ecmp : ALGORITHM *)
 
-module Mcf : ALGORITHM
+module Mcf : Algorithm
 
-module Oblivious: ALGORITHM
+(* module Oblivious: ALGORITHM *)

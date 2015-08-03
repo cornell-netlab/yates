@@ -12,3 +12,4 @@ setup.data
 setup.log
 Makefile
 README.txt
+*.swp

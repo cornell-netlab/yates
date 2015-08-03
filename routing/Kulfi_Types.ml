@@ -32,6 +32,11 @@ module SrcDstMap = Mapplus.Make(PathProbabilityOrd)
 
 type scheme = PathProbabilitySet.t SrcDstMap.t
 
+                                                                   
+(* A Routing Scheme is an object that describes a prob distribution over paths. 
+   It supports an interface to lets one draw a random sample, and a way to compare
+   to other routing schemes, for example, if we want to minimize differences  *)
+
 let sample (s:scheme) (src:Topology.vertex) (dst:Topology.vertex) : path = assert false
 
 let compare_scheme (s1:scheme) (s2:scheme) : int = assert false

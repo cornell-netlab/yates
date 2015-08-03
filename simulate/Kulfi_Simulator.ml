@@ -13,8 +13,12 @@ module VertexSet = Topology.VertexSet
 let () = Random.self_init ()
 
 let _ = Kulfi_Demands.create_random
-                
-module Solver =  Kulfi_Routing.Make(Kulfi_MCF)
+
+module Make(SOLVER:Kulfi_Routing.Algorithm) = struct    
+  let start () = ()
+end
+
+module Solver = Make(Kulfi_Routing.Mcf)
                 
 let () =
   print_endline "Kulfi Simulator";
@@ -33,5 +37,5 @@ let () =
     Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set);
     Printf.printf "# pairs = %d\n" (List.length pairs);
     Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
-    let _ = Solver.solve topo pairs SrcDstSet.empty in
-    ()
+    (* let _ = Solver.solve topo pairs SrcDstSet.empty in *)
+
