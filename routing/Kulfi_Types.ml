@@ -4,7 +4,9 @@ open Net
        
 type topology = Net.Topology.t
 
-type demand_pair = Topology.vertex * Topology.vertex * float
+type demand = float
+
+type demand_pair = Topology.vertex * Topology.vertex * demand
 
 type demands = demand_pair list
 
@@ -12,8 +14,10 @@ type edge = Topology.vertex * Topology.vertex
 
 type path = edge list
 
+type probability = float
+
 module PathProbabilityOrd = struct
-  type t = path * float
+  type t = path * probability
   let compare = Pervasives.compare
 end
 
@@ -24,6 +28,10 @@ module SrcDstOrd = struct
   let compare = Pervasives.compare
 end
 
-module SrcDstSet = Mapplus.Make(PathProbabilityOrd)
+module SrcDstMap = Mapplus.Make(PathProbabilityOrd)
 
-type scheme = PathProbabilitySet.t SrcDstSet.t                 
+type scheme = PathProbabilitySet.t SrcDstMap.t
+
+let sample (s:scheme) (src:Topology.vertex) (dst:Topology.vertex) : path = assert false
+
+let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
