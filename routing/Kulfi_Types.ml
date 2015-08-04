@@ -28,7 +28,7 @@ module SrcDstOrd = struct
   let compare = Pervasives.compare
 end
 
-module SrcDstMap = Mapplus.Make(PathProbabilityOrd)
+module SrcDstMap = Mapplus.Make(SrcDstOrd)
 
 type scheme = PathProbabilitySet.t SrcDstMap.t
 
