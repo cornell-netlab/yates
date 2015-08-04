@@ -10,7 +10,7 @@ type demand_pair = Topology.vertex * Topology.vertex * demand
 
 type demands = demand_pair list
 
-type edge = Topology.vertex * Topology.vertex 
+type edge = Net.Topology.edge
 
 type path = edge list
 
