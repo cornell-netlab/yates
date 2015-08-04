@@ -6,18 +6,18 @@
 #include "kulfi_mod.h"
 #include "routing_table.h"
 #include "vlan.h"
-#include "proc.h"
+#include "proc/routes.h"
+#include "proc/stats.h"
 
 #define INTF_NAME "eth0"
 
 static struct nf_hook_ops nfho_post;
 static struct nf_hook_ops nfho_pre;
 
-static struct proc_dir_entry * proc_entry;
+static struct proc_dir_entry * routes_proc_entry;
+static struct proc_dir_entry * stats_proc_entry;
 
-struct kmem_cache* ms_cache;
-
-char proc_data[MAX_PROC_SIZE];
+char proc_routes_data[MAX_ROUTES_SIZE];
 
 flow_table_t * flow_table = NULL;
 
@@ -125,6 +125,7 @@ static unsigned int post_routing_process(const struct nf_hook_ops *ops,
                 return NF_ACCEPT;
             }
 
+            stats_entry_inc(be32_to_cpu(flow_key.dst), ip_pkt_len);
             pr_debug("Proto: IP pkt\nGetting stk from flow_table for %u\n",
                     be32_to_cpu(flow_key.dst));
 
@@ -352,7 +353,8 @@ int init_module()
     routing_table = routing_table_create(4096);
 
     // Create a proc file to read routing table from kulfi
-    create_new_proc_entry(proc_entry);
+    create_new_routes_proc_entry(routes_proc_entry);
+    create_new_stats_proc_entry(stats_proc_entry);
 
     nf_register_hook(&nfho_post);
     nf_register_hook(&nfho_pre);
@@ -375,7 +377,8 @@ void cleanup_module()
     kfree(routing_table);
 
     // delete the /proc file
-    delete_proc_entry();
+    delete_routes_proc_entry();
+    delete_stats_proc_entry();
 
     pr_debug("mod_vlan: Exiting\n");
 }

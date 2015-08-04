@@ -1,23 +1,23 @@
-#include "proc.h"
+#include "routes.h"
 
 static DEFINE_SPINLOCK(rt_lock);
 
-ssize_t read_proc(struct file *file, char *buf, size_t count, loff_t *data)
+ssize_t read_proc_routes(struct file *file, char *buf, size_t count, loff_t *data)
 {
     int bytes_to_read;
-    pr_debug("read_proc current proc_data: %s\n", proc_data);
-    if(MAX_PROC_SIZE - *data > count) {
+    pr_debug("read_proc_routes current proc_routes_data: %s\n", proc_routes_data);
+    if(MAX_ROUTES_SIZE - *data > count) {
         bytes_to_read = count;
     }
     else {
-        bytes_to_read = MAX_PROC_SIZE - *data;
+        bytes_to_read = MAX_ROUTES_SIZE - *data;
     }
 
     if (bytes_to_read == 0){
         pr_debug("reached end of /proc/kulfi\n");
     }
 
-    if(copy_to_user(buf, proc_data, bytes_to_read)){
+    if(copy_to_user(buf, proc_routes_data, bytes_to_read)){
         return -EFAULT;
     }
 
@@ -53,7 +53,7 @@ void process_proc(void){
     routing_table_t * new_routing_table = NULL;
     routing_table_t * old_routing_table = NULL;
     pr_debug("Parsing proc data");
-    dup = kstrdup(proc_data, GFP_ATOMIC);
+    dup = kstrdup(proc_routes_data, GFP_ATOMIC);
     num_dsts = get_int(&dup);
     if(num_dsts <= 0) {
         return;
@@ -117,52 +117,50 @@ void process_proc(void){
     pr_debug("End of data\n");
 }
 
-ssize_t write_proc(struct file *file, const char *buf, size_t count, loff_t *data)
+ssize_t write_proc_routes(struct file *file, const char *buf, size_t count, loff_t *data)
 {
-    pr_debug("write_proc\n");
-    memset(proc_data, '\0', sizeof(char) * MAX_PROC_SIZE);
-    if(count > MAX_PROC_SIZE)
-        count = MAX_PROC_SIZE;
-    if(copy_from_user(proc_data, buf, count))
+    pr_debug("write_proc_routes\n");
+    memset(proc_routes_data, '\0', sizeof(char) * MAX_ROUTES_SIZE);
+    if(count > MAX_ROUTES_SIZE)
+        count = MAX_ROUTES_SIZE;
+    if(copy_from_user(proc_routes_data, buf, count))
         return -EFAULT;
 
-    pr_debug("proc_data updated to %s\n", proc_data);
+    pr_debug("proc_routes_data updated to %s\n", proc_routes_data);
     process_proc();
     return count;
 }
 
-int display_table(struct seq_file *m, void *v) {
-    seq_printf(m, "MAC\tStacks\n");
-    seq_printf(m, "===\t======\n");
+const struct file_operations routes_file_fops = {
+    .owner = THIS_MODULE,
+    .open = open_proc_routes,
+    .llseek = seq_lseek,
+    .release = seq_release,
+    .read  = read_proc_routes,
+    .write = write_proc_routes,
+};
+
+int show_routes_proc(struct seq_file *m, void *v){
     return 0;
 }
 
-int open_proc(struct inode *inode, struct  file *file) {
-    return single_open(file, display_table, NULL);
+int open_proc_routes(struct inode *inode, struct file *file){
+    return single_open(file, show_routes_proc, NULL);
 }
 
-const struct file_operations proc_file_fops = {
-    .owner = THIS_MODULE,
-    .open = open_proc,
-    .llseek = seq_lseek,
-    .release = seq_release,
-    .read  = read_proc,
-    .write = write_proc,
-};
-
-void create_new_proc_entry(struct proc_dir_entry * proc_entry) {
-    proc_entry = proc_create(KULFI_PROC,0666,NULL, &proc_file_fops);
-    if(!proc_entry)
+void create_new_routes_proc_entry(struct proc_dir_entry * proc_routes_entry) {
+    proc_routes_entry = proc_create(KULFI_PROC,0666,NULL, &routes_file_fops);
+    if(!proc_routes_entry)
     {
-        pr_debug("Error creating proc entry");
+        pr_debug("Error creating routes proc entry");
     }
     else
     {
-        pr_debug("proc initialized");
+        pr_debug("routes proc initialized");
     }
 }
 
-void delete_proc_entry(void) {
-    pr_debug("Deleting proc entry\n");
+void delete_routes_proc_entry(void) {
+    pr_debug("Deleting routes proc entry\n");
     remove_proc_entry(KULFI_PROC, NULL);
 }
