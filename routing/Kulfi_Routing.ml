@@ -12,3 +12,4 @@ module Mcf = Kulfi_MCF
 
 (* module Oblivious = Kulfi_Oblivious *)
 
+module Vlb = Kulfi_Vlb
