@@ -33,9 +33,10 @@ let test_spf =
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
   let scheme = 
     solve topo pairs SrcDstMap.empty in
-  
-
-  false
+  let h1 = Array.get hosts 0  in 
+  let h2 = Array.get hosts 1  in 
+  let path = fst ( PathProbabilitySet.choose ( SrcDstMap.find (h1,h2) scheme ) ) in
+  List.length path == 3
     
 TEST "spf" = test_spf = true
 
