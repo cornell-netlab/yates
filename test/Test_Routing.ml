@@ -1,6 +1,7 @@
 open Kulfi_Routing
-       
-TEST "routing1" =
-                   false
-    
+
+let test_spf =  false
+
+TEST "spf" = test_spf = true
+
 
