@@ -39,8 +39,15 @@ let create_topology_and_demands () =
 
 let test_ecmp = false
 
-let test_mcf = false
-
+let test_mcf = 
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme = 
+    Kulfi_Mcf.solve topo pairs SrcDstMap.empty in
+  let h1 = Array.get hosts 0  in 
+  let h2 = Array.get hosts 1  in 
+  let paths = SrcDstMap.find (h1,h2) scheme in
+  (PathProbabilitySet.cardinal paths) != 0
+                 
 let test_mw = false
 
 let test_raeke = false
@@ -52,7 +59,7 @@ let test_spf =
   let h1 = Array.get hosts 0  in 
   let h2 = Array.get hosts 1  in 
   let path = fst ( PathProbabilitySet.choose ( SrcDstMap.find (h1,h2) scheme ) ) in
-  List.length path == 3
+  (List.length path) == 3
     
 let test_vlb =
   let (hosts,topo,pairs) = create_topology_and_demands () in
