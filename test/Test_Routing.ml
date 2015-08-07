@@ -46,7 +46,9 @@ let test_mcf =
   let h1 = Array.get hosts 0  in 
   let h2 = Array.get hosts 1  in 
   let paths = SrcDstMap.find (h1,h2) scheme in
-  (PathProbabilitySet.cardinal paths) != 0
+  let sum_of_probs = PathProbabilitySet.fold (fun (p,s) acc -> s +. acc)  paths 0.0  in
+  Printf.printf "sum of prob=%f\n" sum_of_probs;
+  (sum_of_probs > 0.9) && (sum_of_probs < 1.1)
                  
 let test_mw = false
 

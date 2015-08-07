@@ -199,8 +199,7 @@ type flow_table = ((Node.t * Node.t),
                    (Node.t * Node.t * float) list) Hashtbl.t
 
 let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
-  : (Topology.vertex * Topology.vertex *
-     (Topology.edge list * float) list) list =
+  : scheme  =
 
   (* For a single commodity, given the individual edges used, get all the paths
      used to route that commodity *)
@@ -275,15 +274,16 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
                               bottleneck *. demand_divisor)::acc_paths) in
     let paths = find_paths topo_with_edges [] in
     paths in
-
-  (* For every commodity, get their paths. *)
-  Hashtbl.fold flow_table ~init:[] ~f:(fun ~key:d_pair ~data:edges acc ->
-      let (s,t) = d_pair in
-      let s_v = Topology.vertex_of_label orig_topo s in
-      let t_v = Topology.vertex_of_label orig_topo t in
-      let paths = strip_paths (s, t) edges in
-      (s_v, t_v, paths)::acc)
-
+    (* For every commodity, get their paths. *)
+    Hashtbl.fold flow_table ~init:SrcDstMap.empty ~f:(fun ~key:d_pair ~data:edges acc ->
+                                                      let (s,t) = d_pair in
+                                                      let s_v = Topology.vertex_of_label orig_topo s in
+                                                      let t_v = Topology.vertex_of_label orig_topo t in
+                                                      let paths = strip_paths (s, t) edges in
+                                                      let p = List.fold_left paths ~init:PathProbabilitySet.empty
+                                                                             ~f:(fun acc (path,scalar) ->  PathProbabilitySet.add (path,scalar) acc  ) in                                                      
+                                                      SrcDstMap.add (s_v,t_v)  p acc ) 
+                                                      
 
 (* Run everything. Given a topology and a set of pairs with demands,
    returns the optimal congestion ratio, the paths used, and the number
@@ -392,13 +392,9 @@ let solve (topo:topology) (pairs:demands) (s:scheme) : scheme =
     if verbose then
       (Printf.printf "Paths stripped in %f seconds\n" paths_time;
        flush stdout);
-    let num_paths = List.fold_left paths ~init:0 ~f:(fun acc (_,_,paths) ->
-        acc + (List.length paths)) in
-
-    (* TODO(rjs) : convert paths to proper return type *)
-    (* (ratio, paths, num_paths) *)
-
-    SrcDstMap.empty  
+    (* let num_paths = List.fold_left paths ~init:0 ~f:(fun acc (_,_,paths) -> *)
+    (*     acc + (List.length paths)) in *)
+    paths
 
 
        
