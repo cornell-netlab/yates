@@ -13,3 +13,6 @@ setup.log
 Makefile
 README.txt
 *.swp
+gurobi.log
+*.lp
+*.sol
