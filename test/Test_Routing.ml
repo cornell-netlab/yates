@@ -1,13 +1,17 @@
 open Kulfi_Routing
 open Frenetic_Network
 open Net
+open Kulfi_Ecmp
+open Kulfi_Mcf
+open Kulfi_Mw
+open Kulfi_Raeke
 open Kulfi_Spf
 open Kulfi_Vlb
 open Kulfi_Types
 
 module VertexSet = Topology.VertexSet
 
-let create_topology_and_demands = 
+let create_topology_and_demands () =
   let topo = Parse.from_dotfile "./data/3cycle.dot" in
   let host_set = VertexSet.filter (Topology.vertexes topo)
                                   ~f:(fun v ->
@@ -32,18 +36,17 @@ let create_topology_and_demands =
   Printf.printf "# pairs = %d\n" (List.length pairs);
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
   (hosts,topo,pairs)
-                     
-let test_vlb =
-  let (hosts,topo,pairs) = create_topology_and_demands in
-  let scheme = 
-    Kulfi_Vlb.solve topo pairs SrcDstMap.empty in
-  let h1 = Array.get hosts 0  in 
-  let h2 = Array.get hosts 1  in
-  let paths = SrcDstMap.find (h1,h2) scheme in
-  (PathProbabilitySet.cardinal paths) == 2
-                     
+
+let test_ecmp = false
+
+let test_mcf = false
+
+let test_mw = false
+
+let test_raeke = false
+   
 let test_spf =
-  let (hosts,topo,pairs) = create_topology_and_demands in
+  let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme = 
     Kulfi_Spf.solve topo pairs SrcDstMap.empty in
   let h1 = Array.get hosts 0  in 
@@ -51,7 +54,26 @@ let test_spf =
   let path = fst ( PathProbabilitySet.choose ( SrcDstMap.find (h1,h2) scheme ) ) in
   List.length path == 3
     
+let test_vlb =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme = 
+    Kulfi_Vlb.solve topo pairs SrcDstMap.empty in
+  let h1 = Array.get hosts 0  in 
+  let h2 = Array.get hosts 1  in
+  let paths = SrcDstMap.find (h1,h2) scheme in
+  (PathProbabilitySet.cardinal paths) == 2
+                         
+TEST "ecmp" = test_ecmp = true
+
+TEST "mcf" = test_mcf = true
+
+TEST "mw" = test_mw = true
+
+TEST "raeke" = test_raeke = true
+
 TEST "spf" = test_spf = true
+
 TEST "vlb" = test_vlb = true
 
+               
 

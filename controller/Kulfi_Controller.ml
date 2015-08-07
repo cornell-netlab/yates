@@ -1,5 +1,4 @@
 open Kulfi_Routing
-open Kulfi_MCF
 
 module Make(SOLVER:Kulfi_Routing.Algorithm) = struct    
   let start () = ()

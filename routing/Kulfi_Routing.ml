@@ -4,12 +4,17 @@ module type Algorithm = sig
     val solve : topology -> demands -> scheme -> scheme
 end
 
+module Ecmp = Kulfi_Ecmp 
+
+module Mcf = Kulfi_Mcf
+               
+module Mw =  Kulfi_Mw
+
+module Raeke = Kulfi_Raeke
+
 module Spf = Kulfi_Spf
+               
+module Vlb = Kulfi_Vlb                          
 
-(* module Ecmp = Kulfi_Ecmp *)
 
-module Mcf = Kulfi_MCF
 
-(* module Oblivious = Kulfi_Oblivious *)
-
-module Vlb = Kulfi_Vlb

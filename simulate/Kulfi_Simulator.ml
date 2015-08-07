@@ -3,12 +3,9 @@ open Net
        
 open Kulfi_Routing
 open Kulfi_Types
-open Kulfi_MCF
-
 
 module EdgeSet = Topology.EdgeSet
 module VertexSet = Topology.VertexSet
-                     
        
 let () = Random.self_init ()
 
