@@ -12,7 +12,7 @@ module type FRT_TYPE = sig
   val make_frt_tree : Topology.t -> frt_tree
 
   val generate_rt : Topology.t -> frt_tree ->
-    Net.Topology.vertex list -> routing_tree
+    Topology.vertex list -> routing_tree
 
   val usage_of_tree : routing_tree -> (Topology.edge * float) list
 
@@ -20,7 +20,7 @@ module type FRT_TYPE = sig
     routing_path * routing_path
 
   val get_path : routing_tree -> Topology.vertex ->
-    Net.Topology.vertex -> routing_path
+    Topology.vertex -> routing_path
 
   val remove_cycles : NetPath.t -> NetPath.t
 

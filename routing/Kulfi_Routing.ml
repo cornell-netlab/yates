@@ -7,8 +7,6 @@ end
 module Ecmp = Kulfi_Ecmp 
 
 module Mcf = Kulfi_Mcf
-               
-module Mw =  Kulfi_Mw
 
 module Raeke = Kulfi_Raeke
 
