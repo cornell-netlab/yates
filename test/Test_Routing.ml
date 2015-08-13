@@ -44,9 +44,13 @@ let test_mcf =
   let scheme = 
     Kulfi_Mcf.solve topo pairs SrcDstMap.empty in
   let h1 = Array.get hosts 0  in 
-  let h2 = Array.get hosts 1  in 
-  let paths = SrcDstMap.find (h1,h2) scheme in
-  let sum_of_probs = PathProbabilitySet.fold (fun (p,s) acc -> s +. acc)  paths 0.0  in
+  let h2 = Array.get hosts 1  in
+  let sum_of_probs = 
+    match SrcDstMap.find scheme (h1,h2) with
+    | None -> assert false
+    | Some paths ->
+       PathProbabilitySet.fold paths ~init:0.0 ~f:(fun acc (p,s) -> s +. acc) 
+  in
   Printf.printf "sum of prob=%f\n" sum_of_probs;
   (sum_of_probs > 0.9) && (sum_of_probs < 1.1)
                  
@@ -59,8 +63,11 @@ let test_spf =
   let scheme = 
     Kulfi_Spf.solve topo pairs SrcDstMap.empty in
   let h1 = Array.get hosts 0  in 
-  let h2 = Array.get hosts 1  in 
-  let path = fst ( PathProbabilitySet.choose ( SrcDstMap.find (h1,h2) scheme ) ) in
+  let h2 = Array.get hosts 1  in
+
+  let x = match SrcDstMap.find scheme (h1,h2)  with | None -> assert false | Some x -> x in
+  
+  let path = fst ( match PathProbabilitySet.choose ( x ) with | None -> assert false | Some y -> y ) in
   (List.length path) == 3
     
 let test_vlb =
@@ -69,8 +76,9 @@ let test_vlb =
     Kulfi_Vlb.solve topo pairs SrcDstMap.empty in
   let h1 = Array.get hosts 0  in 
   let h2 = Array.get hosts 1  in
-  let paths = SrcDstMap.find (h1,h2) scheme in
-  (PathProbabilitySet.cardinal paths) == 2
+  let paths = match SrcDstMap.find scheme (h1,h2) with | None -> assert false | Some x -> x in
+  Printf.printf "VLB set length =%d\n"  (PathProbabilitySet.length paths);
+  (PathProbabilitySet.length paths) == 2
                          
 TEST "ecmp" = test_ecmp = true
 

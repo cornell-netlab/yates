@@ -9,12 +9,14 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 
   let spf_table =     
     List.fold_left apsp ~init:SrcDstMap.empty ~f:(fun acc (c,v1,v2,p) -> 
-    SrcDstMap.add (v1,v2) ( PathProbabilitySet.singleton (p,1.) ) 
-    acc) in
+    SrcDstMap.add acc ~key:(v1,v2) ~data:( PathProbabilitySet.singleton (p,1.) ) ) in
 
-  let find_path = (fun src dst -> 
-    fst ( PathProbabilitySet.choose ( SrcDstMap.find (src,dst) spf_table ) ) )
-    in
+  let find_path = (fun src dst ->
+                   match SrcDstMap.find spf_table (src,dst) with
+                   | None -> assert false
+                   | Some x ->
+                      fst ( match PathProbabilitySet.choose x with | None -> assert false | Some y -> y ) )
+  in
 
   let route_thru_detour = (fun src det dst -> 
     (find_path src det) @ (find_path det dst) ) in
@@ -24,9 +26,8 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   let vlb_pps = (fun src dst ->
     ( Topology.fold_vertexes 
       (fun v acc -> 
-         ( PathProbabilitySet.add 
+         ( PathProbabilitySet.add acc
            ( (route_thru_detour src v dst), 1. /. nv ) 
-           acc 
          )
       ) 
     )
@@ -39,10 +40,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
        the fact that it contains paths is irrelevant here *)
     ~init:SrcDstMap.empty
     ~f:(fun acc (c,v1,v2,p) ->
-        SrcDstMap.add (v1,v2) ( vlb_pps v1 v2 ) acc )
+        SrcDstMap.add acc ~key:(v1,v2) ~data:( vlb_pps v1 v2 ) )
     
-
-(*  print_endline "Kulfi_Spf";
-  SrcDstMap.empty *)
 
                 

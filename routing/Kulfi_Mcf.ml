@@ -281,8 +281,8 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
                                                       let t_v = Topology.vertex_of_label orig_topo t in
                                                       let paths = strip_paths (s, t) edges in
                                                       let p = List.fold_left paths ~init:PathProbabilitySet.empty
-                                                                             ~f:(fun acc (path,scalar) ->  PathProbabilitySet.add (path,scalar) acc  ) in                                                      
-                                                      SrcDstMap.add (s_v,t_v)  p acc ) 
+                                                                             ~f:(fun acc (path,scalar) ->  PathProbabilitySet.add acc (path,scalar) ) in                                                      
+                                                      SrcDstMap.add acc ~key:(s_v,t_v) ~data:p ) 
                                                       
 
 (* Run everything. Given a topology and a set of pairs with demands,

@@ -1,6 +1,6 @@
 open Frenetic_Network
-open Kulfi_Util
 open Net
+open Core.Std
        
 type topology = Net.Topology.t
 
@@ -10,25 +10,25 @@ type demand_pair = Topology.vertex * Topology.vertex * demand
 
 type demands = demand_pair list
 
-type edge = Net.Topology.edge
+type edge = Net.Topology.edge with sexp
 
-type path = edge list
+type path = edge list with sexp
 
-type probability = float
+type probability = float with sexp
 
 module PathProbabilityOrd = struct
-  type t = path * probability
-  let compare = Pervasives.compare
+  type t = path * probability with sexp
+  let compare = Pervasives.compare                                      
 end
 
-module PathProbabilitySet = Setplus.Make(PathProbabilityOrd)
+module PathProbabilitySet = Set.Make(PathProbabilityOrd)
                              
 module SrcDstOrd = struct
-  type t = Topology.vertex * Topology.vertex
-  let compare = Pervasives.compare
+  type t = Topology.vertex * Topology.vertex with sexp
+  let compare = Pervasives.compare                                      
 end
 
-module SrcDstMap = Mapplus.Make(SrcDstOrd)
+module SrcDstMap = Map.Make(SrcDstOrd)
 
 type scheme = PathProbabilitySet.t SrcDstMap.t
 
