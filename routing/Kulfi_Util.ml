@@ -2,17 +2,30 @@ open Core.Std
 open Frenetic_Network
 open Kulfi_Types
 
-let dump_path_lists (t:topology) (l : (Net.Topology.vertex * Net.Topology.vertex * (Net.Topology.edge list * float) list) list list) : string = 
+let intercalate f s = function
+  | [] ->
+    ""
+  | h::t ->
+    List.fold_left t ~f:(fun acc x -> acc ^ s ^ f x) ~init:(f h) 
+       
+let dump_edges (t:topology) (es:path) : string = 
+  intercalate 
+    (fun e -> 
+     Printf.sprintf "(%s,%s)" 
+                    (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_src e))))
+                    (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_dst e))))) ", "  es
+
+let dump_path_prob_set (t:topology) (pps:PathProbabilitySet.t) : string =
   let buf = Buffer.create 101 in
-  List.iter l
-  ~f:(fun l' ->
-    Buffer.add_string buf "[\n";
-    List.iter l'
-      ~f:(fun (v1,v2,cs) ->
-      Printf.bprintf buf "%s -> %s :\n  %s\n"
-        (Node.name (Net.Topology.vertex_to_label t v1))
-        (Node.name (Net.Topology.vertex_to_label t v2))
-        (Merlin_Util.intercalate (fun (es,f) -> Printf.sprintf "[%s] @ %f" (dump_edges t es) f) "\n  " cs));
-    Buffer.add_string buf "]\n\n";
-  );
+  PathProbabilitySet.iter pps ~f:(fun (path,prob) ->  Printf.bprintf buf "[%s] @ %f\n" (dump_edges t path) prob);
   Buffer.contents buf
+    
+let dump_scheme (t:topology) (s:scheme) : string = 
+  let buf = Buffer.create 101 in
+  SrcDstMap.iter s ~f:(fun ~key:(v1,v2) ~data:pps ->
+                       Printf.bprintf buf "%s -> %s :\n  %s\n"
+                                      (Node.name (Net.Topology.vertex_to_label t v1))
+                                      (Node.name (Net.Topology.vertex_to_label t v2))
+                                      (dump_path_prob_set t pps));
+  Buffer.contents buf
+

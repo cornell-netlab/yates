@@ -8,6 +8,7 @@ open Kulfi_Raeke
 open Kulfi_Spf
 open Kulfi_Vlb
 open Kulfi_Types
+open Kulfi_Util
 
 module VertexSet = Topology.VertexSet
 
@@ -78,6 +79,7 @@ let test_vlb =
   let h2 = Array.get hosts 1  in
   let paths = match SrcDstMap.find scheme (h1,h2) with | None -> assert false | Some x -> x in
   Printf.printf "VLB set length =%d\n"  (PathProbabilitySet.length paths);
+  (* Printf.printf "%s\n" (dump_scheme topo scheme); *)
   (PathProbabilitySet.length paths) == 2
                          
 TEST "ecmp" = test_ecmp = true
