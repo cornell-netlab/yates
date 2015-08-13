@@ -2,8 +2,6 @@ open Frenetic_Network
 open Kulfi_Types
 module Topology = Net.Topology
 
-let solve (topo:topology) (d:demands) (s:scheme) = assert false
-
 module type MW_INPUT = sig
 
   (* This is the type of some structure defined on the graph (e.g. a path
@@ -112,31 +110,3 @@ module Make = functor (Experts : MW_INPUT) -> struct
       loop 0 [] topo 0. init_table
 
 end
-
-(* Merlin multiplicative weights code *)
-module MWInput = struct
-
-  open Kulfi_FRT
-  type structure = FRT.routing_tree
-
-  let select_structure (topo : topology) (nodes : VertexSet.t) =
-    (* First, make an FRT tree decomposition from the topology. *)
-    let tree = FRT.make_frt_tree topo in
-    let node_list = VertexSet.elements nodes in
-    (FRT.generate_rt topo tree node_list, 1.)
-
-  let usage_of_structure (_ : topology) (st : FRT.routing_tree) =
-    FRT.usage_of_tree st
-
-  let set_weight topo edge w =
-    let label = Topology.edge_to_label topo edge in
-    Link.set_weight label w; topo
-
-  let get_weight topo edge =
-    let label = Topology.edge_to_label topo edge in
-    Link.weight label
-
-end
-
-(* Multiplicative weights instantiation *)
-module RRTs = Make (MWInput)

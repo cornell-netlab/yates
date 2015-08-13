@@ -1,8 +1,6 @@
 open Frenetic_Network
 open Net
 open Kulfi_Types
-
-val solve : topology -> demands -> scheme -> scheme
        
 module type MW_INPUT = sig
 
@@ -38,5 +36,3 @@ end
 
 module Make (Experts : MW_INPUT) : MW_ALG
   with type structure = Experts.structure
-
-module RRTs : MW_ALG with type structure = Kulfi_FRT.FRT.routing_tree

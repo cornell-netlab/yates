@@ -9,8 +9,6 @@ module Ecmp : Algorithm
 
 module Mcf : Algorithm
 
-module Mw : Algorithm
-
 module Raeke : Algorithm
 
 module Spf : Algorithm
