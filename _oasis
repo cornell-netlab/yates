@@ -19,13 +19,28 @@ Library routing
    sexplib,
    frenetic
 
-Executable controller
+Library controller
+  Path: controller
+  Modules:   
+    Kulfi_Controller
+  BuildDepends:
+   async,
+   frenetic,
+   frenetic.async,
+   ocamlgraph,
+   threads,
+   routing,
+   sexplib.syntax,
+   sexplib
+
+Executable kulfi
   Install: False
   Build$: flag(is_native)
-  Path:   controller
-  MainIs: Kulfi_Controller.ml
+  Path:   kulfi
+  MainIs: Kulfi.ml
   CompiledObject: native
   BuildDepends:
+    controller,
     routing
 
 Executable simulator

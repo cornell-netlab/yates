@@ -1,10 +1,13 @@
 open Core.Std
+open Async.Std
 open Kulfi_Routing
 open Kulfi_Types
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Optimize
 
-module Make(SOLVER:Kulfi_Routing.Algorithm) = struct
+module NetKAT_Controller = Frenetic_NetKAT_Controller.Make
+
+module Make(Solver:Kulfi_Routing.Algorithm) = struct
     (* GenSym for tags *)
     let tag_cell = ref 0 
     let fresh_tag () = 
@@ -30,7 +33,8 @@ module Make(SOLVER:Kulfi_Routing.Algorithm) = struct
 			 (Mod(Location(Physical(out_port)))) in 
 		(acc',false)) in
       (* TODO: pop Vlan at last hop *)
-      (pol, tag)
+      let pol' = mk_seq pol (Mod(Vlan(0xffff))) in 
+      (pol', tag)
 
   let netkat_of_scheme (scheme:scheme) : policy * configuration =
     SrcDstMap.fold 
@@ -49,12 +53,12 @@ module Make(SOLVER:Kulfi_Routing.Algorithm) = struct
 	  let config' = SrcDstMap.add config (src,dst) tags in
 	  (pol',config'))
 
-  let start () = ()
-  
+  let start topo = 
+    let demands = [] in 
+    let scheme = Solver.solve topo demands SrcDstMap.empty in 
+    let pol,config = netkat_of_scheme scheme in 
+    NetKAT_Controller.start ();
+    don't_wait_for (NetKAT_Controller.update_policy pol)
 end
 
 module Controller = Make(Kulfi_Routing.Mcf)
-
-let () =
-  print_endline "Kulfi Controller";
-  Controller.start()
