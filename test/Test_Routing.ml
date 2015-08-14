@@ -50,8 +50,7 @@ let test_mcf =
     match SrcDstMap.find scheme (h1,h2) with
     | None -> assert false
     | Some paths ->
-       PathProbabilitySet.fold paths ~init:0.0 ~f:(fun acc (p,s) -> s +. acc) 
-  in
+       PathMap.fold paths ~init:0.0 ~f:(fun ~key:p ~data:s acc -> s +. acc) in
   Printf.printf "sum of prob=%f\n" sum_of_probs;
   (sum_of_probs > 0.9) && (sum_of_probs < 1.1)
                  
@@ -66,9 +65,9 @@ let test_spf =
   let h1 = Array.get hosts 0  in 
   let h2 = Array.get hosts 1  in
 
+  (* TODO(jnf,rjs): could just call sample_scheme here? *)
   let x = match SrcDstMap.find scheme (h1,h2)  with | None -> assert false | Some x -> x in
-  
-  let path = fst ( match PathProbabilitySet.choose ( x ) with | None -> assert false | Some y -> y ) in
+  let path = sample_dist x in
   (List.length path) == 3
     
 let test_vlb =
@@ -78,9 +77,9 @@ let test_vlb =
   let h1 = Array.get hosts 0  in 
   let h2 = Array.get hosts 1  in
   let paths = match SrcDstMap.find scheme (h1,h2) with | None -> assert false | Some x -> x in
-  Printf.printf "VLB set length =%d\n"  (PathProbabilitySet.length paths);
+  Printf.printf "VLB set length =%d\n"  (PathMap.length paths);
   (* Printf.printf "%s\n" (dump_scheme topo scheme); *)
-  (PathProbabilitySet.length paths) == 2
+  (PathMap.length paths) == 2
                          
 TEST "ecmp" = test_ecmp = true
 

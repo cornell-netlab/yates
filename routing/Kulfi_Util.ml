@@ -15,9 +15,11 @@ let dump_edges (t:topology) (es:path) : string =
                     (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_src e))))
                     (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_dst e))))) ", "  es
 
-let dump_path_prob_set (t:topology) (pps:PathProbabilitySet.t) : string =
+let dump_path_prob_set (t:topology) (pps:probability PathMap.t) : string =
   let buf = Buffer.create 101 in
-  PathProbabilitySet.iter pps ~f:(fun (path,prob) ->  Printf.bprintf buf "[%s] @ %f\n" (dump_edges t path) prob);
+  PathMap.iter 
+    pps 
+    ~f:(fun ~key:path ~data:prob -> Printf.bprintf buf "[%s] @ %f\n" (dump_edges t path) prob);
   Buffer.contents buf
     
 let dump_scheme (t:topology) (s:scheme) : string = 

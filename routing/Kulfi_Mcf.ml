@@ -275,15 +275,21 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
     let paths = find_paths topo_with_edges [] in
     paths in
     (* For every commodity, get their paths. *)
-    Hashtbl.fold flow_table ~init:SrcDstMap.empty ~f:(fun ~key:d_pair ~data:edges acc ->
-                                                      let (s,t) = d_pair in
-                                                      let s_v = Topology.vertex_of_label orig_topo s in
-                                                      let t_v = Topology.vertex_of_label orig_topo t in
-                                                      let paths = strip_paths (s, t) edges in
-                                                      let p = List.fold_left paths ~init:PathProbabilitySet.empty
-                                                                             ~f:(fun acc (path,scalar) ->  PathProbabilitySet.add acc (path,scalar) ) in                                                      
-                                                      SrcDstMap.add acc ~key:(s_v,t_v) ~data:p ) 
-                                                      
+    Hashtbl.fold 
+      flow_table 
+      ~init:SrcDstMap.empty 
+      ~f:(fun ~key:d_pair ~data:edges acc ->
+          let (s,t) = d_pair in
+          let s_v = Topology.vertex_of_label orig_topo s in
+          let t_v = Topology.vertex_of_label orig_topo t in
+          let paths = strip_paths (s, t) edges in
+          let p = 
+	    List.fold_left 
+	      paths 
+	      ~init:PathMap.empty
+              ~f:(fun acc (path,scalar) -> PathMap.add acc path scalar) in
+          SrcDstMap.add acc ~key:(s_v,t_v) ~data:p )
+      
 
 (* Run everything. Given a topology and a set of pairs with demands,
    returns the optimal congestion ratio, the paths used, and the number
