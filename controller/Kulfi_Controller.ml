@@ -28,7 +28,8 @@ module Make(SOLVER:Kulfi_Routing.Algorithm) = struct
 		let acc' = 
 		  mk_seq (mk_filter(Test(Vlan(tag))))
 			 (Mod(Location(Physical(out_port)))) in 
-		(acc',false)) in 
+		(acc',false)) in
+      (* TODO: pop Vlan at last hop *)
       (pol, tag)
 
   let netkat_of_scheme (scheme:scheme) : policy * configuration =
