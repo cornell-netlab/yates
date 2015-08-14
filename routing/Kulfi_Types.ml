@@ -16,12 +16,11 @@ type path = edge list with sexp
 
 type probability = float with sexp
 
-module PathProbabilityOrd = struct
-  type t = path * probability with sexp
-  let compare = Pervasives.compare                                      
-end
+module PathOrd = struct
+  type t = path with sexp
+  let compare = Pervasives.compare                    end
 
-module PathProbabilitySet = Set.Make(PathProbabilityOrd)
+module PathMap = Set.Make(PathOrd)
                              
 module SrcDstOrd = struct
   type t = Topology.vertex * Topology.vertex with sexp
@@ -30,9 +29,8 @@ end
 
 module SrcDstMap = Map.Make(SrcDstOrd)
 
-type scheme = PathProbabilitySet.t SrcDstMap.t
-
-                                                                   
+type scheme = (probability PathMap.t) SrcDstMap.t
+             
 (* A Routing Scheme is an object that describes a prob distribution over paths. 
    It supports an interface to lets one draw a random sample, and a way to compare
    to other routing schemes, for example, if we want to minimize differences  *)
