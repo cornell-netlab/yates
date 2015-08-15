@@ -5,12 +5,12 @@ module type Algorithm = sig
     val solve : topology -> demands -> scheme -> scheme  
 end
 
-module Spf : Algorithm
-
-(* module Ecmp : ALGORITHM *)
+module Ecmp : Algorithm 
 
 module Mcf : Algorithm
 
-(* module Oblivious: ALGORITHM *)
+module Raeke : Algorithm
+
+module Spf : Algorithm
 
 module Vlb : Algorithm

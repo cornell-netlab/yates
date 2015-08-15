@@ -1,6 +1,6 @@
 open Frenetic_Network
-open Kulfi_Util
 open Net
+open Core.Std
        
 type topology = Net.Topology.t
 
@@ -10,33 +10,40 @@ type demand_pair = Topology.vertex * Topology.vertex * demand
 
 type demands = demand_pair list
 
-type edge = Net.Topology.edge
+type edge = Net.Topology.edge with sexp
 
-type path = edge list
+type path = edge list with sexp
 
-type probability = float
+type probability = float with sexp
 
-module PathProbabilityOrd = struct
-  type t = path * probability
-  let compare = Pervasives.compare
+module PathOrd = struct
+  type t = path with sexp
+  let compare = Pervasives.compare                    
 end
 
-module PathProbabilitySet = Setplus.Make(PathProbabilityOrd)
+module PathMap = Map.Make(PathOrd)
+
+type tag = int
+
+module Tag = Int
+
+module TagMap = Map.Make(Tag)
                              
 module SrcDstOrd = struct
-  type t = Topology.vertex * Topology.vertex
-  let compare = Pervasives.compare
+  type t = Topology.vertex * Topology.vertex with sexp
+  let compare = Pervasives.compare                                      
 end
 
-module SrcDstMap = Mapplus.Make(SrcDstOrd)
+module SrcDstMap = Map.Make(SrcDstOrd)
 
-type scheme = PathProbabilitySet.t SrcDstMap.t
+type scheme = (probability PathMap.t) SrcDstMap.t
 
-                                                                   
+type configuration = (probability TagMap.t) SrcDstMap.t
+             
 (* A Routing Scheme is an object that describes a prob distribution over paths. 
    It supports an interface to lets one draw a random sample, and a way to compare
    to other routing schemes, for example, if we want to minimize differences  *)
 
-let sample (s:scheme) (src:Topology.vertex) (dst:Topology.vertex) : path = assert false
+let sample_dist (path_dist:probability PathMap.t) : path = assert false
 
 let compare_scheme (s1:scheme) (s2:scheme) : int = assert false

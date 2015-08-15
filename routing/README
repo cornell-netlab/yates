@@ -10,11 +10,12 @@ An object that describes a prob distribution over paths, with a
 method to "draw a random sample"
 
 Algorithms:
-  - Distributed gradient descent* (this might become N algorithms)
-  - Centralized optimal MCF
-  - Multiplicative weights (Auerbach and Kandekahr) 
   - VLB
-  - Raecke
-  - Heuristic MCF (variation with limited churn, yet to be designed)
   - Shortest Path First 
+  - Centralized optimal MCF
   - ECMP
+  - Multiplicative weights (Auerbach and Kandekahr) 
+  - Raecke
+  - Distributed gradient descent* (this might become N algorithms)
+  - Heuristic MCF (variation with limited churn, yet to be designed)
+
