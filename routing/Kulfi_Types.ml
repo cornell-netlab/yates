@@ -28,14 +28,26 @@ type tag = int
 module Tag = Int
 
 module TagMap = Map.Make(Tag)
-                             
+
+(* TODO(rjs): Give a better name. VertexPair map? *)                        
 module SrcDstOrd = struct
   type t = Topology.vertex * Topology.vertex with sexp
   let compare = Pervasives.compare                                      
 end
-
+                     
 module SrcDstMap = Map.Make(SrcDstOrd)
+                     
+module EdgeOrd = struct
+  type t = edge with sexp
+  let compare = Pervasives.compare                                      
+end
 
+module EdgeMap = Map.Make(EdgeOrd)                     
+
+type flow = float EdgeMap.t
+                         
+type mc_flow = flow SrcDstMap.t
+                         
 type scheme = (probability PathMap.t) SrcDstMap.t
 
 type configuration = (probability TagMap.t) SrcDstMap.t
