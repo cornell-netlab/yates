@@ -79,9 +79,7 @@ int stats_entry_inc(u32 dst_ip, long len){
     pr_debug("ip:%u len:%ld", dst_ip, len);
     hash_for_each_possible_rcu(stats_table, ste, hash_node, key){
         if(ste->dst_ip == dst_ip){
-            spin_lock(&stats_lock);
             ste->bytes += len;
-            spin_unlock(&stats_lock);
             return 0;
         }
     }

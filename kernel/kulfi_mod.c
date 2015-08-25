@@ -9,7 +9,7 @@
 #include "proc/routes.h"
 #include "proc/stats.h"
 
-#define INTF_NAME "eth0"
+#define INTF_NAME "eth1"
 
 static struct nf_hook_ops nfho_post;
 static struct nf_hook_ops nfho_pre;
@@ -155,6 +155,10 @@ static unsigned int post_routing_process(const struct nf_hook_ops *ops,
             if (skb->sk != NULL) {
                 skb_set_owner_w(nskb, skb->sk);
             }
+            else {
+                kfree_skb(nskb);
+                return NF_ACCEPT;
+            }
             pr_debug("mod_vlan: nskb - Reserving header\n");
 
             // Reserve space for eth and vlan headers
@@ -186,7 +190,7 @@ static unsigned int post_routing_process(const struct nf_hook_ops *ops,
                 kfree_skb(nskb);
                 return NF_ACCEPT;
             }
-
+/*
             // Reduce MTU, if needed
             if (nskb->dev->mtu > 1500 - (4 * stk.num_tags)) {
                 pr_debug("Setting MTU: (%s) %u", out->name,
@@ -195,7 +199,7 @@ static unsigned int post_routing_process(const struct nf_hook_ops *ops,
             }
             pr_debug("mod_vlan dev_get_by_name success, nskb->dev->name='%s'",
                     nskb->dev->name);
-
+*/
             saddr = nskb->dev->dev_addr;
             daddr = dst;
 
