@@ -19,6 +19,8 @@ let f_umlaut = assert false
 
 let find_max_flow f = EdgeMap.fold ~init:0.0 ~f:(fun ~key:e ~data:r acc -> Float.max_inan acc r) f                     
 
+let derivative_phi (e:edge) (muu:float) (num:float) : float =
+  assert false
                                    
 (* path_update adds a specified value (rate) to the flow on each edge in the path p*)             
 let path_update (p:path) (rate:float) (f:flow) : flow =
@@ -56,6 +58,11 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 
   (* recompute mu, RouteMetric line 1 *)
   mu := Float.min_inan (!mu) ( 2.0 ** (Float.round_down ((log (epsilon *. (find_max_flow f))) /. (log 2.0))) ) ;
+
+  (* RouteMetric line 2 defines phi, never used. Instead the derivative is used. *)
+
+  (* RouteMetric line 3 *)
+
   
   SrcDstMap.empty
     
