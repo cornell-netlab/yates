@@ -42,6 +42,26 @@ let path_update (p:path) (rate:float) (f:flow) : flow =
                                                | Some demand -> demand in
                                              EdgeMap.add ~key:e ~data:(old_rate +. rate) acc ) p
 
+let apply_to_each_edge (mcf:mc_flow) (fcn:float -> float) : mc_flow =
+  SrcDstMap.fold ~init:SrcDstMap.empty 
+    ~f:(fun ~key:(u,v) ~data:(edge_map) acc ->
+        let new_edge_map = EdgeMap.fold ~init:EdgeMap.empty 
+                          ~f:(fun ~key:e ~data:x acc ->
+                              EdgeMap.add ~key:e ~data:(fcn x) acc)
+	                  edge_map in
+	SrcDstMap.add ~key:(u,v) ~data:new_edge_map acc
+    ) mcf
+
+let apply_on_each_edge (mcf:mc_flow) (fcn:edge -> float -> float) : mc_flow =
+  SrcDstMap.fold ~init:SrcDstMap.empty 
+    ~f:(fun ~key:(u,v) ~data:(edge_map) acc ->
+        let new_edge_map = EdgeMap.fold ~init:EdgeMap.empty 
+                          ~f:(fun ~key:e ~data:x acc ->
+                              EdgeMap.add ~key:e ~data:(fcn e x) acc)
+	                  edge_map in
+	SrcDstMap.add ~key:(u,v) ~data:new_edge_map acc
+    ) mcf
+
 let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   (* First build HashMaps, keyed by edges, containing the
      values f(e), f_i(e), from the pseudocode. *)
@@ -75,6 +95,20 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 
   (* RouteMetric line 3 *)
 
+  (* Calculate H, the max number of edges of any path in scheme s. *)
+  let h = SrcDstMap.fold 
+            ~init:0.0
+            ~f:(fun ~key:(u,v) ~data:(path_map) acc -> 
+	          PathMap.fold ~init:0.0
+                    ~f:(fun ~key:p ~data:x acc -> Float.max_inan acc (Float.of_int (List.length p)))
+                    path_map
+               )
+            s in
+
+  let scale_factor = (beta topo) /. (4.0 *. h) in
+  let delta_minus = apply_to_each_edge f_i (fun x -> (x *. scale_factor) ) in
+  let step_fourbee_rhs e x = ((1.0 +. (beta topo)) *. (Float.max_inan x (f_umlaut e !mu topo ) ) ) -. x in
+  let delta_plus = apply_on_each_edge f_i step_fourbee_rhs in
   
   SrcDstMap.empty
     
