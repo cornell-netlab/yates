@@ -15,12 +15,24 @@ let alpha (t:topology) : float = epsilon /. (40.0 *. (log (Float.of_int (Topolog
 
 let beta (t:topology) : float = (alpha t) *. (epsilon /. (log (Float.of_int (Topology.num_edges t))))
 
-let f_umlaut = assert false                                               
+let f_umlaut (e:edge) (muu:float) (t:topology) = 
+  let fm = Float.of_int (Topology.num_edges t) in
+  (muu /. (log fm)) *. ((capacity_of_edge t e) /. (1.0 +. (beta t))) *.
+  ((log (1.0 +. ((alpha t) /. 8.0))) /. (log 2.0))
 
 let find_max_flow f = EdgeMap.fold ~init:0.0 ~f:(fun ~key:e ~data:r acc -> Float.max_inan acc r) f                     
 
-let derivative_phi (e:edge) (muu:float) (num:float) : float =
-  assert false
+let derivative_phi (e:edge) (muu:float) (x:float) (t:topology) : float =
+  let fm = Float.of_int (Topology.num_edges t) in
+  ((log fm) /. ((capacity_of_edge t e) *. muu)) *. 
+  fm ** (x /. ((capacity_of_edge t e) *. muu))
+
+let path_gradient (p:path) (muu:float) (f:flow) (t:topology) : float =
+  List.fold_left ~init:0.0 ~f:(fun acc e ->
+                                 acc +. match EdgeMap.find f e with
+                                 | None -> 0.0
+                                 | Some x -> (derivative_phi e muu x t)
+                              ) p
                                    
 (* path_update adds a specified value (rate) to the flow on each edge in the path p*)             
 let path_update (p:path) (rate:float) (f:flow) : flow =

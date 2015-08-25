@@ -9,9 +9,6 @@ module EdgeSet = Topology.EdgeSet
 
 type var = string
 
-let cap_divisor = 100000.
-let demand_divisor = 1000.
-
 (* This is stripped down to cover only what we'll need for MCF *)
 type arith_exp =
     Var of var
@@ -77,10 +74,6 @@ let var_name_rev topo edge d_pair =
     (string_of_pair topo d_pair)
     (name_of_vertex topo dst)
     (name_of_vertex topo src)
-
-let capacity_of_edge topo edge =
-  let label = Topology.edge_to_label topo edge in
-  (Int64.to_float (Link.capacity label)) /. cap_divisor
 
 let objective = Var "Z"
 
