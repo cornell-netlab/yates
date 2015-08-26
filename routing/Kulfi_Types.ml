@@ -44,11 +44,19 @@ end
 
 module EdgeMap = Map.Make(EdgeOrd)                     
 
+(* A flow assigns a numerical value to each edge, denoting the number
+   of flow units that traverse the edge. *)
 type flow = float EdgeMap.t
-                         
+
+(* A mc_flow, short for multi-commodity flow, is given by a collection
+   of source-destination pairs and a flow for each of them. *) 
 type mc_flow = flow SrcDstMap.t
-                         
-type scheme = (probability PathMap.t) SrcDstMap.t
+
+(* A flow_decomp is a flow decomposed into paths. *)
+type flow_decomp = probability PathMap.t 
+
+(* A routing scheme specifies a flow_decomp for each source-destination pair. *)                         
+type scheme = flow_decomp SrcDstMap.t
 
 type configuration = (probability TagMap.t) SrcDstMap.t
              
@@ -56,10 +64,14 @@ type configuration = (probability TagMap.t) SrcDstMap.t
    It supports an interface to lets one draw a random sample, and a way to compare
    to other routing schemes, for example, if we want to minimize differences  *)
 
-let sample_dist (path_dist:probability PathMap.t) : path = assert false
+let sample_dist (path_dist:flow_decomp) : path = assert false
 
 let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
 
+(* The following stuff was moved from Kulfi_Mcf.ml to here 
+   so that it could be used in Kulfi_Ak.ml. It doesn't really
+   belong in Kulfi_Types.ml, we should move it somewhere else
+   in a future re-factoring of the code. *)
 
 let cap_divisor = 100000.
 let demand_divisor = 1000.
