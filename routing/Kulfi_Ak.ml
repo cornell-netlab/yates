@@ -189,9 +189,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 	      in ( Float.min_inan acc ube ) ) 
 	    p in
 	if (target >. 0. && ( List.length p ) > 0)
-	  then (* TODO: write the correct procedure here. The one 
-	          written below yields an infinite loop if the
-                  more_to_reroute condition is ever met. *)
+	  then
 	  let delta = Float.min_inan bottleneck_rate target in
 	  let new_target = target -. delta in
 	  let scale_factor = 1. -. (delta /. d_i) in
@@ -224,5 +222,4 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
       SrcDstMap.add ~key:(u,v) ~data:(reroute initial_target fi ( find_or_die s (u,v) ) dmi dpi ) new_path_map
     ) s      
   
-  (* SrcDstMap.empty *)
-    
+
