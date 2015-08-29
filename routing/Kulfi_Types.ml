@@ -76,6 +76,9 @@ let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
 let cap_divisor = 100000.
 let demand_divisor = 1000.
 
+(* type traffic_matrix = (Topology.vertex * Topology.vertex * float) list *)
+type congestion = (edge * float) list
+                       
 let capacity_of_edge topo edge =
   let label = Topology.edge_to_label topo edge in
   (Int64.to_float (Link.capacity label)) /. cap_divisor
