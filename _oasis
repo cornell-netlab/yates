@@ -47,7 +47,7 @@ Executable simulator
   Install: False
   Build$: flag(is_native)
   Path:   simulate
-  MainIs: Kulfi_Simulator.ml
+  MainIs: Simulate_Main.ml
   CompiledObject: native
   BuildDepends:
     ocamlgraph,
