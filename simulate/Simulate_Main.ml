@@ -5,6 +5,7 @@ open Net
 open Kulfi_Routing
 open Kulfi_Types
 open Kulfi_Frt
+open Kulfi_Rrt
 open Kulfi_Mw
 open Simulate_LP
 open Simulate_Demands
@@ -20,33 +21,6 @@ module StringListSet = Set.Make (struct
     type t = string list with sexp
     let compare = Pervasives.compare
   end)
-          
-(* multiplicative weights input *)
-module MWInput : MW_INPUT with type structure = FRT.routing_tree = struct
-
-  type structure = FRT.routing_tree
-
-  let select_structure (topo : topology) (nodes : Topology.VertexSet.t) =
-    (* First, make an FRT tree decomposition from the topology. *)
-    let tree = FRT.make_frt_tree topo in
-    let node_list = Topology.VertexSet.elements nodes in
-    (FRT.generate_rt topo tree node_list, 1.)
-
-  let usage_of_structure (_ : topology) (st : FRT.routing_tree) =
-    FRT.usage_of_tree st
-
-  let set_weight topo edge w =
-    let label = Topology.edge_to_label topo edge in
-    Link.set_weight label w; topo
-
-  let get_weight topo edge =
-    let label = Topology.edge_to_label topo edge in
-    Link.weight label
-
-end
-
-(* multiplicative weights instantiation *)
-module RRTs : MW_ALG with type structure = FRT.routing_tree = Kulfi_Mw.Make (MWInput)
 
 let string_of_path (path : string list) =
   let str = List.fold_left ~f:(fun acc vert ->

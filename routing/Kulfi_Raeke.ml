@@ -4,6 +4,7 @@ open Frenetic_Network
 open Net
 open Kulfi_Mw
 open Kulfi_Frt
+open Kulfi_Rrt
 
 (* multiplicative weights input *)
 module MWInput : MW_INPUT with type structure = FRT.routing_tree = struct
