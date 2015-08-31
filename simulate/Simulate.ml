@@ -59,7 +59,9 @@ type iter_vs_time = {
   time : float;
   time_dev : float;
 }
-		
+
+let iter_vs_time_to_string (r:iter_vs_time) : string =		      
+  Printf.sprintf "%d\t%f\t%f" r.iteration r.time r.time_dev
 let main =
   Arg.parse speclist print_endline usage;
   if (missing_args ()) then Printf.printf "%s" usage
@@ -94,17 +96,11 @@ let main =
 	      end
 	  in
 	  loop 1;
-	  Printf.printf "# solver mean stddev\n";
-	  Printf.printf "%s\t%d\t%f\t%f\n"
-			(solver_to_string !solver_mode)
-			(!iterations)
-			(get_mean !times)
-			(get_standard_deviation !times);
 	  data := add_record !data (solver_to_string !solver_mode)
 			     {iteration = !iterations;
 			      time=(get_mean !times);
 			      time_dev=(get_standard_deviation !times); };
-	  Printf.printf "%s" (to_string !data (fun r -> "foo"))
+	  Printf.printf "%s" (to_string !data "# solver\titer\ttime\tstddev" iter_vs_time_to_string) 
 			     
     end
 		  

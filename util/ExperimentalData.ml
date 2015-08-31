@@ -20,13 +20,12 @@ let add_record (d:'a experimental_data) (id:string) (r:'a) : 'a experimental_dat
   let records' = StringMap.add ~key:id ~data:entries' d.records in  
   { d with records = records' }
 
-let to_string (d:'a experimental_data) (fn:'a -> string) : string =      
-  StringMap.fold ~init:"" ~f:(fun ~key:name ~data:recs acc -> "") d.records
-		 (*
-			      List.fold
-				~init:acc
-				~f:(fun r acc ->
-				    acc ^ name ^ "\t" ^ (fn r) ^ "\n") recs) d.records
-		  *)
+let to_string (d:'a experimental_data) (header:string) (fn:'a -> string) : string =      
+  StringMap.fold
+    ~init:(header ^ "\n")
+    ~f:(fun ~key:name ~data:recs acc ->
+	List.fold
+	  ~init:acc
+	  ~f:(fun acc r -> acc ^ name ^ "\t" ^ (fn r) ^ "\n") recs) d.records
 
  
