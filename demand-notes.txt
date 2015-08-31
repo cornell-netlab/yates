@@ -1,0 +1,17 @@
+---------------------------------------------------------------------------
+Title:
+URL:
+Routing:
+Evaluation:
+Notes:
+---------------------------------------------------------------------------
+Title: Achieving High Utilization with Software-Driven WAN∗
+URL: http://research.microsoft.com/pubs/192928/tr2013-swan.pdf
+Routing Summary: max-min fairness via an LP
+Evaluation Summary:
+  - Small topologies: synthetic mix of interactive, elastic, background
+  - Larger topology: gravity model, hand tuned
+Notes:
+  Essentially synthetic, hand-tuned to resemble the kinds of patterns
+  that arise in practice.
+---------------------------------------------------------------------------
