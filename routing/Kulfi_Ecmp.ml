@@ -9,7 +9,6 @@ module PQueue = Core.Heap.Removable
 module VertexSet = Topology.VertexSet
 module EdgeSet = Topology.EdgeSet
                                 
-
 let capacity_of_edge topo edge =
   let open Net.Topology in
   let lbl = edge_to_label topo edge in

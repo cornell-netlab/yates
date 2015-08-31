@@ -7,6 +7,8 @@ open Core.Std
 module VertexSet = Topology.VertexSet
 module EdgeSet = Topology.EdgeSet
 
+let name () = "MCF"
+		   
 type var = string
 
 (* This is stripped down to cover only what we'll need for MCF *)

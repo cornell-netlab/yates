@@ -19,6 +19,16 @@ Library routing
    sexplib,
    frenetic
 
+Library util
+  Path: util
+  Modules:   
+    RunningStat
+  BuildDepends:
+    threads,
+    core,
+    camlp4,
+    threads
+
 Library controller
   Path: controller
   Modules:   
@@ -52,7 +62,8 @@ Executable simulator
   BuildDepends:
     ocamlgraph,
     frenetic,
-    routing
+    routing,
+    util
 
 Executable unittest
  Install: false

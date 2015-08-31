@@ -9,9 +9,6 @@ open Kulfi_Rrt
 open Kulfi_Mw
 open Simulate_LP
 open Simulate_Demands
-
-module EdgeSet = Topology.EdgeSet
-module VertexSet = Topology.VertexSet
        
 let () = Random.self_init ()
 
