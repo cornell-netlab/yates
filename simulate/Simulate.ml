@@ -4,7 +4,7 @@ open Net
 open Kulfi_Types
 open Kulfi_Routing
 open RunningStat
-(* open ExperimentalData *)
+open ExperimentalData 
 open AutoTimer
 
 module Make(Solver:Kulfi_Routing.Algorithm) = struct
@@ -70,7 +70,13 @@ let add_record (d:experimental_data) (s:string) (i:float) (t:float) (dev:float) 
   let d'''' = add_field_value d''' "time-dev" dev in
   d''''
  *)
-  
+
+type iter_vs_time = {
+  iteration : int ;
+  time : float;
+  time_dev : float;
+}
+		
 let main =
   Arg.parse speclist print_endline usage;
   if (missing_args ()) then Printf.printf "%s" usage
@@ -90,7 +96,8 @@ let main =
 	  Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
 	  let at = ref (make_auto_timer ()) in
 	  let times = ref (make_running_stat ()) in
-	  let solve = select_algorithm !solver_mode in 
+	  let solve = select_algorithm !solver_mode in
+	  let data = ref (make_data "Iteratives Vs Time") in
 	  let rec loop n = 
 	    if n > !iterations then
 	      ()
@@ -109,7 +116,13 @@ let main =
 			(solver_to_string !solver_mode)
 			(!iterations)
 			(get_mean !times)
-			(get_standard_deviation !times)
+			(get_standard_deviation !times);
+	  data := add_record !data (solver_to_string !solver_mode)
+			     {iteration = !iterations;
+			      time=(get_mean !times);
+			      time_dev=(get_standard_deviation !times); };
+	  Printf.printf "%s" (to_string !data (fun r -> "foo"))
+			     
     end
 		  
 let _ = main 

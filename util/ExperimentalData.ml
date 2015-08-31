@@ -1,28 +1,32 @@
 open Core.Std
 
 module StringMap = Map.Make(String)
-
-type entry_map = (float list) StringMap.t  
+			   
+type 'a entries = ('a list)   
 			  
-type experimental_data = {
+type 'a experimental_data = {
   name : string ;
-  records: entry_map ;
+  records: ('a entries) StringMap.t ;
 }
-       
-let make_data (experiment_name:string) : experimental_data =
-  { name = experiment_name; records = StringMap.empty ; }
-    
-let add_field_value (d:experimental_data) (field_name:string) (value:float) : experimental_data =  
-  let entries = match (StringMap.find d.records field_name) with
-  | None -> assert false
-  | Some x -> x in
-  let entries' = List.append entries [value] in
-  let records' = StringMap.add ~key:field_name ~data:entries' d.records in  
+			      
+let make_data (experiment_name:string) : 'a experimental_data =
+  { name = experiment_name; records = StringMap.empty; }
+
+let add_record (d:'a experimental_data) (id:string) (r:'a) : 'a experimental_data =  
+  let entries = match (StringMap.find d.records id) with
+    | None -> []
+    | Some x -> x in
+  let entries' = List.append entries [r] in  
+  let records' = StringMap.add ~key:id ~data:entries' d.records in  
   { d with records = records' }
-              
-let add_field (d:experimental_data) (field_name:string) : experimental_data =  
-  let records' = StringMap.add ~key:field_name ~data:[] d.records in
-  { d with records = records' }
-  
-let print (d:experimental_data) : unit =
-  assert false
+
+let to_string (d:'a experimental_data) (fn:'a -> string) : string =      
+  StringMap.fold ~init:"" ~f:(fun ~key:name ~data:recs acc -> "") d.records
+		 (*
+			      List.fold
+				~init:acc
+				~f:(fun r acc ->
+				    acc ^ name ^ "\t" ^ (fn r) ^ "\n") recs) d.records
+		  *)
+
+ 
