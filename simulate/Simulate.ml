@@ -54,23 +54,6 @@ let select_algorithm solver = match solver with
   | Ak -> Kulfi_Routing.Mcf.solve
   | _ -> assert false
 
-(*		
-let make_experiment () : experimental_data =
-  let d = make_data "Iteratives Vs Time" in
-  let d' = add_field d "solver" in
-  let d'' = add_field d' "iteration" in
-  let d''' = add_field d'' "time" in
-  let d'''' = add_field d''' "time-dev" in
-  d''''
-
-let add_record (d:experimental_data) (s:string) (i:float) (t:float) (dev:float) : experimental_data =
-  let d' = add_field_value d "solver" s in
-  let d'' = add_field_value d' "iteration" i in
-  let d''' = add_field_value d'' "time" t in
-  let d'''' = add_field_value d''' "time-dev" dev in
-  d''''
- *)
-
 type iter_vs_time = {
   iteration : int ;
   time : float;
