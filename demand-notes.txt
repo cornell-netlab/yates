@@ -5,7 +5,7 @@ Routing:
 Evaluation:
 Notes:
 ---------------------------------------------------------------------------
-Title: Achieving High Utilization with Software-Driven WAN∗
+Title: Achieving High Utilization with Software-Driven WAN
 URL: http://research.microsoft.com/pubs/192928/tr2013-swan.pdf
 Routing Summary: max-min fairness via an LP
 Evaluation Summary:

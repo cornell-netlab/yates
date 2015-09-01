@@ -8,7 +8,12 @@ open Core.Std
 module PQueue = Core.Heap.Removable
 module VertexSet = Topology.VertexSet
 module EdgeSet = Topology.EdgeSet
-                                
+
+(* TODO(jnf,rjs): We don't really understand the details of this
+code. But we're trusting that Chris Yu wrote a correct implementation
+of all pairs all shortest paths. The solve function treats
+all_shortest_paths_multi as a black box. *)
+                   
 let capacity_of_edge topo edge =
   let open Net.Topology in
   let lbl = edge_to_label topo edge in
@@ -103,177 +108,27 @@ let all_shortest_paths_multi topo hosts =
         Hashtbl.Poly.add_exn path_table src dst_paths_list);
   path_table
 
-    
-let congestion_of_paths topo (paths : ((edge list) * float) list)
-  : congestion =
-  let load_table = Hashtbl.Poly.create () in
-  List.iter paths (fun (path, wt) ->
-      List.iter path (fun edge ->
-	  (*
-          let inverse = match Net.Topology.inverse_edge topo edge with
-            | Some x -> x
-            | None -> failwith "No inverse edge" in
-	  *)
-          let () = match Hashtbl.Poly.find load_table edge with
-            | None -> Hashtbl.Poly.add_exn load_table edge wt
-            | Some old_wt -> Hashtbl.Poly.set load_table edge (wt +. old_wt) in
-	  ()
-      (*
-          match Hashtbl.Poly.find load_table inverse with
-          | None -> Hashtbl.Poly.add_exn load_table inverse wt
-          | Some old_wt -> Hashtbl.Poly.set load_table inverse (wt +. old_wt)
-      *)
-      ));
-  Hashtbl.fold load_table ~init:[] ~f:(fun ~key:edge ~data:load acc ->
-      let cap = capacity_of_edge topo edge in
-      (edge, load /. cap)::acc)
-               
-
-    
-let find_demand (tm : demands) (s : Topology.vertex) (t : Topology.vertex) : float =
-  match List.find tm
-                  ~f:(fun (u, v, rate) ->
-                      s = u && t = v) with
-  | Some (u, v, rate) -> rate
-  | None -> 0.
-
-
-let solve (topo:topology) (d:demands) (s:scheme) : scheme =
+let solve (topo:topology) (_:demands) (_:scheme) : scheme =
   let host_set =
     VertexSet.filter
       (vertexes topo)
       ~f:(fun v ->
           let lbl = vertex_to_label topo v in
           Node.device lbl = Node.Host) in
-
-  let path_table = all_shortest_paths_multi topo host_set in
-  let weighted_hash = Hashtbl.Poly.create () in
-  let paths_list, num =
-    Hashtbl.Poly.fold
-      path_table ~init:([], 0)
-      ~f:(fun ~key:src ~data:dsts_list acc ->
-          List.fold_left
-            dsts_list
-            ~init:acc
-            ~f:(fun (acc, num) (dst, paths) ->
-                ((src, dst, paths)::acc, num + List.length paths))) in
-
-  let load_paths (tm:demand_pair) =
-    List.fold_left
-      paths_list
-      ~init:[]
-      ~f:(fun acc (src, dst, paths) ->
-          let demand = find_demand d src dst in
-          let num_paths = List.length paths in
-          let per_path = demand /. (float num_paths) in
-          List.fold_left
-            paths
-            ~init:acc
-            ~f:(fun acc2 path -> (path, per_path)::acc2)) in
-  
-  let loaded_paths = List.map d ~f:load_paths  in
-
-  
-  let congestions = List.map loaded_paths ~f:(congestion_of_paths topo) in
-  let num_paths = List.map d ~f:(fun _ -> num) in
-
-  (*
-    (* For each source host, continue. *)
-  Hashtbl.Poly.iter
-    path_table
-    ~f:(fun ~key:src ~data:dsts_list ->
-        let src_lbl = vertex_to_label topo src in
-        let src_addr = Node.ip src_lbl in
-        let dsts_hash = Hashtbl.Poly.create () in
-        Hashtbl.Poly.add_exn weighted_hash src_addr dsts_hash;
-        (* For each destination host, get all of the shortest paths from
-           src to dst, assign them an equal weight of 1, and put them in
-           the table. *)
-        List.iter
-          dsts_list
-          ~f:(fun (dst, paths) ->
-              if src = dst then ()
-              else
-                let dst_lbl = vertex_to_label topo dst in
-                let dst_addr = Node.ip dst_lbl in
-                let weighted_tags =
-                  List.map
-                    paths
-                    ~f:(fun path ->
-                        let tags = List.map
-                                     (List.tl_exn path)
-                                     ~f:(fun edge -> Hashtbl.Poly.find_exn tag_hash edge) in
-                        (1, tags)) in
-                Hashtbl.Poly.add_exn dsts_hash dst_addr weighted_tags));
-   *)
-  
-  assert false
-
-         (*
-let create (topo:topology) tag_hash (matrices:demands) : scheme =
-  let open Net.Topology in
-  (* Get the set of hosts *)
-  let host_set =
-    VertexSet.filter
-      (vertexes topo)
-      ~f:(fun v ->
-          let lbl = vertex_to_label topo v in
-          Node.device lbl = Node.Host) in  
-  let path_table = all_shortest_paths_multi topo host_set in
-  let weighted_hash = Hashtbl.Poly.create () in
-  let paths_list, num = Hashtbl.Poly.fold
-                          path_table ~init:([], 0)
-                          ~f:(fun ~key:src ~data:dsts_list acc ->
-                              List.fold_left
-                                dsts_list
-                                ~init:acc
-                                ~f:(fun (acc, num) (dst, paths) ->
-                                    ((src, dst, paths)::acc, num + List.length paths))) in
-  let load_paths tm =
-    List.fold_left
-      paths_list
-      ~init:[]
-      ~f:(fun acc (src, dst, paths) ->
-          let demand = find_demand tm src dst in
-          let num_paths = List.length paths in
-          let per_path = demand /. (float num_paths) in
-          List.fold_left paths ~init:acc ~f:(fun acc2 path ->
-                                             (path, per_path)::acc2)) in
-  
-  let loaded_paths = List.map matrices ~f:load_paths in
-  let congestions = List.map loaded_paths ~f:(congestion_of_paths topo) in
-  let num_paths = List.map matrices ~f:(fun _ -> num) in
-  
-  (* For each source host, continue. *)
-  Hashtbl.Poly.iter
-    path_table
-    ~f:(fun ~key:src ~data:dsts_list ->
-        let src_lbl = vertex_to_label topo src in
-        let src_addr = Node.ip src_lbl in
-        let dsts_hash = Hashtbl.Poly.create () in
-        Hashtbl.Poly.add_exn weighted_hash src_addr dsts_hash;
-        (* For each destination host, get all of the shortest paths from
-           src to dst, assign them an equal weight of 1, and put them in
-           the table. *)
-        List.iter dsts_list
-                  ~f:(fun (dst, paths) ->
-                      if src = dst then ()
-                      else
-                        let dst_lbl = vertex_to_label topo dst in
-                        let dst_addr = Node.ip dst_lbl in
-                        let weighted_tags =
-                          List.map
-                            paths
-                            ~f:(fun path ->
-                                let tags = List.map (List.tl_exn path) ~f:(fun edge ->
-                                                                           Hashtbl.Poly.find_exn tag_hash edge) in
-                                (1, tags)) in
-                        Hashtbl.Poly.add_exn dsts_hash dst_addr weighted_tags));
-  
-  (*
-  let churn = List.map num_paths ~f:(fun x -> 0) in
-  let stats = make_stats congestions num_paths churn in
-  ([weighted_hash], stats)
-   *)
-
-          *)
+  let paths_hash = all_shortest_paths_multi topo host_set in
+  Hashtbl.Poly.fold
+    paths_hash
+    ~init:SrcDstMap.empty
+    ~f:(fun ~key:v1 ~data:dst_paths acc ->
+        List.fold_left
+          dst_paths
+          ~init:acc
+          ~f:(fun acc (v2,paths) -> 
+              let prob = 1.0 /. Float.of_int (List.length paths) in 
+              let path_dist =
+                List.fold_left
+                  paths
+                  ~init:PathMap.empty
+                  ~f:(fun acc path ->
+                      PathMap.add acc ~key:path ~data:prob) in
+              SrcDstMap.add acc ~key:(v1,v2) ~data:path_dist))
