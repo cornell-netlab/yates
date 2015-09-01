@@ -3,13 +3,10 @@ open Frenetic_Network
 open Net      
 open Kulfi_Types
 open Kulfi_Routing
+open Simulate_Exps
 open RunningStat
 open ExperimentalData 
 open AutoTimer
-
-module Make(Solver:Kulfi_Routing.Algorithm) = struct
-  let solve = Solver.solve 
-end
        
 type solver_type = | Mcf | Vlb | Ecmp | Spf | Ak | NaS (*not a solver*)
 let solver_mode = ref NaS
@@ -54,14 +51,7 @@ let select_algorithm solver = match solver with
   | Ak -> Kulfi_Routing.Mcf.solve
   | _ -> assert false
 
-type iter_vs_time = {
-  iteration : int ;
-  time : float;
-  time_dev : float;
-}
-
-let iter_vs_time_to_string (r:iter_vs_time) : string =		      
-  Printf.sprintf "%d\t%f\t%f" r.iteration r.time r.time_dev
+		 
 let main =
   Arg.parse speclist print_endline usage;
   if (missing_args ()) then Printf.printf "%s" usage

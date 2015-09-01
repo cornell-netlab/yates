@@ -57,7 +57,7 @@ Executable simulator
   Install: False
   Build$: flag(is_native)
   Path:   simulate
-  MainIs: Simulate.ml
+  MainIs: Simulate_Driver.ml
   CompiledObject: native
   BuildDepends:
     ocamlgraph,
