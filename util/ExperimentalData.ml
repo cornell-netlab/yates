@@ -28,4 +28,7 @@ let to_string (d:'a experimental_data) (header:string) (fn:'a -> string) : strin
 	  ~init:acc
 	  ~f:(fun acc r -> acc ^ name ^ "\t" ^ (fn r) ^ "\n") recs) d.records
 
- 
+let to_file (dir:string) (file:string) (d:'a experimental_data) (header:string) (fn:'a -> string) : unit =
+  let oc = Out_channel.create (dir ^ file) in
+  fprintf oc "%s\n"  (to_string d header fn);   
+  Out_channel.close oc
