@@ -27,6 +27,15 @@ let select_algorithm solver = match solver with
   | Spf -> Kulfi_Routing.Spf.solve
   | Ak -> Kulfi_Routing.Ak.solve
 
+let get_congestion (s:scheme) (t:topology) : float =
+  0.0
+
+let get_churn (old_scheme:scheme) (new_scheme:scheme) : float =
+  0.0
+
+let get_num_paths (s:scheme) : float =
+  0.0
+        
 let simulate (spec_solvers:solver_type list) (topology_file:string) (iterations:int) () : unit =
   let topo = Parse.from_dotfile topology_file in
   let host_set = VertexSet.filter (Topology.vertexes topo)
@@ -41,37 +50,57 @@ let simulate (spec_solvers:solver_type list) (topology_file:string) (iterations:
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
   let at = ref (make_auto_timer ()) in
   let times = ref (make_running_stat ()) in
+  let churn = ref (make_running_stat ()) in
+  let congestion = ref (make_running_stat ()) in
+  let num_paths = ref (make_running_stat ()) in
 
-  let data = ref (make_data "Iteratives Vs Time") in
-
+  let time_data = ref (make_data "Iteratives Vs Time") in
+  let churn_data = ref (make_data "Churn Vs Time") in
+  let congestion_data = ref (make_data "Congestion Vs Time") in
+  let num_paths_data = ref (make_data "Num. Paths Vs Time") in
+  
   let rec outer algorithms = match algorithms with
     | [] -> ()
     | algorithm::rest ->
        let solve = select_algorithm algorithm in
-       let rec inner n = 
+       let rec inner n scheme = 
 	 if n > iterations then
 	   ()
 	 else
 	   begin		
 	     at := start !at ;
-	     let _ = solve topo pairs SrcDstMap.empty in 
+	     let scheme' = solve topo pairs scheme in 
 	     at := stop !at ;
 	     times := push !times (get_time_in_seconds !at) ;
+	     churn := push !churn (get_churn scheme' scheme) ;	    
+	     congestion := push !congestion (get_congestion scheme' topo) ;
+	     num_paths := push !num_paths (get_num_paths scheme') ;
 
-	     data := add_record !data (solver_to_string algorithm)
-				{iteration = n;
-				 time=(get_mean !times);
-				 time_dev=(get_standard_deviation !times); };
+	     time_data := add_record !time_data (solver_to_string algorithm)
+				     {iteration = n; time=(get_mean !times); time_dev=(get_standard_deviation !times); };
 	     
-	     inner (n+1)
+	     churn_data := add_record !churn_data (solver_to_string algorithm)
+				     {iteration = n; churn=(get_mean !churn); churn_dev=(get_standard_deviation !churn); };
+
+	     congestion_data := add_record !congestion_data (solver_to_string algorithm)
+				     {iteration = n; congestion=(get_mean !congestion); congestion_dev=(get_standard_deviation !congestion); };
+
+	     num_paths_data := add_record !num_paths_data (solver_to_string algorithm)
+				     {iteration = n; num_paths=(get_mean !num_paths); num_paths_dev=(get_standard_deviation !num_paths); };
+
+
+	     inner (n+1) scheme'
 	   end
        in
-       inner 1;
+       inner 1 SrcDstMap.empty;
        outer rest
   in
   outer spec_solvers;
-  Printf.printf "%s" (to_string !data "# solver\titer\ttime\tstddev" iter_vs_time_to_string)
-		     
+  Printf.printf "%s" (to_string !time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string);
+  Printf.printf "%s" (to_string !churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
+  Printf.printf "%s" (to_string !congestion_data "# solver\titer\tcongestion\tstddev" iter_vs_congestion_to_string);
+  Printf.printf "%s" (to_string !num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string)
+
 let command =
   Command.basic
     ~summary:"Simulate run of routing strategies"
