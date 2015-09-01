@@ -96,17 +96,20 @@ let simulate (spec_solvers:solver_type list) (topology_file:string) (iterations:
        outer rest
   in
   outer spec_solvers;
+  (*
   let dir = "./expData/" in
   to_file dir "time.dat" !time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;
   to_file dir "churn.dat" !churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
   to_file dir "congestion.dat" !congestion_data "# solver\titer\tcongestion\tstddev" iter_vs_congestion_to_string;
   to_file dir "num_paths.dat" !num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
-
+   *)
+  
   Printf.printf "%s" (to_string !time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string);
   Printf.printf "%s" (to_string !churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
   Printf.printf "%s" (to_string !congestion_data "# solver\titer\tcongestion\tstddev" iter_vs_congestion_to_string);
   Printf.printf "%s" (to_string !num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string)
-
+  
+		
 let command =
   Command.basic
     ~summary:"Simulate run of routing strategies"
