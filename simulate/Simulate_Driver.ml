@@ -30,11 +30,24 @@ let select_algorithm solver = match solver with
 let get_congestion (s:scheme) (t:topology) : float =
   0.0
 
+
+    (*
+let sym_diff set1 set2 =
+  let union = StringListSet.union set1 set2 in
+  let inter = StringListSet.inter set1 set2 in
+  StringListSet.cardinal (StringListSet.diff union inter)
+     *)
+    
 let get_churn (old_scheme:scheme) (new_scheme:scheme) : float =
   0.0
 
 let get_num_paths (s:scheme) : float =
-  0.0
+  let count = SrcDstMap.fold
+    ~init:0
+    ~f:(fun ~key:_ ~data:d acc ->
+	acc + (PathMap.length d))
+    s in    
+  Float.of_int count 
         
 let simulate (spec_solvers:solver_type list) (topology_file:string) (iterations:int) () : unit =
   let topo = Parse.from_dotfile topology_file in
