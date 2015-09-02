@@ -26,6 +26,8 @@ end
 
 module PathMap = Map.Make(PathOrd)
 
+module PathSet = Set.Make(PathOrd)
+
 type tag = int
 
 module Tag = Int

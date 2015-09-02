@@ -27,19 +27,28 @@ let select_algorithm solver = match solver with
   | Spf -> Kulfi_Routing.Spf.solve
   | Ak -> Kulfi_Routing.Ak.solve
 
+
+(*  assume that flow is fractionally split in the proportions indicated by the probabilities. *)
 let get_congestion (s:scheme) (t:topology) : float =
   0.0
 
 
-    (*
-let sym_diff set1 set2 =
-  let union = StringListSet.union set1 set2 in
-  let inter = StringListSet.inter set1 set2 in
-  StringListSet.cardinal (StringListSet.diff union inter)
-     *)
-    
+(* TODO(rjs): Do we count paths that have 0 flow ? *)    
 let get_churn (old_scheme:scheme) (new_scheme:scheme) : float =
-  0.0
+  let get_path_sets (s:scheme) : PathSet.t =
+    SrcDstMap.fold
+      ~init:PathSet.empty
+      ~f:(fun ~key:_
+	      ~data:d acc ->
+	  PathMap.fold
+	    ~init:acc
+	    ~f:(fun ~key:p ~data:_ acc ->	  
+	       PathSet.add acc p ) d) s in
+  let set1 = get_path_sets old_scheme in
+  let set2 = get_path_sets new_scheme in
+  let union = PathSet.union set1 set2 in
+  let inter = PathSet.inter set1 set2 in
+  Float.of_int (PathSet.length (PathSet.diff union inter))
 
 let get_num_paths (s:scheme) : float =
   let count = SrcDstMap.fold
