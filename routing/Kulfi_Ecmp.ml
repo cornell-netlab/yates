@@ -1,5 +1,4 @@
 open Kulfi_Types
-open Kulfi_Stats
 open Frenetic_Network
 open Net
 open Net.Topology

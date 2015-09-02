@@ -32,7 +32,22 @@ let select_algorithm solver = match solver with
 let get_congestion (s:scheme) (t:topology) : float =
   0.0
 
-
+let congestion_of_paths (s:scheme) (t:topology) (*(paths : ((edge list) * float) list)*) : overhead =
+  assert false
+  (*
+  let load_table = Hashtbl.Poly.create () in
+  List.iter paths (fun (path, wt) ->
+      List.iter path (fun edge ->
+		      let () = match Hashtbl.Poly.find load_table edge with
+            | None -> Hashtbl.Poly.add_exn load_table edge wt
+            | Some old_wt -> Hashtbl.Poly.set load_table edge (wt +. old_wt) in
+          ()
+      ));
+  Hashtbl.fold load_table ~init:[] ~f:(fun ~key:edge ~data:load acc ->
+      let cap = capacity_of_edge topo edge in
+      (edge, load /. cap)::acc)
+   *)
+    
 (* TODO(rjs): Do we count paths that have 0 flow ? *)    
 let get_churn (old_scheme:scheme) (new_scheme:scheme) : float =
   let get_path_sets (s:scheme) : PathSet.t =

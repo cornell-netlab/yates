@@ -19,6 +19,8 @@ type path = edge list with sexp
 
 type probability = float with sexp
 
+type congestion = float with sexp
+
 module PathOrd = struct
   type t = path with sexp
   let compare = Pervasives.compare                    
@@ -58,9 +60,12 @@ type flow = float EdgeMap.t
 type mc_flow = flow SrcDstMap.t
 
 (* A flow_decomp is a flow decomposed into paths. *)
-type flow_decomp = probability PathMap.t 
+type flow_decomp = probability PathMap.t
 
-(* A routing scheme specifies a flow_decomp for each source-destination pair. *)                         
+(* Keeps track of paths to their congestion *)			       
+type overhead = congestion PathMap.t 
+
+(* A routing scheme specifies a flow_decomp for each source-destination pair. *)                        
 type scheme = flow_decomp SrcDstMap.t
 
 type configuration = (probability TagMap.t) SrcDstMap.t
@@ -80,9 +85,6 @@ let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
 
 let cap_divisor = 100000.
 let demand_divisor = 1000.
-
-(* type traffic_matrix = (Topology.vertex * Topology.vertex * float) list *)
-type congestion = (edge * float) list
                        
 let capacity_of_edge topo edge =
   let label = Topology.edge_to_label topo edge in
