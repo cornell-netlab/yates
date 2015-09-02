@@ -11,7 +11,10 @@ def parseData(dirn, fname):
     for line in lines:
       if line.startswith("#"):
         continue
-      (solver, x, y, ydev, nline) = re.split("[\t]", line)
+      if line.startswith("\n"):
+        continue
+      print line
+      (solver, x, y, ydev) = re.split("[\t]", line)
       x = float(x)
       try:
         y = float(y)
