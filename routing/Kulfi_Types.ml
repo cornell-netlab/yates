@@ -7,15 +7,11 @@ module VertexSet = Topology.VertexSet
        
 type topology = Net.Topology.t
 
-type demand = float
-
-type demand_pair = Topology.vertex * Topology.vertex * demand
-
-type demands = demand_pair list
-
 type edge = Net.Topology.edge with sexp
 
 type path = edge list with sexp
+                  
+type demand = float with sexp
 
 type probability = float with sexp
 
@@ -65,6 +61,8 @@ type flow_decomp = probability PathMap.t
 (* Keeps track of paths to their congestion *)			       
 type overhead = congestion PathMap.t 
 
+type demands = demand SrcDstMap.t
+                           
 (* A routing scheme specifies a flow_decomp for each source-destination pair. *)                        
 type scheme = flow_decomp SrcDstMap.t
 

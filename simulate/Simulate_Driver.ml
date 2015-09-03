@@ -4,6 +4,7 @@ open Net
 open Kulfi_Types
 open Kulfi_Routing
 open Simulate_Exps
+open Simulate_Demands
 open RunningStat
 open ExperimentalData 
 open AutoTimer
@@ -29,11 +30,27 @@ let select_algorithm solver = match solver with
 
 
 (*  assume that flow is fractionally split in the proportions indicated by the probabilities. *)
-let get_congestion (s:scheme) (t:topology) : float =
+let get_congestion (s:scheme) (t:topology) (d:demands) : float =
   0.0
 
-let congestion_of_paths (s:scheme) (t:topology) (*(paths : ((edge list) * float) list)*) : overhead =
-  assert false
+let congestion_of_paths (s:scheme) (t:topology) (d:demands) (*(paths : ((edge list) * float) list)*) : overhead =
+
+  SrcDstMap.fold
+    ~init:PathMap.empty
+    ~f:(fun ~key:(s,d) ~data:(paths:probability PathMap.t) acc ->
+        PathMap.fold
+          ~init:acc
+          ~f:(fun ~key:path ~data:prob acc ->
+              (* get the minimum capacity on an edge *)
+              let min_capacity =
+                List.fold_left
+                  ~init:Float.nan
+                  ~f:(fun acc e -> Float.max_inan acc (capacity_of_edge t e)) path   
+              in
+              assert false) paths) s
+                
+
+
   (*
   let load_table = Hashtbl.Poly.create () in
   List.iter paths (fun (path, wt) ->
@@ -47,7 +64,8 @@ let congestion_of_paths (s:scheme) (t:topology) (*(paths : ((edge list) * float)
       let cap = capacity_of_edge topo edge in
       (edge, load /. cap)::acc)
    *)
-    
+
+  
 (* TODO(rjs): Do we count paths that have 0 flow ? *)    
 let get_churn (old_scheme:scheme) (new_scheme:scheme) : float =
   let get_path_sets (s:scheme) : PathSet.t =
@@ -80,10 +98,10 @@ let simulate (spec_solvers:solver_type list) (topology_file:string) (iterations:
 				      let label = Topology.vertex_to_label topo v in
 				      Node.device label = Node.Host) in
   let hosts = Topology.VertexSet.elements host_set in
-  let demand_matrix = Simulate_Demands.create_sparse hosts 0.1 100 in
-  let pairs = Simulate_Demands.get_demands demand_matrix in
+  let demand_matrix = create_sparse hosts 0.1 100 in
+  let demands = demand_list_to_map (get_demands demand_matrix) in
   Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set);
-  Printf.printf "# pairs = %d\n" (List.length pairs);
+  Printf.printf "# demands = %d\n" (SrcDstMap.length demands);
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
   let at = make_auto_timer () in
   let times = make_running_stat () in
@@ -106,11 +124,11 @@ let simulate (spec_solvers:solver_type list) (topology_file:string) (iterations:
 	 else
 	   begin		
 	     start at;
-	     let scheme' = solve topo pairs scheme in 
+	     let scheme' = solve topo demands scheme in 
 	     stop at;
 	     push times (get_time_in_seconds at);
 	     push churn (get_churn scheme' scheme);	    
-	     push congestion (get_congestion scheme' topo);
+	     push congestion (get_congestion scheme' topo demands);
 	     push num_paths (get_num_paths scheme');
 	     add_record time_data (solver_to_string algorithm)
 				     {iteration = n; time=(get_mean times); time_dev=(get_standard_deviation times); };	     

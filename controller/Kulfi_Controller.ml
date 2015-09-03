@@ -54,7 +54,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
 	  (pol',config'))
 
   let start topo = 
-    let demands = [] in 
+    let demands = SrcDstMap.empty in 
     let scheme = Solver.solve topo demands SrcDstMap.empty in 
     let pol,config = netkat_of_scheme scheme in 
     NetKAT_Controller.start ();

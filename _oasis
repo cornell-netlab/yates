@@ -59,6 +59,10 @@ Executable simulator
   Path:   simulate
   MainIs: Simulate_Driver.ml
   CompiledObject: native
+  Modules:
+    Simulate_Demands,
+    Simulate_Driver,
+    Simulate_Exps 
   BuildDepends:
     ocamlgraph,
     frenetic,
