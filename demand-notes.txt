@@ -49,3 +49,13 @@ Evaluation:
     * More topologies based on GT_ITM (http://www.cc.gatech.edu/fac/Ellen.Zegura/graphs.html)
 Notes:
 ---------------------------------------------------------------------------
+
+Title: Inter-Datacenter Bulk Transfers with NetStitcher (SIGCOMM 2011)
+URL: https://www.cs.duke.edu/~msirivia/publications/netstitcher-sigcomm.pdf
+Routing: A system that employs a network of storage nodes to stitch together unutilized bandwidth, whenever
+and wherever it exists. It gathers information about leftover resources, uses a store-and-forward algorithm to schedule data transfers, and adapts to resource fluctuations
+Evaluation:
+    * Testbed evaluation as well as live CDN deployment
+    * Uses topology and TM from Equinix DCN and WAN
+    * No information about the flow-level scheduling in testbed experiments as they focussed on bulk data transfer. They used a 4-day trace of CDN operational deployment.
+Notes:
