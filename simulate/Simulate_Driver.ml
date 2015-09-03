@@ -168,13 +168,14 @@ let command =
     +> anon ("filename" %: string)
     +> anon ("iterations" %: int)
   ) (fun (mcf:bool) (vlb:bool) (ecmp:bool) (spf:bool) (ak:bool) (topology_file:string) (iterations:int) () ->
-     (* TODO(rjs) : how can I make this code uglier? *)
-     let algorithms = 
-       (if mcf then [Mcf] else [])@
-	 (if vlb then [Vlb] else [])@
-	   (if ecmp then [Ecmp] else [])@
-	     (if spf then [Spf] else [])@
-	       (if ak then [Ak] else []) in            
+     let algorithms =
+       List.filter_map
+         ~f:(fun x -> x)
+         [ if mcf then Some Mcf else None
+         ; if vlb then Some Vlb else None
+         ; if ecmp then Some Ecmp else None
+         ; if spf then Some Spf else None
+         ; if ak then Some Ak else None ] in 
      simulate algorithms topology_file iterations () )
 
 let main = Command.run command
