@@ -29,43 +29,39 @@ let select_algorithm solver = match solver with
   | Ak -> Kulfi_Routing.Ak.solve
 
 
+
+let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
+  let sent_on_each_edge = 
+    SrcDstMap.fold
+      ~init:EdgeMap.empty
+      ~f:(fun ~key:(src,dst) ~data:paths acc ->
+          PathMap.fold
+            ~init:acc
+            ~f:(fun ~key:path ~data:prob acc ->
+                List.fold_left
+                  ~init:acc
+                  ~f:(fun acc e ->
+                      let demand =
+                        match SrcDstMap.find d (src,dst) with
+                        | None -> 0.0
+                        | Some x -> x in
+                      match EdgeMap.find acc e with
+                      | None -> EdgeMap.add ~key:e ~data:(demand *. prob) acc
+                      | Some x ->  EdgeMap.add ~key:e ~data:((demand *. prob) +. x) acc) path)
+            paths) s      
+  in
+  EdgeMap.fold
+    ~init:EdgeMap.empty
+    ~f:(fun ~key:e ~data:amount_sent acc ->
+        EdgeMap.add ~key:e ~data:(amount_sent /. (capacity_of_edge t e)) acc) sent_on_each_edge 
+    
+    
 (*  assume that flow is fractionally split in the proportions indicated by the probabilities. *)
 let get_congestion (s:scheme) (t:topology) (d:demands) : float =
-  0.0
+  let congestions = (congestion_of_paths s t d) in
+  EdgeMap.fold ~init:Float.nan ~f:(fun ~key:e ~data:a acc -> Float.max_inan a acc) congestions
 
-let congestion_of_paths (s:scheme) (t:topology) (d:demands) (*(paths : ((edge list) * float) list)*) : overhead =
-
-  SrcDstMap.fold
-    ~init:PathMap.empty
-    ~f:(fun ~key:(s,d) ~data:(paths:probability PathMap.t) acc ->
-        PathMap.fold
-          ~init:acc
-          ~f:(fun ~key:path ~data:prob acc ->
-              (* get the minimum capacity on an edge *)
-              let min_capacity =
-                List.fold_left
-                  ~init:Float.nan
-                  ~f:(fun acc e -> Float.max_inan acc (capacity_of_edge t e)) path   
-              in
-              assert false) paths) s
-                
-
-
-  (*
-  let load_table = Hashtbl.Poly.create () in
-  List.iter paths (fun (path, wt) ->
-      List.iter path (fun edge ->
-		      let () = match Hashtbl.Poly.find load_table edge with
-            | None -> Hashtbl.Poly.add_exn load_table edge wt
-            | Some old_wt -> Hashtbl.Poly.set load_table edge (wt +. old_wt) in
-          ()
-      ));
-  Hashtbl.fold load_table ~init:[] ~f:(fun ~key:edge ~data:load acc ->
-      let cap = capacity_of_edge topo edge in
-      (edge, load /. cap)::acc)
-   *)
-
-  
+               
 (* TODO(rjs): Do we count paths that have 0 flow ? *)    
 let get_churn (old_scheme:scheme) (new_scheme:scheme) : float =
   let get_path_sets (s:scheme) : PathSet.t =
