@@ -75,4 +75,5 @@ Executable unittest
    oUnit,
    pa_ounit,
    pa_ounit.syntax,
-   routing
+   routing,
+   util
