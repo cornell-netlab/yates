@@ -75,3 +75,34 @@ Evaluation:
     operational deployment.
 Notes:
 ---------------------------------------------------------------------------
+
+Title: Towards a Meaningful MRA of Traffic Matrices
+URL: http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.147.3842
+Routing: None
+Notes: Added by Bobby on 9/3/15.
+  Devoted to modeling of traffic matrices using multi-resolution analysis.
+
+--------------------------------------------------------------------------
+
+Title: COPE: Traffic Engineering in Dynamic Networks
+Notes: SIGCOMM '06
+  Added by Bobby on 9/3/15.
+  Robust optimization approach to routing; combines some prediction
+  with worst-case analysis. 
+
+--------------------------------------------------------------------------
+
+Title: Traffic Matrix Estimation on a Large IP Backbone – A Comparison on Real Data
+Notes: IMC '04
+  Added by Bobby on 9/3/15.
+  Seems mostly focused on the inverse problem of inferring traffic matrices
+  from measured link loads. There are many other papers on this topic. Not
+  too relevant for our purposes.
+
+--------------------------------------------------------------------------
+
+Title: Traffic Engineering with Estimated Traffic Matrices
+Notes: IMC '03
+  Added by Bobby on 9/3/15.
+  Addresses the question, "How well is the real traffic routed if the routing is only optimized for an estimated traffic matrix?"
+  Quoting from the abstract: "Our main practical finding is that the combination of a known traffic matrix estimation technique and a known traffic engineering technique can get close to the optimum in avoiding congestion for the real traffic."
