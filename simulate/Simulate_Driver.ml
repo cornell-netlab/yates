@@ -67,7 +67,7 @@ let simulate (spec_solvers:solver_type list) (topology_file:string) (iterations:
 	 if n > iterations then
 	   ()
 	 else
-	   begin		
+	   begin
 	     at := start !at ;
 	     let scheme' = solve topo pairs scheme in 
 	     at := stop !at ;
@@ -97,10 +97,10 @@ let simulate (spec_solvers:solver_type list) (topology_file:string) (iterations:
   in
   outer spec_solvers;
   let dir = "./expData/" in
-  to_file dir "time.dat" !time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;
-  to_file dir "churn.dat" !churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
-  to_file dir "congestion.dat" !congestion_data "# solver\titer\tcongestion\tstddev" iter_vs_congestion_to_string;
-  to_file dir "num_paths.dat" !num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
+  (* to_file dir "time.dat" !time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string; *)
+  (* to_file dir "churn.dat" !churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string; *)
+  (* to_file dir "congestion.dat" !congestion_data "# solver\titer\tcongestion\tstddev" iter_vs_congestion_to_string; *)
+  (* to_file dir "num_paths.dat" !num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string; *)
 
   Printf.printf "%s" (to_string !time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string);
   Printf.printf "%s" (to_string !churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
@@ -120,13 +120,14 @@ let command =
     +> anon ("filename" %: string)
     +> anon ("iterations" %: int)
   ) (fun (mcf:bool) (vlb:bool) (ecmp:bool) (spf:bool) (ak:bool) (topology_file:string) (iterations:int) () ->
-     (* TODO(rjs) : how can I make this code uglier? *)
-     let algorithms = 
-       (if mcf then [Mcf] else [])@
-	 (if vlb then [Vlb] else [])@
-	   (if ecmp then [Ecmp] else [])@
-	     (if spf then [Spf] else [])@
-	       (if ak then [Ak] else []) in            
+     let algorithms =
+       List.filter_map
+         ~f:(fun x -> x)
+         [ if mcf then Some Mcf else None
+         ; if vlb then Some Vlb else None
+         ; if ecmp then Some Ecmp else None
+         ; if spf then Some Spf else None
+         ; if ak then Some Ak else None ] in 
      simulate algorithms topology_file iterations () )
 
 let main = Command.run command
