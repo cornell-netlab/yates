@@ -125,3 +125,32 @@ Notes: ACM SIGCOMM Computer Comm. Review 2006
   months. If the data is still accessible, could be a great alternative to 
   the Abilene data.
 
+--------------------------------------------------------------------------
+
+Title: The problem of synthetically generating IP traffic matrices: Initial
+recommendations. 
+URL: http://dl.acm.org/citation.cfm?id=1070876
+Notes: ACM SIGCOMM COmputer Comm. Review 2005
+  Added by Bobby on 9/3/15.
+  The title basically describes the paper.
+ 
+--------------------------------------------------------------------------
+
+Title: Simplifying the synthesis of Internet traffic matrices
+URL: http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.61.70
+Notes: Added by Bobby on 9/3/15. 
+  Useful in conjunction with Nucci et al., op. cit. Shows that substituting 
+  the gravity model in their first step is simpler and more accurate than 
+  what Nucci et al. were doing.
+
+--------------------------------------------------------------------------
+
+Title: An independent-connection model for traffic matrices
+URL: http://dl.acm.org/citation.cfm?id=1177111
+Notes: Added by Bobby on 9/3/15.
+  Departs from the gravity model by assuming independently-sampled connections,
+  each with their own ingress and egress, rather than treating each packet as
+  having independent random ingress and egress. This more accurately models
+  correlations between mutually-transpose entries of the traffic matrix 
+  (i.e. traffic from x to y versus traffic from y to x).
+
