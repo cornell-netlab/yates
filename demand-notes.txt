@@ -106,3 +106,11 @@ Notes: IMC '03
   Added by Bobby on 9/3/15.
   Addresses the question, "How well is the real traffic routed if the routing is only optimized for an estimated traffic matrix?"
   Quoting from the abstract: "Our main practical finding is that the combination of a known traffic matrix estimation technique and a known traffic engineering technique can get close to the optimum in avoiding congestion for the real traffic."
+
+--------------------------------------------------------------------------
+
+Title: A First Look at Modern Enterprise Traffic
+URL: http://static.usenix.org/events/imc05/tech/full_papers/pang/pang_html/
+Notes: IMC '05
+  Added by Bobby on 9/3/15.
+  Haven't read the paper at all, but looks potentially interesting judging from the abstract.
