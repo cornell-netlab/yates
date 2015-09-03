@@ -52,7 +52,7 @@ let string_of_edge topo e =
     (name_of_vertex topo v1)
     (name_of_vertex topo v2)
 
-let string_of_pair topo (s,t,_) =
+let string_of_pair topo (s,t) =
   Printf.sprintf "%s--%s"
     (name_of_vertex topo s)
     (name_of_vertex topo t)
@@ -79,19 +79,21 @@ let var_name_rev topo edge d_pair =
 
 let objective = Var "Z"
 
-let capacity_constraints (topo : Topology.t) (d_pairs : demand_pair list)
-    (init_acc : constrain list) : constrain list =
+let capacity_constraints (topo : Topology.t) (d_pairs : demands)
+                         (init_acc : constrain list) : constrain list =
   (* For every edge, there is a capacity constraint *)
-  Topology.fold_edges (fun edge acc ->
-      (* The sum of all commodity flows in both direction must exceed
+  Topology.fold_edges
+    (fun edge acc ->
+     (* The sum of all commodity flows in both direction must exceed
          the capacity by less than Z * capacity. *)
-      (* Gather all of the terms for each commodity *)
-      let all_flows = List.fold_left d_pairs ~init:[] ~f:(fun acc2 pair ->
-          let forward_amt = var_name topo edge pair in
-	  (*
-          let reverse_amt = var_name_rev topo edge pair in
-	  *)
-          Var(forward_amt):: (* Var(reverse_amt):: *) acc2) in
+     (* Gather all of the terms for each commodity *)
+     let all_flows = SrcDstMap.fold 
+                       ~init:[]
+                       ~f:(fun ~key:(u,v) ~data:r acc2 ->                                                                   
+                           let forward_amt = var_name topo edge (u,v) in
+	                       (* let reverse_amt = var_name_rev topo edge pair in *)
+                           Var(forward_amt):: (* Var(reverse_amt):: *) acc2) d_pairs                       
+      in
       (* Add them all up *)
       let total_flow = Sum (all_flows) in
       let scaled_cap = Times (capacity_of_edge topo edge, objective) in
@@ -109,45 +111,43 @@ let neighboring_edges topo src =
       List.rev_append (EdgeSet.elements es) acc) in
   edges
 
-let demand_constraints (topo : Topology.t) (d_pairs : demand_pair list)
+let demand_constraints (topo : Topology.t) (d_pairs : demands)
     (init_acc : constrain list) : constrain list =
   (* Every source-sink pair has a demand constraint *)
-  List.fold_left d_pairs ~init:init_acc ~f:(fun acc d_pair ->
-      let src,dst,demand = d_pair in
+  SrcDstMap.fold ~init:init_acc ~f:(fun ~key:(src,dst) ~data:(demand) acc ->
       (* We need to add up the rates for all edges adjoining the source *)
       let edges = neighboring_edges topo src in
       let diffs = List.fold_left edges ~init:[] ~f:(fun acc2 edge ->
-          let forward_amt = var_name topo edge d_pair in
-          let reverse_amt = var_name_rev topo edge d_pair in
+          let forward_amt = var_name topo edge (src,dst) in
+          let reverse_amt = var_name_rev topo edge (src,dst) in
           let net_outgoing = minus (Var (forward_amt)) (Var (reverse_amt)) in
           net_outgoing::acc2) in
       let sum_net_outgoing = Sum (diffs) in
       (* Net amount of outgoing flow must meet the demand *)
       let name = Printf.sprintf "dem-%s-%s" (name_of_vertex topo src)
           (name_of_vertex topo dst) in
-      (Geq (name, sum_net_outgoing, demand /. demand_divisor))::acc)
+      (Geq (name, sum_net_outgoing, demand /. demand_divisor))::acc) d_pairs
 
-let conservation_constraints (topo : Topology.t) (d_pairs : demand_pair list)
+let conservation_constraints (topo : Topology.t) (d_pairs : demands)
     (init_acc : constrain list) : constrain list =
   (* Every source-sink pair has its own conservation constraints *)
-  List.fold_left d_pairs ~init:init_acc ~f:(fun acc d_pair ->
-      let src,dst,_ = d_pair in
+  SrcDstMap.fold ~init:init_acc ~f:(fun ~key:(src,dst) ~data:demand acc ->
       (* Every node in the topology except the source and sink has
        * conservation constraints *)
       Topology.fold_vertexes (fun v acc2 ->
           if v = src || v = dst then acc2 else
             let edges = neighboring_edges topo v in
             let outgoing = List.fold_left edges ~init:[] ~f:(fun acc_vars e ->
-                (Var (var_name topo e d_pair))::acc_vars) in
+                (Var (var_name topo e (src,dst)))::acc_vars) in
             let incoming = List.fold_left edges ~init:[] ~f:(fun acc_vars e ->
-                (Var (var_name_rev topo e d_pair))::acc_vars) in
+                (Var (var_name_rev topo e (src,dst)))::acc_vars) in
             let total_out = Sum (outgoing) in
             let total_in = Sum (incoming) in
             let net = minus total_out total_in in
             let name = Printf.sprintf "con-%s-%s_%s" (name_of_vertex topo src)
                 (name_of_vertex topo dst) (name_of_vertex topo v) in
             let constr = Eq (name, net, 0.) in
-            constr::acc2) topo acc)
+            constr::acc2) topo acc) d_pairs
 
 let rec string_of_aexp ae =
   match ae with
@@ -184,7 +184,7 @@ let serialize_lp ((objective, constrs) : lp) (filename : string) =
                 (Printf.sprintf "  %s\n" (string_of_constraint c)));
   close lp_file
 
-let lp_of_graph (topo : Topology.t) (demand_pairs : demand_pair list) =
+let lp_of_graph (topo : Topology.t) (demand_pairs : demands) =
   let cap_constrs = capacity_constraints topo demand_pairs [] in
   let cap_and_demand = demand_constraints topo demand_pairs cap_constrs in
   let all_constrs = conservation_constraints topo demand_pairs cap_and_demand in

@@ -9,6 +9,7 @@ open Kulfi_Spf
 open Kulfi_Vlb
 open Kulfi_Types
 open Kulfi_Util
+open Core.Std
 
 module VertexSet = Topology.VertexSet
 
@@ -33,10 +34,12 @@ let create_topology_and_demands () =
                 hosts;
     !lst
   in
+  let demands = List.fold_left ~init:SrcDstMap.empty
+                               ~f:(fun acc (u,v,r) -> SrcDstMap.add acc ~key:(u,v) ~data:r) pairs in
   Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set);
-  Printf.printf "# pairs = %d\n" (List.length pairs);
+  Printf.printf "# demands = %d\n" (SrcDstMap.length demands);
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
-  (hosts,topo,pairs)
+  (hosts,topo,demands)
 
 let test_ecmp = false
 
@@ -68,7 +71,7 @@ let test_spf =
   (* TODO(jnf,rjs): could just call sample_scheme here? *)
   let x = match SrcDstMap.find scheme (h1,h2)  with | None -> assert false | Some x -> x in
   let path = sample_dist x in
-  (List.length path) == 3
+  (List.length path) = 3
     
 let test_vlb =
   let (hosts,topo,pairs) = create_topology_and_demands () in
@@ -79,7 +82,7 @@ let test_vlb =
   let paths = match SrcDstMap.find scheme (h1,h2) with | None -> assert false | Some x -> x in
   Printf.printf "VLB set length =%d\n"  (PathMap.length paths);
   (* Printf.printf "%s\n" (dump_scheme topo scheme); *)
-  (PathMap.length paths) == 2
+  (PathMap.length paths) = 2
                          
 TEST "ecmp" = test_ecmp = true
 

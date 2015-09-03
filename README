@@ -10,6 +10,9 @@ The top-level directory structure of the Kulfi is as follows:
  data/
    Topology and traffic matrices data
 
+ experiments/
+   Scripts and data to configure and run experiments
+
  kernel/
    Linux netfilter module that implements randomization at end points
 

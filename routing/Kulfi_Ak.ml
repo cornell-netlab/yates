@@ -68,12 +68,12 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   (* First build HashMaps, keyed by edges, containing the
      values f(e), f_i(e), from the pseudocode. *)
   let f' = Topology.fold_edges (fun edge acc -> EdgeMap.add acc ~key:edge ~data:0.0 ) topo EdgeMap.empty in
-  let f_i' = List.fold_left ~init:SrcDstMap.empty ~f:(fun acc (u,v,r) -> SrcDstMap.add ~key:(u,v) ~data:f' acc) d in
+  let f_i' = SrcDstMap.fold ~init:SrcDstMap.empty ~f:(fun ~key:(u,v) ~data:r acc -> SrcDstMap.add ~key:(u,v) ~data:f' acc) d in
 
   (* populate f,f_i according to what we saw in the last scheme *)
-  let (f,f_i) = List.fold_left
+  let (f,f_i) = SrcDstMap.fold
                   ~init:(f',f_i')
-                  ~f:(fun (f,f_i) (u,v,r) ->
+                  ~f:(fun ~key:(u,v) ~data:r (f,f_i) ->
                       let path_map = match SrcDstMap.find s (u,v) with
                         | None -> assert false
                         | Some path_map -> path_map in
@@ -129,7 +129,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
       let dmi = find_or_die delta_minus (u,v) in
       let dpi = find_or_die delta_plus (u,v) in
       (* Retrieve demand for the commodity with source u, dest v *)
-      let d_i = List.fold_left d ~init:0.0 ~f:(fun acc3 (uu,vv,r) ->
+      let d_i = SrcDstMap.fold d ~init:0.0 ~f:(fun ~key:(uu,vv) ~data:r acc3 ->
 	   if ( uu = u && vv = v ) then acc3 +. r else acc3) in
       (* Specify initial target amount that we want to reroute.
          This is the combined \Delta^-_i value over all edges 

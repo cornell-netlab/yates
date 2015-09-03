@@ -1,6 +1,9 @@
 open Frenetic_Network
 open Net
-
+open Core.Std
+       
+open Kulfi_Types
+       
 let () = Random.self_init ()
 
 let pi = 4.0 *. atan 1.0
@@ -38,7 +41,7 @@ let update_random matrix =
         demand_array.(i).(j) <-
           (if i = j then 0 else
              let d = power_law () in
-             int_of_float d))
+             Int.of_float d))
         host_array)
     host_array;
   matrix
@@ -53,7 +56,7 @@ let update_sparse matrix prob diff_amt =
           else if i = j then ()
           else
             let new_dem = power_law () in
-            demand_array.(i).(j) <- (int_of_float new_dem))
+            demand_array.(i).(j) <- (Int.of_float new_dem))
         host_array)
     host_array;
   matrix
@@ -74,7 +77,7 @@ let create_power_law hosts =
       Array.iteri (fun j _ ->
           if i = j then () else
             let d = power_law () in
-            demand_array.(i).(j) <- int_of_float d)
+            demand_array.(i).(j) <- Int.of_float d)
         host_array)
     host_array;
   Static ((host_array, demand_array))
@@ -112,14 +115,14 @@ let create_periodic hosts limit period =
 
 let get_demands model =
   match model with
-  | Static ((hosts, demands))
-  | IIDRandom ((hosts, demands)) | SparseDiff (_,_,(hosts,demands)) ->
+  | Static ((hosts, ds))
+  | IIDRandom ((hosts, ds)) | SparseDiff (_,_,(hosts,ds)) ->
     let lst = ref [] in
     Array.iteri (fun i h_i ->
         Array.iteri (fun j h_j ->
-            let demand = demands.(i).(j) in
-            if i = j || demand = 0 then () else
-              lst := (hosts.(i), hosts.(j), float demand)::(!lst))
+            let d = ds.(i).(j) in
+            if i = j || d = 0 then () else
+              lst := (hosts.(i), hosts.(j), float d)::(!lst))
           hosts)
       hosts;
     !lst
@@ -130,9 +133,12 @@ let get_demands model =
             if i = j then () else
               let (phase,amp) = demand_fns.(i).(j) in
               let t = float time in
-              let demand = phase *. sin (freq *. (t +. phase)) in
-              if demand = 0. then () else
-                lst := (hosts.(i), hosts.(j), demand)::(!lst))
+              let d = phase *. sin (freq *. (t +. phase)) in
+              if d = 0. then () else
+                lst := (hosts.(i), hosts.(j), d)::(!lst))
           hosts)
       hosts;
     !lst
+
+let demand_list_to_map (demand_list:(host * host * float) list) : Kulfi_Types.demands =
+  List.fold_left ~init:SrcDstMap.empty ~f:(fun acc (u,v,r) -> SrcDstMap.add acc ~key:(u,v) ~data:r) demand_list
