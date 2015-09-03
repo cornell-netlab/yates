@@ -114,3 +114,14 @@ URL: http://static.usenix.org/events/imc05/tech/full_papers/pang/pang_html/
 Notes: IMC '05
   Added by Bobby on 9/3/15.
   Haven't read the paper at all, but looks potentially interesting judging from the abstract.
+
+--------------------------------------------------------------------------
+
+Title: Providing public intradomain traffic matrices to the research community
+URL: http://dl.acm.org/citation.cfm?id=1111341
+Notes: ACM SIGCOMM Computer Comm. Review 2006
+  Presents a publicly available dataset consisting of traffic matrices for the
+  European Research and Educational Network, one per 15 minutes, over several
+  months. If the data is still accessible, could be a great alternative to 
+  the Abilene data.
+
