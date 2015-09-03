@@ -20,10 +20,21 @@ Title: Traffic Engineering with Forward Fault Correction (SIGCOMM 2014)
 URL: http://research.microsoft.com/pubs/219693/sigcomm2014-ffc.pdf
 Routing: Compactly encoding constraints due to faults and solving using sorting networks
 Evaluation:
-    a) Small experiments on HW testbed. Simulations for larger topology and real data.
-    b) HW testbed emulates a WAN. Use iperf to generate UDP flows with specified rates. Artificial demands to show specific scenario.
-    c) Simulation: Data from real networks. Size of flows for in an interval is set to average bandwidth consumed during the interval (5 min).
+    * Small experiments on HW testbed. Simulations for larger topology and real data.
+    * HW testbed emulates a WAN. Use iperf to generate UDP flows with specified rates. Artificial demands to show specific scenario.
+    * Simulation: Data from real networks. Size of flows for in an interval is set to average bandwidth consumed during the interval (5 min).
 Notes:
 Similar to how we are evaluating.
 ---------------------------------------------------------------------------
 
+---------------------------------------------------------------------------
+Title: Calendaring for Wide Area Networks (SIGCOMM 2014)
+URL: http://research.microsoft.com/pubs/217883/sigc334-kandula.pdf
+Routing: Online temporal planning scheme to pack long flows across paths and future time. Uses LP.
+Evaluation:
+    * TMs from Microsoft's WAN containing 5-min avg demand between endpoints.
+    * Results based only on simulation. No harware testbed results.
+    * Real topology with 40 nodes and 280 edges. Larger synthetic topologies.
+    * Realistic 5-min avg traffic demand. Synthetic flow sizes based on distribution.
+Notes:
+    * No HW results; Simulations: real small topology, sythetic large topologies.
