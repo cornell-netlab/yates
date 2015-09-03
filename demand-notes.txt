@@ -15,3 +15,15 @@ Notes:
   Essentially synthetic, hand-tuned to resemble the kinds of patterns
   that arise in practice.
 ---------------------------------------------------------------------------
+
+Title: Traffic Engineering with Forward Fault Correction (SIGCOMM 2014)
+URL: http://research.microsoft.com/pubs/219693/sigcomm2014-ffc.pdf
+Routing: Compactly encoding constraints due to faults and solving using sorting networks
+Evaluation:
+    a) Small experiments on HW testbed. Simulations for larger topology and real data.
+    b) HW testbed emulates a WAN. Use iperf to generate UDP flows with specified rates. Artificial demands to show specific scenario.
+    c) Simulation: Data from real networks. Size of flows for in an interval is set to average bandwidth consumed during the interval (5 min).
+Notes:
+Similar to how we are evaluating.
+---------------------------------------------------------------------------
+
