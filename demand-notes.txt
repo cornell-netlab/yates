@@ -38,3 +38,14 @@ Evaluation:
     * Realistic 5-min avg traffic demand. Synthetic flow sizes based on distribution.
 Notes:
     * No HW results; Simulations: real small topology, sythetic large topologies.
+
+---------------------------------------------------------------------------
+Title: Walking the Tightrope: Responsive Yet Stable Traffic Engineering (SIGCOMM 2005)
+URL: http://nms.lcs.mit.edu/papers/sigcomm05_kandula.pdf
+Routing: Online distributed TE protocol to balance load, responding to varying demands and failures
+Evaluation:
+    * Simulations based on Rocketfuel topology
+    * Gravity model to estimate TMs; Also experiments on sythetic demands.
+    * More topologies based on GT_ITM (http://www.cc.gatech.edu/fac/Ellen.Zegura/graphs.html)
+Notes:
+---------------------------------------------------------------------------
