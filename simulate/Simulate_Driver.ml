@@ -86,10 +86,10 @@ let simulate (spec_solvers:solver_type list) (topology_file:string) (iterations:
   Printf.printf "# pairs = %d\n" (List.length pairs);
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
   let at = ref (make_auto_timer ()) in
-  let times = ref (make_running_stat ()) in
-  let churn = ref (make_running_stat ()) in
-  let congestion = ref (make_running_stat ()) in
-  let num_paths = ref (make_running_stat ()) in
+  let times = make_running_stat () in
+  let churn = make_running_stat () in
+  let congestion = make_running_stat () in
+  let num_paths = make_running_stat () in
 
   let time_data = ref (make_data "Iteratives Vs Time") in
   let churn_data = ref (make_data "Churn Vs Time") in
@@ -108,22 +108,22 @@ let simulate (spec_solvers:solver_type list) (topology_file:string) (iterations:
 	     at := start !at ;
 	     let scheme' = solve topo pairs scheme in 
 	     at := stop !at ;
-	     times := push !times (get_time_in_seconds !at) ;
-	     churn := push !churn (get_churn scheme' scheme) ;	    
-	     congestion := push !congestion (get_congestion scheme' topo) ;
-	     num_paths := push !num_paths (get_num_paths scheme') ;
+	     push times (get_time_in_seconds !at) ;
+	     push churn (get_churn scheme' scheme) ;	    
+	     push congestion (get_congestion scheme' topo) ;
+	     push num_paths (get_num_paths scheme') ;
 
 	     time_data := add_record !time_data (solver_to_string algorithm)
-				     {iteration = n; time=(get_mean !times); time_dev=(get_standard_deviation !times); };
+				     {iteration = n; time=(get_mean times); time_dev=(get_standard_deviation times); };
 	     
 	     churn_data := add_record !churn_data (solver_to_string algorithm)
-				     {iteration = n; churn=(get_mean !churn); churn_dev=(get_standard_deviation !churn); };
+				     {iteration = n; churn=(get_mean churn); churn_dev=(get_standard_deviation churn); };
 
 	     congestion_data := add_record !congestion_data (solver_to_string algorithm)
-				     {iteration = n; congestion=(get_mean !congestion); congestion_dev=(get_standard_deviation !congestion); };
+				     {iteration = n; congestion=(get_mean congestion); congestion_dev=(get_standard_deviation congestion); };
 
 	     num_paths_data := add_record !num_paths_data (solver_to_string algorithm)
-				     {iteration = n; num_paths=(get_mean !num_paths); num_paths_dev=(get_standard_deviation !num_paths); };
+				     {iteration = n; num_paths=(get_mean num_paths); num_paths_dev=(get_standard_deviation num_paths); };
 
 
 	     inner (n+1) scheme'
