@@ -85,16 +85,16 @@ let simulate (spec_solvers:solver_type list) (topology_file:string) (iterations:
   Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set);
   Printf.printf "# pairs = %d\n" (List.length pairs);
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
-  let at = ref (make_auto_timer ()) in
+  let at = make_auto_timer () in
   let times = make_running_stat () in
   let churn = make_running_stat () in
   let congestion = make_running_stat () in
   let num_paths = make_running_stat () in
 
-  let time_data = ref (make_data "Iteratives Vs Time") in
-  let churn_data = ref (make_data "Churn Vs Time") in
-  let congestion_data = ref (make_data "Congestion Vs Time") in
-  let num_paths_data = ref (make_data "Num. Paths Vs Time") in
+  let time_data = make_data "Iteratives Vs Time" in
+  let churn_data = make_data "Churn Vs Time" in
+  let congestion_data = make_data "Congestion Vs Time" in
+  let num_paths_data = make_data "Num. Paths Vs Time" in
   
   let rec outer algorithms = match algorithms with
     | [] -> ()
@@ -105,27 +105,21 @@ let simulate (spec_solvers:solver_type list) (topology_file:string) (iterations:
 	   ()
 	 else
 	   begin		
-	     at := start !at ;
+	     start at;
 	     let scheme' = solve topo pairs scheme in 
-	     at := stop !at ;
-	     push times (get_time_in_seconds !at) ;
-	     push churn (get_churn scheme' scheme) ;	    
-	     push congestion (get_congestion scheme' topo) ;
-	     push num_paths (get_num_paths scheme') ;
-
-	     time_data := add_record !time_data (solver_to_string algorithm)
-				     {iteration = n; time=(get_mean times); time_dev=(get_standard_deviation times); };
-	     
-	     churn_data := add_record !churn_data (solver_to_string algorithm)
+	     stop at;
+	     push times (get_time_in_seconds at);
+	     push churn (get_churn scheme' scheme);	    
+	     push congestion (get_congestion scheme' topo);
+	     push num_paths (get_num_paths scheme');
+	     add_record time_data (solver_to_string algorithm)
+				     {iteration = n; time=(get_mean times); time_dev=(get_standard_deviation times); };	     
+	     add_record churn_data (solver_to_string algorithm)
 				     {iteration = n; churn=(get_mean churn); churn_dev=(get_standard_deviation churn); };
-
-	     congestion_data := add_record !congestion_data (solver_to_string algorithm)
+	     add_record congestion_data (solver_to_string algorithm)
 				     {iteration = n; congestion=(get_mean congestion); congestion_dev=(get_standard_deviation congestion); };
-
-	     num_paths_data := add_record !num_paths_data (solver_to_string algorithm)
+	     add_record num_paths_data (solver_to_string algorithm)
 				     {iteration = n; num_paths=(get_mean num_paths); num_paths_dev=(get_standard_deviation num_paths); };
-
-
 	     inner (n+1) scheme'
 	   end
        in
@@ -136,15 +130,15 @@ let simulate (spec_solvers:solver_type list) (topology_file:string) (iterations:
   
   let dir = "./expData/" in
 
-  to_file dir "ChurnVsIterations.dat" !churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
-  to_file dir "CongestionVsIterations.dat" !congestion_data "# solver\titer\tcongestion\tstddev" iter_vs_congestion_to_string;
-  to_file dir "NumPathsVsIterations.dat" !num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
-  to_file dir "TimeVsIterations.dat" !time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;  
+  to_file dir "ChurnVsIterations.dat" churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
+  to_file dir "CongestionVsIterations.dat" congestion_data "# solver\titer\tcongestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "NumPathsVsIterations.dat" num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
+  to_file dir "TimeVsIterations.dat" time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;  
   
-  Printf.printf "%s" (to_string !time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string);
-  Printf.printf "%s" (to_string !churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
-  Printf.printf "%s" (to_string !congestion_data "# solver\titer\tcongestion\tstddev" iter_vs_congestion_to_string);
-  Printf.printf "%s" (to_string !num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string)
+  Printf.printf "%s" (to_string time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string);
+  Printf.printf "%s" (to_string churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
+  Printf.printf "%s" (to_string congestion_data "# solver\titer\tcongestion\tstddev" iter_vs_congestion_to_string);
+  Printf.printf "%s" (to_string num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string)
   
 		
 let command =
