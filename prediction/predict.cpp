@@ -4,6 +4,8 @@
 #include <stdio.h> 
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
+#include <math.h>
 #include <string>
 #include <algorithm>
 #include <vector>
@@ -37,13 +39,12 @@ void getData(double** dataM, int last=numOfFile)
 	for (int i = 1; i <= last; i++)
 	{
 		if (i<10)
-			sprintf_s(buf, "D:\\Dropbox\\box\\CodeRepo\\VisualStudio\\Routing\\data\\X0%i", i);
+			sprintf(buf, "D:\\Dropbox\\box\\CodeRepo\\VisualStudio\\Routing\\data\\X0%i", i);
 		else
-			sprintf_s(buf, "D:\\Dropbox\\box\\CodeRepo\\VisualStudio\\Routing\\data\\X%i", i);
+			sprintf(buf, "D:\\Dropbox\\box\\CodeRepo\\VisualStudio\\Routing\\data\\X%i", i);
 		a = buf;
 		printf("%s\n", a.c_str());
-		FILE * f;
-		fopen_s(&f, a.c_str(), "r");
+		FILE * f=fopen( a.c_str(), "r");
 		for (int j = 0; j<rowInFile; j++)
 		{
 			for (int k = 0; k<maxCol; k++)
@@ -51,7 +52,7 @@ void getData(double** dataM, int last=numOfFile)
 				for (int count = 0; count<numOfModel; count++)
 				{
 					double tmp;
-					fscanf_s(f, "%lf", &tmp);
+					fscanf(f, "%lf", &tmp);
 					if (count == 1)
 						dataM[k][(i - 1) * 2016 + j] = tmp;
 				}
@@ -77,7 +78,7 @@ void getMedianCol(double ** dataM, double ** medianM, int rows, int curCol, int 
 		v.push_back(dataM[curCol][i + l]);
 		std::nth_element(v.begin(), v.begin() + l, v.end());
 		medianM[curCol][i] = v[l];
-		auto it = std::find(v.begin(), v.end(), dataM[curCol][i - l]);
+        std::vector<double>::iterator it = std::find(v.begin(), v.end(), dataM[curCol][i - l]);
 		v.erase(it);
 	}
 }
@@ -94,6 +95,11 @@ General useful functions.
 double sqr(double a)
 {
 	return a*a;
+}
+double abs(double a)
+{
+    if (a<0) return -a;
+    return a;
 }
 
 double * getLoss(double * serve, double * predict, int length)
@@ -385,7 +391,6 @@ double predictNext(predictMethodFunctionType predictionMethod,
 int main()
 {
 	srand(time(NULL));
-	printf("size=%i\n", sizeof(int));
 	double** dataM = new double *[maxCol];
 	double** medianM = new double *[maxCol];
 	for (int i = 0; i < maxCol; i++)
