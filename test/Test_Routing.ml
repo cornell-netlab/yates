@@ -75,7 +75,7 @@ let test_vlb =
   let h1 = Array.get hosts 0  in 
   let h2 = Array.get hosts 1  in
   let paths = match SrcDstMap.find scheme (h1,h2) with | None -> assert false | Some x -> x in
-  Printf.printf "VLB set length =%d\n"  (PathMap.length paths);
+  (* Printf.printf "VLB set length =%d\n"  (PathMap.length paths); *)
   (* Printf.printf "%s\n" (dump_scheme topo scheme); *)
   (PathMap.length paths) = 2
 
@@ -100,6 +100,8 @@ TEST "raeke" = test_raeke = true
 TEST "spf" = test_spf = true
 
 TEST "vlb" = test_vlb = true
+
+TEST "ak" = test_ak = true
 
                
 
