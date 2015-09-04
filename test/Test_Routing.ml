@@ -41,7 +41,6 @@ let create_topology_and_demands () =
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
   (hosts,topo,demands)
 
-let test_ecmp = false
 
 let test_mcf = 
   let (hosts,topo,pairs) = create_topology_and_demands () in
@@ -56,11 +55,7 @@ let test_mcf =
        PathMap.fold paths ~init:0.0 ~f:(fun ~key:p ~data:s acc -> s +. acc) in
   Printf.printf "sum of prob=%f\n" sum_of_probs;
   (sum_of_probs > 0.9) && (sum_of_probs < 1.1)
-                 
-let test_mw = false
-
-let test_raeke = false
-   
+                 		   
 let test_spf =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme = 
@@ -83,7 +78,17 @@ let test_vlb =
   Printf.printf "VLB set length =%d\n"  (PathMap.length paths);
   (* Printf.printf "%s\n" (dump_scheme topo scheme); *)
   (PathMap.length paths) = 2
-                         
+
+
+let test_mw = false
+
+let test_raeke = false
+
+let test_ecmp = false
+
+let test_ak = false		  
+
+			     
 TEST "ecmp" = test_ecmp = true
 
 TEST "mcf" = test_mcf = true
