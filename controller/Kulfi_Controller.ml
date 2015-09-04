@@ -4,6 +4,8 @@ open Kulfi_Routing
 open Kulfi_Types
 open Frenetic_NetKAT
 open Frenetic_NetKAT_Optimize
+open Frenetic_Network
+open Net
 
 module NetKAT_Controller = Frenetic_NetKAT_Controller.Make
 
@@ -16,8 +18,29 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
     let reset () = 
       tag_cell := 0
 
+
+    let sort_path (src: Topology.vertex) (dst: Topology.vertex) (path:path) : path =
+      let next_map = List.fold_left
+		       ~init:VertexMap.empty
+		       ~f:(fun acc e ->
+			   let (u,_) = (Topology.edge_src e) in
+			   VertexMap.add ~key:u ~data:e acc) path in      
+      let rec loop curr p =
+	if curr = dst then p
+	else
+	  begin
+	    let e = match VertexMap.find next_map curr with
+	      | None -> assert false | Some e -> e in
+	    let (v,_) = Topology.edge_dst e in
+	    let p' = List.append p [e] in
+	    loop v p'
+	  end
+      in
+      loop src []
+
+		    
     let netkat_of_path (path:path) : policy * tag = 
-      let tag = fresh_tag () in 
+      let tag = fresh_tag () in
       (* NB: Path H1 - S1 - S2 - H2 is represented as [(H1,S1), (S1,S2), (S2,H2)] *)
       let pol,_ = 
 	List.fold_left
@@ -45,7 +68,8 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
 	    PathMap.fold
 	      path_dist
 	      ~init:(pol, TagMap.empty)
-	      ~f:(fun ~key:path ~data:prob (pol, tags) -> 
+	      ~f:(fun ~key:path ~data:prob (pol, tags) ->
+		  let path = sort_path src dst path in 
 		  let path_pol,tag = netkat_of_path path in 		
 		  let pol' = mk_union path_pol pol in
 		  let tags' = TagMap.add tags tag prob in

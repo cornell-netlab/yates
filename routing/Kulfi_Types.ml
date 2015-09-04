@@ -32,6 +32,13 @@ module Tag = Int
 
 module TagMap = Map.Make(Tag)
 
+module VertexOrd = struct
+  type t = Topology.vertex with sexp
+  let compare = Pervasives.compare                                      
+end
+		  
+module VertexMap = Map.Make(VertexOrd)
+		  
 (* TODO(rjs): Give a better name. VertexPair map? *)                        
 module SrcDstOrd = struct
   type t = Topology.vertex * Topology.vertex with sexp
