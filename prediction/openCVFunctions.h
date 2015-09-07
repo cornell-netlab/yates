@@ -8,7 +8,6 @@
 #define _OCL_SVM_ 1 // select whether using ocl::svm method or not, default is using
 #include "opencv2/ocl/ocl.hpp"
 #endif
-using namespace std;
 using namespace cv;
 using namespace cv::ml;
 

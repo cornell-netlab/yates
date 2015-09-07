@@ -7,7 +7,8 @@
 #include <math.h>
 #include <algorithm>
 #include <vector>
-#include "openCVFunctions.h"
+using namespace std;
+//#include "openCVFunctions.h"
 #define numOfFile 24
 #define rowInFile 2016
 #define maxCol 144
@@ -24,12 +25,11 @@ struct ffNeuralNetsStruct //fully connected, naive feedforward neural nets.
 	int * numOfUnits;//how many units are there?
 };
 
-/*
-double abs(double a)
+double abso(double a)
 {
   if (a<0) return -a;
   return a;
-}*/
+}
 
 /*
 Read Data:
@@ -104,13 +104,13 @@ void  getLoss(double * regret, double * serve, double * predict, int length, int
 {
 	for (int i = 0; i < length; i++)
 	{
-		regret[0] += log(abs(serve[i] - predict[i] + 1.0));
-		regret[1] += sqr(log(abs(serve[i] - predict[i] + 1.0)));
+		regret[0] += log(abso(serve[i] - predict[i] + 1.0));
+		regret[1] += sqr(log(abso(serve[i] - predict[i] + 1.0)));
 		if (predict[i] >= serve[i])
 			regret[2] += predict[i];
 		else
 			regret[2] += serve[i] + (serve[i] - predict[i])*penalty;
-		regret[3] += abs(serve[i] - predict[i]);
+		regret[3] += abso(serve[i] - predict[i]);
 	}
 }
 
@@ -153,7 +153,7 @@ double inner(double *w, double * x, int d)
 
 void proximalUpdate(double * w, int d, double thres)
 {
-	thres = abs(thres);
+	thres = abso(thres);
 	for (int i = 0; i < d; i++)
 		if (w[i]>thres)
 			w[i] -= thres;
@@ -205,7 +205,7 @@ void uniVR(double ** X_dat, double * Y_dat, int d, int n,
 		m = int (m* beta);
 		double curObj = objCal(X_dat, Y_dat, d, n, modelPara, additionalStuff);
 		printf("%.5lf  eta=%.5lf  w0=%.5lf  w1=%.5lf  w2=%.5lf\n", curObj, eta, w[0], w[1], w[2]);
-		if (abs(curObj - lastVal) < stopErr)
+		if (abso(curObj - lastVal) < stopErr)
 			break;
 		lastVal = curObj;
 	}
@@ -241,7 +241,7 @@ double linearRegressionObjCal(double ** X_dat, double * Y_dat,  int d, int n, vo
 	double sigma = ((double *)additionalStuff)[0];
 	double lambda = ((double*)additionalStuff)[1];
 	for (int i = 0; i < d; i++)
-		sum += sigma*abs(w[i]) + lambda / 2 * sqr(w[i]);
+		sum += sigma*abso(w[i]) + lambda / 2 * sqr(w[i]);
 	return sum;
 }
 
@@ -284,7 +284,7 @@ double logisticRegressionObjCal(double ** X_dat, double * Y_dat,  int d, int n, 
 	double sigma = ((double *)additionalStuff)[0];
 
 	for (int i = 0; i < d;i++)
-		sum+= sigma * abs(w[i]);
+		sum+= sigma * abso(w[i]);
 	return sum;
 }
 
@@ -470,7 +470,7 @@ int main()
 
 	srand(0);
 	printf("size=%i\n", (int)sizeof(int));
-    newStuff();
+    //newStuff();
     return 0;
 
 	string filename = "a9a2.dat";
