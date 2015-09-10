@@ -1,8 +1,6 @@
 #!/bin/bash
 . colors.sh
-KULFI_GIT_DIR=$HOME/git/kulfi
-ATLAS_KULFI_CONFIG=~/atlas-kulfi-configure
-LOG_DIR=~/log/
+. common.sh
 cp $KULFI_GIT_DIR/agent/agent.py $ATLAS_KULFI_CONFIG/
 
 echo ${CYAN}------ BUILDING: Kernel Module -----${RESTORE}
@@ -23,3 +21,4 @@ else
 	echo ${RED}FAIL${RESTORE}
 fi
 sudo ifconfig em3 10.0.0.100
+$ATLAS_KULFI_CONFIG/arp.sh
