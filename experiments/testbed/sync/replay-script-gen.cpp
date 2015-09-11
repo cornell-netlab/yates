@@ -186,7 +186,7 @@ int main(int argc, char *argv[]){
     topo.close();
 
     for (std::map<string, int>::iterator it=routers.begin(); it!=routers.end(); ++it){
-            std::cout << it->first << " => " << it->second << '\n';
+        std::cout << it->first << " => " << it->second << '\n';
     }
 
     read_dmd_indices_d(dmd_index, routers);
@@ -244,7 +244,7 @@ int main(int argc, char *argv[]){
             }
             cout << cumul << endl;
             replay_script << "# Time slept: " << intervalSleepTime << endl;
-	    intervalSleepTime = 0;
+            intervalSleepTime = 0;
             replay_script << "# Time: " << time << endl;
 
             // Change routes if dynamic scheme
@@ -253,19 +253,19 @@ int main(int argc, char *argv[]){
             replay_script << "\t cat ../atlas-kulfi/10.0.0." << node_id << "_" << time << " > /proc/kulfi" << endl;
             replay_script << "fi" << endl;
 
-	    // Sync with other servers and kill existing flows
+            // Sync with other servers and kill existing flows
             replay_script << "./sync-client -s olympic -p 7000 " << endl;
             replay_script << "killall -2 client" << endl;
 
             // Schedule flows
             for(int t=0; t<10; t++){
-		float sleepTime = 0;
+                float sleepTime = 0;
                 for (std::map<string, int>::iterator dst=routers.begin(); dst!=routers.end(); ++dst){
                     for(int i=t; i<send_size[dst->first].size(); i+=10){
-                            replay_script << "\t ./client -s 10.0.0." << dst->second+1 << " -p " << (BASE_PORT + node_id) << " -l " << (int)(send_size[dst->first][i] * factor) << " >> ./flow-time-src-" << node_id << "-dst-" << dst->second+1 << ".txt &" << endl;
-			    sleepTime = scaled_to_time * poissonInterval(num_flows);
-                            replay_script << "\t sleep " << sleepTime << endl;
-			    intervalSleepTime += sleepTime; 
+                        replay_script << "\t ./client -s 10.0.0." << dst->second+1 << " -p " << (BASE_PORT + node_id) << " -l " << (int)(send_size[dst->first][i] * factor) << " >> ./flow-time-src-" << node_id << "-dst-" << dst->second+1 << ".txt &" << endl;
+                        sleepTime = scaled_to_time * poissonInterval(num_flows);
+                        replay_script << "\t sleep " << sleepTime << endl;
+                        intervalSleepTime += sleepTime;
                     }
                 }
             }

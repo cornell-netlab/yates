@@ -142,11 +142,11 @@ int main(int argc, char *argv[]){
     srand(time(NULL));
     read_flow_byte_sizes(flow_byte_sizes);
     /*
-    for (std::vector<int>::iterator it = flow_byte_sizes.begin() ; it != flow_byte_sizes.end(); ++it) {
-        std::cout << ' ' << *it << endl;
-    }
-    std::cout << '\n';
-    */
+       for (std::vector<int>::iterator it = flow_byte_sizes.begin() ; it != flow_byte_sizes.end(); ++it) {
+       std::cout << ' ' << *it << endl;
+       }
+       std::cout << '\n';
+       */
 
     int num_flow_byte_sizes = flow_byte_sizes.size();
     // cout << num_flow_byte_sizes << endl;
@@ -172,7 +172,7 @@ int main(int argc, char *argv[]){
        }
        cout << endl;
        }
-    */
+       */
 
     // index the routers
     ifstream topo;
@@ -192,18 +192,18 @@ int main(int argc, char *argv[]){
     topo.close();
 
     for (std::map<string, int>::iterator it=routers.begin(); it!=routers.end(); ++it){
-            std::cout << it->first << " => " << it->second << '\n';
+        std::cout << it->first << " => " << it->second << '\n';
     }
 
     read_dmd_indices_d(dmd_index, routers);
-   /* 
-    for(unsigned int src=0; src < 12; src++){
-        for(unsigned int dst=0; dst < 12; dst++){
-            cout << dmd_index[src][dst] << " ";
-        }
-        cout << endl;
-    }
-    */
+    /* 
+       for(unsigned int src=0; src < 12; src++){
+       for(unsigned int dst=0; dst < 12; dst++){
+       cout << dmd_index[src][dst] << " ";
+       }
+       cout << endl;
+       }
+       */
 
     // Start writing to replay script
     ofstream replay_script;
