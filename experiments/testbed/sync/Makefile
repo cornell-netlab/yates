@@ -5,4 +5,4 @@ all: replay-script-gen.cpp sync-server.cpp sync-client.cpp
 	g++ sync-client.cpp -o sync-client
 
 clean:
-	$(RM) replay-script-gen replay-sync-gen-udp-iperf sync-server sync-client
+	$(RM) replay-script-gen replay-script-gen-udp-iperf sync-server sync-client

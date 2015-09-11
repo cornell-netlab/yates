@@ -1,9 +1,7 @@
 #!/bin/bash
 . colors.sh
+. common.sh
 set -x
-ATLAS_ABILENE_SCRIPT=~/atlas-node-start-rep.sh
-ABILENE_DIR=~/atlas-abilene
-SYNC_DIR=~/sync
 RUN_ID=$1
 GEN_REP=$2
 SCALE=$3
