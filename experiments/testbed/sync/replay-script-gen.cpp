@@ -6,6 +6,7 @@
 #include<iterator>
 #include<vector>
 #include<map>
+#include<math.h>
 
 #define TM_FILE "AbileneTM-all/X01"
 #define TOPO_FILE "AbileneTM-all/topo-2003-04-10.txt"
@@ -20,6 +21,11 @@
 #define THRESH 10
 
 using namespace std;
+
+/* return time till next flow assuming Poisson process */
+float poissonInterval(int numFlows){
+    return -logf(1.0f - (float) random() / (RAND_MAX)) / numFlows;
+}
 
 void read_dmd_indices(unsigned int dmd_index[12][12], map<string, int> routers){
     // read demand indices
@@ -273,7 +279,8 @@ int main(int argc, char *argv[]){
                 for (std::map<string, int>::iterator dst=routers.begin(); dst!=routers.end(); ++dst){
                     for(int i=t; i<send_size[dst->first].size(); i+=10){
                             replay_script << "\t ./client -s 10.0.0." << dst->second+1 << " -p " << (BASE_PORT + node_id) << " -l " << (int)(send_size[dst->first][i] * factor) << " >> ./flow-time-src-" << node_id << "-dst-" << dst->second+1 << ".txt &" << endl;
-                            replay_script << "\t sleep " << (scaled_to_time*1.0/num_flows) << endl;
+
+                            replay_script << "\t sleep " << (scaled_to_time * poissonInterval(num_flows)) << endl;
                     }
                 }
                 // replay_script << "\t sleep " << scaled_to_time/10.0 << endl;
