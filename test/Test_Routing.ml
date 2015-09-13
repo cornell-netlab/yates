@@ -41,7 +41,6 @@ let create_topology_and_demands () =
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
   (hosts,topo,demands)
 
-let test_ecmp = false
 
 let test_mcf = 
   let (hosts,topo,pairs) = create_topology_and_demands () in
@@ -56,11 +55,7 @@ let test_mcf =
        PathMap.fold paths ~init:0.0 ~f:(fun ~key:p ~data:s acc -> s +. acc) in
   Printf.printf "sum of prob=%f\n" sum_of_probs;
   (sum_of_probs > 0.9) && (sum_of_probs < 1.1)
-                 
-let test_mw = false
-
-let test_raeke = false
-   
+                 		   
 let test_spf =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme = 
@@ -80,10 +75,20 @@ let test_vlb =
   let h1 = Array.get hosts 0  in 
   let h2 = Array.get hosts 1  in
   let paths = match SrcDstMap.find scheme (h1,h2) with | None -> assert false | Some x -> x in
-  Printf.printf "VLB set length =%d\n"  (PathMap.length paths);
+  (* Printf.printf "VLB set length =%d\n"  (PathMap.length paths); *)
   (* Printf.printf "%s\n" (dump_scheme topo scheme); *)
   (PathMap.length paths) = 2
-                         
+
+
+let test_mw = false
+
+let test_raeke = false
+
+let test_ecmp = false
+
+let test_ak = false		  
+
+			     
 TEST "ecmp" = test_ecmp = true
 
 TEST "mcf" = test_mcf = true
@@ -95,6 +100,8 @@ TEST "raeke" = test_raeke = true
 TEST "spf" = test_spf = true
 
 TEST "vlb" = test_vlb = true
+
+TEST "ak" = test_ak = true
 
                
 

@@ -32,6 +32,13 @@ module Tag = Int
 
 module TagMap = Map.Make(Tag)
 
+module VertexOrd = struct
+  type t = Topology.vertex with sexp
+  let compare = Pervasives.compare                                      
+end
+		  
+module VertexMap = Map.Make(VertexOrd)
+		  
 (* TODO(rjs): Give a better name. VertexPair map? *)                        
 module SrcDstOrd = struct
   type t = Topology.vertex * Topology.vertex with sexp
@@ -72,7 +79,13 @@ type configuration = (probability TagMap.t) SrcDstMap.t
    It supports an interface to lets one draw a random sample, and a way to compare
    to other routing schemes, for example, if we want to minimize differences  *)
 
-let sample_dist (path_dist:flow_decomp) : path = assert false
+let sample_dist (path_dist:flow_decomp) : path =
+  let paths = PathMap.keys path_dist in
+  let bound = List.length paths in
+  let i = Random.int bound in
+  match List.nth paths i with
+  | None -> assert false
+  | Some p -> p
 
 let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
 

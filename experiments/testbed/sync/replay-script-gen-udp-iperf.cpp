@@ -6,7 +6,6 @@
 #include<iterator>
 #include<vector>
 #include<map>
-#include<math.h>
 
 #define TM_FILE "AbileneTM-all/X01"
 #define TOPO_FILE "AbileneTM-all/topo-2003-04-10.txt"
@@ -21,11 +20,6 @@
 #define THRESH 10
 
 using namespace std;
-
-/* return time till next flow assuming Poisson process */
-float poissonInterval(int num_flows){
-    return -logf(1.0f - (float) random() / (RAND_MAX)) / num_flows;
-}
 
 void read_dmd_indices(unsigned int dmd_index[12][12], map<string, int> routers){
     // read demand indices
@@ -129,9 +123,7 @@ int main(int argc, char *argv[]){
         usage();
         return 1;
     }
-    float intervalSleepTime = 0;
 
-    // Parse arguments
     node_id = atoi(argv[1]);
     if(node_id < 1 || node_id > 12){
         cout << "Invalid node_id" << endl;
@@ -149,13 +141,19 @@ int main(int argc, char *argv[]){
     factor = atof(argv[5]);
     srand(time(NULL));
     read_flow_byte_sizes(flow_byte_sizes);
+    /*
+       for (std::vector<int>::iterator it = flow_byte_sizes.begin() ; it != flow_byte_sizes.end(); ++it) {
+       std::cout << ' ' << *it << endl;
+       }
+       std::cout << '\n';
+       */
 
     int num_flow_byte_sizes = flow_byte_sizes.size();
+    // cout << num_flow_byte_sizes << endl;
 
-    // Read TM
     ifstream tm;
     tm.open(TM_FILE);
-    for(unsigned int i=0; i<30; i++) {
+    for(unsigned int i=0; i<36; i++) {
         vector<float> row;
         for(unsigned int j=0; j<720; j++) {
             float dem;
@@ -167,8 +165,16 @@ int main(int argc, char *argv[]){
         demand.push_back(row);
     }
     tm.close();
+    /*
+       for(unsigned int i=0; i<2016; i++){
+       for(unsigned int j=0; j<144; j++){
+       cout << demand[i][j] << " ";
+       }
+       cout << endl;
+       }
+       */
 
-    // index the routers; read topology
+    // index the routers
     ifstream topo;
     topo.open(TOPO_FILE);
     int router_id = 0;
@@ -190,23 +196,21 @@ int main(int argc, char *argv[]){
     }
 
     read_dmd_indices_d(dmd_index, routers);
+    /* 
+       for(unsigned int src=0; src < 12; src++){
+       for(unsigned int dst=0; dst < 12; dst++){
+       cout << dmd_index[src][dst] << " ";
+       }
+       cout << endl;
+       }
+       */
 
     // Start writing to replay script
-    // Prologue
     ofstream replay_script;
     replay_script.open("replay_script.sh");
     replay_script << "#!/bin/sh" << endl << endl;
 
-    replay_script << "pkill -9 client" << endl;
-    replay_script << "pkill -9 server" << endl;
-
-    // Start servers
-    replay_script << "# Start servers" << endl;
-    for (std::map<string, int>::iterator rcv_from=routers.begin(); rcv_from!=routers.end(); ++rcv_from){
-        replay_script << "./server -p " << (BASE_PORT + rcv_from->second + 1) << " > ./src-" << (rcv_from->second+1) << "-dst-" << node_id << ".txt &" << endl;
-    }
-
-    replay_script << "sleep 5";
+    replay_script << "pkill -9 iperf" << endl;
 
     // Schedule clients
     replay_script << endl << "# Start clients" << endl << endl;
@@ -216,73 +220,30 @@ int main(int argc, char *argv[]){
             continue;
         }
         // For each scaled_to_time time
-        for (unsigned int time = 0; time < 10; time++){ // TODO: change max time to 2016
-            long cumul = 0;
-            int num_flows = 0;
-            // store flow sizes per destination
-            map<string, vector<long> > send_size;
+        for (unsigned int time = 0; time < 36; time++){ // TODO: change max time to 2016
 
+            replay_script << "# Time: " << time << endl;
+            replay_script << "if [ \"$1\" -eq 1 ] " << endl;
+            replay_script << "then" << endl;
+            replay_script << "\t cat ../atlas-merlin/10.0.0." << node_id << "_" << time << " > /proc/merlin" << endl;
+            replay_script << "fi" << endl;
+            replay_script << "./sync-client -s olympic -p 7000 " << endl;
+
+            replay_script << "killall -9 iperf" << endl;
             // iterate over all destinations
             for (std::map<string, int>::iterator dst=routers.begin(); dst!=routers.end(); ++dst){
                 // 100 bytes / 5 mins * scaled_to_time s - bytes to be sent in scaled_to_time seconds
-                float dmd = demand[time][dmd_index[src->second][dst->second]]*100 / 300 * scaled_to_time;
-
-                long cumulsd = 0;
-
-                // flow sizes for this destination
-                vector<long> send_size_perdest;
-                while(dmd > THRESH){
-                    long rand_flow_size = flow_byte_sizes[rand() % num_flow_byte_sizes]*100 * 1; //TODO: Note: multiplying each flow size
-                    rand_flow_size = rand_flow_size < dmd ? rand_flow_size : dmd;
-                    send_size_perdest.push_back(rand_flow_size);
-                    dmd -= rand_flow_size;
-                    cumulsd += rand_flow_size;
-                    num_flows++;
-                }
-                cumul += cumulsd;
-                send_size[dst->first] = send_size_perdest;
-            }
-            cout << cumul << endl;
-            replay_script << "# Time slept: " << intervalSleepTime << endl;
-            intervalSleepTime = 0;
-            replay_script << "# Time: " << time << endl;
-
-            // Change routes if dynamic scheme
-            replay_script << "if [ \"$1\" -eq 1 ] " << endl;
-            replay_script << "then" << endl;
-            replay_script << "\t cat ../atlas-kulfi/10.0.0." << node_id << "_" << time << " > /proc/kulfi" << endl;
-            replay_script << "fi" << endl;
-
-            // Sync with other servers and kill existing flows
-            replay_script << "./sync-client -s olympic -p 7000 " << endl;
-            replay_script << "killall -2 client" << endl;
-
-            // Schedule flows
-            for(int t=0; t<10; t++){
-                float sleepTime = 0;
-                for (std::map<string, int>::iterator dst=routers.begin(); dst!=routers.end(); ++dst){
-                    for(int i=t; i<send_size[dst->first].size(); i+=10){
-                        replay_script << "\t ./client -s 10.0.0." << dst->second+1 << " -p " << (BASE_PORT + node_id) << " -l " << (int)(send_size[dst->first][i] * factor) << " >> ./flow-time-src-" << node_id << "-dst-" << dst->second+1 << ".txt &" << endl;
-                        sleepTime = scaled_to_time * poissonInterval(num_flows);
-                        replay_script << "\t sleep " << sleepTime << endl;
-                        intervalSleepTime += sleepTime;
-                    }
+                long int rate_bps = demand[time][dmd_index[src->second][dst->second]] * factor *100 / 300 * 8; //bps
+                if(rate_bps > 0){
+                    replay_script << "iperf -c 10.0.0." << dst->second+1 << " -u -b " << rate_bps << " -t " << scaled_to_time << " &" << endl;
                 }
             }
+            replay_script << "sleep " << scaled_to_time << endl;
         }
     }
 
-    // Epilogue
     replay_script << "./sync-client -s olympic -p 7000 "  << endl;
-    // replay_script << "pkill -9 client" << endl;
-    replay_script << "FAIL=0" << endl;
-    replay_script << "for job in `jobs -l | grep ./client | awk '{print $2}'`" << endl;
-    replay_script << "do" << endl;
-    replay_script << "    echo $job" << endl;
-    replay_script << "    wait $job || let \"FAIL+=1\"" << endl;
-    replay_script << "done" << endl;
-    replay_script << "sleep " << 5 << endl;
-    replay_script << "pkill -9 server" << endl;
+    replay_script << "killall -9 iperf" << endl;
     replay_script.close();
 
     return 0;

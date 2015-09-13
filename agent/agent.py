@@ -3,7 +3,12 @@
 import os
 import socket
 import argparse
-
+"""
+End host agent for Kulfi. Runs a server to listen and respond to messsages from Kulfi controller.
+Messages can be of two types:
+	1. Update routes
+	2. Get stats
+"""
 BUFSIZE = 1024
 
 def fetch(ip, port, routesfile, statsfile):

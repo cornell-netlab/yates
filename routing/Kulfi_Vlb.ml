@@ -3,10 +3,14 @@ open Kulfi_Types
 open Frenetic_Network
 open Net
 
+       
 let solve (topo:topology) (d:demands) (s:scheme) : scheme =
-  let apsp = NetPath.all_pairs_shortest_paths ~topo:topo
-    ~f:(fun x y -> true) in  
-
+  let device v = let lbl = Topology.vertex_to_label topo v in (Node.device lbl) in
+  
+  let apsp = NetPath.all_pairs_shortest_paths
+	       ~topo:topo
+	       ~f:(fun x y -> true) in
+  
   let spf_table =     
     List.fold_left apsp ~init:SrcDstMap.empty ~f:(fun acc (c,v1,v2,p) -> 
     SrcDstMap.add acc ~key:(v1,v2) ~data:( PathMap.singleton p 1.0 ) ) in 
@@ -26,7 +30,12 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 
   let vlb_pps src dst = 
     Topology.fold_vertexes 
-      (fun v acc -> PathMap.add acc (route_thru_detour src v dst) (1.0 /. nv))
+      (fun v acc ->
+       (* Don't include hosts as detour nodes *)
+       match device v with
+       | Node.Host -> acc
+       | _ ->
+       PathMap.add acc (route_thru_detour src v dst) (1.0 /. nv))
       topo 
       PathMap.empty in
 
