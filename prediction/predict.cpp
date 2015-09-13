@@ -1,4 +1,3 @@
-//how to add it to ocaml?
 #include <stdio.h> 
 #include <stdlib.h>
 #include <time.h>
@@ -14,27 +13,21 @@ using namespace std;
 #define maxCol 144
 #define maxRow rowInFile*numOfFile
 typedef double(*objCalFunctionType)(double ** X_dat, double * Y_dat, int d, int n, void * modelPara, void * additionalStuff);
-typedef void (*gradientStepFunctionType) (double * x, double y, double *gradAns, int d,  bool cumu, void * modelPara, void * additionalStuff);
-typedef void (*trainModelFunctionType) (double ** X_dat, double* Y_dat, int d, int n, double avg, void * modelPara, void * additionalStuff);
-typedef void (*predictNextFunctionType) (double * x, double * predictY, int d,  void * modelPara , void * additionalStuff);
+typedef void(*gradientStepFunctionType) (double * x, double y, double *gradAns, int d, bool cumu, void * modelPara, void * additionalStuff);
+typedef void(*trainModelFunctionType) (double ** X_dat, double* Y_dat, int d, int n, double avg, void * modelPara, void * additionalStuff);
+typedef void(*predictNextFunctionType) (double * x, double * predictY, int d, void * modelPara, void * additionalStuff);
 
-struct ffNeuralNetsStruct //fully connected, naive feedforward neural nets.
-{
-	int layers; //input+?hidden+output
-	double*** weightMatrix;
-	int * numOfUnits;//how many units are there?
-};
 
 double abso(double a)
 {
-  if (a<0) return -a;
-  return a;
+	if (a<0) return -a;
+	return a;
 }
 
 /*
 Read Data:
 */
-void getData(double** dataM, int last=numOfFile)
+void getData(double** dataM, int last = numOfFile)
 {
 	int numOfModel = 5;
 	string a;
@@ -42,12 +35,12 @@ void getData(double** dataM, int last=numOfFile)
 	for (int i = 1; i <= last; i++)
 	{
 		if (i<10)
-			sprintf(buf, "D:\\Dropbox\\box\\CodeRepo\\VisualStudio\\Routing\\data\\X0%i", i);
+			sprintf(buf, "data/X0%i", i);
 		else
-			sprintf(buf, "D:\\Dropbox\\box\\CodeRepo\\VisualStudio\\Routing\\data\\X%i", i);
+			sprintf(buf, "data/X%i", i);
 		a = buf;
 		printf("%s\n", a.c_str());
-		FILE * f=fopen( a.c_str(), "r");
+		FILE * f = fopen(a.c_str(), "r");
 		for (int j = 0; j<rowInFile; j++)
 		{
 			for (int k = 0; k<maxCol; k++)
@@ -65,7 +58,7 @@ void getData(double** dataM, int last=numOfFile)
 }
 
 /*
-Compute Median, remove spikes. 
+Compute Median, remove spikes.
 */
 void getMedianCol(double ** dataM, double ** medianM, int rows, int curCol, int l)
 //One can make it faster by using balanced binary tree, but maybe it's not that important here.
@@ -73,27 +66,27 @@ void getMedianCol(double ** dataM, double ** medianM, int rows, int curCol, int 
 	vector<double> v;
 	for (int i = 0; i < l; i++)
 		medianM[curCol][i] = dataM[curCol][i];
-	for (int i = 0; i < l * 2;i++)
+	for (int i = 0; i < l * 2; i++)
 		v.push_back(dataM[curCol][i]);
 
-	for (int i = l; i < rows-l; i++)
+	for (int i = l; i < rows - l; i++)
 	{
 		v.push_back(dataM[curCol][i + l]);
 		std::nth_element(v.begin(), v.begin() + l, v.end());
 		medianM[curCol][i] = v[l];
-        std::vector<double>::iterator it = std::find(v.begin(), v.end(), dataM[curCol][i - l]);
+		std::vector<double>::iterator it = std::find(v.begin(), v.end(), dataM[curCol][i - l]);
 		v.erase(it);
 	}
 }
 
-void getMedianTable(double ** dataM, double ** medianM, int rows, int cols, int l=4)
+void getMedianTable(double ** dataM, double ** medianM, int rows, int cols, int l = 4)
 {
 	for (int i = 0; i < cols; i++)
 		getMedianCol(dataM, medianM, rows, i, l);
 }
 
 /*
-General useful functions. 
+General useful functions.
 */
 double sqr(double a)
 {
@@ -116,7 +109,7 @@ void  getLoss(double * regret, double * serve, double * predict, int length, int
 
 int getRandNum(int n)
 {
-	return (rand() * 59999 + rand()) % n;
+	return abs((rand() * 59999 + rand()) % n);
 }
 double getRandFloat()
 {
@@ -132,12 +125,12 @@ void writeRandomDouble(double * w, int d)
 		w[i] = getRandFloat();
 }
 
-void fullGradient(double ** X_dat, double * Y_dat, double * gradAns, int d, int n, 
+void fullGradient(double ** X_dat, double * Y_dat, double * gradAns, int d, int n,
 	gradientStepFunctionType gradientStep, void * modelPara, void * additionalStuff)
 {
 	memset(gradAns, 0, sizeof(double)*d);
 	for (int i = 0; i < n; i++)
-		gradientStep(X_dat[i], Y_dat[i], gradAns, d, true,modelPara,additionalStuff);
+		gradientStep(X_dat[i], Y_dat[i], gradAns, d, true, modelPara, additionalStuff);
 	for (int i = 0; i < d; i++)
 		gradAns[i] /= n;
 }
@@ -163,11 +156,11 @@ void proximalUpdate(double * w, int d, double thres)
 }
 
 /*
-UniVR: a variance reduced SGD algorithm. 
-Currently the function below supports d-dimensional model only. 
-In order to support neural nets, I wrote another special one. 
+UniVR: a variance reduced SGD algorithm.
+Currently the function below supports d-dimensional model only.
+In order to support neural nets, I wrote another special one.
 */
-void uniVR(double ** X_dat, double * Y_dat, int d, int n, 
+void uniVR(double ** X_dat, double * Y_dat, int d, int n,
 	gradientStepFunctionType gradientStep, objCalFunctionType objCal, void * modelPara, void * additionalStuff)
 {
 	double eta = ((double *)additionalStuff)[3];
@@ -181,7 +174,7 @@ void uniVR(double ** X_dat, double * Y_dat, int d, int n,
 	double * g2 = new double[d];
 	double * save = new double[d];
 	double * w = (double *)modelPara;
-	int m = n / 4+1;
+	int m = n / 4 + 1;
 	memcpy(wtilde, w, sizeof(double)*d);
 	while (true)
 	{
@@ -191,8 +184,10 @@ void uniVR(double ** X_dat, double * Y_dat, int d, int n,
 		{
 			int i;
 			i = getRandNum(n);
+            if (X_dat[i]==NULL)
+              printf("here\n");
 			gradientStep(X_dat[i], Y_dat[i], g1, d, false, modelPara, additionalStuff);
-			gradientStep(X_dat[i], Y_dat[i], g2, d, false, (void* ) wtilde, additionalStuff);
+			gradientStep(X_dat[i], Y_dat[i], g2, d, false, (void*)wtilde, additionalStuff);
 			for (int j = 0; j < d; j++)
 				w[j] -= eta*(g1[j] - g2[j] + utilde[j]);
 			if (sigma>0)
@@ -202,25 +197,20 @@ void uniVR(double ** X_dat, double * Y_dat, int d, int n,
 		}
 		for (int j = 0; j < d; j++)
 			wtilde[j] = save[j] / m;
-		m = int (m* beta);
+		m = int(m* beta);
 		double curObj = objCal(X_dat, Y_dat, d, n, modelPara, additionalStuff);
 		printf("%.5lf  eta=%.5lf  w0=%.5lf  w1=%.5lf  w2=%.5lf\n", curObj, eta, w[0], w[1], w[2]);
 		if (abso(curObj - lastVal) < stopErr)
 			break;
 		lastVal = curObj;
 	}
-	delete[] wtilde, utilde, g1, g2,save;
+	delete[] wtilde, utilde, g1, g2, save;
 }
 
-//This is for neural nets only. 
-//!+TODO
-void uniVR_NN()
-{
-}
 
 /*
-Naive predicting the last value. 
-There is no training 
+Naive predicting the last value.
+There is no training
 */
 void lastOnePrediction(double * x, double * predictY, int d, void * modelPara, void * additionalStuff)
 {
@@ -232,9 +222,9 @@ Linear Regression Code:
 */
 
 
-double linearRegressionObjCal(double ** X_dat, double * Y_dat,  int d, int n, void * modelPara, void * additionalStuff)
+double linearRegressionObjCal(double ** X_dat, double * Y_dat, int d, int n, void * modelPara, void * additionalStuff)
 {
-	double * w = (double *) modelPara;
+	double * w = (double *)modelPara;
 	double sum = 0;
 	for (int i = 0; i < n; i++)
 		sum += 0.5 / n* sqr(inner(w, X_dat[i], d) - Y_dat[i]);
@@ -245,7 +235,7 @@ double linearRegressionObjCal(double ** X_dat, double * Y_dat,  int d, int n, vo
 	return sum;
 }
 
-void linearRegressionGradientStep(double *x, double y, double * gradAns, int d,bool cumu, void * modelPara, void * additionalStuff)
+void linearRegressionGradientStep(double *x, double y, double * gradAns, int d, bool cumu, void * modelPara, void * additionalStuff)
 {
 	double *w = (double *)modelPara;
 	if (!cumu)
@@ -253,7 +243,7 @@ void linearRegressionGradientStep(double *x, double y, double * gradAns, int d,b
 	double lambda = ((double *)additionalStuff)[1];
 	double tmp = inner(w, x, d) - y;
 	for (int i = 0; i < d; i++)
-		gradAns[i] += x[i] * tmp+lambda*w[i];
+		gradAns[i] += x[i] * tmp + lambda*w[i];
 }
 
 void linearRegressionTrain(double ** X_dat, double * Y_dat, int d, int n, double avg, void * modelPara, void * additionalStuff)
@@ -261,7 +251,7 @@ void linearRegressionTrain(double ** X_dat, double * Y_dat, int d, int n, double
 	double * w = (double *)modelPara;
 	((double *)additionalStuff)[2] = avg;
 	writeRandomDouble(w, d);
-	uniVR(X_dat, Y_dat, d,n, linearRegressionGradientStep,linearRegressionObjCal, modelPara, additionalStuff);
+	uniVR(X_dat, Y_dat, d, n, linearRegressionGradientStep, linearRegressionObjCal, modelPara, additionalStuff);
 }
 
 void linearRegressionPredict(double * x, double * predictY, int d, void * modelPara, void * additionalStuff)
@@ -274,21 +264,21 @@ void linearRegressionPredict(double * x, double * predictY, int d, void * modelP
 
 /*
 Logistic regression: */
-double logisticRegressionObjCal(double ** X_dat, double * Y_dat,  int d, int n, void * modelPara, void * additionalStuff)
+double logisticRegressionObjCal(double ** X_dat, double * Y_dat, int d, int n, void * modelPara, void * additionalStuff)
 {
 	double sum = 0;
 	double * w = (double *)modelPara;
 	for (int i = 0; i < n; i++)
-		sum += log(1.0+exp(-inner(w, X_dat[i], d)*Y_dat[i]));
+		sum += log(1.0 + exp(-inner(w, X_dat[i], d)*Y_dat[i]));
 	sum /= n;
 	double sigma = ((double *)additionalStuff)[0];
 
-	for (int i = 0; i < d;i++)
-		sum+= sigma * abso(w[i]);
+	for (int i = 0; i < d; i++)
+		sum += sigma * abso(w[i]);
 	return sum;
 }
 
-void logisticRegressionGradientStep(double * x, double y, double *gradAns,  int d,bool cumu, void * modelPara, void * additionalStuff)
+void logisticRegressionGradientStep(double * x, double y, double *gradAns, int d, bool cumu, void * modelPara, void * additionalStuff)
 {
 	if (!cumu)
 		memset(gradAns, 0, sizeof(double)*d);
@@ -304,7 +294,7 @@ void logisticRegressionTrain(double ** X_dat, double * Y_dat, int d, int n, doub
 	double * w = (double *)modelPara;
 	((double *)additionalStuff)[2] = avg;
 	writeRandomDouble(w, d);
-	uniVR(X_dat, Y_dat, d,n, logisticRegressionGradientStep,logisticRegressionObjCal, modelPara, additionalStuff);
+	uniVR(X_dat, Y_dat, d, n, logisticRegressionGradientStep, logisticRegressionObjCal, modelPara, additionalStuff);
 }
 
 void logisticRegressionPredict(double * x, double * predictY, int d, void * modelPara, void * additionalStuff)
@@ -315,66 +305,6 @@ void logisticRegressionPredict(double * x, double * predictY, int d, void * mode
 	double * w = (double *)modelPara;
 	*predictY = inner(w, x, d);
 }
-
-/*
-void randomForestTrain(double * x, double * preditcY, int d, void * modelPara, void * additionalStuff)
-{
-    Ptr<RTrees> rtrees= (Ptr<RTrees> ) modelPara;
-    rtrees->setMaxDepth(4);
-    rtrees->setMinSampleCount(2);
-    rtrees->setRegressionAccuracy(0.f);
-    rtrees->setUseSurrogates(false);
-    rtrees->setMaxCategories(16);
-    rtrees->setPriors(Mat());
-    rtrees->setCalculateVarImportance(false);
-    rtrees->setActiveVarCount(1);
-    rtrees->setTermCriteria(TermCriteria(TermCriteria::MAX_ITER, 5, 0));
-    rtrees->train(prepare_train_data());
-}
-*/
-
-
-/*
-Neural Nets:
-*/
-
-double neuralNetsObjCal(double *w, double ** X_dat, double * Y_dat, int d, int n, void * additionalStuff)
-{
-	double sum = 0;
-	return sum;
-}
-
-void neuralNetsGradientStep(double *ans, double*w, int i, int d,bool cumu, double * x, double y, void * additionalStuff)
-{
-	if (!cumu)
-		memset(ans, 0, sizeof(double)*d);
-	double tmp = -inner(w, x, d)*y;
-	tmp = -exp(tmp) / (1.0 + exp(tmp));
-	for (int i = 0; i < d; i++)
-		ans[i] += y*x[i] * tmp;
-}
-
-double neuralNets(double ** X_dat, double * Y_dat, int d, int n, void* additionalStuff)
-{
-	//boundary decisions:
-	//	-100%,-90%, ... 0% ... , 100%
-	/*
-	double eta = 0.01;
-	double errStop = 0.00001;
-	double * w = new double[d];
-	writeRandomDouble(w, d);
-	printf("%.4lf\n", logisticRegressionObjCal(w,X_dat, Y_dat, d, n,additionalStuff));
-	uniVR(w, X_dat, Y_dat, d, eta, n, 2.0, errStop, logisticRegressionGradientStep,logisticRegressionObjCal, additionalStuff);
-	printf("%.4lf\n", logisticRegressionObjCal(w,X_dat, Y_dat, d, n,additionalStuff));
-	//!output should be the maximum of the sum of two neighbor units. For the first one, double it. 
-	*/
-	//double output = inner(w, X_dat[n],d);
-	//delete[] w;
-	double output = 0;
-	return output;
-}
-
-
 
 //Train a model
 void trainModel(trainModelFunctionType trainMethod,
@@ -394,23 +324,23 @@ void trainModel(trainModelFunctionType trainMethod,
 	double * Y_dat = new double[dataLen];
 	for (int i = numOfFeature; i <length; i++)
 	{
-		X_dat[i - numOfFeature] = new double[numOfFeature+1];
+		X_dat[i - numOfFeature] = new double[numOfFeature + 1];
 		X_dat[i - numOfFeature][0] = 1.0;
 		for (int j = 1; j <= numOfFeature; j++)
-			X_dat[i - numOfFeature][j] = serve[i - j]/avg;
-		Y_dat[i - numOfFeature] = serve[i]/avg;
+			X_dat[i - numOfFeature][j] = serve[i - j] / avg;
+		Y_dat[i - numOfFeature] = serve[i] / avg;
 	}
-	trainMethod(X_dat,Y_dat, numOfFeature+1,dataLen,avg, modelPara, additionalStuff);
+	trainMethod(X_dat, Y_dat, numOfFeature + 1, dataLen, avg, modelPara, additionalStuff);
 	for (int i = 0; i < dataLen; i++)
 		delete[] X_dat[i];
 	delete[] X_dat, Y_dat;
 }
 
-double predictModel(predictNextFunctionType predictMethod, double * serve, int numOfFeature, int length, void * modelPara, void * addtionalStuff)
+double predictOneModel(predictNextFunctionType predictMethod, double * serve, int numOfFeature, int length, void * modelPara, void * addtionalStuff)
 {
 	double * x = new double[numOfFeature + 1];
 	double avg = ((double *)addtionalStuff)[2];
-	if (avg==0)
+	if (avg == 0)
 		printf("error! average field is 0.\n");
 	x[0] = 1;
 	for (int j = 1; j <= numOfFeature; j++)
@@ -421,62 +351,10 @@ double predictModel(predictNextFunctionType predictMethod, double * serve, int n
 	return output*avg;
 }
 
-int readFile_fast(string filename, int * n, int * d , double ** X_dat, double * Y_dat)
-{
-	srand(0);
-	FILE * fin=fopen(filename.c_str(), "r");
-	*n = 0;
-	*d = 0;
-	int totf;
-	while (true)
-	{
-		fscanf(fin, "%lf", Y_dat+(*n));
-		if (Y_dat[*n] < -50) break;
-		fscanf(fin, "%i", &totf);
-		for (int i = 0; i<totf; i++)
-		{
-			int a;
-			double b;
-			fscanf(fin, "%i", &a);
-			fscanf(fin, "%lf", &X_dat[*n][a]);
-			if (a > *d)
-				*d = a;
-		}
-		(*n)++;
-	}
-	(*d)++;
-	return 0;
-}
-
 
 int main()
 {
-	struct aa
-	{
-		double a;
-		double b;
-		double c;
-		double d;
-		double e[5];
-	} * f;
-	f = new struct aa;
-	f->a = 12345;
-	f->b = 67890;
-	f->c = 135;
-	f->d = 5;
-	double* g = (double *)f;
-	
-	printf("%lf  %lf  %lf %lf\n", g[0], g[1], g[2], g[3]);
-
 	srand(0);
-	printf("size=%i\n", (int)sizeof(int));
-    //newStuff();
-    return 0;
-
-	string filename = "a9a2.dat";
-	//int n, d;
-	int maxn = 40000;
-	int maxd = 200;
 
 	double * additionalStuff = new double[10];
 	additionalStuff[0] = 0;  //sigma
@@ -484,109 +362,91 @@ int main()
 	additionalStuff[2] = 1; // average
 	additionalStuff[3] = 0.001; //eta
 	additionalStuff[4] = 2.0; //beta
-	additionalStuff[5] = 0.000001; //beta
+	additionalStuff[5] = 0.001; //stop Err
+
 	int nLinearRegressionFeatures = 100;
-	double * linearRegressionW = new double[nLinearRegressionFeatures];
-	memset(linearRegressionW, 0, sizeof(double)*nLinearRegressionFeatures);
-	/*
-	double ** X_dat=new double * [maxn];
-	for (int i = 0; i < maxn; i++)
-	{
-		X_dat[i] = new double[maxd];
-		memset(X_dat[i],0,sizeof(double)*maxd);
-	}
-	double * Y_dat;
-	Y_dat = new double [maxn];
-	readFile_fast(filename, &n, &d, X_dat, Y_dat);
-	linearRegressionTrain(X_dat,Y_dat,d,n,1.0,linearRegressionW,additionalStuff);
-	*/
-
-
-
-
+	double * linearRegressionW = new double[nLinearRegressionFeatures+1]; //include the constant parameter;
 
 	double** dataM = new double *[maxCol];
+	double** outM = new double *[maxCol];
 	double** medianM = new double *[maxCol];
 	for (int i = 0; i < maxCol; i++)
 	{
 		dataM[i] = new double[maxRow];
 		medianM[i] = new double[maxRow];
+	    outM[i] = new double [maxRow];
 	}
-	int readFiles = 1;
+
+	int readFiles = 2;
 	int totRow = readFiles*rowInFile;
-	getData(dataM,readFiles);
-	
+	getData(dataM, readFiles);
+
 	//Remove spikes:
 	//	getMedianTable(dataM, medianM, totRow, maxCol,3);
-	
+
 	//Possible choices:
 	//  lastOnePrediction,
 	//	linearRegression, (including elastic net, ridge, lasso) should set sigma/lambda correctly.
 	//	logisticRegression, (L1-regularized) should set sigma correctly
+	//  random Forest, etc. from openCV ml package. 
 
 
-	double ans =predictModel(lastOnePrediction, dataM[0], 100, 1000, NULL, additionalStuff);
-	printf("%.5lf\n",ans);
+	double ans = predictOneModel(lastOnePrediction, dataM[0], 20, 1000, NULL, additionalStuff);
+	printf("last one, %.5lf\n", ans);
 
-	
-	
 	int totalLen = 1099;
 	double * series;
 	series = dataM[0];
-
-	trainModel(linearRegressionTrain, series, nLinearRegressionFeatures, totalLen,linearRegressionW,additionalStuff);
-
-	ans = predictModel(linearRegressionPredict, series, nLinearRegressionFeatures, totalLen+1, linearRegressionW, additionalStuff);
-	printf("%.5lf\n",ans);
-
-	int nLogisticRegressionFeatures = 10;
-	double * logisticRegressionW = new double[nLogisticRegressionFeatures+1];
-	trainModel(logisticRegressionTrain, dataM[0], nLogisticRegressionFeatures, 1000,logisticRegressionW,additionalStuff);
-	ans = predictModel(logisticRegressionPredict, dataM[0], nLogisticRegressionFeatures, 1000, logisticRegressionW, additionalStuff);
-	printf("%.5lf\n",ans);
-
-
-
-
-    /*
-    int nRandomForestFeatures=2;
-    for (int i=0;i<1000-nRandomForestFeatures;i++)
-
-    Ptr<RTrees> rtrees;
-    trainModel(randomForestTrain,dataM[0], nRandomForestFeatures, 1000, rtrees, additionalStuff);
-    ans=predictModel(randomForestPredict, dataM[0], nRandomForestFeatures, 1000, rtrees, additionalStuff);
-    */
-
-
-
-
-	
-	struct ffNeuralNetsStruct * ffNeuralNetsinfo;
-	ffNeuralNetsinfo = new ffNeuralNetsStruct;
-	ffNeuralNetsinfo->layers = 3; // only one hidden layer. 
-	ffNeuralNetsinfo->numOfUnits = new int[3];
-	int featureUsed = 10;
-	ffNeuralNetsinfo->numOfUnits[0] = featureUsed; // use 10 previous numbers
-	ffNeuralNetsinfo->numOfUnits[1] = 10;			 //10 hidden units
-	ffNeuralNetsinfo->numOfUnits[2] = 21;			 //21 output categories (ordered)
-	ffNeuralNetsinfo->weightMatrix = new double **[ffNeuralNetsinfo->layers-1]; // fully connected
-	for (int i = 0; i < ffNeuralNetsinfo->layers-1; i++)
+	int period = 1000;
+	int predictCol = 2;
+/*
+	for (int i = 0; i <predictCol ; i++)
 	{
-		//here "+1" means the additional constant term 
-		ffNeuralNetsinfo->weightMatrix[i] = new double*[ffNeuralNetsinfo->numOfUnits[i]+1]; 
-		for (int j = 0; j < ffNeuralNetsinfo->numOfUnits[i]; j++)
+		printf("---------i=%i\n", i);
+		for (int j = 0; j < totRow; j++)
 		{
-			ffNeuralNetsinfo->weightMatrix[i][j] = new double[ffNeuralNetsinfo->numOfUnits[i+1]];
-			for (int k = 0; k < ffNeuralNetsinfo->numOfUnits[i + 1]; k++)
+			if (j < period)
+				outM[i][j] = dataM[i][(j>1)?(j-1):0];
+			else
 			{
-				ffNeuralNetsinfo->weightMatrix[i][j][k] = ((double)(rand() % 1000)) / 1000; //random init weights
-				if (rand() % 2 == 0)
-					ffNeuralNetsinfo->weightMatrix[i][j][k] *= -1;
+				if (j%period == 0)
+					trainModel(linearRegressionTrain, &dataM[i][j-period], nLinearRegressionFeatures, period, linearRegressionW, additionalStuff);
+				outM[i][j] = predictOneModel(linearRegressionPredict, dataM[i], nLinearRegressionFeatures, j, linearRegressionW, additionalStuff);
 			}
 		}
 	}
-	//ans=trainModel(neuralNets, dataM[0], featureUsed, 1000,ffNeuralNetsinfo);
-	//printf("%.5lf\n",ans);
+	FILE * fout = fopen("linearPredict", "w");
+	for (int j = 0; j < totRow; j++)
+	{
+		for (int i = 0; i < predictCol; i++)
+			fprintf(fout, "%.0lf:%.0lf\t", outM[i][j],dataM[i][j]);
+		fprintf(fout, "\n");
+	}
+	fclose(fout);
+	*/
+
+
+
+	trainModel(linearRegressionTrain, series, nLinearRegressionFeatures, totalLen, linearRegressionW, additionalStuff);
+
+	ans = predictOneModel(linearRegressionPredict, series, nLinearRegressionFeatures, totalLen + 1, linearRegressionW, additionalStuff);
+	printf("LinearReg, %.5lf\n", ans);
+
+	int nLogisticRegressionFeatures = 10;
+	double * logisticRegressionW = new double[nLogisticRegressionFeatures + 1];
+	trainModel(logisticRegressionTrain, dataM[0], nLogisticRegressionFeatures, 1000, logisticRegressionW, additionalStuff);
+	ans = predictOneModel(logisticRegressionPredict, dataM[0], nLogisticRegressionFeatures, 1000, logisticRegressionW, additionalStuff);
+	printf("Logistic, %.5lf\n", ans);
+
+    /*
+	int nRandomForestFeatures = 10;
+	Ptr<RTrees> rtrees = RTrees::create();
+	trainModel(randomForestTrain,dataM[0], nRandomForestFeatures, 3000, &rtrees, additionalStuff);
+	for (int i = 1000; i < 1050;i++)
+	{ 
+		ans=predictOneModel(randomForestPredict, dataM[0], nRandomForestFeatures, i, &rtrees, additionalStuff);
+		printf("randomForest, %.5lf actual=%.5lf\n", ans, dataM[0][i]);
+	}*/
 
 	for (int i = 0; i < maxCol; i++)
 	{
@@ -596,6 +456,5 @@ int main()
 	delete[] dataM;
 	delete[] medianM;
 	delete additionalStuff;
-	delete ffNeuralNetsinfo;
 	return 0;
 }

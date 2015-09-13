@@ -11,48 +11,42 @@
 using namespace cv;
 using namespace cv::ml;
 
-void newStuff()
+/*
+Random Forest: */
+
+void randomForestTrain(double ** X_dat, double * Y_dat, int d, int n, double avg, void * modelPara, void * additionalStuff)
 {
-    vector<Point> trainedPoints;
-    vector<int> trainedPointsMarkers;
-    trainedPoints.push_back(Point(1,1));
-    trainedPoints.push_back(Point(1,0));
-    trainedPoints.push_back(Point(0,0));
-    trainedPoints.push_back(Point(0,1));
+	vector<int> trainedPointsMarkers;
+	Mat samples = Mat::zeros(n, d, CV_32F);
+	Mat ans = Mat::zeros(n, 1, CV_32F);
+	for (int i = 0; i < n; i++)
+	{
+		for (int j = 0; j < d; j++)
+			samples.at<float>(i, j) = X_dat[i][j];
+		ans.at<float>(i, 0) = Y_dat[i];
+	}
 
-    trainedPointsMarkers.push_back(1);
-    trainedPointsMarkers.push_back(1);
-    trainedPointsMarkers.push_back(0);
-    trainedPointsMarkers.push_back(0);
-    Mat samples;
-    printf("pts.size()=%i\n",(int)trainedPointsMarkers.size());
-    Mat(trainedPoints).reshape(1,(int)trainedPointsMarkers.size()).convertTo(samples,CV_32F);
-    Ptr<TrainData> table=TrainData::create(samples, ROW_SAMPLE, Mat(trainedPointsMarkers));
-    /*
-    printf("%i  %i\n", samples.rows, samples.cols);
-    cout<< samples<<endl;
-    cout<<Mat(trainedPoints)<<endl;
-    samples.at<float>(1,0)= 5;
-    cout<< samples<<endl;
-    printf("%lf \n", samples.at<float>(1,0));
-    */
-    Ptr<RTrees> rtrees = RTrees::create();
-    rtrees->setMaxDepth(4);
-    rtrees->setMinSampleCount(2);
-    rtrees->setRegressionAccuracy(0.f);
-    rtrees->setUseSurrogates(false);
-    rtrees->setMaxCategories(16);
-    rtrees->setPriors(Mat());
-    rtrees->setCalculateVarImportance(false);
-    rtrees->setActiveVarCount(1);
-    rtrees->setTermCriteria(TermCriteria(TermCriteria::MAX_ITER, 5, 0));
-    rtrees->train(table);
+	Ptr<TrainData> table = TrainData::create(samples, ROW_SAMPLE, ans);
 
-    Mat testSample( 1, 2, CV_32FC1 );
-    testSample.at<float>(0) = 0.8;
-    testSample.at<float>(1) = 2.0;
+	Ptr<RTrees>* rtrees= (Ptr<RTrees> *) modelPara;
+	(*rtrees)->setMaxDepth(4);
+	(*rtrees)->setMinSampleCount(2);
+	(*rtrees)->setRegressionAccuracy(0.f);
+	(*rtrees)->setUseSurrogates(false);
+	(*rtrees)->setMaxCategories(16);
+	(*rtrees)->setPriors(Mat());
+	(*rtrees)->setCalculateVarImportance(false);
+	(*rtrees)->setActiveVarCount(1);
+	(*rtrees)->setTermCriteria(TermCriteria(TermCriteria::MAX_ITER, 5, 0));
+	(*rtrees)->train(table);
+}
+void randomForestPredict(double * x, double * predictY, int d, void * modelPara, void * additionalStuff)
+{
+	Ptr<RTrees> *rtrees= (Ptr<RTrees>* ) modelPara;
 
-    int response = (int)rtrees->predict( testSample );
-    printf("res=%i\n",response);
+	Mat testSample(1, d, CV_32FC1);
+	for (int j = 0; j < d; j++)
+		testSample.at<float>(j) = x[j];
 
+	*predictY = (*rtrees)->predict(testSample);
 }
