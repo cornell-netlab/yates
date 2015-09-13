@@ -2,63 +2,232 @@ open Core.Std
 open Async.Std
 open Kulfi_Routing
 open Kulfi_Types
-open Frenetic_NetKAT
-open Frenetic_NetKAT_Optimize
+open Frenetic_OpenFlow
+open Frenetic_OpenFlow0x01
+open Message
+open Frenetic_Network
+open Net
+module Controller = Frenetic_OpenFlow0x01_Controller
 
-module NetKAT_Controller = Frenetic_NetKAT_Controller.Make
+(* Global Variables *)
+let port_stats_delay = 1.0
+
+let verbose s = 
+  if false then 
+    Printf.eprintf "[kulfi]: %s\n%!" s
+  else
+    ()
+
+let string_of_stats (sw:switchId) ((time:Int64.t), (ps:portStats)) : string = 
+  Printf.sprintf 
+    "time=%Ld, switch=%Ld, port_no=%d, \
+     rx_packets=%Ld, tx_packets=%Ld, \
+     rx_bytes=%Ld, tx_bytes=%Ld, \
+     rx_dropped=%Ld, tx_dropped=%Ld, \
+     rx_errors=%Ld, tx_errors=%Ld, \
+     rx_frame_err=%Ld, rx_over_err=%Ld, rx_crc_err=%Ld, \
+     collisions=%Ld"
+    time
+    sw 
+    ps.port_no
+    ps.rx_packets ps.tx_packets
+    ps.rx_bytes ps.tx_bytes
+    ps.rx_dropped ps.tx_dropped
+    ps.rx_errors ps.tx_errors
+    ps.rx_frame_err ps.rx_over_err ps.rx_crc_err
+    ps.collisions  
 
 module Make(Solver:Kulfi_Routing.Algorithm) = struct
-    (* GenSym for tags *)
-    let tag_cell = ref 0 
-    let fresh_tag () = 
-      incr tag_cell;
-      !tag_cell
-    let reset () = 
-      tag_cell := 0
 
-    let netkat_of_path (path:path) : policy * tag = 
-      let tag = fresh_tag () in 
-      (* NB: Path H1 - S1 - S2 - H2 is represented as [(H1,S1), (S1,S2), (S2,H2)] *)
-      let pol,_ = 
-	List.fold_left
-	  path
-	  ~init:(drop,true)
-	  ~f:(fun (acc,first) e -> 
-	      if first then 
-		(acc,false)
-	      else
-		let _,out_port = Frenetic_Network.Net.Topology.edge_src e in 
-		let acc' = 
-		  mk_seq (mk_filter(Test(Vlan(tag))))
-			 (Mod(Location(Physical(out_port)))) in 
-		(acc',false)) in
-      (* TODO: pop Vlan at last hop *)
-      let pol' = mk_seq pol (Mod(Vlan(0xffff))) in 
-      (pol', tag)
+  type switch_state = 
+    { ports : portId list;
+      flows : flowMod list }
 
-  let netkat_of_scheme (scheme:scheme) : policy * configuration =
-    SrcDstMap.fold 
-      scheme
-      ~init:(drop, SrcDstMap.empty)
-      ~f:(fun ~key:(src,dst) ~data:path_dist (pol, config) ->
-          let pol', tags = 
-	    PathMap.fold
-	      path_dist
-	      ~init:(pol, TagMap.empty)
-	      ~f:(fun ~key:path ~data:prob (pol, tags) -> 
-		  let path_pol,tag = netkat_of_path path in 		
-		  let pol' = mk_union path_pol pol in
-		  let tags' = TagMap.add tags tag prob in
-		  (pol',tags')) in 
-	  let config' = SrcDstMap.add config (src,dst) tags in
-	  (pol',config'))
+  type state = 
+    { network : (switchId, switch_state) Hashtbl.t;
+      stats : (switchId * portId, (int64 * portStats) list) Hashtbl.t;
+      topo : topology;
+      mutable congestion : demand list;
+      mutable churn : int list }
 
-  let start topo = 
-    let demands = SrcDstMap.empty in 
-    let scheme = Solver.solve topo demands SrcDstMap.empty in 
-    let pol,config = netkat_of_scheme scheme in 
-    NetKAT_Controller.start ();
-    don't_wait_for (NetKAT_Controller.update_policy pol)
+  let global_state : state = 
+    { network = Hashtbl.Poly.create ();
+      stats = Hashtbl.Poly.create ();
+      topo = Topology.empty ();
+      congestion = [];
+      churn = [] }
+      
+  let shutdown () = 
+    (match None (* TODO(jnf) stats_out option *) with 
+     | None -> return ()
+     | Some out -> Writer.close out) >>= fun () -> 
+    Pervasives.exit 0 
+                    
+  (* Command-line Interface *)
+  let rec cli () = 
+    let help () = 
+      Printf.printf "Kulfi commands:\n\
+                     \thelp : print this message\n\
+                     \tswitches : print connected switches\n\
+                     \tports [switch] : print ports for [switch]\n\
+                     \tflows : print installed rules\n\
+                     \tstats [switch] [port]: print port stats for [switch] and [port]\n\
+                     \tdump [file]: dump all port stats to [file]\n\
+                     %!";
+      return () in 
+    let switches () = 
+      Printf.printf
+        "[%s]\n%!" 
+        (Kulfi_Util.intercalate 
+           (Printf.sprintf "%Ld") 
+           ", "
+           (Hashtbl.Poly.keys global_state.network));
+      return () in 
+    let ports sws = 
+      let sw = try Int64.of_string sws with _ -> -1L in 
+      begin match Hashtbl.Poly.find global_state.network sw with 
+            | None -> 
+               Printf.printf "No ports for switch %s\n%!" sws
+            | Some sw_state -> 
+               Printf.printf
+                 "[%s]\n%!"
+                 (Kulfi_Util.intercalate
+                    (Printf.sprintf "%d")
+                    ", "
+                    sw_state.ports)
+      end;
+      return () in 
+    let flows () = 
+      Printf.printf
+        "%s\n%!"
+        (Hashtbl.Poly.fold
+           global_state.network
+           ~init:""
+           ~f:(fun ~key:sw ~data:st acc -> 
+               Printf.sprintf
+                 "%sswitch %Ld:\n%s" 
+                 (if acc = "" then "" else acc ^ "\n\n") 
+                 sw
+                 (Kulfi_Util.intercalate Frenetic_OpenFlow0x01.FlowMod.to_string "\n" st.flows)));
+      return () in 
+
+    let stats sws pts = 
+      let sw = try Int64.of_string sws with _ -> -1L in 
+      let pt = try Int.of_string pts with _ -> -1 in 
+      begin match Hashtbl.Poly.find global_state.stats (sw,pt) with
+            | None 
+            | Some [] -> 
+               Printf.printf "No stats for switch %s port %s\n" sws pts
+            | Some ((time,ps)::_) -> 
+               Printf.printf "%s\n" (string_of_stats sw (time,ps))
+      end;
+      return () in
+    let dump fn =
+      return () in 
+    let eof () = 
+      shutdown () in 
+    let split s = 
+      List.filter (String.split s ' ') ((<>) "") in 
+    begin 
+      Printf.printf "kulfi> %!";
+      Reader.read_line (force Reader.stdin) >>= 
+        (function
+          | `Eof -> eof ()
+          | `Ok s -> match split s with 
+                     | ["switches"] -> switches ()
+                     | ["ports"; sws] -> ports sws
+                     | ["flows"] -> flows ()              
+                     | ["stats"; sws; pts] -> stats sws pts
+                     | ["dump"; fn] -> dump fn
+                     | ["exit"] -> eof ()
+                     | _ -> help ()) >>= fun _ -> 
+      cli ()
+    end
+
+  (* Helper to create fresh xids *)
+  let xid = 
+    let r = ref 0l in 
+    (fun () -> r := Int32.(!r + 1l); !r)
+
+  (* Send messages to the controller, return xid *)
+  let msgs,send_msg = 
+    let r,w = Pipe.create () in 
+    let x = xid () in 
+    (r, fun (sw,m) -> Pipe.write_without_pushback w (sw,x,m); x)
+
+  (* Controller helper functions *)
+  let rec port_stats_loop () : unit Deferred.t =   
+    Hashtbl.Poly.iter
+      global_state.network 
+      ~f:(fun ~key:sw ~data:sw_state -> 
+          List.iter
+            sw_state.ports
+            ~f:(fun p -> 
+                let m = Message.StatsRequestMsg (PortRequest (Some (PhysicalPort p))) in 
+                let _ = send_msg (sw, m) in
+                ()));
+    after (Time.Span.of_sec port_stats_delay) >>= fun () -> 
+    port_stats_loop ()
+
+  let send (sw, x, msg) =
+    Controller.send sw x msg >>= function 
+    | `Eof -> return ()
+    | `Ok -> return ()
+
+  let safe_add hash k v f = 
+    match Hashtbl.Poly.find hash k with 
+    | None -> Hashtbl.Poly.add_exn hash k v 
+    | Some v' -> Hashtbl.Poly.set hash k (f v v')
+
+  let handler flow_hash evt =
+    let flow_hash = Hashtbl.Poly.create () in 
+    match evt with
+    | `Connect (sw, feats) -> 
+       begin 
+         verbose (Printf.sprintf "switch %Ld connected" sw);
+         (* Save global state *)
+         let sw_state = 
+           { ports = List.map feats.SwitchFeatures.ports ~f:(fun pd -> pd.port_no);
+             flows = 
+               (match Hashtbl.Poly.find flow_hash sw with 
+                | None -> []
+                | Some flows -> flows) } in 
+         safe_add global_state.network sw sw_state (fun x _ -> x);
+         (* Propagate state to network *)  
+         send (sw, xid (), FlowModMsg delete_all_flows) >>= fun () ->
+         send (sw, xid (), BarrierRequest) >>= fun () ->
+         Deferred.all_unit
+           (List.map sw_state.flows
+                     (fun flow -> send (sw, xid (), FlowModMsg flow)))
+       end
+    | `Disconnect sw -> 
+       verbose (Printf.sprintf "switch %Ld disconnected" sw);
+       Hashtbl.Poly.remove global_state.network sw;
+       return ()
+    | `Message(sw,_,StatsReplyMsg (PortRep psl as rep)) ->
+       verbose (Printf.sprintf "stats from %Ld: %s" sw (reply_to_string rep));      
+       List.iter
+         psl
+         ~f:(fun ps -> 
+             let pt = ps.port_no in
+             let time = Kulfi_Time.time () in 
+             (match (* TODO(jnf) !stats_out *) None with 
+              | None -> ()
+              | Some out ->
+                 Writer.writef out "%s\n%!" (string_of_stats sw (time, ps)));
+             safe_add global_state.stats (sw,pt) [(time, ps)] (@));
+       return ()
+    | `Message(_,_,msg) -> 
+       return ()
+
+  let start topo () =
+    let flow_hash,tag_hash = Kulfi_Fabric.create topo in
+    let open Deferred in 
+    Controller.init 6633;
+    Printf.eprintf "[Kulfi Controller started]\n%!";
+    don't_wait_for (cli ());
+    don't_wait_for (port_stats_loop ());
+    don't_wait_for (Pipe.iter Controller.events (handler flow_hash));
+    don't_wait_for (Pipe.iter msgs send);
+    ()    
 end
-
-module Controller = Make(Kulfi_Routing.Mcf)

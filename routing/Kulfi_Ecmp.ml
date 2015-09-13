@@ -14,7 +14,6 @@ of all pairs all shortest paths. The solve function treats
 all_shortest_paths_multi as a black box. *)
                    
 let capacity_of_edge topo edge =
-  let open Net.Topology in
   let lbl = edge_to_label topo edge in
   Int64.to_float (Link.capacity lbl)
          

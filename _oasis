@@ -21,8 +21,14 @@ Library routing
 
 Library util
   Path: util
+  CSources:
+    time_stubs.c
+  if system(linux)
+    CCLib:
+      -lrt
   Modules:   
-    RunningStat
+    RunningStat,
+    Kulfi_Time
   BuildDepends:
     threads,
     core,
@@ -31,17 +37,20 @@ Library util
 
 Library controller
   Path: controller
-  Modules:   
+  Modules:
     Kulfi_Controller
+  InternalModules:
+    Kulfi_Fabric
   BuildDepends:
    async,
    frenetic,
    frenetic.async,
    ocamlgraph,
-   threads,
    routing,
    sexplib.syntax,
-   sexplib
+   sexplib,
+   threads,
+   util
 
 Executable kulfi
   Install: False
@@ -59,10 +68,6 @@ Executable simulator
   Path:   simulate
   MainIs: Simulate_Driver.ml
   CompiledObject: native
-  Modules:
-    Simulate_Demands,
-    Simulate_Driver,
-    Simulate_Exps 
   BuildDepends:
     ocamlgraph,
     frenetic,
