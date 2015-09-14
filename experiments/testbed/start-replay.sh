@@ -38,11 +38,16 @@ then
 	exit 0
 fi
 
+# Copy sync binary
 pushd $SYNC_DIR
 make
 popd
 cp $SYNC_DIR/sync-client $ABILENE_DIR/
-cp $SYNC_DIR/replay-script-gen $ABILENE_DIR/
+
+# Build replay script and traffic generators
+pushd $ABILENE_DIR
+make
+popd
 
 DIR=~/results/$RUN_ID
 if [ -d "$DIR" ]; then

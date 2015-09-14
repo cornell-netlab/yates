@@ -26,7 +26,7 @@ then
 	rm -rf $ABILENE_DIR
 	scp -r olympic:$ABILENE_DIR ./
 	cd $ABILENE_DIR
-	./replay-script-gen `hostname | cut -d '-' -f 2` $MODEL $SCALE $DYN_RT $FACTOR
+	./replay-script-gen/tcp-custom `hostname | cut -d '-' -f 2` $MODEL $SCALE $DYN_RT $FACTOR
 	chmod +x ./replay_script.sh
 else
 	cd $ABILENE_DIR
