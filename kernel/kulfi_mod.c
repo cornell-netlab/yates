@@ -9,10 +9,10 @@
 #include "proc/routes.h"
 #include "proc/stats.h"
 
-#define INTF_NAME "eth1"
+#define INTF_NAME "em2"
 
 static struct nf_hook_ops nfho_post;
-static struct nf_hook_ops nfho_pre;
+//static struct nf_hook_ops nfho_pre;
 
 static struct proc_dir_entry * routes_proc_entry;
 static struct proc_dir_entry * stats_proc_entry;
@@ -336,10 +336,10 @@ int init_module()
     nfho_post.pf       = AF_INET;
     nfho_post.priority = NF_IP_PRI_LAST;
 
-    nfho_pre.hook     = process_pkt_pre_routing;        /* Handler function */
-    nfho_pre.hooknum  = NF_INET_PRE_ROUTING;
-    nfho_pre.pf       = AF_INET;
-    nfho_pre.priority = NF_IP_PRI_FIRST;
+    //nfho_pre.hook     = process_pkt_pre_routing;        /* Handler function */
+    //nfho_pre.hooknum  = NF_INET_PRE_ROUTING;
+    //nfho_pre.pf       = AF_INET;
+    //nfho_pre.priority = NF_IP_PRI_FIRST;
 
 
     pr_debug("mod_vlan: Loading\n");
@@ -361,7 +361,7 @@ int init_module()
     create_new_stats_proc_entry(stats_proc_entry);
 
     nf_register_hook(&nfho_post);
-    nf_register_hook(&nfho_pre);
+    //nf_register_hook(&nfho_pre);
 
     return 0;
 }
@@ -370,7 +370,7 @@ int init_module()
 void cleanup_module()
 {
     nf_unregister_hook(&nfho_post);
-    nf_unregister_hook(&nfho_pre);
+    //nf_unregister_hook(&nfho_pre);
 
     // delete flow_table (free copied stacks here)
     flow_table_delete(flow_table);

@@ -12,7 +12,7 @@
 #include "stack.h"
 
 #define DEFAULT_FLOW_TABLE_SIZE 4096
-#define IDLE_TIMEOUT 5
+#define IDLE_TIMEOUT 1
 
 struct match_stk_s {
     struct flow_keys match;

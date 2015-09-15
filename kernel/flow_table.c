@@ -70,7 +70,6 @@ void flow_table_set( flow_table_t *ft, struct flow_keys match,
     pr_debug("FT: setting flow entry %d ... num_flows: %d -> %d\n", index, 
             atomic_read(&ft->num_flows), atomic_read(&ft->num_flows)+1);
 
-    rcu_read_lock();
     ft_lock();
     curr = rcu_dereference_bh(ft->table[index]);
 
@@ -129,8 +128,6 @@ void flow_table_set( flow_table_t *ft, struct flow_keys match,
        atomic_inc(&ft->num_flows);
     }
     ft_unlock();
-    rcu_read_unlock();
-    synchronize_rcu();
 
     while(to_free != NULL){
         next_to_free = to_free->next;
@@ -169,7 +166,7 @@ void flow_table_rem(flow_table_t *ft, struct flow_keys match) {
             rcu_assign_pointer(last->next, curr->next);
         }
         ft_unlock();
-        synchronize_rcu();
+        // synchronize_rcu();
         // free both stk and entry
         free_match_stk_entry(curr);
         atomic_dec(&ft->num_flows);
@@ -222,7 +219,7 @@ struct stack flow_table_get( flow_table_t *ft, struct flow_keys match ) {
         ft_unlock();
         atomic_dec(&ft->num_flows);
         rcu_read_unlock();
-        synchronize_rcu();
+        // synchronize_rcu();
         free_match_stk_entry(curr);
         return no_stack;
     }
