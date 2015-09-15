@@ -28,9 +28,10 @@ Library util
       -lrt
   Modules:   
     RunningStat,
-    Kulfi_Time
-  BuildDepends:
-    threads,
+    Kulfi_Time,
+    Kulfi_Options
+BuildDepends:
+    async,
     core,
     camlp4,
     threads

@@ -7,7 +7,8 @@ let intercalate f s = function
     ""
   | h::t ->
     List.fold_left t ~f:(fun acc x -> acc ^ s ^ f x) ~init:(f h) 
-       
+
+                          
 let dump_edges (t:topology) (es:path) : string = 
   intercalate 
     (fun e -> 
@@ -30,4 +31,4 @@ let dump_scheme (t:topology) (s:scheme) : string =
                                       (Node.name (Net.Topology.vertex_to_label t v2))
                                       (dump_path_prob_set t pps));
   Buffer.contents buf
-
+                  

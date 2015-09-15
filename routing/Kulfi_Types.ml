@@ -8,8 +8,22 @@ module VertexSet = Topology.VertexSet
 type topology = Net.Topology.t
 
 type edge = Net.Topology.edge with sexp
-
+                                     
 type path = edge list with sexp
+
+
+let intercalate f s = function
+  | [] ->
+    ""
+  | h::t ->
+    List.fold_left t ~f:(fun acc x -> acc ^ s ^ f x) ~init:(f h) 
+
+let dump_edges (t:topology) (es:path) : string = 
+  intercalate 
+    (fun e -> 
+     Printf.sprintf "(%s,%s)" 
+                    (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_src e))))
+                    (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_dst e))))) ", "  es
                   
 type demand = float with sexp
 
@@ -30,7 +44,12 @@ type tag = int
 
 module Tag = Int
 
-module TagMap = Map.Make(Tag)
+module TagsMap =
+  Map.Make
+    (struct
+      type t = Tag.t list with sexp
+      let compare = List.compare ~cmp:Pervasives.compare
+    end)
 
 module VertexOrd = struct
   type t = Topology.vertex with sexp
@@ -73,7 +92,7 @@ type demands = demand SrcDstMap.t
 (* A routing scheme specifies a flow_decomp for each source-destination pair. *)                        
 type scheme = flow_decomp SrcDstMap.t
 
-type configuration = (probability TagMap.t) SrcDstMap.t
+type configuration = (probability TagsMap.t) SrcDstMap.t
              
 (* A Routing Scheme is an object that describes a prob distribution over paths. 
    It supports an interface to lets one draw a random sample, and a way to compare
@@ -101,3 +120,63 @@ let capacity_of_edge topo edge =
   let label = Topology.edge_to_label topo edge in
   (Int64.to_float (Link.capacity label)) /. cap_divisor
 
+let configuration_of_scheme (topo:topology) (scm:scheme) (tag_hash: (edge,int) Hashtbl.t) : configuration =
+  SrcDstMap.fold
+    scm
+    ~init:SrcDstMap.empty
+    ~f:(fun ~key:(src,dst) ~data:paths acc ->
+        if src = dst then acc
+        else
+          let tags =
+            PathMap.fold
+              paths
+              ~init:TagsMap.empty
+              ~f:(fun ~key:path ~data:prob acc ->
+                  match path with
+                  | [] ->
+                     assert false
+                  | _::path' -> 
+                     let tags =
+                       List.map
+                         path'
+                         ~f:(fun edge ->
+                             match Hashtbl.find tag_hash edge with
+                             | None ->
+                                Printf.printf "Couldn't find %s\n" (dump_edges topo [edge]);
+                                99
+                             | Some t ->
+                                t) in 
+                     TagsMap.add acc ~key:tags ~data:prob) in
+        SrcDstMap.add acc ~key:(src,dst) ~data:tags)
+
+let bprint_tags (buf:Buffer.t) (tag_dist:probability TagsMap.t) : unit =
+  TagsMap.iter
+    tag_dist
+    ~f:(fun ~key:tags ~data:prob ->
+        Printf.bprintf buf "%.3f " prob;
+        Printf.bprintf buf "%d " (List.length tags);
+        List.iter tags (Printf.bprintf buf "%d "))
+            
+let bprint_configuration (topo:topology) (bufs:(Topology.vertex,Buffer.t) Hashtbl.t) (conf:configuration) : unit =
+  SrcDstMap.iter
+    conf
+    ~f:(fun ~key:(src,dst) ~data:tag_dist ->
+        let buf =
+          match Hashtbl.find bufs src with
+          | Some buf -> buf
+          | None ->
+             let buf = Buffer.create 101 in
+             Hashtbl.add_exn bufs src buf;
+             buf in 
+        Printf.bprintf buf "%lu " (Node.ip (Topology.vertex_to_label topo dst));
+        Printf.bprintf buf "%d " (TagsMap.length tag_dist);
+        bprint_tags buf tag_dist)
+
+let print_configuration (topo:topology) (conf:configuration) : unit =
+  let bufs = Hashtbl.Poly.create () in
+  bprint_configuration topo bufs conf;
+  Hashtbl.Poly.iter
+    bufs
+    ~f:(fun ~key:src ~data:buf ->
+        Printf.printf "*** %lu ***\n" (Node.ip (Topology.vertex_to_label topo src));
+        Printf.printf "%s\n" (Buffer.contents buf))

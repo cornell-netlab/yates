@@ -1,5 +1,6 @@
 open Core.Std
 open Async.Std
+open Kulfi_Options
 open Kulfi_Routing
 open Kulfi_Types
 open Frenetic_OpenFlow
@@ -59,7 +60,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
       churn = [] }
       
   let shutdown () = 
-    (match None (* TODO(jnf) stats_out option *) with 
+    (match !stats_out with 
      | None -> return ()
      | Some out -> Writer.close out) >>= fun () -> 
     Pervasives.exit 0 
@@ -153,8 +154,8 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
   (* Send messages to the controller, return xid *)
   let msgs,send_msg = 
     let r,w = Pipe.create () in 
-    let x = xid () in 
-    (r, fun (sw,m) -> Pipe.write_without_pushback w (sw,x,m); x)
+    (r, fun (sw,m) ->
+        let x = xid () in Pipe.write_without_pushback w (sw,x,m); x)
 
   (* Controller helper functions *)
   let rec port_stats_loop () : unit Deferred.t =   
@@ -212,7 +213,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
          ~f:(fun ps -> 
              let pt = ps.port_no in
              let time = Kulfi_Time.time () in 
-             (match (* TODO(jnf) !stats_out *) None with 
+             (match !stats_out with
               | None -> ()
               | Some out ->
                  Writer.writef out "%s\n%!" (string_of_stats sw (time, ps)));
@@ -220,10 +221,12 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
        return ()
     | `Message(_,_,msg) -> 
        return ()
-
-  let start topo () =
+      
+  let start topo predict actual () =
     let flow_hash,tag_hash = Kulfi_Fabric.create topo in
-    let open Deferred in 
+    let scm = Solver.solve topo predict SrcDstMap.empty in
+    print_configuration topo (configuration_of_scheme topo scm tag_hash);
+    let open Deferred in
     Controller.init 6633;
     Printf.eprintf "[Kulfi Controller started]\n%!";
     don't_wait_for (cli ());
