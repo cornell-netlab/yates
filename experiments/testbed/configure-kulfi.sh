@@ -1,6 +1,6 @@
 #!/bin/bash
-. colors.sh
-. common.sh
+. utils/colors.sh
+. utils/common.sh
 cp $KULFI_GIT_DIR/agent/agent.py $ATLAS_KULFI_CONFIG/
 
 echo ${CYAN}------ BUILDING: Kernel Module -----${RESTORE}

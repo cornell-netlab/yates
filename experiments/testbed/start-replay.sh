@@ -1,6 +1,6 @@
 #!/bin/bash
-. colors.sh
-. common.sh
+. utils/colors.sh
+. utils/common.sh
 set -x
 RUN_ID=$1
 GEN_REP=$2

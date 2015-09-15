@@ -1,6 +1,6 @@
 #!/bin/bash
-. colors.sh
-. common.sh
+. utils/colors.sh
+. utils/common.sh
 rm $ATLAS_KULFI_CONFIG/agent.py
 rm $ATLAS_KULFI_CONFIG/modkulfi.ko
 rm $ABILENE_DIR/replay-script-gen

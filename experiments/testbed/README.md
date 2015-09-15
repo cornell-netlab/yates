@@ -10,7 +10,7 @@ Testbed Experiments
 
 2. Start traffic replay
 	```
-	./start-replay.sh
+	./start-replay.sh <params>
 	```
 3. Deconfigure
 	```
