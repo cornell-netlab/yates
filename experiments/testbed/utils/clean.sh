@@ -4,6 +4,7 @@ pushd atlas-abilene
 make clean
 popd
 rm atlas-kulfi-configure/agent.py atlas-kulfi-configure/modkulfi.ko
+rm -rf atlas-kulfi-configure/kernel
 pushd sync
 make clean
 popd
