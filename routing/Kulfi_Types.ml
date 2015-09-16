@@ -166,6 +166,18 @@ let bprint_tags (buf:Buffer.t) (tag_dist:probability TagsMap.t) : unit =
         List.iter tags (Printf.bprintf buf "%d "))
             
 let bprint_configuration (topo:topology) (bufs:(Topology.vertex,Buffer.t) Hashtbl.t) (conf:configuration) : unit =
+  let dstCount = 
+  SrcDstMap.fold 
+    conf
+    ~init:VertexMap.empty
+    ~f:(fun ~key:(src, dst) ~data:tag_dist acc ->
+	let count = 
+	  match VertexMap.find acc src with
+	  | None -> 0
+          | Some x -> Printf.printf "#dsts: %d++\n" x; x
+        in
+     VertexMap.add acc ~key:src ~data:(count+1);
+     ) in
   SrcDstMap.iter
     conf
     ~f:(fun ~key:(src,dst) ~data:tag_dist ->
@@ -175,7 +187,13 @@ let bprint_configuration (topo:topology) (bufs:(Topology.vertex,Buffer.t) Hashtb
           | None ->
              let buf = Buffer.create 101 in
              Hashtbl.add_exn bufs src buf;
-             buf in 
+             let count = 
+               match VertexMap.find dstCount src with
+               | None -> 0
+               | Some x -> x
+             in
+             Printf.bprintf buf "%d " count;  
+             buf in
         Printf.bprintf buf "%lu " (Node.ip (Topology.vertex_to_label topo dst));
         Printf.bprintf buf "%d " (TagsMap.length tag_dist);
         bprint_tags buf tag_dist)

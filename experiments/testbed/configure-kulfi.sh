@@ -5,10 +5,9 @@ cp $KULFI_GIT_DIR/agent/agent.py $ATLAS_KULFI_CONFIG/
 
 echo ${CYAN}------ Copy Kernel Module -----${RESTORE}
 rm -rf $ATLAS_KULFI_CONFIG/kernel
+rm -rf $ATLAS_KULFI_CONFIG/routes
 cp -r $KULFI_GIT_DIR/kernel/ $ATLAS_KULFI_CONFIG/
-#scp -r $KULFI_GIT_DIR/kernel/ atlas-1:~/tmp/ > $LOG_DIR/configure.log
-#ssh atlas-1 "pushd tmp/kernel && make" > $LOG_DIR/km.log
-#scp atlas-1:~/tmp/kernel/modkulfi.ko $ATLAS_KULFI_CONFIG/
+cp -r $KULFI_GIT_DIR/routes/ $ATLAS_KULFI_CONFIG/
 
 dsh -M -g atlas-abilene -c "rm -rf $ATLAS_KULFI_CONFIG ; scp -r olympic:$ATLAS_KULFI_CONFIG ./ ; $ATLAS_KULFI_CONFIG/configure.sh"
 sleep 1
@@ -24,3 +23,4 @@ else
 fi
 sudo ifconfig em3 10.0.0.100
 $ATLAS_KULFI_CONFIG/arp.sh
+./configure-switches.sh

@@ -5,6 +5,7 @@ make clean
 popd
 rm atlas-kulfi-configure/agent.py atlas-kulfi-configure/modkulfi.ko
 rm -rf atlas-kulfi-configure/kernel
+rm -rf atlas-kulfi-configure/routes
 pushd sync
 make clean
 popd
