@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <vector>
 using namespace std;
-#include "openCVFunctions.h"
+//#include "openCVFunctions.h"
 #include "readwrite.h"
 typedef double(*objCalFunctionType)(double ** X_dat, double * Y_dat, int d, int n, void * modelPara, void * additionalStuff);
 typedef void(*gradientStepFunctionType) (double * x, double y, double *gradAns, int d, bool cumu, void * modelPara, void * additionalStuff);
