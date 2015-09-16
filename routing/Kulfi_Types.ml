@@ -38,6 +38,10 @@ end
 
 module PathMap = Map.Make(PathOrd)
 
+module IntMap = Map.Make(Int)
+
+type index_map = string IntMap.t
+			
 module PathSet = Set.Make(PathOrd)
 
 type tag = int
@@ -48,7 +52,7 @@ module TagsMap =
   Map.Make
     (struct
       type t = Tag.t list with sexp
-      let compare = List.compare ~cmp:Pervasives.compare
+      let compare = Pervasives.compare (* List.compare ~cmp:(Pervasives.compare) *)
     end)
 
 module VertexOrd = struct

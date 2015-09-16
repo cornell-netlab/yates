@@ -5,6 +5,7 @@ open Kulfi_Types
 open Kulfi_Routing
 open Simulate_Exps
 open Simulate_Demands
+open Simulate_Traffic
 open RunningStat
 open ExperimentalData 
 open AutoTimer
@@ -27,7 +28,6 @@ let select_algorithm solver = match solver with
   | Ecmp -> Kulfi_Routing.Ecmp.solve
   | Spf -> Kulfi_Routing.Spf.solve
   | Ak -> Kulfi_Routing.Ak.solve
-
 
 
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
@@ -87,17 +87,21 @@ let get_num_paths (s:scheme) : float =
     s in    
   Float.of_int count 
         
-let simulate (spec_solvers:solver_type list) (topology_file:string) (iterations:int) () : unit =
+let simulate (spec_solvers:solver_type list)
+	     (topology_file:string)
+	     (demand_file:string)
+	     (host_file:string)
+	     (iterations:int) () : unit =
   let topo = Parse.from_dotfile topology_file in
   let host_set = VertexSet.filter (Topology.vertexes topo)
 				  ~f:(fun v ->
 				      let label = Topology.vertex_to_label topo v in
 				      Node.device label = Node.Host) in
-  let hosts = Topology.VertexSet.elements host_set in
-  let demand_matrix = create_sparse hosts 0.1 100 in
-  let demands = demand_list_to_map (get_demands demand_matrix) in
+
+  (* let hosts = Topology.VertexSet.elements host_set in *)
+
+  let (host_map, traffic_ic) = open_demands demand_file host_file in
   Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set);
-  Printf.printf "# demands = %d\n" (SrcDstMap.length demands);
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
   let at = make_auto_timer () in
   let times = make_running_stat () in
@@ -120,11 +124,12 @@ let simulate (spec_solvers:solver_type list) (topology_file:string) (iterations:
 	 else
 	   begin		
 	     start at;
-	     let scheme' = solve topo demands scheme in 
+	     let demand = next_demand traffic_ic host_map in
+	     let scheme' = solve topo demand scheme in 
 	     stop at;
 	     push times (get_time_in_seconds at);
 	     push churn (get_churn scheme' scheme);	    
-	     push congestion (get_congestion scheme' topo demands);
+	     push congestion (get_congestion scheme' topo demand);
 	     push num_paths (get_num_paths scheme');
 	     add_record time_data (solver_to_string algorithm)
 				     {iteration = n; time=(get_mean times); time_dev=(get_standard_deviation times); };	     
@@ -141,6 +146,7 @@ let simulate (spec_solvers:solver_type list) (topology_file:string) (iterations:
        outer rest
   in
   outer spec_solvers;
+  close_demands traffic_ic;
   
   let dir = "./expData/" in
 
@@ -165,9 +171,19 @@ let command =
     +> flag "-ecmp" no_arg ~doc:" run ecmp"
     +> flag "-spf" no_arg ~doc:" run spf"
     +> flag "-ak" no_arg ~doc:" run ak"
-    +> anon ("filename" %: string)
+    +> anon ("topology-file" %: string)
+    +> anon ("demand-file" %: string)
+    +> anon ("host-file" %: string)
     +> anon ("iterations" %: int)
-  ) (fun (mcf:bool) (vlb:bool) (ecmp:bool) (spf:bool) (ak:bool) (topology_file:string) (iterations:int) () ->
+  ) (fun (mcf:bool)
+	 (vlb:bool)
+	 (ecmp:bool)
+	 (spf:bool)
+	 (ak:bool)
+	 (topology_file:string)
+	 (demand_file:string)
+	 (host_file:string)
+	 (iterations:int) () ->
      let algorithms =
        List.filter_map
          ~f:(fun x -> x)
@@ -176,7 +192,7 @@ let command =
          ; if ecmp then Some Ecmp else None
          ; if spf then Some Spf else None
          ; if ak then Some Ak else None ] in 
-     simulate algorithms topology_file iterations () )
+     simulate algorithms topology_file demand_file host_file iterations () )
 
 let main = Command.run command
  
