@@ -7,11 +7,8 @@
 #include <algorithm>
 #include <vector>
 using namespace std;
-//#include "openCVFunctions.h"
-#define numOfFile 24
-#define rowInFile 2016
-#define maxCol 144
-#define maxRow rowInFile*numOfFile
+#include "openCVFunctions.h"
+#include "readwrite.h"
 typedef double(*objCalFunctionType)(double ** X_dat, double * Y_dat, int d, int n, void * modelPara, void * additionalStuff);
 typedef void(*gradientStepFunctionType) (double * x, double y, double *gradAns, int d, bool cumu, void * modelPara, void * additionalStuff);
 typedef void(*trainModelFunctionType) (double ** X_dat, double* Y_dat, int d, int n, double avg, void * modelPara, void * additionalStuff);
@@ -27,7 +24,7 @@ double abso(double a)
 /*
 Read Data:
 */
-void getData(double** dataM, int last = numOfFile)
+void getData(double** dataM, int last, int pickwhich)
 {
 	int numOfModel = 5;
 	string a;
@@ -35,21 +32,21 @@ void getData(double** dataM, int last = numOfFile)
 	for (int i = 1; i <= last; i++)
 	{
 		if (i<10)
-			sprintf(buf, "data/X0%i", i);
+			sprintf(buf, "data//X0%i", i);
 		else
-			sprintf(buf, "data/X%i", i);
+			sprintf(buf, "data//X%i", i);
 		a = buf;
 		printf("%s\n", a.c_str());
 		FILE * f = fopen(a.c_str(), "r");
-		for (int j = 0; j<rowInFile; j++)
+		for (int j = 0; j<2016; j++)
 		{
-			for (int k = 0; k<maxCol; k++)
+			for (int k = 0; k<144; k++)
 			{
 				for (int count = 0; count<numOfModel; count++)
 				{
 					double tmp;
 					fscanf(f, "%lf", &tmp);
-					if (count == 1)
+					if (count == pickwhich)
 						dataM[k][(i - 1) * 2016 + j] = tmp;
 				}
 			}
@@ -107,10 +104,6 @@ void  getLoss(double * regret, double * serve, double * predict, int length, int
 	}
 }
 
-int getRandNum(int n)
-{
-	return abs((rand() * 59999 + rand()) % n);
-}
 double getRandFloat()
 {
 	double a = getRandNum(10000);
@@ -146,7 +139,6 @@ double inner(double *w, double * x, int d)
 
 void proximalUpdate(double * w, int d, double thres)
 {
-	thres = abso(thres);
 	for (int i = 0; i < d; i++)
 		if (w[i]>thres)
 			w[i] -= thres;
@@ -184,8 +176,6 @@ void uniVR(double ** X_dat, double * Y_dat, int d, int n,
 		{
 			int i;
 			i = getRandNum(n);
-            if (X_dat[i]==NULL)
-              printf("here\n");
 			gradientStep(X_dat[i], Y_dat[i], g1, d, false, modelPara, additionalStuff);
 			gradientStep(X_dat[i], Y_dat[i], g2, d, false, (void*)wtilde, additionalStuff);
 			for (int j = 0; j < d; j++)
@@ -200,6 +190,11 @@ void uniVR(double ** X_dat, double * Y_dat, int d, int n,
 		m = int(m* beta);
 		double curObj = objCal(X_dat, Y_dat, d, n, modelPara, additionalStuff);
 		printf("%.5lf  eta=%.5lf  w0=%.5lf  w1=%.5lf  w2=%.5lf\n", curObj, eta, w[0], w[1], w[2]);
+		if (curObj > lastVal)
+		{
+			m = n / 4;
+			eta = eta / 5;
+		}
 		if (abso(curObj - lastVal) < stopErr)
 			break;
 		lastVal = curObj;
@@ -351,36 +346,69 @@ double predictOneModel(predictNextFunctionType predictMethod, double * serve, in
 	return output*avg;
 }
 
+int goerr()
+{
+	printf("err!\n");
+	return 0;
+}
 
-int main()
+int main(int argc, char ** argv)
 {
 	srand(0);
 
-	double * additionalStuff = new double[10];
-	additionalStuff[0] = 0;  //sigma
-	additionalStuff[1] = 0; //lambda
-	additionalStuff[2] = 1; // average
-	additionalStuff[3] = 0.001; //eta
-	additionalStuff[4] = 2.0; //beta
-	additionalStuff[5] = 0.001; //stop Err
+	printf("Menu:\n");
+	printf("Command: 1 col w file\n");
+	printf("    This means read from first w weeks for abilene data's col-th column.\n");
+	printf("    Please ensure data/X01-X0w is in the current directory.\n");
+	printf("    Will write the actual data to file.\n");
+	printf("    Will write the predicted data to file_predictionAlgName.\n");
+	printf("Command: 2 r h file\n");
+	printf("    This generates r rows of data for h hosts.\n");
+	printf("    Please ensure 'patterns' file is in the current directory.\n");
+	printf("    Will write the actual data to file.\n");
+	printf("    Will write the predicted data to file_predictionAlgName.\n");
 
-	int nLinearRegressionFeatures = 100;
-	double * linearRegressionW = new double[nLinearRegressionFeatures+1]; //include the constant parameter;
-
-	double** dataM = new double *[maxCol];
-	double** outM = new double *[maxCol];
-	double** medianM = new double *[maxCol];
-	for (int i = 0; i < maxCol; i++)
-	{
-		dataM[i] = new double[maxRow];
-		medianM[i] = new double[maxRow];
-	    outM[i] = new double [maxRow];
-	}
-
+	if (argc < 5) return goerr();
+	int dataCode;
+	sscanf(argv[1],"%i", &dataCode);
+	int col;
 	int readFiles = 2;
-	int totRow = readFiles*rowInFile;
-	getData(dataM, readFiles);
+	int totRow;
+	int hosts;
+	int period = 1000;
+	if (dataCode == 1)
+	{
+		col = 144;
+		sscanf(argv[3], "%i", &readFiles);
+		totRow = readFiles * 2016;
+	}
+	else
+	{
+		sscanf(argv[2], "%i", &totRow);
+		totRow += period;
+		sscanf(argv[3], "%i", &hosts);
+		col = hosts*hosts;
+	}
+	double ** dataM = new double *[col];
+	double ** outM = new double *[col];
+	for (int i = 0; i < col; i++)
+	{
+		dataM[i] = new double[totRow];
+		outM[i] = new double [totRow];
+	}
+	if (dataCode == 1)
+	{
+		int pickwhich;
+		sscanf(argv[2], "%i", &pickwhich);
+		getData(dataM, readFiles,pickwhich);
+	}
+	else
+		generateSyntheticData(totRow, hosts, dataM);
 
+	writeDemandMatrix(string(argv[4]), totRow, col, dataM, period);
+	
+	//Compute patterns:
+	//	if (readFiles == 24) computePatterns(dataM);
 	//Remove spikes:
 	//	getMedianTable(dataM, medianM, totRow, maxCol,3);
 
@@ -390,55 +418,96 @@ int main()
 	//	logisticRegression, (L1-regularized) should set sigma correctly
 	//  random Forest, etc. from openCV ml package. 
 
+	double * additionalStuff = new double[10];
+	additionalStuff[0] = 0;  //sigma
+	additionalStuff[1] = 0; //lambda
+	additionalStuff[2] = 1; // average
+	additionalStuff[3] = 0.001; //eta
+	additionalStuff[4] = 2.0; //beta
+	additionalStuff[5] = 0.001; //stop Err
 
-	double ans = predictOneModel(lastOnePrediction, dataM[0], 20, 1000, NULL, additionalStuff);
-	printf("last one, %.5lf\n", ans);
+	
+	bool includeLastOneModel = true;
+	bool includeLinearRegressionModel = true;
+	bool includeElasticNetRegressionModel = true;
 
-	int totalLen = 1099;
-	double * series;
-	series = dataM[0];
-	int period = 1000;
-	int predictCol = 2;
-/*
-	for (int i = 0; i <predictCol ; i++)
+
+	if (includeLastOneModel)
 	{
-		printf("---------i=%i\n", i);
-		for (int j = 0; j < totRow; j++)
+		printf("Current ---------------- LastOneModel!\n");
+		for (int i = 0; i <col ; i++)
 		{
-			if (j < period)
-				outM[i][j] = dataM[i][(j>1)?(j-1):0];
-			else
+			printf("i=%i  ", i);
+			for (int j = 0; j < totRow; j++)
 			{
-				if (j%period == 0)
-					trainModel(linearRegressionTrain, &dataM[i][j-period], nLinearRegressionFeatures, period, linearRegressionW, additionalStuff);
-				outM[i][j] = predictOneModel(linearRegressionPredict, dataM[i], nLinearRegressionFeatures, j, linearRegressionW, additionalStuff);
+				if (j < period)
+					outM[i][j] = dataM[i][(j>1)?(j-1):0];
+				else
+					outM[i][j] = predictOneModel(lastOnePrediction, dataM[i], 2, j, NULL, additionalStuff);
 			}
 		}
+		writeDemandMatrix(string(argv[4])+string("_lastOne"), totRow, col, outM, period);
 	}
-	FILE * fout = fopen("linearPredict", "w");
-	for (int j = 0; j < totRow; j++)
+	
+	int nLinearRegressionFeatures = 30;
+	double * linearRegressionW = new double[nLinearRegressionFeatures+1]; //include the constant parameter;
+	if (includeLinearRegressionModel)
 	{
-		for (int i = 0; i < predictCol; i++)
-			fprintf(fout, "%.0lf:%.0lf\t", outM[i][j],dataM[i][j]);
-		fprintf(fout, "\n");
+		printf("Current ---------------- LinearRegressionModel!\n");
+		for (int i = 0; i <col ; i++)
+		{
+			printf("i=%i  ", i);
+			for (int j = 0; j < totRow; j++)
+			{
+				if (j < period)
+					outM[i][j] = dataM[i][(j>1)?(j-1):0];
+				else
+				{
+					if (j%period==0)
+						trainModel(linearRegressionTrain, dataM[i], nLinearRegressionFeatures, j, linearRegressionW, additionalStuff);
+					outM[i][j] = predictOneModel(linearRegressionPredict, dataM[i], nLinearRegressionFeatures, j, linearRegressionW, additionalStuff);
+				}
+			}
+		}
+		writeDemandMatrix(string(argv[4])+string("_LinearRegression"), totRow, col, outM, period);
 	}
-	fclose(fout);
-	*/
+
+	nLinearRegressionFeatures = 30;
+	additionalStuff[0] = 0.2;  //sigma
+	additionalStuff[1] = 0.1; //lambda
+	if (includeElasticNetRegressionModel)
+	{
+		printf("Current ---------------- ElasticNetRegressionModel!\n");
+		for (int i = 0; i <col ; i++)
+		{
+			printf("i=%i  ", i);
+			for (int j = 0; j < totRow; j++)
+			{
+				if (j < period)
+					outM[i][j] = dataM[i][(j>1)?(j-1):0];
+				else
+				{
+					if (j%period==0)
+						trainModel(linearRegressionTrain, dataM[i], nLinearRegressionFeatures, j, linearRegressionW, additionalStuff);
+					outM[i][j] = predictOneModel(linearRegressionPredict, dataM[i], nLinearRegressionFeatures, j, linearRegressionW, additionalStuff);
+				}
+			}
+		}
+		writeDemandMatrix(string(argv[4])+string("_ElasticNetRegression"), totRow, col, outM, period);
+	}
 
 
-
-	trainModel(linearRegressionTrain, series, nLinearRegressionFeatures, totalLen, linearRegressionW, additionalStuff);
-
-	ans = predictOneModel(linearRegressionPredict, series, nLinearRegressionFeatures, totalLen + 1, linearRegressionW, additionalStuff);
-	printf("LinearReg, %.5lf\n", ans);
+	/*
+	double ans;
 
 	int nLogisticRegressionFeatures = 10;
 	double * logisticRegressionW = new double[nLogisticRegressionFeatures + 1];
 	trainModel(logisticRegressionTrain, dataM[0], nLogisticRegressionFeatures, 1000, logisticRegressionW, additionalStuff);
 	ans = predictOneModel(logisticRegressionPredict, dataM[0], nLogisticRegressionFeatures, 1000, logisticRegressionW, additionalStuff);
 	printf("Logistic, %.5lf\n", ans);
+*/
 
-    /*
+	/*
 	int nRandomForestFeatures = 10;
 	Ptr<RTrees> rtrees = RTrees::create();
 	trainModel(randomForestTrain,dataM[0], nRandomForestFeatures, 3000, &rtrees, additionalStuff);
@@ -448,13 +517,9 @@ int main()
 		printf("randomForest, %.5lf actual=%.5lf\n", ans, dataM[0][i]);
 	}*/
 
-	for (int i = 0; i < maxCol; i++)
-	{
+	for (int i = 0; i < col; i++)
 		delete[] dataM[i];
-		delete[] medianM[i];
-	}
 	delete[] dataM;
-	delete[] medianM;
 	delete additionalStuff;
 	return 0;
 }
