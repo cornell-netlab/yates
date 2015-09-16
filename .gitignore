@@ -18,3 +18,5 @@ gurobi.log
 expData
 *.pyc
 *.clib
+*.d
+*.o
