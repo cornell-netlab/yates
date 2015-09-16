@@ -180,13 +180,13 @@ let bprint_configuration (topo:topology) (bufs:(Topology.vertex,Buffer.t) Hashtb
         Printf.bprintf buf "%d " (TagsMap.length tag_dist);
         bprint_tags buf tag_dist)
 
-let print_configuration (topo:topology) (conf:configuration) : unit =
+let print_configuration (topo:topology) (conf:configuration) (time:int) : unit =
   let bufs = Hashtbl.Poly.create () in
   bprint_configuration topo bufs conf;
   Hashtbl.Poly.iter
     bufs
     ~f:(fun ~key:src ~data:buf ->
-	let route_filename = Printf.sprintf "routes/%s_0" (Frenetic_Packet.string_of_ip (Node.ip (Topology.vertex_to_label topo src))) in
+	let route_filename = Printf.sprintf "routes/%s_%d" (Frenetic_Packet.string_of_ip (Node.ip (Topology.vertex_to_label topo src))) time in
 	let route_file = Out_channel.create route_filename in
 	Out_channel.output_string route_file (Buffer.contents buf);
 	Out_channel.close route_file;

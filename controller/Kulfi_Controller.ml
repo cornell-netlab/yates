@@ -182,11 +182,10 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
     | Some v' -> Hashtbl.Poly.set hash k (f v v')
 
   let handler flow_hash evt =
-    let flow_hash = Hashtbl.Poly.create () in 
     match evt with
     | `Connect (sw, feats) -> 
        begin 
-         verbose (Printf.sprintf "switch %Ld connected" sw);
+         Printf.printf "switch %Ld connected" sw;
          (* Save global state *)
          let sw_state = 
            { ports = List.map feats.SwitchFeatures.ports ~f:(fun pd -> pd.port_no);
@@ -225,12 +224,12 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
   let start topo predict actual () =
     let flow_hash,tag_hash = Kulfi_Fabric.create topo in
     let scm = Solver.solve topo predict SrcDstMap.empty in
-    print_configuration topo (configuration_of_scheme topo scm tag_hash);
+    print_configuration topo (configuration_of_scheme topo scm tag_hash) 0;
     let open Deferred in
     Controller.init 6633;
     Printf.eprintf "[Kulfi Controller started]\n%!";
     don't_wait_for (cli ());
-    don't_wait_for (port_stats_loop ());
+    (* don't_wait_for (port_stats_loop ()); *)
     don't_wait_for (Pipe.iter Controller.events (handler flow_hash));
     don't_wait_for (Pipe.iter msgs send);
     ()    
