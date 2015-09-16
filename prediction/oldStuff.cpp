@@ -1,6 +1,10 @@
+#include <string>
+
+#include <cstdlib>
+#include <ctime>
 
 //Read the file in my own format. 
-int readFile_fast(string filename, int * n, int * d, double ** X_dat, double * Y_dat)
+int readFile_fast(std::string filename, int * n, int * d, double ** X_dat, double * Y_dat)
 {
 	srand(0);
 	FILE * fin = fopen(filename.c_str(), "r");

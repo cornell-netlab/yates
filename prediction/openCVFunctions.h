@@ -1,7 +1,8 @@
-#include "opencv2/core.hpp"
+/*#include "opencv2/core.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/ml.hpp"
 #include "opencv2/highgui.hpp"
+*/
 #include <iostream>
 #ifdef HAVE_OPENCV_OCL
 #define _OCL_KNN_ 1 // select whether using ocl::KNN method or not, default is using
