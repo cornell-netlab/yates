@@ -161,7 +161,7 @@ let bprint_tags (buf:Buffer.t) (tag_dist:probability TagsMap.t) : unit =
   TagsMap.iter
     tag_dist
     ~f:(fun ~key:tags ~data:prob ->
-        Printf.bprintf buf "%.3f " prob;
+        Printf.bprintf buf "%d " (Float.to_int (1000.0 *. prob));
         Printf.bprintf buf "%d " (List.length tags);
         List.iter tags (Printf.bprintf buf "%d "))
             
