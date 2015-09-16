@@ -100,7 +100,7 @@ let simulate (spec_solvers:solver_type list)
 
   (* let hosts = Topology.VertexSet.elements host_set in *)
 
-  let (host_map, traffic_ic) = open_demands demand_file host_file in
+  let (host_map, traffic_ic) = open_demands demand_file host_file topo in
   Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set);
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
   let at = make_auto_timer () in

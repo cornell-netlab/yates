@@ -40,7 +40,7 @@ module PathMap = Map.Make(PathOrd)
 
 module IntMap = Map.Make(Int)
 
-type index_map = string IntMap.t
+type index_map = Topology.vertex IntMap.t
 			
 module PathSet = Set.Make(PathOrd)
 
@@ -69,7 +69,11 @@ module SrcDstOrd = struct
 end
                      
 module SrcDstMap = Map.Make(SrcDstOrd)
-                     
+
+module StringMap = Map.Make(String)
+
+type node_map = Node.t StringMap.t			   
+			   
 module EdgeOrd = struct
   type t = edge with sexp
   let compare = Pervasives.compare                                      
