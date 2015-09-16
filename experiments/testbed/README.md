@@ -10,6 +10,7 @@ Testbed Experiments
 
 2. Start traffic replay
 	```
+	<start controller>
 	./start-replay.sh <params>
 	```
 3. Deconfigure

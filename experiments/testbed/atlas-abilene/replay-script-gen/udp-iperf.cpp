@@ -225,7 +225,7 @@ int main(int argc, char *argv[]){
             replay_script << "# Time: " << time << endl;
             replay_script << "if [ \"$1\" -eq 1 ] " << endl;
             replay_script << "then" << endl;
-            replay_script << "\t cat ../atlas-kulfi/10.0.0." << node_id << "_" << time << " > /proc/kulfi" << endl;
+            replay_script << "\t cat ./routes/10.0.0." << node_id << "_" << time << " > /proc/kulfi" << endl;
             replay_script << "fi" << endl;
             replay_script << "./sync-client -s olympic -p 7000 " << endl;
 

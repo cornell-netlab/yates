@@ -44,9 +44,11 @@ make
 popd
 cp $SYNC_DIR/sync-client $ABILENE_DIR/
 
-# Build replay script and traffic generators
+# Build replay script and traffic generators; copy routes
 pushd $ABILENE_DIR
 make
+rm -rf routes
+cp -r $KULFI_GIT_DIR/routes ./
 popd
 
 DIR=~/results/$RUN_ID

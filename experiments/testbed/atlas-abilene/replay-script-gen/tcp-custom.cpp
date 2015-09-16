@@ -250,7 +250,7 @@ int main(int argc, char *argv[]){
             // Change routes if dynamic scheme
             replay_script << "if [ \"$1\" -eq 1 ] " << endl;
             replay_script << "then" << endl;
-            replay_script << "\t cat ../atlas-kulfi/10.0.0." << node_id << "_" << time << " > /proc/kulfi" << endl;
+            replay_script << "\t cat ./routes/10.0.0." << node_id << "_" << time << " > /proc/kulfi" << endl;
             replay_script << "fi" << endl;
 
             // Sync with other servers and kill existing flows
