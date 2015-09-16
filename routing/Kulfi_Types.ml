@@ -186,5 +186,10 @@ let print_configuration (topo:topology) (conf:configuration) : unit =
   Hashtbl.Poly.iter
     bufs
     ~f:(fun ~key:src ~data:buf ->
-        Printf.printf "*** %lu ***\n" (Node.ip (Topology.vertex_to_label topo src));
-        Printf.printf "%s\n" (Buffer.contents buf))
+	let route_filename = Printf.sprintf "routes/%s_0" (Frenetic_Packet.string_of_ip (Node.ip (Topology.vertex_to_label topo src))) in
+	let route_file = Out_channel.create route_filename in
+	Out_channel.output_string route_file (Buffer.contents buf);
+	Out_channel.close route_file;
+	)
+
+
