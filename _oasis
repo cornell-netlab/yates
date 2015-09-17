@@ -12,6 +12,7 @@ Library routing
   Path: routing
   Modules:   
     Kulfi_Routing
+    Kulfi_Traffic
   BuildDepends:
    ocamlgraph,
    threads,

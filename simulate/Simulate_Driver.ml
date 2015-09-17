@@ -3,9 +3,9 @@ open Frenetic_Network
 open Net      
 open Kulfi_Types
 open Kulfi_Routing
+open Kulfi_Traffic
 open Simulate_Exps
 open Simulate_Demands
-open Simulate_Traffic
 open RunningStat
 open ExperimentalData 
 open AutoTimer

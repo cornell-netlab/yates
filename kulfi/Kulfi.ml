@@ -5,12 +5,10 @@ open Kulfi_Types
 
 type solver_type = | Mcf | Vlb | Ecmp | Spf | Ak
 
-let main algorithm topo_fn () =
+let main algorithm topo_fn actual_demand predicted_demand host_file () =
   let topo = Frenetic_Network.Net.Parse.from_dotfile topo_fn in
-  let predict = SrcDstMap.empty (* TODO(jnf) *) in
-  let actual = SrcDstMap.empty (* TODO(jnf) *) in
   let module Controller =  Kulfi_Controller.Make(Kulfi_Spf) in
-  Controller.start topo predict actual ()
+  Controller.start topo actual_demand predicted_demand host_file ()
 
 let kulfi_main_cmd =
   Command.basic
@@ -22,14 +20,20 @@ let kulfi_main_cmd =
       +> flag "-mcf" no_arg ~doc:" run mcf"
       +> flag "-spf" no_arg ~doc:" run spf"
       +> flag "-vlb" no_arg ~doc:" run vlb"
-      +> anon ("topology" %: string)
+      +> anon ("topology-file" %: string)
+      +> anon ("actual-demand" %: string)
+      +> anon ("predicted-demand" %: string)
+      +> anon ("host-file" %: string)
       ) (fun (ak:bool)
       (ecmp:bool)
       (mcf:bool)
       (spf:bool)
       (vlb:bool)
-      (topology:string) () ->
-        let algorithm = 
+      (topology_file:string)
+      (actual_demand:string)
+      (predicted_demand:string)
+      (host_file:string) () ->
+        let algorithm =
           if ak then Spf else
             if ecmp then Ecmp else
               if mcf then Mcf else
@@ -37,7 +41,7 @@ let kulfi_main_cmd =
                   if vlb then Vlb
         else assert false
         in
-      main algorithm topology () )
+      main algorithm topology_file actual_demand predicted_demand host_file () )
 
 let () = 
   Command.run kulfi_main_cmd;
