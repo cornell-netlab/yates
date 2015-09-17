@@ -161,11 +161,23 @@ let bprint_tags (buf:Buffer.t) (tag_dist:probability TagsMap.t) : unit =
   TagsMap.iter
     tag_dist
     ~f:(fun ~key:tags ~data:prob ->
-        Printf.bprintf buf "%.3f " prob;
+        Printf.bprintf buf "%d " (Float.to_int (1000.0 *. prob));
         Printf.bprintf buf "%d " (List.length tags);
         List.iter tags (Printf.bprintf buf "%d "))
             
 let bprint_configuration (topo:topology) (bufs:(Topology.vertex,Buffer.t) Hashtbl.t) (conf:configuration) : unit =
+  let dstCount = 
+  SrcDstMap.fold 
+    conf
+    ~init:VertexMap.empty
+    ~f:(fun ~key:(src, dst) ~data:tag_dist acc ->
+	let count = 
+	  match VertexMap.find acc src with
+	  | None -> 0
+          | Some x -> x
+        in
+     VertexMap.add acc ~key:src ~data:(count+1);
+     ) in
   SrcDstMap.iter
     conf
     ~f:(fun ~key:(src,dst) ~data:tag_dist ->
@@ -175,16 +187,27 @@ let bprint_configuration (topo:topology) (bufs:(Topology.vertex,Buffer.t) Hashtb
           | None ->
              let buf = Buffer.create 101 in
              Hashtbl.add_exn bufs src buf;
-             buf in 
+             let count = 
+               match VertexMap.find dstCount src with
+               | None -> 0
+               | Some x -> x
+             in
+             Printf.bprintf buf "%d " count;  
+             buf in
         Printf.bprintf buf "%lu " (Node.ip (Topology.vertex_to_label topo dst));
         Printf.bprintf buf "%d " (TagsMap.length tag_dist);
         bprint_tags buf tag_dist)
 
-let print_configuration (topo:topology) (conf:configuration) : unit =
+let print_configuration (topo:topology) (conf:configuration) (time:int) : unit =
   let bufs = Hashtbl.Poly.create () in
   bprint_configuration topo bufs conf;
   Hashtbl.Poly.iter
     bufs
     ~f:(fun ~key:src ~data:buf ->
-        Printf.printf "*** %lu ***\n" (Node.ip (Topology.vertex_to_label topo src));
-        Printf.printf "%s\n" (Buffer.contents buf))
+	let route_filename = Printf.sprintf "routes/%s_%d" (Frenetic_Packet.string_of_ip (Node.ip (Topology.vertex_to_label topo src))) time in
+	let route_file = Out_channel.create route_filename in
+	Out_channel.output_string route_file (Buffer.contents buf);
+	Out_channel.close route_file;
+	)
+
+

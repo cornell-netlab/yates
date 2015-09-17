@@ -3,6 +3,7 @@ open Async.Std
 open Kulfi_Options
 open Kulfi_Routing
 open Kulfi_Types
+open Kulfi_Traffic
 open Frenetic_OpenFlow
 open Frenetic_OpenFlow0x01
 open Message
@@ -182,11 +183,10 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
     | Some v' -> Hashtbl.Poly.set hash k (f v v')
 
   let handler flow_hash evt =
-    let flow_hash = Hashtbl.Poly.create () in 
     match evt with
     | `Connect (sw, feats) -> 
        begin 
-         verbose (Printf.sprintf "switch %Ld connected" sw);
+         Printf.printf "switch %Ld connected" sw;
          (* Save global state *)
          let sw_state = 
            { ports = List.map feats.SwitchFeatures.ports ~f:(fun pd -> pd.port_no);
@@ -222,10 +222,14 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
     | `Message(_,_,msg) -> 
        return ()
       
-  let start topo predict actual () =
+  let start topo actual_file predict_file host_file() =
+    let (actual_host_map, actual_traffic_ic) = open_demands actual_file host_file topo in
+    let (predict_host_map, predict_traffic_ic) = open_demands predict_file host_file topo in
+    let actual = next_demand actual_traffic_ic actual_host_map in
+    let predict = next_demand predict_traffic_ic predict_host_map in
     let flow_hash,tag_hash = Kulfi_Fabric.create topo in
     let scm = Solver.solve topo predict SrcDstMap.empty in
-    print_configuration topo (configuration_of_scheme topo scm tag_hash);
+    print_configuration topo (configuration_of_scheme topo scm tag_hash) 0;
     let open Deferred in
     Controller.init 6633;
     Printf.eprintf "[Kulfi Controller started]\n%!";
