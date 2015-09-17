@@ -7,7 +7,8 @@ type solver_type = | Mcf | Vlb | Ecmp | Spf | Ak
 
 let main algorithm topo_fn actual_demand predicted_demand host_file () =
   let topo = Frenetic_Network.Net.Parse.from_dotfile topo_fn in
-  let module Controller =  Kulfi_Controller.Make(Kulfi_Spf) in
+  (* TODO: Use correct routing algorithm based on CLI option *)
+  let module Controller =  Kulfi_Controller.Make(Kulfi_Ak) in
   Controller.start topo actual_demand predicted_demand host_file ()
 
 let kulfi_main_cmd =

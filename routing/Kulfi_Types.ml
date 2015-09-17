@@ -174,7 +174,7 @@ let bprint_configuration (topo:topology) (bufs:(Topology.vertex,Buffer.t) Hashtb
 	let count = 
 	  match VertexMap.find acc src with
 	  | None -> 0
-          | Some x -> Printf.printf "#dsts: %d++\n" x; x
+          | Some x -> x
         in
      VertexMap.add acc ~key:src ~data:(count+1);
      ) in
