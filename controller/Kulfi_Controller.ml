@@ -229,7 +229,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
     Controller.init 6633;
     Printf.eprintf "[Kulfi Controller started]\n%!";
     don't_wait_for (cli ());
-    (* don't_wait_for (port_stats_loop ()); *)
+    don't_wait_for (port_stats_loop ());
     don't_wait_for (Pipe.iter Controller.events (handler flow_hash));
     don't_wait_for (Pipe.iter msgs send);
     ()    
