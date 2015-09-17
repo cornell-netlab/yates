@@ -14,7 +14,7 @@ open Core.Std
 module VertexSet = Topology.VertexSet
 
 let create_topology_and_demands () =
-  let topo = Parse.from_dotfile "./data/3cycle.dot" in
+  let topo = Parse.from_dotfile "./data/topologies/3cycle.dot" in
   let host_set = VertexSet.filter (Topology.vertexes topo)
                                   ~f:(fun v ->
                                       let label = Topology.vertex_to_label topo v in
