@@ -3,14 +3,16 @@ open Async.Std
 open Command
 open Kulfi_Types
 
-type solver_type = | Mcf | Vlb | Ecmp | Spf | Ak
+type solver_type = Mcf | Vlb | Ecmp | Spf | Ak
 
-let main algorithm topo_fn actual_demand predicted_demand host_file () =
-  let topo = Frenetic_Network.Net.Parse.from_dotfile topo_fn in
-  (* TODO: Use correct routing algorithm based on CLI option *)
-  let module Controller =  Kulfi_Controller.Make(Kulfi_Spf) in
-  Controller.start topo actual_demand predicted_demand host_file ()
-
+let main algo topo_fn actual_fn predicted_fn hosts_fn () =
+  match algo with 
+  | Mcf -> let module C = Kulfi_Controller.Make(Kulfi_Mcf) in C.start topo_fn actual_fn hosts_fn ()
+  | Vlb -> let module C = Kulfi_Controller.Make(Kulfi_Vlb) in C.start topo_fn actual_fn hosts_fn ()
+  | Ecmp -> let module C = Kulfi_Controller.Make(Kulfi_Ecmp) in C.start topo_fn actual_fn hosts_fn ()  
+  | Spf -> let module C = Kulfi_Controller.Make(Kulfi_Spf) in C.start topo_fn actual_fn hosts_fn ()
+  | Ak -> let module C = Kulfi_Controller.Make(Kulfi_Ak) in C.start topo_fn actual_fn hosts_fn ()
+								    
 let kulfi_main_cmd =
   Command.basic
     ~summary:"Run the Kulfi SDN controller"
@@ -22,27 +24,27 @@ let kulfi_main_cmd =
       +> flag "-spf" no_arg ~doc:" run spf"
       +> flag "-vlb" no_arg ~doc:" run vlb"
       +> anon ("topology-file" %: string)
-      +> anon ("actual-demand" %: string)
-      +> anon ("predicted-demand" %: string)
+      +> anon ("actual-file" %: string)
+      +> anon ("predicted-file" %: string)
       +> anon ("host-file" %: string)
-      ) (fun (ak:bool)
-      (ecmp:bool)
-      (mcf:bool)
-      (spf:bool)
-      (vlb:bool)
-      (topology_file:string)
-      (actual_demand:string)
-      (predicted_demand:string)
-      (host_file:string) () ->
-        let algorithm =
-          if ak then Spf else
-            if ecmp then Ecmp else
-              if mcf then Mcf else
-                if spf then Spf else
-                  if vlb then Vlb
-        else assert false
-        in
-      main algorithm topology_file actual_demand predicted_demand host_file () )
+      ) 
+    (fun (ak:bool)
+	 (ecmp:bool)
+	 (mcf:bool)
+	 (spf:bool)
+	 (vlb:bool)
+	 (topo_fn:string)
+	 (actual_fn:string)
+	 (predicted_fn:string)
+	 (host_fn:string) () ->
+     let algorithm =
+       if ak then Spf 
+       else if ecmp then Ecmp
+       else if mcf then Mcf
+       else if spf then Spf
+       else if vlb then Vlb
+       else assert false in
+     main algorithm topo_fn actual_fn predicted_fn host_fn () )
 
 let () = 
   Command.run kulfi_main_cmd;

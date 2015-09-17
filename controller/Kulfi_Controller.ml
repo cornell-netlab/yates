@@ -222,17 +222,29 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
     | `Message(_,_,msg) -> 
        return ()
       
-  let start topo actual_file predict_file host_file() =
-    let (actual_host_map, actual_traffic_ic) = open_demands actual_file host_file topo in
-    let (predict_host_map, predict_traffic_ic) = open_demands predict_file host_file topo in
-    let actual = next_demand actual_traffic_ic actual_host_map in
-    let predict = next_demand predict_traffic_ic predict_host_map in
+  let start topo_fn predict_fn host_fn () =
+    (* Parse topology *)
+    let topo = Frenetic_Network.Net.Parse.from_dotfile topo_fn in
+    (* Create fabric *)
     let flow_hash,tag_hash = Kulfi_Fabric.create topo in
-    let scm = Solver.solve topo predict SrcDstMap.empty in
-    print_configuration topo (configuration_of_scheme topo scm tag_hash) 0;
+    (* Open predicted demands *)
+    let (predict_host_map, predict_traffic_ic) = open_demands predict_fn host_fn topo in
+    (* Helper to generate host configurations *)
+    let rec simulate i = 
+      try 
+	let predict = next_demand predict_traffic_ic predict_host_map in
+	let scheme = Solver.solve topo predict SrcDstMap.empty in
+	print_configuration topo (configuration_of_scheme topo scheme tag_hash) i;
+	simulate (i+1)
+      with _ -> 
+	() in 
     let open Deferred in
+    (* Main code *)
+    Printf.eprintf "[Kulfi: generating configurations]\n%!";
+    simulate 0;
+    Printf.eprintf "[Kulfi: starting controller]\n%!";
     Controller.init 6633;
-    Printf.eprintf "[Kulfi Controller started]\n%!";
+    Printf.eprintf "[Kulfi: running...]\n%!";
     don't_wait_for (cli ());
     don't_wait_for (port_stats_loop ());
     don't_wait_for (Pipe.iter Controller.events (handler flow_hash));

@@ -51,5 +51,3 @@ let next_demand (ic:in_channel) (host_map:index_map): demands =
     done
   done;
   !demands
-
-
