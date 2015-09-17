@@ -212,6 +212,9 @@ int main(int argc, char *argv[]){
 
     replay_script << "pkill -9 iperf" << endl;
 
+    for (std::map<string, int>::iterator dst=routers.begin(); dst!=routers.end(); ++dst){
+	    replay_script << "ping 10.0.0." << (dst->second + 1) << " > ./ping-" << node_id << "-"<< (dst->second+1) << ".txt &" << endl;
+    }
     // Schedule clients
     replay_script << endl << "# Start clients" << endl << endl;
     for (std::map<string, int>::iterator src=routers.begin(); src!=routers.end(); ++src){
@@ -244,6 +247,7 @@ int main(int argc, char *argv[]){
 
     replay_script << "./sync-client -s olympic -p 7000 "  << endl;
     replay_script << "killall -9 iperf" << endl;
+    replay_script << "killall -9 ping" << endl;
     replay_script.close();
 
     return 0;
