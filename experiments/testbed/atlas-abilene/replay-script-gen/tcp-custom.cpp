@@ -206,6 +206,11 @@ int main(int argc, char *argv[]){
         replay_script << "./tcp/server -p " << (BASE_PORT + rcv_from->second + 1) << " > ./src-" << (rcv_from->second+1) << "-dst-" << node_id << ".txt &" << endl;
     }
 
+    for (std::map<string, int>::iterator rcv_from=routers.begin(); rcv_from!=routers.end(); ++rcv_from){
+        replay_script << "ping 10.0.0." << (rcv_from->second + 1) << " > ./ping-" << node_id << "-"<< (rcv_from->second+1) << ".txt &" << endl;
+    }
+
+
     replay_script << "sleep 5";
 
     // Schedule clients
@@ -283,6 +288,7 @@ int main(int argc, char *argv[]){
     replay_script << "done" << endl;
     replay_script << "sleep " << 5 << endl;
     replay_script << "pkill -9 server" << endl;
+    replay_script << "pkill -9 ping" << endl;
     replay_script.close();
 
     return 0;

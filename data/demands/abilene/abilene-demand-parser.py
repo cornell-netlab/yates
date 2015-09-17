@@ -3,7 +3,7 @@
 demands = []
 with open('X01-36', 'r') as dem_file:
     for line in dem_file.readlines():
-        demands.append(line.split())
+        demands.append([float(x)*8/3/10e9 for x in line.split()])
 
 real_od = []
 gravity = []
@@ -14,9 +14,9 @@ for row in demands:
 
 with open('X01-36.observed', 'w') as obs_file:
     for row in real_od:
-        obs_file.write(' '.join(row) + '\n')
+        obs_file.write(' '.join([str(x) for x in row]) + '\n')
 
 with open('X01-36.gravity', 'w') as grav_file:
     for row in gravity:
-        grav_file.write(' '.join(row) + '\n')
+        grav_file.write(' '.join([str(x) for x in row]) + '\n')
 
