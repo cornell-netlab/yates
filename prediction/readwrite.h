@@ -199,7 +199,7 @@ void generateSyntheticData(int row, int hosts, double ** m)
 		}
 		for (int j = 0; j < hosts; j++)
 			for (int k = 0; k < hosts; k++)
-				m[j*hosts + k][i] = totflow[pickedTotPattern][i] * Tin[j][i] * Tout[k][i];
+				m[j*hosts + k][i] = totflow[pickedTotPattern][i%2016] * Tin[j][i] * Tout[k][i];
 	}
 	fclose(fPattern);
 	for (int i = 0; i < nWeeks; i++)
