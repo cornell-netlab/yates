@@ -3,8 +3,8 @@
 demands = []
 with open('X01-36', 'r') as dem_file:
     for line in dem_file.readlines():
-	# convert to Mbps
-        demands.append([float(x)*8/3/10e6 for x in line.split()])
+	# convert ro bps
+        demands.append([float(x)*8/3 for x in line.split()])
 
 real_od = []
 gravity = []
