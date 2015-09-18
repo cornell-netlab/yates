@@ -121,8 +121,9 @@ let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
    belong in Kulfi_Types.ml, we should move it somewhere else
    in a future re-factoring of the code. *)
 
-let cap_divisor = 100000.
-let demand_divisor = 1000.
+(* Co*)
+let cap_divisor = 1000000.
+let demand_divisor = 1.
                        
 let capacity_of_edge topo edge =
   let label = Topology.edge_to_label topo edge in

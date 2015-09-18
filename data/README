@@ -1,0 +1,5 @@
+Demands:
+	Must specify in Mbps
+
+Topologies:
+	Link capacity should have proper units. Will be converted to Mbps during computation as bps cannot be used with gurobi (known issue with large numbers).
