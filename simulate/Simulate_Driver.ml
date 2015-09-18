@@ -89,6 +89,7 @@ let get_num_paths (s:scheme) : float =
 let simulate (spec_solvers:solver_type list)
 	     (topology_file:string)
 	     (demand_file:string)
+	     (predict_file:string)
 	     (host_file:string)
 	     (iterations:int) () : unit =
   let topo = Parse.from_dotfile topology_file in
@@ -99,7 +100,8 @@ let simulate (spec_solvers:solver_type list)
 
   (* let hosts = Topology.VertexSet.elements host_set in *)
 
-  let (host_map, traffic_ic) = open_demands demand_file host_file topo in
+  let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
+  let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
   Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set);
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
   let at = make_auto_timer () in
@@ -123,12 +125,13 @@ let simulate (spec_solvers:solver_type list)
 	 else
 	   begin		
 	     start at;
-	     let demand = next_demand traffic_ic host_map in
-	     let scheme' = solve topo demand scheme in 
+	     let actual = next_demand actual_ic actual_host_map in
+	     let predict = next_demand predict_ic predict_host_map in
+	     let scheme' = solve topo predict scheme in 
 	     stop at;
 	     push times (get_time_in_seconds at);
 	     push churn (get_churn scheme' scheme);	    
-	     push congestion (get_congestion scheme' topo demand);
+	     push congestion (get_congestion scheme' topo actual);
 	     push num_paths (get_num_paths scheme');
 	     add_record time_data (solver_to_string algorithm)
 				     {iteration = n; time=(get_mean times); time_dev=(get_standard_deviation times); };	     
@@ -145,7 +148,8 @@ let simulate (spec_solvers:solver_type list)
        outer rest
   in
   outer spec_solvers;
-  close_demands traffic_ic;
+  close_demands actual_ic;
+  close_demands predict_ic;
   
   let dir = "./expData/" in
 
@@ -172,6 +176,7 @@ let command =
     +> flag "-ak" no_arg ~doc:" run ak"
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
+    +> anon ("predict-file" %: string)
     +> anon ("host-file" %: string)
     +> anon ("iterations" %: int)
   ) (fun (mcf:bool)
@@ -181,6 +186,7 @@ let command =
 	 (ak:bool)
 	 (topology_file:string)
 	 (demand_file:string)
+	 (predict_file:string)
 	 (host_file:string)
 	 (iterations:int) () ->
      let algorithms =
@@ -191,7 +197,7 @@ let command =
          ; if ecmp then Some Ecmp else None
          ; if spf then Some Spf else None
          ; if ak then Some Ak else None ] in 
-     simulate algorithms topology_file demand_file host_file iterations () )
+     simulate algorithms topology_file demand_file predict_file host_file iterations () )
 
 let main = Command.run command
  
