@@ -20,11 +20,12 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 
   let has_loop path = 
     let rec loop acc = function
-      | [] -> false
-      | e::rest -> 
+      | [] -> 
+	 false
+      | e::rest -> 	 
 	 let src,_ = Topology.edge_src e in 
-	 not (Topology.VertexSet.mem acc src)
-	 && loop (Topology.VertexSet.add acc src) rest in 
+	 (Topology.VertexSet.mem acc src)
+	 || loop (Topology.VertexSet.add acc src) rest in 
     loop Topology.VertexSet.empty path in
       
   let vlb_pps src dst = 
@@ -48,7 +49,10 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 	  PathMap.add acc path (1.0 /. Float.of_int n)) in 
   
   (* NB: folding over apsp just to get all src-dst pairs *)
-  List.fold_left apsp 
-    ~init:SrcDstMap.empty
-    ~f:(fun acc (_,v1,v2,_) ->
-        SrcDstMap.add acc ~key:(v1,v2) ~data:( vlb_pps v1 v2 ) )
+  let scheme = 
+    List.fold_left 
+      apsp 
+      ~init:SrcDstMap.empty
+      ~f:(fun acc (_,v1,v2,_) ->
+	  SrcDstMap.add acc ~key:(v1,v2) ~data:( vlb_pps v1 v2 ) ) in 
+  scheme
