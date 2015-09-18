@@ -40,6 +40,19 @@ module PathMap = Map.Make(PathOrd)
 
 module IntMap = Map.Make(Int)
 
+type uid = int with sexp			
+
+module UidOrd = struct
+  type t = uid with sexp
+  let compare = Pervasives.compare                    
+end
+		      
+module UidMap = Map.Make(UidOrd)
+		      
+type path_uid_map = uid PathMap.t
+			
+type uid_path_map = path UidMap.t			
+
 type index_map = Topology.vertex IntMap.t
 			
 module PathSet = Set.Make(PathOrd)
