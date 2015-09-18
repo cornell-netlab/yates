@@ -1,4 +1,11 @@
 #pragma once
+#include <random>
+double abso(double a)
+{
+	if (a<0) return -a;
+	return a;
+}
+
 void writeDemandMatrix(string filename, int row, int col, double ** m, int period)
 {
 	//row * col floats
@@ -52,7 +59,7 @@ void computePatterns(double ** m)
 }
 int getRandNum(int n)
 {
-	return abs((rand() * 59999 + rand()) % n);
+	return abso((rand() * 59999 + rand()) % n);
 }
 
 double getRandExp(double lambda)
@@ -61,6 +68,50 @@ double getRandExp(double lambda)
 	double prob = ((double)getRandNum(acc)) / acc;
 	double a = -log(1 - prob) / lambda;
 	return a;
+}
+
+
+double probabilityDensity(double x, double mean, double sigma)
+{
+	return (1.0 / sigma / sqrt(2 * 3.141592653589793238) * exp(-(x - mean)*(x - mean) / 2 / sigma / sigma));
+}
+
+
+void generateW(double * x, double mean, int len)
+{
+	std::default_random_engine generator;
+	double sigma = mean / 2;
+	double sigmaJump = mean / 4;
+	std::normal_distribution<double> jumpdistribution(0, sigmaJump);
+
+	x[0] = mean;
+	double curP = probabilityDensity(x[0], mean, sigma);
+
+	for (int i = 1; i < len; i++)
+	{
+		x[i] = x[i - 1];
+		double nextX = x[i - 1] + jumpdistribution(generator);
+		double nextP = probabilityDensity(nextX, mean, sigma);
+		if (nextP >= curP)
+		{
+			curP = nextP;
+			x[i] = nextX;
+		}
+		else
+		{
+			double u = (0.0+abso(getRandNum(10000))) / 10000;
+			if (u < nextP / curP)
+			{
+				curP = nextP;
+				x[i] = nextX;
+			}
+		}
+		if (x[i] < 0)
+		{
+			x[i] = 0;
+			curP = probabilityDensity(0, mean, sigma);
+		}
+	}
 }
 
 void generateSyntheticData(int row, int hosts, double ** m)
@@ -79,31 +130,65 @@ void generateSyntheticData(int row, int hosts, double ** m)
 	int nMean;
 	fscanf(fPattern, "%*i%i", &nMean);
 	double * saveMean = new double[nMean];
+	double sumOfMean = 0;
 	for (int i = 0; i < nMean; i++)
+	{
 		fscanf(fPattern, "%lf", &saveMean[i]);
+		sumOfMean += saveMean[i];
+	}
+	sumOfMean /= nMean;
+	for (int i = 0; i < nMean; i++)
+		saveMean[i] /= (sumOfMean / 1000);
 
 	//m[col][row];
 	int pickedTotPattern;
-	double* meanVal = new double[hosts];
-	double * Tin = new double[hosts];
-	double * Tout = new double[hosts];
+	double ** Tin = new double*[hosts];
+	double ** Tout = new double*[hosts];
+
+
+
 	for (int i = 0; i < hosts; i++)
-		meanVal[i] = saveMean[getRandNum(nMean)];
+	{
+		Tin[i] = new double[row];
+		Tout[i] = new double[row];
+		generateW(Tin[i], saveMean[getRandNum(nMean)], row);
+		generateW(Tout[i], saveMean[getRandNum(nMean)], row);
+	}
+		/*
+	for (int i = 0; i < hosts; i++)
+	{
+		printf("No%i ----------%lf        ", i, Tin[i][0]);
+		for (int j = 0; j < 100;j++)
+			printf("%.2lf -- ", Tin[i][j]);
+		double avg = 0;
+		for (int j = 0; j < row; j++)
+			avg += Tin[i][j] / row;
+		printf("avg == %.2lf\n\n", avg);
+	}
+			*/
 	double tot_in, tot_out;
-    tot_in = 0;
-    tot_out = 0;
-    for (int j = 0; j < hosts;j++)
-    {
-        Tin[j] = getRandExp(1);
-        Tout[j] = getRandExp(1);
-        tot_in += Tin[j];
-        tot_out += Tout[j];
-    }
-    for (int j = 0; j < hosts; j++)
-    {
-        Tin[j] /= tot_in;
-        Tout[j] /= tot_out;
-    }
+	for (int i = 0; i < row; i++)
+	{
+        tot_in = 0;
+        tot_out = 0;
+		for (int j = 0; j < hosts;j++)
+		{
+			tot_in += Tin[j][i];
+			tot_out += Tout[j][i];
+		}
+		for (int j = 0; j < hosts; j++)
+		{
+			Tin[j][i] /= tot_in;
+			Tout[j][i] /= tot_out;
+		}
+	}
+	/*
+	for (int i = 0; i < 5; i++)
+	{
+		printf("No%i ---------- \n\n\n", i);
+		for (int j = 0; j < 100;j++)
+			printf("%.6lf -- ", Tin[i][j]);
+	}*/
 
 	for (int i = 0; i < row; i++)
 	{
@@ -114,11 +199,11 @@ void generateSyntheticData(int row, int hosts, double ** m)
 		}
 		for (int j = 0; j < hosts; j++)
 			for (int k = 0; k < hosts; k++)
-				m[j*hosts + k][i] = totflow[pickedTotPattern][i] * Tin[j] * Tout[k];
+				m[j*hosts + k][i] = totflow[pickedTotPattern][i%2016] * Tin[j][i] * Tout[k][i];
 	}
 	fclose(fPattern);
 	for (int i = 0; i < nWeeks; i++)
 		delete[] totflow[i];
-	delete[] totflow, meanVal, saveMean, Tin, Tout;
+	delete[] totflow,  saveMean, Tin, Tout;
 }
 

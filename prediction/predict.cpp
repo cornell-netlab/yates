@@ -1,3 +1,5 @@
+// TODO: when ||X|| is large, should normalize it.
+// TODO: need to know what is gravity model 
 #include <stdio.h> 
 #include <stdlib.h>
 #include <time.h>
@@ -7,7 +9,7 @@
 #include <algorithm>
 #include <vector>
 using namespace std;
-#include "openCVFunctions.h"
+//#include "openCVFunctions.h"
 #include "readwrite.h"
 typedef double(*objCalFunctionType)(double ** X_dat, double * Y_dat, int d, int n, void * modelPara, void * additionalStuff);
 typedef void(*gradientStepFunctionType) (double * x, double y, double *gradAns, int d, bool cumu, void * modelPara, void * additionalStuff);
@@ -15,11 +17,6 @@ typedef void(*trainModelFunctionType) (double ** X_dat, double* Y_dat, int d, in
 typedef void(*predictNextFunctionType) (double * x, double * predictY, int d, void * modelPara, void * additionalStuff);
 
 
-double abso(double a)
-{
-	if (a<0) return -a;
-	return a;
-}
 
 /*
 Read Data:
@@ -32,9 +29,9 @@ void getData(double** dataM, int last, int pickwhich)
 	for (int i = 1; i <= last; i++)
 	{
 		if (i<10)
-			sprintf(buf, "data//X0%i", i);
+			sprintf(buf, "data\\X0%i", i);
 		else
-			sprintf(buf, "data//X%i", i);
+			sprintf(buf, "data\\X%i", i);
 		a = buf;
 		printf("%s\n", a.c_str());
 		FILE * f = fopen(a.c_str(), "r");
@@ -139,6 +136,7 @@ double inner(double *w, double * x, int d)
 
 void proximalUpdate(double * w, int d, double thres)
 {
+	thres = abso(thres);
 	for (int i = 0; i < d; i++)
 		if (w[i]>thres)
 			w[i] -= thres;

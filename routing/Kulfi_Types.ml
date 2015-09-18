@@ -40,6 +40,19 @@ module PathMap = Map.Make(PathOrd)
 
 module IntMap = Map.Make(Int)
 
+type uid = int with sexp			
+
+module UidOrd = struct
+  type t = uid with sexp
+  let compare = Pervasives.compare                    
+end
+		      
+module UidMap = Map.Make(UidOrd)
+		      
+type path_uid_map = uid PathMap.t
+			
+type uid_path_map = path UidMap.t			
+
 type index_map = Topology.vertex IntMap.t
 			
 module PathSet = Set.Make(PathOrd)
@@ -123,7 +136,7 @@ let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
 
 (* Co*)
 let cap_divisor = 1000000.
-let demand_divisor = 1.
+let demand_divisor = 1000000.
                        
 let capacity_of_edge topo edge =
   let label = Topology.edge_to_label topo edge in
