@@ -29,7 +29,6 @@ let select_algorithm solver = match solver with
   | Spf -> Kulfi_Routing.Spf.solve
   | Ak -> Kulfi_Routing.Ak.solve
 
-
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
   let sent_on_each_edge = 
     SrcDstMap.fold

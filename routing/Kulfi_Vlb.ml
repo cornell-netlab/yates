@@ -7,42 +7,48 @@ open Net
 let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   let device v = let lbl = Topology.vertex_to_label topo v in (Node.device lbl) in
   
-  let apsp = NetPath.all_pairs_shortest_paths
-	       ~topo:topo
-	       ~f:(fun x y -> true) in
+  let apsp = NetPath.all_pairs_shortest_paths ~topo:topo ~f:(fun _ _ -> true) in
   
-  let spf_table =     
+  let spf_table =
     List.fold_left apsp ~init:SrcDstMap.empty ~f:(fun acc (c,v1,v2,p) -> 
-    SrcDstMap.add acc ~key:(v1,v2) ~data:( PathMap.singleton p 1.0 ) ) in 
+    SrcDstMap.add acc ~key:(v1,v2) ~data:p) in 
 
-  (* TODO(jnf,rjs): replace this whole thing with just sample scheme? *)
-  let find_path src dst = 
-    match SrcDstMap.find spf_table (src,dst) with
-    | None -> 
-       assert false
-    | Some path_dist ->
-       sample_dist path_dist in 
+  let find_path src dst = SrcDstMap.find_exn spf_table (src,dst) in  
 
-  let route_thru_detour = (fun src det dst -> 
-    (find_path src det) @ (find_path det dst) ) in
+  let route_thru_detour src det dst =
+    find_path src det @ find_path det dst in 
 
-  let nv = Float.of_int (Topology.num_vertexes topo) in
-
+  let has_loop path = 
+    let rec loop acc = function
+      | [] -> false
+      | e::rest -> 
+	 let src,_ = Topology.edge_src e in 
+	 not (Topology.VertexSet.mem acc src)
+	 && loop (Topology.VertexSet.add acc src) rest in 
+    loop Topology.VertexSet.empty path in
+      
   let vlb_pps src dst = 
-    Topology.fold_vertexes 
-      (fun v acc ->
-       (* Don't include hosts as detour nodes *)
-       match device v with
-       | Node.Host -> acc
-       | _ ->
-       PathMap.add acc (route_thru_detour src v dst) (1.0 /. nv))
-      topo 
-      PathMap.empty in
-
+    let paths,n = 
+      Topology.fold_vertexes 
+	(fun v (acc,n) ->
+	 match device v with
+	 | Node.Host -> 
+	    (* Don't include hosts as detour nodes *)
+	    (acc,n)
+	 | _ ->
+	    let path = route_thru_detour src v dst in 
+	    if has_loop path then (acc,n)
+	    else (path::acc, n + 1))
+	topo 
+	([],0) in
+    List.fold_left
+      paths
+      ~init:PathMap.empty
+      ~f:(fun acc path -> 
+	  PathMap.add acc path (1.0 /. Float.of_int n)) in 
+  
+  (* NB: folding over apsp just to get all src-dst pairs *)
   List.fold_left apsp 
-    (* slightly confusing aspect: perform fold_left on apsp merely
-       because it is a list containing one entry for each src-dest pair.
-       the fact that it contains paths is irrelevant here *)
     ~init:SrcDstMap.empty
-    ~f:(fun acc (c,v1,v2,p) ->
+    ~f:(fun acc (_,v1,v2,_) ->
         SrcDstMap.add acc ~key:(v1,v2) ~data:( vlb_pps v1 v2 ) )
