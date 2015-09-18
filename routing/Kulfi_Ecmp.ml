@@ -13,10 +13,6 @@ code. But we're trusting that Chris Yu wrote a correct implementation
 of all pairs all shortest paths. The solve function treats
 all_shortest_paths_multi as a black box. *)
                    
-let capacity_of_edge topo edge =
-  let lbl = edge_to_label topo edge in
-  Int64.to_float (Link.capacity lbl)
-         
 let src_shortest_paths topo hosts src =
   let prev_table = Hashtbl.Poly.create () in
   let dist_table = Hashtbl.Poly.create () in

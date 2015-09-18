@@ -134,13 +134,13 @@ let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
    belong in Kulfi_Types.ml, we should move it somewhere else
    in a future re-factoring of the code. *)
 
-(* Co*)
+(* convert to Mbps for input to Gurobi *)
 let cap_divisor = 1000000.
 let demand_divisor = 1000000.
                        
 let capacity_of_edge topo edge =
   let label = Topology.edge_to_label topo edge in
-  (Int64.to_float (Link.capacity label)) /. cap_divisor
+  (Int64.to_float (Link.capacity label))
 
 let configuration_of_scheme (topo:topology) (scm:scheme) (tag_hash: (edge,int) Hashtbl.t) : configuration =
   SrcDstMap.fold
