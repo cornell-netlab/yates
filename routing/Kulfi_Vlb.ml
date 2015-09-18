@@ -16,37 +16,37 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   let find_path src dst = SrcDstMap.find_exn spf_table (src,dst) in  
 
   let route_thru_detour src det dst =
-    find_path src det @ find_path det dst in 
+    Kulfi_Frt.FRT.remove_cycles (find_path src det @ find_path det dst) in 
 
-  let has_loop path = 
-    let rec loop acc = function
-      | [] -> 
-	 false
-      | e::rest -> 	 
-	 let src,_ = Topology.edge_src e in 
-	 (Topology.VertexSet.mem acc src)
-	 || loop (Topology.VertexSet.add acc src) rest in 
-    loop Topology.VertexSet.empty path in
+  (* let has_loop path =  *)
+  (*   let rec loop acc = function *)
+  (*     | [] ->  *)
+  (* 	 false *)
+  (*     | e::rest -> 	  *)
+  (* 	 let src,_ = Topology.edge_src e in  *)
+  (* 	 (Topology.VertexSet.mem acc src) *)
+  (* 	 || loop (Topology.VertexSet.add acc src) rest in  *)
+  (*   loop Topology.VertexSet.empty path in *)
+
+  let nv = Float.of_int (Topology.fold_vertexes (fun _ -> succ) topo 0) in 
       
   let vlb_pps src dst = 
-    let paths,n = 
+    let paths = 
       Topology.fold_vertexes 
-	(fun v (acc,n) ->
+	(fun v acc ->
 	 match device v with
 	 | Node.Host -> 
 	    (* Don't include hosts as detour nodes *)
-	    (acc,n)
+	    acc
 	 | _ ->
-	    let path = route_thru_detour src v dst in 
-	    if has_loop path then (acc,n)
-	    else (path::acc, n + 1))
+	    (route_thru_detour src v dst)::acc)
 	topo 
-	([],0) in
+	[] in
     List.fold_left
       paths
       ~init:PathMap.empty
       ~f:(fun acc path -> 
-	  PathMap.add acc path (1.0 /. Float.of_int n)) in 
+	  PathMap.add acc path (1.0 /. nv)) in 
   
   (* NB: folding over apsp just to get all src-dst pairs *)
   let scheme = 
