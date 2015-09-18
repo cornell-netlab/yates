@@ -88,6 +88,7 @@ let capacity_constraints (pmap : path_uid_map) (emap : edge_uidlist_map)
       match (EdgeMap.find emap edge) with
 	| None -> acc
         | Some uid_list ->
+	   Printf.printf "found an edge\n";
 	   let all_flows = List.map ~f:(fun x -> Var(var_name_uid x)) uid_list in
       (* Add them all up *)
 	   let total_flow = Sum (all_flows) in
@@ -101,22 +102,26 @@ let capacity_constraints (pmap : path_uid_map) (emap : edge_uidlist_map)
 let demand_constraints (pmap : path_uid_map) (emap : edge_uidlist_map) (topo : topology) (d : demands) (s : scheme)
 		       (init_acc : constrain list) : constrain list =
   (* Every source-sink pair has a demand constraint *)
-  SrcDstMap.fold ~init:init_acc ~f:(fun ~key:(src,dst) ~data:(demand) acc ->
-				    (* We need to add up the rates for all paths in pmap(src,dst) *)
-      match SrcDstMap.find s (src,dst) with
-      | None -> if (demand <= 0.) then acc else (assert false)
-      | Some flowdec -> 
-	 let all_flows = PathMap.fold ~init:[] ~f:(fun ~key:p ~data:prob acc ->
-	   let pvar = match PathMap.find pmap p with
-	     | None -> assert false 
-	     | Some id -> Var(var_name_uid id) in
-	   pvar::acc ) flowdec in
-	 (* some code to generate a constraint *)
-	 let total_flow = Sum(all_flows) in
-	 let name = Printf.sprintf "dem-%s-%s" (name_of_vertex topo src)
-	   (name_of_vertex topo dst) in
-	 (Geq (name, total_flow, demand /. demand_divisor))::acc) d
-
+  SrcDstMap.fold
+    ~init:init_acc
+    ~f:(fun ~key:(src,dst) ~data:(demand) acc ->
+	(* We need to add up the rates for all paths in pmap(src,dst) *)
+	match SrcDstMap.find s (src,dst) with
+	| None -> if (demand <= 0.) then acc else (assert false) 
+	| Some flowdec -> 
+	   let all_flows = PathMap.fold
+			     ~init:[]
+			     ~f:(fun ~key:p ~data:prob acc ->
+				 let pvar = match PathMap.find pmap p with
+				   | None -> assert false 
+				   | Some id -> Var(var_name_uid id) in
+				 pvar::acc ) flowdec in
+	   (* some code to generate a constraint *)
+	   let total_flow = Sum(all_flows) in
+	   let name = Printf.sprintf "dem-%s-%s" (name_of_vertex topo src)
+				     (name_of_vertex topo dst) in
+	   (Geq (name, total_flow, demand /. demand_divisor))::acc) d
+    
 let rec string_of_aexp ae =
   match ae with
   | Var v -> v
@@ -124,15 +129,20 @@ let rec string_of_aexp ae =
   | Times (coeff, a2) ->
      Printf.sprintf "%f %s" (coeff) (string_of_aexp a2)
   | Sum (aexs) ->
-     List.fold_left aexs ~init:"" ~f:(fun acc ae ->
-				      if acc = "" then string_of_aexp ae else match ae with
-									      | Times (coeff, a2) ->
-										 if coeff = -1. then acc ^ " - " ^ (string_of_aexp a2)
-										 else if coeff < 0. then acc ^ " - " ^
-													   (string_of_aexp (Times (-.coeff, a2)))
-										 else acc ^ " + " ^ (string_of_aexp ae)
-									      | _ -> acc ^ " + " ^ (string_of_aexp ae))
-
+     List.fold_left
+       aexs
+       ~init:""
+       ~f:(fun acc ae ->
+	   if acc = "" then
+	     string_of_aexp ae
+	   else match ae with
+		| Times (coeff, a2) ->
+		   if coeff = -1. then acc ^ " - " ^ (string_of_aexp a2)
+		   else if coeff < 0. then acc ^ " - " ^
+					     (string_of_aexp (Times (-.coeff, a2)))
+		   else acc ^ " + " ^ (string_of_aexp ae)
+		| _ -> acc ^ " + " ^ (string_of_aexp ae))
+       
 let string_of_constraint c =
   match c with
   | Eq (name, ae, f) ->
@@ -155,6 +165,8 @@ let serialize_lp ((objective, constrs) : lp) (filename : string) =
 let lp_of_maps (pmap:path_uid_map) (emap:edge_uidlist_map) (topo:topology) (d:demands) (s:scheme) : (arith_exp * constrain list) =
   let cap_constrs = capacity_constraints pmap emap topo d s [] in
   let cap_and_demand = demand_constraints pmap emap topo d s cap_constrs in
+  assert (List.length cap_constrs > 0);
+  assert (List.length cap_and_demand > 0);
   (objective, cap_and_demand)
 
 type flow_table = ((Node.t * Node.t),
@@ -260,6 +272,9 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
    of paths used. *)
 (* let solver_paths topo pairs verbose = *)
 let solve (topo:topology) (d:demands) (s:scheme) : scheme =
+  let s = if (SrcDstMap.is_empty s) then
+	    Kulfi_Mcf.solve topo d s 
+	  else s in
   let uuid = ref (-1) in
   let fresh_uid () =
     uuid := !uuid + 1;
@@ -276,6 +291,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 		let id = fresh_uid () in		      
 		let umap' = UidMap.add ~key:id ~data:path umap in
 		let pmap' = PathMap.add ~key:path ~data:id pmap in
+		assert (List.length path > 0);
 		let emap' =
 		  List.fold_left
 		    ~init:emap
@@ -285,6 +301,9 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 			  | Some ids -> id::ids
 			in EdgeMap.add ~key:e ~data:ids emap) path in
 		(umap',pmap',emap')) paths) s in
+
+  assert (EdgeMap.length emap > 0);
+
   
   (* TODO: 
      - LP: variable for every path
@@ -305,7 +324,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   serialize_lp lp "semimcf.lp";
 
   let gurobi_in = Unix.open_process_in
-		    "gurobi_cl OptimalityTol=1e-9 ResultFile=mcf.sol semimcf.lp" in
+		    "gurobi_cl OptimalityTol=1e-9 ResultFile=semimcf.sol semimcf.lp" in
   let time_str = "Solved in [0-9]+ iterations and \\([0-9.e+-]+\\) seconds" in
   let time_regex = Str.regexp time_str in
   let rec read_output gurobi solve_time =
@@ -324,8 +343,8 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   (* read back all the edge flows from the .sol file *)
   let read_results input =
     let results = open_in input in
-    let result_str = "^f_\\([a-zA-Z0-9]+\\)--\\([a-zA-Z0-9]+\\)_" ^
-                       "\\([a-zA-Z0-9]+\\)--\\([a-zA-Z0-9]+\\) \\([0-9.e+-]+\\)$"
+    let result_str = "^f_\\([a-zA-Z0-9]+\\)" ^
+                       " \\([0-9.e+-]+\\)$"
     in
     let regex = Str.regexp result_str in
     let rec read inp opt_z flows =
@@ -341,8 +360,16 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
             (ratio *. demand_divisor /. cap_divisor, flows)
           else
 	    if (Str.string_match regex line 0)
-	    then assert false
-	    else assert false in
+	    then
+	      let uid = Int.of_string (Str.matched_group 1 line) in
+	      let flow_amt = Float.of_string (Str.matched_group 2 line) in
+	      Printf.printf "%d %f\n" uid flow_amt;
+	      (* TODO: (rdk,rjs) How do we map this back to a result? *)
+	      let tup = (uid, flow_amt) in
+	      (* (opt_z, tup::flows) *)
+	      assert false
+	    else
+	      assert false in
 	    (*  then *)
 	    (*    assert false *)
             (*    let vertex s = Topology.vertex_to_label topo *)
@@ -362,7 +389,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 
     let result = read results 0. [] in
     In_channel.close results; result in
-  let ratio, flows = read_results "mcf.sol" in
+  let ratio, flows = read_results "semimcf.sol" in
   let flows_table = Hashtbl.Poly.create () in
 
   (* partition the edge flows based on which commodity they are *)

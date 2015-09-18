@@ -12,7 +12,6 @@ open AutoTimer
        
 type solver_type = | Mcf | Vlb | Ecmp | Spf | Ak | Smcf
 
-let solver_mode = ref Mcf
 
 let solver_to_string (s:solver_type) : string =
   match s with 
@@ -88,7 +87,7 @@ let get_num_paths (s:scheme) : float =
 	acc + (PathMap.length d))
     s in    
   Float.of_int count 
-        
+	       
 let simulate (spec_solvers:solver_type list)
 	     (topology_file:string)
 	     (demand_file:string)
