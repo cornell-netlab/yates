@@ -136,7 +136,7 @@ let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
 
 (* Co*)
 let cap_divisor = 1000000.
-let demand_divisor = 1.
+let demand_divisor = 1000000.
                        
 let capacity_of_edge topo edge =
   let label = Topology.edge_to_label topo edge in
