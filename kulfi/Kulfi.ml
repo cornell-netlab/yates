@@ -3,7 +3,7 @@ open Async.Std
 open Command
 open Kulfi_Types
 
-type solver_type = Mcf | Vlb | Ecmp | Spf | Ak
+type solver_type = Mcf | Vlb | Ecmp | Spf | Ak | Smcf
 
 let main algo topo_fn actual_fn predicted_fn hosts_fn () =
   match algo with 
@@ -12,6 +12,7 @@ let main algo topo_fn actual_fn predicted_fn hosts_fn () =
   | Ecmp -> let module C = Kulfi_Controller.Make(Kulfi_Ecmp) in C.start topo_fn actual_fn hosts_fn ()  
   | Spf -> let module C = Kulfi_Controller.Make(Kulfi_Spf) in C.start topo_fn actual_fn hosts_fn ()
   | Ak -> let module C = Kulfi_Controller.Make(Kulfi_Ak) in C.start topo_fn actual_fn hosts_fn ()
+  | Smcf -> let module C = Kulfi_Controller.Make(Kulfi_SemiMcf) in C.start topo_fn actual_fn hosts_fn ()
 								    
 let kulfi_main_cmd =
   Command.basic
@@ -23,6 +24,7 @@ let kulfi_main_cmd =
       +> flag "-mcf" no_arg ~doc:" run mcf"
       +> flag "-spf" no_arg ~doc:" run spf"
       +> flag "-vlb" no_arg ~doc:" run vlb"
+      +> flag "-smcf" no_arg ~doc:" run semi mcf"
       +> anon ("topology-file" %: string)
       +> anon ("actual-file" %: string)
       +> anon ("predicted-file" %: string)
@@ -33,6 +35,7 @@ let kulfi_main_cmd =
 	 (mcf:bool)
 	 (spf:bool)
 	 (vlb:bool)
+	 (smcf:bool)
 	 (topo_fn:string)
 	 (actual_fn:string)
 	 (predicted_fn:string)
@@ -43,6 +46,7 @@ let kulfi_main_cmd =
        else if mcf then Mcf
        else if spf then Spf
        else if vlb then Vlb
+       else if smcf then Smcf
        else assert false in
      main algorithm topo_fn actual_fn predicted_fn host_fn () )
 

@@ -10,7 +10,7 @@ open RunningStat
 open ExperimentalData 
 open AutoTimer
        
-type solver_type = | Mcf | Vlb | Ecmp | Spf | Ak 
+type solver_type = | Mcf | Vlb | Ecmp | Spf | Ak | Smcf
 
 let solver_mode = ref Mcf
 
@@ -20,7 +20,8 @@ let solver_to_string (s:solver_type) : string =
   | Vlb -> "vlb" 
   | Ecmp -> "ecmp"
   | Spf -> "spf" 
-  | Ak -> "ak" 
+  | Ak -> "ak"
+  | Smcf -> "smcf" 
 		
 let select_algorithm solver = match solver with
   | Mcf -> Kulfi_Routing.Mcf.solve
@@ -28,6 +29,7 @@ let select_algorithm solver = match solver with
   | Ecmp -> Kulfi_Routing.Ecmp.solve
   | Spf -> Kulfi_Routing.Spf.solve
   | Ak -> Kulfi_Routing.Ak.solve
+  | Smcf -> Kulfi_Routing.SemiMcf.solve
 
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
   let sent_on_each_edge = 
@@ -175,6 +177,7 @@ let command =
     +> flag "-ecmp" no_arg ~doc:" run ecmp"
     +> flag "-spf" no_arg ~doc:" run spf"
     +> flag "-ak" no_arg ~doc:" run ak"
+    +> flag "-smcf" no_arg ~doc:" run semi mcf"
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
     +> anon ("predict-file" %: string)
@@ -185,6 +188,7 @@ let command =
 	 (ecmp:bool)
 	 (spf:bool)
 	 (ak:bool)
+	 (smcf:bool)
 	 (topology_file:string)
 	 (demand_file:string)
 	 (predict_file:string)
@@ -197,7 +201,8 @@ let command =
          ; if vlb then Some Vlb else None
          ; if ecmp then Some Ecmp else None
          ; if spf then Some Spf else None
-         ; if ak then Some Ak else None ] in 
+	 ; if ak then Some Ak else None
+         ; if smcf then Some Smcf else None ] in 
      simulate algorithms topology_file demand_file predict_file host_file iterations () )
 
 let main = Command.run command
