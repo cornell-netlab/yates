@@ -94,7 +94,7 @@ let test_vlb2 =
 	      else
 		match SrcDstMap.find scheme (u,v) with
 		| None -> false
-		| Some x -> true && acc)) 
+		| Some paths -> (PathMap.is_empty paths)  && acc)) 
     
 
 let test_mw = false
