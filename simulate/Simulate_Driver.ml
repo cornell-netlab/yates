@@ -110,6 +110,16 @@ let simulate (spec_solvers:solver_type list)
 	     (predict_file:string)
 	     (host_file:string)
 	     (iterations:int) () : unit =
+
+  (* Do some error checking on input *)
+
+  let demand_lines_length = List.length (In_channel.read_lines demand_file) in
+  let predict_lines_length = List.length (In_channel.read_lines predict_file) in 
+
+  ignore (if (demand_lines_length < iterations) then failwith "Iterations greater than demand file length" else());
+  ignore (if (predict_lines_length < iterations) then failwith "Iterations greater than predict file length" else());
+  
+
   let topo = Parse.from_dotfile topology_file in
   let host_set = VertexSet.filter (Topology.vertexes topo)
 				  ~f:(fun v ->
