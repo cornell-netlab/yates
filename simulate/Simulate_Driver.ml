@@ -21,7 +21,7 @@ let solver_to_string (s:solver_type) : string =
   | Spf -> "spf" 
   | Ak -> "ak"
   | Smcf -> "smcf" 
-		
+	      
 let select_algorithm solver = match solver with
   | Mcf -> Kulfi_Routing.Mcf.solve
   | Vlb -> Kulfi_Routing.Vlb.solve
@@ -73,7 +73,7 @@ let get_churn (old_scheme:scheme) (new_scheme:scheme) : float =
 	  PathMap.fold
 	    ~init:acc
 	    ~f:(fun ~key:p ~data:_ acc ->	  
-	       PathSet.add acc p ) d) s in
+		PathSet.add acc p ) d) s in
   let set1 = get_path_sets old_scheme in
   let set2 = get_path_sets new_scheme in
   let union = PathSet.union set1 set2 in
@@ -82,15 +82,27 @@ let get_churn (old_scheme:scheme) (new_scheme:scheme) : float =
 
 let get_num_paths (s:scheme) : float =
   let count = SrcDstMap.fold
-    ~init:0
-    ~f:(fun ~key:_ ~data:d acc ->
-	acc + (PathMap.length d))
-    s in    
+		~init:0
+		~f:(fun ~key:_ ~data:d acc ->
+		    acc + (PathMap.length d))
+		s in    
   Float.of_int count 
 
 
+let initial_scheme init_str topo aic ahm pic phm : scheme =
+  match init_str with
+  | None -> SrcDstMap.empty
+  | Some "mcf" ->
+     let _ = next_demand aic ahm in 
+     let d = next_demand pic phm in 
+     Kulfi_Routing.Mcf.solve topo d SrcDstMap.empty
+  | Some "vlb" ->
+     let _ = next_demand aic ahm in 
+     let d = next_demand pic phm in 
+     Kulfi_Routing.Vlb.solve topo d SrcDstMap.empty
+  | Some _ -> failwith  "Unrecognized initialization scheme"
 
-	       
+			
 let simulate (spec_solvers:solver_type list)
 	     (init_str:string option)
 	     (topology_file:string)
@@ -109,69 +121,65 @@ let simulate (spec_solvers:solver_type list)
   Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set);
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
   let at = make_auto_timer () in
-  let times = make_running_stat () in
-  let churn = make_running_stat () in
-  let congestion = make_running_stat () in
-  let num_paths = make_running_stat () in
-
+  
   let time_data = make_data "Iteratives Vs Time" in
   let churn_data = make_data "Churn Vs Time" in
   let congestion_data = make_data "Congestion Vs Time" in
   let num_paths_data = make_data "Num. Paths Vs Time" in
 
+  let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
+  let is = range 0 iterations in 
+
+
+  List.iter
+    spec_solvers
+    ~f:(fun algorithm ->
+	
+	let solve = select_algorithm algorithm in
+	
+	let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
+	let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
+
+	(* we may need to initialize the scheme, and advance both traffic files *)
+	let start_scheme = initial_scheme init_str topo
+					  actual_ic actual_host_map
+					  predict_ic predict_host_map in
+	
+	ignore (
+	    List.fold_left
+	      is (* 0..iterations *)
+	      ~init:start_scheme
+	      ~f:(fun scheme n ->
+		  
+		  (* get the next demand *)
+		  let actual = next_demand actual_ic actual_host_map in
+		  let predict = next_demand predict_ic predict_host_map in
+		  
+		  (* solve *)
+		  start at;
+		  let scheme' = solve topo predict scheme in 
+		  stop at;
+		  
+		  (* record *)
+		  let tm = (get_time_in_seconds at) in
+		  let ch = (get_churn scheme' scheme) in
+		  let cp = (get_congestion scheme' topo actual) in
+		  let np = (get_num_paths scheme') in
+	      	  
+		  add_record time_data (solver_to_string algorithm) {iteration = n; time=tm; time_dev=0.0; };	     
+		  add_record churn_data (solver_to_string algorithm) {iteration = n; churn=ch; churn_dev=0.0; };
+		  add_record congestion_data (solver_to_string algorithm) {iteration = n; congestion=cp; congestion_dev=0.0; };
+		  add_record num_paths_data (solver_to_string algorithm) {iteration = n; num_paths=np; num_paths_dev=0.0; };
+		  
+		  scheme') );
+	
+	(* start at beginning of demands for next algorithm *)
+	close_demands actual_ic;
+	close_demands predict_ic;
+
+       );
   
-  let rec outer algorithms = match algorithms with
-    | [] -> ()
-    | algorithm::rest ->
-       let solve = select_algorithm algorithm in
-       let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
-       let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
-       let rec inner n scheme = 
-	 if n > iterations then
-	   ()
-	 else
-	   begin		
-	     start at;
-	     let actual = next_demand actual_ic actual_host_map in
-	     let predict = next_demand predict_ic predict_host_map in
-	     let scheme' = solve topo predict scheme in 
-	     stop at;
-	     push times (get_time_in_seconds at);
-	     push churn (get_churn scheme' scheme);	    
-	     push congestion (get_congestion scheme' topo actual);
-	     push num_paths (get_num_paths scheme');
-	     add_record time_data (solver_to_string algorithm)
-				     {iteration = n; time=(get_mean times); time_dev=(get_standard_deviation times); };	     
-	     add_record churn_data (solver_to_string algorithm)
-				     {iteration = n; churn=(get_mean churn); churn_dev=(get_standard_deviation churn); };
-	     add_record congestion_data (solver_to_string algorithm)
-				     {iteration = n; congestion=(get_mean congestion); congestion_dev=(get_standard_deviation congestion); };
-	     add_record num_paths_data (solver_to_string algorithm)
-				     {iteration = n; num_paths=(get_mean num_paths); num_paths_dev=(get_standard_deviation num_paths); };
-	     inner (n+1) scheme'
-	   end
-       in
-       
-       let start_scheme = 
-	 match init_str with
-	 | Some "mcf" ->
-	    let _ = next_demand actual_ic actual_host_map in
-	    let d = next_demand predict_ic predict_host_map in
-	    Kulfi_Routing.Mcf.solve topo d SrcDstMap.empty
-	 | Some "vlb" ->
-	    let _ = next_demand actual_ic actual_host_map in
-	    let d = next_demand predict_ic predict_host_map in	    
-	    Kulfi_Routing.Vlb.solve topo d SrcDstMap.empty
-	 | Some _ -> failwith  "Unrecognized initialization scheme"
-	 | None -> SrcDstMap.empty
-       in
-       
-       inner 1 start_scheme;
-       close_demands actual_ic;
-       close_demands predict_ic;
-       outer rest
-  in
-  outer spec_solvers;
+  
   
   let dir = "./expData/" in
 
@@ -184,7 +192,7 @@ let simulate (spec_solvers:solver_type list)
   Printf.printf "%s" (to_string churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
   Printf.printf "%s" (to_string congestion_data "# solver\titer\tcongestion\tstddev" iter_vs_congestion_to_string);
   Printf.printf "%s" (to_string num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string)
-  
+		
 		
 let command =
   Command.basic
@@ -227,6 +235,6 @@ let command =
      simulate algorithms init_str topology_file demand_file predict_file host_file iterations () )
 
 let main = Command.run command
- 
+		       
 let _ = main 
 
