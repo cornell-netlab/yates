@@ -190,6 +190,7 @@ int main(int argc, char* argv[]){
     clock_gettime(CLOCK_MONOTONIC, &flow_end);
     fprintf(stdout, "%ld bytes\t%.6f sec\n", total_sent, ((double)flow_end.tv_sec + 1.0e-9*flow_end.tv_nsec) -
             ((double)flow_start.tv_sec + 1.0e-9*flow_start.tv_nsec));
+    fflush(stdout);
     free(base100);
     return 0;
 }
