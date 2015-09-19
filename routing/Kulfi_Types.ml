@@ -92,7 +92,7 @@ module UidMap = Map.Make(UidOrd)
 		      
 type path_uid_map = uid PathMap.t
 			
-type uid_path_map = path UidMap.t			
+type uid_path_map = (Topology.vertex * Topology.vertex  * path) UidMap.t			
 
 type edge_uidlist_map = uid list EdgeMap.t
 

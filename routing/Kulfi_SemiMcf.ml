@@ -169,103 +169,6 @@ let lp_of_maps (pmap:path_uid_map) (emap:edge_uidlist_map) (topo:topology) (d:de
   assert (List.length cap_and_demand > 0);
   (objective, cap_and_demand)
 
-type flow_table = ((Node.t * Node.t),
-                   (Node.t * Node.t * float) list) Hashtbl.t
-
-let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
-    : scheme  =
-
-  (* For a single commodity, given the individual edges used, get all the paths
-     used to route that commodity *)
-  let strip_paths (d_src, d_dst) edges =
-    let empty_topo = Topology.empty () in
-    (* Add all the nodes *)
-    let node_table = Hashtbl.Poly.create () in
-    (* Adds a node if it has not already been added *)
-    let add topo node =
-      if Hashtbl.Poly.mem node_table node then topo else
-        let (new_topo, node_id) = Topology.add_vertex topo node in
-        let () = Hashtbl.Poly.add_exn node_table node node_id in
-        new_topo in
-    let topo_with_src = add empty_topo d_src in
-    let topo_with_src_dst = add topo_with_src d_dst in
-    (* Add both endpoints of every edge *)
-    let topo_with_nodes = List.fold_left edges ~init:topo_with_src_dst
-					 ~f:(fun acc_topo (src,dst,_) ->
-					     let acc_topo2 = add acc_topo src in
-					     add acc_topo2 dst) in
-    (* Add all the edges *)
-    let id_of_node n = Hashtbl.Poly.find_exn node_table n in
-    let topo_with_edges = List.fold_left edges ~init:topo_with_nodes
-					 ~f:(fun acc_topo (src,dst,cap) ->
-					     let src_id = id_of_node src in
-					     let dst_id = id_of_node dst in
-					     let edge = Link.create 1L 1L in
-					     Link.set_weight edge cap;
-					     let (new_topo, edge_id) = Topology.add_edge acc_topo src_id Int32.one
-											 edge dst_id Int32.one in
-					     new_topo) in
-
-    let src_id = id_of_node d_src in
-    let dst_id = id_of_node d_dst in
-
-    (* Until there is no src-dst path, find a path, determine its bottleneck
-       capacity, pull it out and decrement the capacities by the bottleneck.*)
-    let rec find_paths path_topo acc_paths =
-      let path_opt = UnitPath.shortest_path path_topo src_id dst_id in
-      match path_opt with
-      | None -> acc_paths
-      | Some path ->
-         (* Find bottleneck *)
-         let bottleneck = List.fold_left path ~init:Float.infinity
-					 ~f:(fun acc edge ->
-					     let label = Topology.edge_to_label path_topo edge in
-					     min acc (Link.weight label)) in
-         (* Decrease weights by bottleneck, mark those with zero weight
-           for deletion *)
-         let delete_these = List.fold_left path ~init:[] ~f:(fun acc edge ->
-							     let label = Topology.edge_to_label path_topo edge in
-							     let old_wt = Link.weight label in
-							     let new_wt = old_wt -. bottleneck in
-							     Link.set_weight label new_wt;
-							     if new_wt <= 0. then edge::acc else acc) in
-         (* Delete the edges that were zeroed out *)
-         let new_topo = List.fold_left delete_these ~init:path_topo
-				       ~f:(fun acc_topo edge ->
-					   Topology.remove_edge acc_topo edge) in
-
-         let mapped_path = List.map path ~f:(fun edge ->
-					     let src_label = Topology.vertex_to_label
-							       path_topo (fst (Topology.edge_src edge)) in
-					     let dst_label = Topology.vertex_to_label
-							       path_topo (fst (Topology.edge_dst edge)) in
-					     let src = Topology.vertex_of_label orig_topo src_label in
-					     let dst = Topology.vertex_of_label orig_topo dst_label in
-					     let orig_edge = Topology.find_edge orig_topo src dst in
-					     orig_edge) in
-
-         find_paths new_topo ((mapped_path,
-                               bottleneck *. demand_divisor)::acc_paths) in
-    let paths = find_paths topo_with_edges [] in
-    paths in
-  (* For every commodity, get their paths. *)
-  Hashtbl.fold 
-    flow_table 
-    ~init:SrcDstMap.empty 
-    ~f:(fun ~key:d_pair ~data:edges acc ->
-        let (s,t) = d_pair in
-        let s_v = Topology.vertex_of_label orig_topo s in
-        let t_v = Topology.vertex_of_label orig_topo t in
-        let paths = strip_paths (s, t) edges in
-        let p = 
-	  List.fold_left 
-	    paths 
-	    ~init:PathMap.empty
-            ~f:(fun acc (path,scalar) -> PathMap.add acc path scalar) in
-        SrcDstMap.add acc ~key:(s_v,t_v) ~data:p )
-
-
-    
     
 (* Run everything. Given a topology and a set of pairs with demands,
    returns the optimal congestion ratio, the paths used, and the number
@@ -289,7 +192,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 	    ~init:acc
 	    ~f:(fun ~key:path ~data:_ (umap,pmap,emap) ->
 		let id = fresh_uid () in		      
-		let umap' = UidMap.add ~key:id ~data:path umap in
+		let umap' = UidMap.add ~key:id ~data:(u,v,path) umap in
 		let pmap' = PathMap.add ~key:path ~data:id pmap in
 		assert (List.length path > 0);
 		let emap' =
@@ -361,15 +264,13 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
           else
 	    if (Str.string_match regex line 0)
 	    then
-	      let uid = Int.of_string (Str.matched_group 1 line) in
+	      let id = Int.of_string (Str.matched_group 1 line) in
 	      let flow_amt = Float.of_string (Str.matched_group 2 line) in
-	      Printf.printf "%d %f\n" uid flow_amt;
-	      (* TODO: (rdk,rjs) How do we map this back to a result? *)
-	      let tup = (uid, flow_amt) in
-	      (* (opt_z, tup::flows) *)
-	      assert false
+	      (* Printf.printf "%d %f\n" id flow_amt; *)
+	      let tup = (id, flow_amt) in
+	        (opt_z, tup::flows) 
 	    else
-	      assert false in
+	        (opt_z, flows) in
 	    (*  then *)
 	    (*    assert false *)
             (*    let vertex s = Topology.vertex_to_label topo *)
@@ -390,21 +291,37 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
     let result = read results 0. [] in
     In_channel.close results; result in
   let ratio, flows = read_results "semimcf.sol" in
-  let flows_table = Hashtbl.Poly.create () in
-
-  (* partition the edge flows based on which commodity they are *)
-  List.iter flows ~f:(fun (d_src, d_dst, flow, e_src, e_dst) ->
-		      if Hashtbl.Poly.mem flows_table (d_src, d_dst) then
-			let prev_edges = Hashtbl.Poly.find_exn flows_table (d_src, d_dst) in
-			Hashtbl.Poly.set flows_table (d_src, d_dst)
-					 ((e_src, e_dst, flow)::prev_edges)
-		      else
-			Hashtbl.Poly.add_exn flows_table (d_src, d_dst)
-					     [(e_src, e_dst, flow)]);
-
-  recover_paths topo flows_table 
-
-
+  (* First find the total amount of flow for each source-destination pair *)
+  let (unnormalized_scheme, flow_sum) = 
+    List.fold_left ~init:(SrcDstMap.empty, SrcDstMap.empty)
+      ~f:(fun (us,fs) (id,flow_val) -> 
+	match UidMap.find umap id with 
+        | None -> (us,fs) (* This should never happen, but if the Gurobi output
+			 contains an unrecognized UID, just ignore that variable. *)
+        | Some (u,v,path) -> (* u = source, v = destination, p = path *)
+	  let new_us_data = match SrcDstMap.find us (u,v) with
+	    | None -> PathMap.empty
+	    | Some pm -> PathMap.add ~key:path ~data:flow_val pm in
+	  let new_fs_data = match SrcDstMap.find fs (u,v) with
+	    | None -> 0.
+	    | Some fv -> fv +. flow_val in
+          let new_us = SrcDstMap.add ~key:(u,v) ~data:new_us_data us in
+          let new_fs = SrcDstMap.add ~key:(u,v) ~data:new_fs_data fs in 
+          (new_us,new_fs) ) flows in
+  (* Now normalize the values in the scheme so that they sum to 1 for each source-dest pair *)
+  SrcDstMap.fold ~init:(SrcDstMap.empty)
+    ~f:(fun ~key:(u,v) ~data:f_decomp acc  ->
+      match SrcDstMap.find flow_sum (u,v) with
+      | None -> assert false 
+      | Some sum_rate -> 
+	 assert (sum_rate > 0.);
+	 let normalized_f_decomp = 
+	   PathMap.fold ~init:(PathMap.empty)
+	     ~f:(fun ~key:path ~data:rate acc ->
+	       let normalized_rate = rate /. sum_rate in
+	       PathMap.add ~key:path ~data:normalized_rate acc)
+	     f_decomp in
+	 SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc) unnormalized_scheme
 
 		
 
