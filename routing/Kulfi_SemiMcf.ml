@@ -174,7 +174,10 @@ let lp_of_maps (pmap:path_uid_map) (emap:edge_uidlist_map) (topo:topology) (d:de
    of paths used. *)
 (* let solver_paths topo pairs verbose = *)
 let solve (topo:topology) (d:demands) (s:scheme) : scheme =
-  ignore (if (SrcDstMap.is_empty s) then failwith "Kulfi_SemiMcf must be initialized with a non-empty scheme" else ());  
+  ignore (if (SrcDstMap.is_empty s) then failwith "Kulfi_SemiMcf must be initialized with a non-empty scheme" else ());
+
+  Printf.printf "invoking solve\n";
+  
   let uuid = ref (-1) in
   let fresh_uid () =
     uuid := !uuid + 1;
@@ -183,26 +186,30 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 
   let (umap,pmap,emap) =
     SrcDstMap.fold
+      s
       ~init:(UidMap.empty, PathMap.empty, EdgeMap.empty)
       ~f:(fun ~key:(u,v) ~data:paths acc ->
+	  (* assert (not (PathMap.is_empty paths)); *)
 	  PathMap.fold
+	    paths
 	    ~init:acc
 	    ~f:(fun ~key:path ~data:_ (umap,pmap,emap) ->
 		let id = fresh_uid () in		      
 		let umap' = UidMap.add ~key:id ~data:(u,v,path) umap in
 		let pmap' = PathMap.add ~key:path ~data:id pmap in
-		assert (false = List.is_empty path);
+		assert (not (List.is_empty path));
 		let emap' =
 		  List.fold_left
+		    path
 		    ~init:emap
 		    ~f:(fun emap e ->
 			let ids = match (EdgeMap.find emap e ) with
 			  | None -> [id]
 			  | Some ids -> id::ids
-			in EdgeMap.add ~key:e ~data:ids emap) path in
-		(umap',pmap',emap')) paths) s in
+			in EdgeMap.add ~key:e ~data:ids emap) in
+		(umap',pmap',emap'))) in
 
-  assert (false = EdgeMap.is_empty emap);
+  assert (not (EdgeMap.is_empty emap));
 
   
   (* TODO: 
@@ -241,70 +248,60 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   ignore (Unix.close_process_in gurobi_in);
 
   (* read back all the edge flows from the .sol file *)
-  let read_results input =
-    let results = open_in input in
-    let result_str = "^f_\\([a-zA-Z0-9]+\\)" ^
-                       " \\([0-9.e+-]+\\)$"
-    in
-    let regex = Str.regexp result_str in
-    let rec read inp opt_z flows =
-      let line = try input_line inp
-		 with End_of_file -> "" in
-      if line = "" then (opt_z,flows)
-      else
-        let new_z, new_flows =
-          if line.[0] = '#' then (opt_z, flows)
-          else if line.[0] = 'Z' then
-            let ratio_str = Str.string_after line 2 in
-            let ratio = Float.of_string ratio_str in
-            (ratio *. demand_divisor /. cap_divisor, flows)
-          else
-	    if (Str.string_match regex line 0)
-	    then
-	      let id = Int.of_string (Str.matched_group 1 line) in
-	      let flow_amt = Float.of_string (Str.matched_group 2 line) in
-	      (* Printf.printf "%d %f\n" id flow_amt; *)
-	      let tup = (id, flow_amt) in
-	        (opt_z, tup::flows) 
-	    else
-	        (opt_z, flows) in
-	    (*  then *)
-	    (*    assert false *)
-            (*    let vertex s = Topology.vertex_to_label topo *)
-	    (* 					       (Hashtbl.Poly.find_exn name_table s) in *)
-            (*    let dem_src = vertex (Str.matched_group 1 line) in *)
-            (*    let dem_dst = vertex (Str.matched_group 2 line) in *)
-            (*    let edge_src = vertex (Str.matched_group 3 line) in *)
-            (*    let edge_dst = vertex (Str.matched_group 4 line) in *)
-            (*    let flow_amt = Float.of_string (Str.matched_group 5 line) in *)
-            (*    if flow_amt = 0. then (opt_z, flows) *)
-            (*    else *)
-            (*      let tup = (dem_src, dem_dst, flow_amt, edge_src, edge_dst) in *)
-            (*      (opt_z, (tup::flows)) *)
-		   (*  else (opt_z, flows)) *)
-	
-        read inp new_z new_flows in
 
-    let result = read results 0. [] in
-    In_channel.close results; result in
-  let ratio, flows = read_results "semimcf.sol" in
+  let ratio, flows =
+    In_channel.with_file
+      "semimcf.sol"
+      ~f:(fun file ->
+	  let result_str = "^f_\\([a-zA-Z0-9]+\\) \\([0-9.e+-]+\\)$" in
+	  let regex = Str.regexp result_str in
+	  In_channel.fold_lines
+	    file
+	    ~init:(0.,[])
+	    ~f:(fun (opt_z,flows) line ->
+		match line with
+		| "" -> (opt_z,flows)		
+		| _ ->      
+		   if line.[0] = '#' then (opt_z, flows)
+		   else if line.[0] = 'Z' then
+		     let ratio_str = Str.string_after line 2 in
+		     let ratio = Float.of_string ratio_str in
+		     (ratio *. demand_divisor /. cap_divisor, flows)
+		   else
+		     if (Str.string_match regex line 0)
+		     then
+		       let id = Int.of_string (Str.matched_group 1 line) in
+		       let flow_amt = Float.of_string (Str.matched_group 2 line) in
+		       (* Printf.printf "%d %f\n" id flow_amt;  *)
+		       let tup = (id, flow_amt) in
+		       (opt_z, tup::flows) 
+		     else
+		       (opt_z, flows))) in	 
+  
   (* First find the total amount of flow for each source-destination pair *)
   let (unnormalized_scheme, flow_sum) = 
-    List.fold_left ~init:(SrcDstMap.empty, SrcDstMap.empty)
+    List.fold_left
+      flows
+      ~init:(SrcDstMap.empty, SrcDstMap.empty)
       ~f:(fun (us,fs) (id,flow_val) -> 
-	match UidMap.find umap id with 
-        | None -> (us,fs) (* This should never happen, but if the Gurobi output
-			 contains an unrecognized UID, just ignore that variable. *)
-        | Some (u,v,path) -> (* u = source, v = destination, p = path *)
-	  let new_us_data = match SrcDstMap.find us (u,v) with
-	    | None -> PathMap.empty
-	    | Some pm -> PathMap.add ~key:path ~data:flow_val pm in
-	  let new_fs_data = match SrcDstMap.find fs (u,v) with
-	    | None -> 0.
-	    | Some fv -> fv +. flow_val in
-          let new_us = SrcDstMap.add ~key:(u,v) ~data:new_us_data us in
-          let new_fs = SrcDstMap.add ~key:(u,v) ~data:new_fs_data fs in 
-          (new_us,new_fs) ) flows in
+	  match UidMap.find umap id with 
+          | None -> failwith "unrecognized uid in Gurobi solution" (* This should never happen, so if the Gurobi output
+ 			                                            contains an unrecognized UID, throw an error. *)
+          | Some (u,v,path) -> (* u = source, v = destination, p = path *)
+	     let new_us_data = match SrcDstMap.find us (u,v) with
+	       | None -> PathMap.empty
+	       | Some pm -> PathMap.add ~key:path ~data:flow_val pm in
+	     let new_fs_data = match SrcDstMap.find fs (u,v) with
+	       | None -> 0.
+	       | Some fv -> fv +. flow_val in
+	     (* TODO(rdk,rjs) : I think there is a bug here. We can create entries in the 
+                scheme that have empty paths *)
+             let new_us = SrcDstMap.add ~key:(u,v) ~data:new_us_data us in
+             let new_fs = SrcDstMap.add ~key:(u,v) ~data:new_fs_data fs in 
+             (new_us,new_fs) )  in
+
+
+  
   (* Now normalize the values in the scheme so that they sum to 1 for each source-dest pair *)
   SrcDstMap.fold ~init:(SrcDstMap.empty)
     ~f:(fun ~key:(u,v) ~data:f_decomp acc  ->
@@ -318,8 +315,11 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 	       let normalized_rate = rate /. sum_rate in
 	       PathMap.add ~key:path ~data:normalized_rate acc)
 	     f_decomp in
+
 	 SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc) unnormalized_scheme
 
 		
 
+
+    
                 
