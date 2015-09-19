@@ -131,7 +131,8 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
       return () in
     let eof () = 
       dump (Printf.sprintf "kulfi-controller-%f.txt" (Unix.time ())) >>= 
-      fun () -> Pervasives.exit 0 in 
+      fun () -> let _ = Unix.system "killall -9 openflow.native" in
+        Pervasives.exit 0 in
     let split s = 
       List.filter (String.split s ' ') ((<>) "") in 
     begin 
