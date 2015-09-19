@@ -36,9 +36,9 @@ let create_topology_and_demands () =
   in
   let demands = List.fold_left ~init:SrcDstMap.empty
                                ~f:(fun acc (u,v,r) -> SrcDstMap.add acc ~key:(u,v) ~data:r) pairs in
-  Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set);
-  Printf.printf "# demands = %d\n" (SrcDstMap.length demands);
-  Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
+  (* Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set); *)
+  (* Printf.printf "# demands = %d\n" (SrcDstMap.length demands); *)
+  (* Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo); *)
   (hosts,topo,demands)
 
 
@@ -48,13 +48,13 @@ let test_mcf =
     Kulfi_Mcf.solve topo pairs SrcDstMap.empty in
   let h1 = Array.get hosts 0  in 
   let h2 = Array.get hosts 1  in
-  let sum_of_probs = 
+
     match SrcDstMap.find scheme (h1,h2) with
-    | None -> assert false
+    | None -> false
     | Some paths ->
-       PathMap.fold paths ~init:0.0 ~f:(fun ~key:p ~data:s acc -> s +. acc) in
-  Printf.printf "sum of prob=%f\n" sum_of_probs;
-  (sum_of_probs > 0.9) && (sum_of_probs < 1.1)
+       let sum_of_probs =               
+	 PathMap.fold paths ~init:0.0 ~f:(fun ~key:p ~data:s acc -> s +. acc) in
+       (sum_of_probs > 0.9) && (sum_of_probs < 1.1)
                  		   
 let test_spf =
   let (hosts,topo,pairs) = create_topology_and_demands () in
@@ -79,6 +79,23 @@ let test_vlb =
   (* Printf.printf "%s\n" (dump_scheme topo scheme); *)
   (PathMap.length paths) = 2
 
+let test_vlb2 =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme = Kulfi_Vlb.solve topo pairs SrcDstMap.empty in
+  Array.fold
+    hosts
+    ~init:true
+    ~f:(fun acc u -> 	
+	Array.fold
+	  hosts
+	  ~init:acc
+	  ~f:(fun acc v ->			   
+	      if u = v then true && acc
+	      else
+		match SrcDstMap.find scheme (u,v) with
+		| None -> false
+		| Some x -> true && acc)) 
+    
 
 let test_mw = false
 
@@ -89,19 +106,22 @@ let test_ecmp = false
 let test_ak = false		  
 
 			     
-TEST "ecmp" = test_ecmp = true
+
 
 TEST "mcf" = test_mcf = true
-
-TEST "mw" = test_mw = true
-
-TEST "raeke" = test_raeke = true
 
 TEST "spf" = test_spf = true
 
 TEST "vlb" = test_vlb = true
 
-TEST "ak" = test_ak = true
+TEST "vlb2" = test_vlb2 = true
 
-               
+			    
+(* TEST "mw" = test_mw = true *)
+
+(* TEST "raeke" = test_raeke = true *)
+			    
+(* TEST "ak" = test_ak = true *)
+
+(* TEST "ecmp" = test_ecmp = true                *)
 
