@@ -65,6 +65,8 @@ let apply_on_each_edge (mcf:mc_flow) (fcn:edge -> float -> float) : mc_flow =
     ) mcf
 
 let solve (topo:topology) (d:demands) (s:scheme) : scheme =
+  
+  ignore (if (SrcDstMap.is_empty s) then failwith "Kulfi_Ak must be initialized with a non-empty scheme" else ());
   (* First build HashMaps, keyed by edges, containing the
      values f(e), f_i(e), from the pseudocode. *)
   let f' = Topology.fold_edges (fun edge acc -> EdgeMap.add acc ~key:edge ~data:0.0 ) topo EdgeMap.empty in

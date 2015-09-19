@@ -88,7 +88,6 @@ let capacity_constraints (pmap : path_uid_map) (emap : edge_uidlist_map)
       match (EdgeMap.find emap edge) with
 	| None -> acc
         | Some uid_list ->
-	   Printf.printf "found an edge\n";
 	   let all_flows = List.map ~f:(fun x -> Var(var_name_uid x)) uid_list in
       (* Add them all up *)
 	   let total_flow = Sum (all_flows) in
@@ -175,9 +174,7 @@ let lp_of_maps (pmap:path_uid_map) (emap:edge_uidlist_map) (topo:topology) (d:de
    of paths used. *)
 (* let solver_paths topo pairs verbose = *)
 let solve (topo:topology) (d:demands) (s:scheme) : scheme =
-  let s = if (SrcDstMap.is_empty s) then
-	    Kulfi_Vlb.solve topo d s 
-	  else s in
+  ignore (if (SrcDstMap.is_empty s) then failwith "Kulfi_SemiMcf must be initialized with a non-empty scheme" else ());  
   let uuid = ref (-1) in
   let fresh_uid () =
     uuid := !uuid + 1;
@@ -194,7 +191,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 		let id = fresh_uid () in		      
 		let umap' = UidMap.add ~key:id ~data:(u,v,path) umap in
 		let pmap' = PathMap.add ~key:path ~data:id pmap in
-		assert (List.length path > 0);
+		assert (false = List.is_empty path);
 		let emap' =
 		  List.fold_left
 		    ~init:emap
@@ -205,7 +202,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 			in EdgeMap.add ~key:e ~data:ids emap) path in
 		(umap',pmap',emap')) paths) s in
 
-  assert (EdgeMap.length emap > 0);
+  assert (false = EdgeMap.is_empty emap);
 
   
   (* TODO: 
@@ -314,7 +311,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
       match SrcDstMap.find flow_sum (u,v) with
       | None -> assert false 
       | Some sum_rate -> 
-	 assert (sum_rate > 0.);
+	 ignore (if (sum_rate > 0.) then failwith "sum_rate leq 0. on flow" else ());
 	 let normalized_f_decomp = 
 	   PathMap.fold ~init:(PathMap.empty)
 	     ~f:(fun ~key:path ~data:rate acc ->

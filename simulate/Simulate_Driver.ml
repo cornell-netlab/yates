@@ -87,8 +87,12 @@ let get_num_paths (s:scheme) : float =
 	acc + (PathMap.length d))
     s in    
   Float.of_int count 
+
+
+
 	       
 let simulate (spec_solvers:solver_type list)
+	     (init_str:string option)
 	     (topology_file:string)
 	     (demand_file:string)
 	     (predict_file:string)
@@ -102,8 +106,6 @@ let simulate (spec_solvers:solver_type list)
 
   (* let hosts = Topology.VertexSet.elements host_set in *)
 
-  let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
-  let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
   Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set);
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
   let at = make_auto_timer () in
@@ -116,11 +118,14 @@ let simulate (spec_solvers:solver_type list)
   let churn_data = make_data "Churn Vs Time" in
   let congestion_data = make_data "Congestion Vs Time" in
   let num_paths_data = make_data "Num. Paths Vs Time" in
+
   
   let rec outer algorithms = match algorithms with
     | [] -> ()
     | algorithm::rest ->
        let solve = select_algorithm algorithm in
+       let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
+       let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
        let rec inner n scheme = 
 	 if n > iterations then
 	   ()
@@ -146,12 +151,27 @@ let simulate (spec_solvers:solver_type list)
 	     inner (n+1) scheme'
 	   end
        in
-       inner 1 SrcDstMap.empty;
+       
+       let start_scheme = 
+	 match init_str with
+	 | Some "mcf" ->
+	    let _ = next_demand actual_ic actual_host_map in
+	    let d = next_demand predict_ic predict_host_map in
+	    Kulfi_Routing.Mcf.solve topo d SrcDstMap.empty
+	 | Some "vlb" ->
+	    let _ = next_demand actual_ic actual_host_map in
+	    let d = next_demand predict_ic predict_host_map in	    
+	    Kulfi_Routing.Vlb.solve topo d SrcDstMap.empty
+	 | Some _ -> failwith  "Unrecognized initialization scheme"
+	 | None -> SrcDstMap.empty
+       in
+       
+       inner 1 start_scheme;
+       close_demands actual_ic;
+       close_demands predict_ic;
        outer rest
   in
   outer spec_solvers;
-  close_demands actual_ic;
-  close_demands predict_ic;
   
   let dir = "./expData/" in
 
@@ -177,6 +197,7 @@ let command =
     +> flag "-spf" no_arg ~doc:" run spf"
     +> flag "-ak" no_arg ~doc:" run ak"
     +> flag "-smcf" no_arg ~doc:" run semi mcf"
+    +> flag "-init" (optional string) ~doc:" solver to inititialize input scheme: [mcf|vlb]"
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
     +> anon ("predict-file" %: string)
@@ -188,6 +209,7 @@ let command =
 	 (spf:bool)
 	 (ak:bool)
 	 (smcf:bool)
+	 (init_str:string option)
 	 (topology_file:string)
 	 (demand_file:string)
 	 (predict_file:string)
@@ -202,7 +224,7 @@ let command =
          ; if spf then Some Spf else None
 	 ; if ak then Some Ak else None
          ; if smcf then Some Smcf else None ] in 
-     simulate algorithms topology_file demand_file predict_file host_file iterations () )
+     simulate algorithms init_str topology_file demand_file predict_file host_file iterations () )
 
 let main = Command.run command
  

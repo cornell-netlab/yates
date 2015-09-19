@@ -25,6 +25,7 @@ let kulfi_main_cmd =
       +> flag "-spf" no_arg ~doc:" run spf"
       +> flag "-vlb" no_arg ~doc:" run vlb"
       +> flag "-smcf" no_arg ~doc:" run semi mcf"
+      +> flag "-init" (optional string) ~doc:" solver to inititialize input scheme"
       +> anon ("topology-file" %: string)
       +> anon ("actual-file" %: string)
       +> anon ("predicted-file" %: string)
@@ -36,6 +37,7 @@ let kulfi_main_cmd =
 	 (spf:bool)
 	 (vlb:bool)
 	 (smcf:bool)
+	 (init_str:string option)
 	 (topo_fn:string)
 	 (actual_fn:string)
 	 (predicted_fn:string)
