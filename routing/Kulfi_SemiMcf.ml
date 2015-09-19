@@ -176,7 +176,7 @@ let lp_of_maps (pmap:path_uid_map) (emap:edge_uidlist_map) (topo:topology) (d:de
 (* let solver_paths topo pairs verbose = *)
 let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   let s = if (SrcDstMap.is_empty s) then
-	    Kulfi_Mcf.solve topo d s 
+	    Kulfi_Vlb.solve topo d s 
 	  else s in
   let uuid = ref (-1) in
   let fresh_uid () =
