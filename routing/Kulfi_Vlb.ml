@@ -16,7 +16,11 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   let find_path src dst = SrcDstMap.find_exn spf_table (src,dst) in  
 
   let route_thru_detour src det dst =
-    Kulfi_Frt.FRT.remove_cycles (find_path src det @ find_path det dst) in 
+    let p = (find_path src det @ find_path det dst) in
+    assert (not (List.is_empty p));      
+    let p' = Kulfi_Frt.FRT.remove_cycles p in
+    assert (not (List.is_empty p'));      
+    p' in
 
   (* let has_loop path =  *)
   (*   let rec loop acc = function *)
@@ -39,7 +43,9 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 	    (* Don't include hosts as detour nodes *)
 	    acc
 	 | _ ->
-	    (route_thru_detour src v dst)::acc)
+	    let p = (route_thru_detour src v dst) in
+	    assert (not (List.is_empty p));
+	    p::acc)
 	topo 
 	[] in
     List.fold_left
