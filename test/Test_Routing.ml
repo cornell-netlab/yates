@@ -13,6 +13,7 @@ open Core.Std
 
 module VertexSet = Topology.VertexSet
 
+		    
 let create_topology_and_demands () =
   let topo = Parse.from_dotfile "./data/topologies/3cycle.dot" in
   let host_set = VertexSet.filter (Topology.vertexes topo)
@@ -21,29 +22,22 @@ let create_topology_and_demands () =
                                       Node.device label = Node.Host) in
   let hs = Topology.VertexSet.elements host_set in
   let hosts = Array.of_list hs in
-  let num_hosts = List.length hs in
-  let demands = Array.make_matrix num_hosts num_hosts 1.0 in
-  let pairs =
-    let lst = ref [] in
-    Array.iteri
-      (fun i h_i ->
-       Array.iteri
-	 (fun j h_j ->
-          let demand = demands.(i).(j) in
-          if i = j || demand = 0.0 then () else
-            lst := (hosts.(i), hosts.(j), demand)::(!lst))
-         hosts)
-      hosts;
-    !lst
-  in
   let demands =
     List.fold_left
-      pairs
+      hs
       ~init:SrcDstMap.empty
-      ~f:(fun acc (u,v,r) -> SrcDstMap.add acc ~key:(u,v) ~data:r) in
+      ~f:(fun acc u ->
+	  List.fold_left
+	    hs
+	    ~init:acc
+	    ~f:(fun acc v ->
+		let r = if u = v then 0.0 else 1.0 in
+		SrcDstMap.add acc ~key:(u,v) ~data:r)) in
+
   (* Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set); *)
   (* Printf.printf "# demands = %d\n" (SrcDstMap.length demands); *)
   (* Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo); *)
+
   (hosts,topo,demands)
 
 let all_pairs_connectivity hosts scheme =
@@ -62,7 +56,19 @@ let all_pairs_connectivity hosts scheme =
 		   false
 		| Some paths -> not (PathMap.is_empty paths)  && acc))
 
-    
+let paths_are_nonempty (s:scheme) : bool =
+    SrcDstMap.fold
+      s (* fold over the scheme *)
+      ~init:true
+      (* for every pair of hosts u,v *)
+      ~f:(fun ~key:(u,v) ~data:paths acc -> 
+	  PathMap.fold
+	    paths
+	    ~init:acc
+	    (* get the possible paths, and for every path *)
+	    ~f:(fun ~key:path ~data:_ acc ->
+		acc && (not (List.is_empty path))))
+			            
 let test_mw () = false
     
 let test_ecmp () = false
@@ -73,7 +79,6 @@ let test_mcf () =
     Kulfi_Mcf.solve topo pairs SrcDstMap.empty in
   let h1 = Array.get hosts 0  in 
   let h2 = Array.get hosts 1  in
-
     match SrcDstMap.find scheme (h1,h2) with
     | None -> false
     | Some paths ->
@@ -135,7 +140,12 @@ let test_vlb2 () =
 		| None -> 
 		   false
 		| Some paths -> not (PathMap.is_empty paths)  && acc)) 
-  
+
+let test_vlb3 () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme = Kulfi_Vlb.solve topo pairs SrcDstMap.empty in
+  paths_are_nonempty scheme
+    
 let test_raeke () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme = Kulfi_Raeke.solve topo pairs SrcDstMap.empty in
@@ -186,7 +196,9 @@ TEST "apsp" = test_apsp () = true
 TEST "vlb" = test_vlb () = true
 
 TEST "vlb2" = test_vlb2 () = true
- 			   
+
+TEST "vlb3" = test_vlb3 () = true
+			       
 TEST "mw" = test_mw () = true
 
 TEST "raeke" = test_raeke () = true
