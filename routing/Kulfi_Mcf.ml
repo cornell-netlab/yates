@@ -263,24 +263,46 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
         find_paths new_topo ((mapped_path,
                               bottleneck *. demand_divisor)::acc_paths) in
     let paths = find_paths topo_with_edges [] in
-    paths in
+    paths in (* This line ends find_paths by returning paths. *)
     (* For every commodity, get their paths. *)
-    Hashtbl.fold 
+    let (unnormalized_scheme, flow_sum) = Hashtbl.fold 
       flow_table 
-      ~init:SrcDstMap.empty 
-      ~f:(fun ~key:d_pair ~data:edges acc ->
+      ~init:(SrcDstMap.empty, SrcDstMap.empty)
+      ~f:(fun ~key:d_pair ~data:edges (us,fs) ->
           let (s,t) = d_pair in
           let s_v = Topology.vertex_of_label orig_topo s in
           let t_v = Topology.vertex_of_label orig_topo t in
           let paths = strip_paths (s, t) edges in
-          let p = 
+          let (p,sum_rate) = 
 	    List.fold_left 
 	      paths 
-	      ~init:PathMap.empty
+	      ~init:(PathMap.empty,0.)
 	      (* TODO(rjs,rdk): the weight is wrong. *)
-              ~f:(fun acc (path,scalar) -> PathMap.add acc path scalar) in
-          SrcDstMap.add acc ~key:(s_v,t_v) ~data:p )
-      
+              ~f:(fun (acc,sum_acc) (path,scalar) -> (PathMap.add acc path scalar, sum_acc +. scalar) ) in
+          let new_us = SrcDstMap.add us ~key:(s_v,t_v) ~data:p in
+          let new_fs = SrcDstMap.add fs ~key:(s_v,t_v) ~data:sum_rate in
+          (new_us, new_fs)) in
+      (* Now normalize the values in the scheme so that they sum to 1 for each source-dest pair *)
+  SrcDstMap.fold ~init:(SrcDstMap.empty)
+    ~f:(fun ~key:(u,v) ~data:f_decomp acc  ->
+      match SrcDstMap.find flow_sum (u,v) with
+      | None -> assert false 
+      | Some sum_rate -> 
+	 ignore (if (sum_rate < 0.) then failwith "sum_rate leq 0. on flow" else ());
+	 let normalized_f_decomp = 
+	   PathMap.fold ~init:(PathMap.empty)
+			~f:(fun ~key:path ~data:rate acc ->
+			    let normalized_rate = 
+			      if sum_rate = 0. then
+				0.0
+			      else 
+				rate /. sum_rate in
+	
+	       PathMap.add ~key:path ~data:normalized_rate acc)
+	     f_decomp in
+	 SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc) unnormalized_scheme
+
+
 
 (* Run everything. Given a topology and a set of pairs with demands,
    returns the optimal congestion ratio, the paths used, and the number

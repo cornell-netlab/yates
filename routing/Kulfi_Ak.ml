@@ -70,17 +70,17 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   (* First build HashMaps, keyed by edges, containing the
      values f(e), f_i(e), from the pseudocode. *)
   let f' = Topology.fold_edges (fun edge acc -> EdgeMap.add acc ~key:edge ~data:0.0 ) topo EdgeMap.empty in
-  let f_i' = SrcDstMap.fold ~init:SrcDstMap.empty ~f:(fun ~key:(u,v) ~data:r acc -> SrcDstMap.add ~key:(u,v) ~data:f' acc) d in
+  let f_i' = SrcDstMap.fold ~init:SrcDstMap.empty ~f:(fun ~key:(u,v) ~data:_ acc -> SrcDstMap.add ~key:(u,v) ~data:f' acc) s in
 
   (* populate f,f_i according to what we saw in the last scheme *)
   let (f,f_i) =
     SrcDstMap.fold
-      d
+      s
       ~init:(f',f_i')
-      ~f:(fun ~key:(u,v) ~data:r (f,f_i) ->
-          let path_map = match SrcDstMap.find s (u,v) with
-            | None -> assert false
-            | Some path_map -> path_map in
+      ~f:(fun ~key:(u,v) ~data:path_map (f,f_i) ->
+          let r = match SrcDstMap.find d (u,v) with
+            | None -> 0.
+            | Some r -> r in
           (* for each (k,v) pair: let f' = call path_update k r*v f in *)
           PathMap.fold
 	    path_map

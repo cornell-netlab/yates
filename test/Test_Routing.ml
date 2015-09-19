@@ -31,7 +31,7 @@ let create_topology_and_demands () =
 	    hs
 	    ~init:acc
 	    ~f:(fun acc v ->
-		let r = if u = v then 0.0 else 1.0 in
+		let r = if u = v then 0.0 else 500.0 in
 		SrcDstMap.add acc ~key:(u,v) ~data:r)) in
 
   (* Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set); *)

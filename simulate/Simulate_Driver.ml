@@ -48,8 +48,6 @@ let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) 
                         match SrcDstMap.find d (src,dst) with
                         | None -> 0.0
                         | Some x -> x in
-		      Printf.printf "demand=%f\n" demand;
-		      Printf.printf "prob=%f\n" prob;
                       match EdgeMap.find acc e with
                       | None -> EdgeMap.add ~key:e ~data:(demand *. prob) acc
                       | Some x ->  EdgeMap.add ~key:e ~data:((demand *. prob) +. x) acc)))
@@ -57,7 +55,6 @@ let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) 
   EdgeMap.fold
     ~init:EdgeMap.empty
     ~f:(fun ~key:e ~data:amount_sent acc ->
-        Printf.printf "%f / %f \n" amount_sent (capacity_of_edge t e);
         EdgeMap.add ~key:e ~data:(amount_sent /. (capacity_of_edge t e)) acc) sent_on_each_edge 
     
     
