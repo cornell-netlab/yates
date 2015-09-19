@@ -289,10 +289,10 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
  			                                            contains an unrecognized UID, throw an error. *)
           | Some (u,v,path) -> (* u = source, v = destination, p = path *)
 	     let new_us_data = match SrcDstMap.find us (u,v) with
-	       | None -> PathMap.empty
+	       | None -> let pm = PathMap.empty in PathMap.add ~key:path ~data:flow_val pm 
 	       | Some pm -> PathMap.add ~key:path ~data:flow_val pm in
 	     let new_fs_data = match SrcDstMap.find fs (u,v) with
-	       | None -> 0.
+	       | None -> flow_val
 	       | Some fv -> fv +. flow_val in
 	     (* TODO(rdk,rjs) : I think there is a bug here. We can create entries in the 
                 scheme that have empty paths *)
