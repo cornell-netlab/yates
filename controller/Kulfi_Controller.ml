@@ -1,6 +1,5 @@
 open Core.Std
 open Async.Std
-open Kulfi_Options
 open Kulfi_Routing
 open Kulfi_Types
 open Kulfi_Traffic
@@ -59,13 +58,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
       topo = Topology.empty ();
       congestion = [];
       churn = [] }
-      
-  let shutdown () = 
-    (match !stats_out with 
-     | None -> return ()
-     | Some out -> Writer.close out) >>= fun () -> 
-    Pervasives.exit 0 
-                    
+                          
   (* Command-line Interface *)
   let rec cli () = 
     let help () = 
@@ -126,9 +119,19 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
       end;
       return () in
     let dump fn =
-      return () in 
+      let buf = Buffer.create 101 in 
+      Hashtbl.iter 
+	global_state.stats 
+	~f:(fun ~key:(sw,pt) ~data:stats -> 
+	    List.iter 
+	      stats 
+	      ~f:(fun (time,ps) -> 
+		  Printf.bprintf buf "%s\n" (string_of_stats sw (time,ps))));
+      Kulfi_Util.write_to_file fn (Buffer.contents buf);
+      return () in
     let eof () = 
-      shutdown () in 
+      dump (Printf.sprintf "kulfi-controller-%f.txt" (Unix.time ())) >>= 
+      fun () -> Pervasives.exit 0 in 
     let split s = 
       List.filter (String.split s ' ') ((<>) "") in 
     begin 
@@ -208,16 +211,10 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
        return ()
     | `Message(sw,_,StatsReplyMsg (PortRep psl as rep)) ->
        verbose (Printf.sprintf "stats from %Ld: %s" sw (reply_to_string rep));      
+       let time = Kulfi_Time.time () in 
        List.iter
          psl
-         ~f:(fun ps -> 
-             let pt = ps.port_no in
-             let time = Kulfi_Time.time () in 
-             (match !stats_out with
-              | None -> ()
-              | Some out ->
-                 Writer.writef out "%s\n%!" (string_of_stats sw (time, ps)));
-             safe_add global_state.stats (sw,pt) [(time, ps)] (@));
+         ~f:(fun ps -> safe_add global_state.stats (sw,ps.port_no) [(time, ps)] (@));
        return ()
     | `Message(_,_,msg) -> 
        return ()
