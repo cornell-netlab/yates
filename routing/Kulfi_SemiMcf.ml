@@ -104,6 +104,8 @@ let demand_constraints (pmap : path_uid_map) (emap : edge_uidlist_map) (topo : t
   SrcDstMap.fold
     ~init:init_acc
     ~f:(fun ~key:(src,dst) ~data:(demand) acc ->
+	if (src = dst) then acc
+	else 
 	(* We need to add up the rates for all paths in pmap(src,dst) *)
 	match SrcDstMap.find s (src,dst) with
 	| None -> if (demand <= 0.) then acc else (assert false) 
@@ -189,7 +191,9 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
       s (* fold over the scheme *)
       ~init:(UidMap.empty, PathMap.empty, EdgeMap.empty)
       (* for every pair of hosts u,v *)
-      ~f:(fun ~key:(u,v) ~data:paths acc -> 
+      ~f:(fun ~key:(u,v) ~data:paths acc ->
+	  if (u = v) then acc
+	  else begin
 	  assert (not (PathMap.is_empty paths)); 
 	  PathMap.fold
 	    paths
@@ -211,7 +215,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 			  | None -> [id]
 			  | Some ids -> id::ids
 			in EdgeMap.add ~key:e ~data:ids emap) in
-		(umap',pmap',emap'))) in
+		(umap',pmap',emap')) end) in
 
   assert (not (EdgeMap.is_empty emap));
 

@@ -3,6 +3,22 @@ open Kulfi_Types
 open Frenetic_Network
 open Net
 
+let dump_path_prob_set (t:topology) (pps:probability PathMap.t) : string =
+  let buf = Buffer.create 101 in
+  PathMap.iter 
+    pps 
+    ~f:(fun ~key:path ~data:prob -> Printf.bprintf buf "[%s] @ %f\n" (dump_edges t path) prob);
+  Buffer.contents buf
+       
+let dump_scheme (t:topology) (s:scheme) : string = 
+  let buf = Buffer.create 101 in
+  SrcDstMap.iter s ~f:(fun ~key:(v1,v2) ~data:pps ->
+                       Printf.bprintf buf "%s -> %s :\n  %s\n"
+                                      (Node.name (Net.Topology.vertex_to_label t v1))
+                                      (Node.name (Net.Topology.vertex_to_label t v2))
+                                      (dump_path_prob_set t pps));
+  Buffer.contents buf
+
        
 let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   let device v = let lbl = Topology.vertex_to_label topo v in (Node.device lbl) in
@@ -17,9 +33,9 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 
   let route_thru_detour src det dst =
     let p = (find_path src det @ find_path det dst) in
-    assert (not (List.is_empty p));      
+    (* assert (not (List.is_empty p));       *)
     let p' = Kulfi_Frt.FRT.remove_cycles p in
-    assert (not (List.is_empty p'));      
+    (* assert (not (List.is_empty p'));       *)
     p' in
 
   (* let has_loop path =  *)
@@ -43,9 +59,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 	    (* Don't include hosts as detour nodes *)
 	    acc
 	 | _ ->
-	    let p = (route_thru_detour src v dst) in
-	    assert (not (List.is_empty p));
-	    p::acc)
+	    (route_thru_detour src v dst)::acc)
 	topo 
 	[] in
     List.fold_left
@@ -60,5 +74,6 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
       apsp 
       ~init:SrcDstMap.empty
       ~f:(fun acc (_,v1,v2,_) ->
-	  SrcDstMap.add acc ~key:(v1,v2) ~data:( vlb_pps v1 v2 ) ) in 
+	  SrcDstMap.add acc ~key:(v1,v2) ~data:( vlb_pps v1 v2 ) ) in
+  (* Printf.printf "%s\n" (dump_scheme topo scheme); *)
   scheme
