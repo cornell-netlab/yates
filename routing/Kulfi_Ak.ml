@@ -73,25 +73,27 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   let f_i' = SrcDstMap.fold ~init:SrcDstMap.empty ~f:(fun ~key:(u,v) ~data:r acc -> SrcDstMap.add ~key:(u,v) ~data:f' acc) d in
 
   (* populate f,f_i according to what we saw in the last scheme *)
-  let (f,f_i) = SrcDstMap.fold
-                  ~init:(f',f_i')
-                  ~f:(fun ~key:(u,v) ~data:r (f,f_i) ->
-                      let path_map = match SrcDstMap.find s (u,v) with
-                        | None -> assert false
-                        | Some path_map -> path_map in
-                      (* for each (k,v) pair: let f' = call path_update k r*v f in *)
-                      PathMap.fold
-                        ~init:(f,f_i)
-                        ~f:(fun ~key:p
-                                ~data:x acc ->
-                            let f'' = path_update p (r*.x) f in
-                            let f_i'' = let f = match SrcDstMap.find f_i (u,v) with
-                                          | None -> assert false
-                                          | Some f -> f in                                                                                                
-                                        SrcDstMap.add ~key:(u,v) ~data:(path_update p (r*.x) f) f_i in
-                            (f'', f_i'')) path_map ) d in
+  let (f,f_i) =
+    SrcDstMap.fold
+      d
+      ~init:(f',f_i')
+      ~f:(fun ~key:(u,v) ~data:r (f,f_i) ->
+          let path_map = match SrcDstMap.find s (u,v) with
+            | None -> assert false
+            | Some path_map -> path_map in
+          (* for each (k,v) pair: let f' = call path_update k r*v f in *)
+          PathMap.fold
+	    path_map
+            ~init:(f,f_i)
+            ~f:(fun ~key:p
+                    ~data:x acc ->
+                let f'' = path_update p (r*.x) f in
+                let f_i'' = let f = match SrcDstMap.find f_i (u,v) with
+                              | None -> assert false
+                              | Some f -> f in                                                                                                
+                            SrcDstMap.add ~key:(u,v) ~data:(path_update p (r*.x) f) f_i in
+                (f'', f_i''))) in
   
-
   (* recompute mu, RouteMetric line 1 *)
   mu := Float.min_inan (!mu) ( 2.0 ** (Float.round_down ((log (epsilon *. (find_max_flow f))) /. (log 2.0))) ) ;
 
