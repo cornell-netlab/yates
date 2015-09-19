@@ -3,8 +3,6 @@ open Async.Std
 open Command
 open Kulfi_Types
 
-type solver_type = Mcf | Vlb | Ecmp | Spf | Ak | Smcf
-
 let main algo topo_fn actual_fn predicted_fn hosts_fn init_str () =
   match algo with 
   | Mcf -> let module C = Kulfi_Controller.Make(Kulfi_Mcf) in C.start topo_fn actual_fn hosts_fn init_str ()
@@ -13,6 +11,7 @@ let main algo topo_fn actual_fn predicted_fn hosts_fn init_str () =
   | Spf -> let module C = Kulfi_Controller.Make(Kulfi_Spf) in C.start topo_fn actual_fn hosts_fn init_str ()
   | Ak -> let module C = Kulfi_Controller.Make(Kulfi_Ak) in C.start topo_fn actual_fn hosts_fn init_str ()
   | Smcf -> let module C = Kulfi_Controller.Make(Kulfi_SemiMcf) in C.start topo_fn actual_fn hosts_fn init_str ()
+  | Raeke -> let module C = Kulfi_Controller.Make(Kulfi_Raeke) in C.start topo_fn actual_fn hosts_fn init_str ()
 								    
 let kulfi_main_cmd =
   Command.basic
@@ -25,7 +24,8 @@ let kulfi_main_cmd =
       +> flag "-spf" no_arg ~doc:" run spf"
       +> flag "-vlb" no_arg ~doc:" run vlb"
       +> flag "-smcf" no_arg ~doc:" run semi mcf"
-      +> flag "-init" (optional string) ~doc:" solver to inititialize input scheme"
+      +> flag "-raeke" no_arg ~doc:" run raeke"
+      +> flag "-init" (optional string) ~doc:" solver to inititialize input scheme [mcf|vlb|raeke]"
       +> anon ("topology-file" %: string)
       +> anon ("actual-file" %: string)
       +> anon ("predicted-file" %: string)
@@ -37,6 +37,7 @@ let kulfi_main_cmd =
 	 (spf:bool)
 	 (vlb:bool)
 	 (smcf:bool)
+	 (raeke:bool)
 	 (init_str:string option)
 	 (topo_fn:string)
 	 (actual_fn:string)
@@ -49,6 +50,7 @@ let kulfi_main_cmd =
        else if spf then Spf
        else if vlb then Vlb
        else if smcf then Smcf
+       else if raeke then Raeke
        else assert false in
      main algorithm topo_fn actual_fn predicted_fn host_fn init_str () )
 

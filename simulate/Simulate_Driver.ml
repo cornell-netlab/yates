@@ -10,8 +10,6 @@ open RunningStat
 open ExperimentalData 
 open AutoTimer
        
-type solver_type = | Mcf | Vlb | Ecmp | Spf | Ak | Smcf
-
 
 let solver_to_string (s:solver_type) : string =
   match s with 
@@ -20,7 +18,8 @@ let solver_to_string (s:solver_type) : string =
   | Ecmp -> "ecmp"
   | Spf -> "spf" 
   | Ak -> "ak"
-  | Smcf -> "smcf" 
+  | Smcf -> "smcf"
+  | Raeke -> "raeke" 
 	      
 let select_algorithm solver = match solver with
   | Mcf -> Kulfi_Routing.Mcf.solve
@@ -29,26 +28,31 @@ let select_algorithm solver = match solver with
   | Spf -> Kulfi_Routing.Spf.solve
   | Ak -> Kulfi_Routing.Ak.solve
   | Smcf -> Kulfi_Routing.SemiMcf.solve
+  | Raeke -> Kulfi_Routing.Raeke.solve
 
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
   let sent_on_each_edge = 
     SrcDstMap.fold
+      s
       ~init:EdgeMap.empty
       ~f:(fun ~key:(src,dst) ~data:paths acc ->
           PathMap.fold
+	    paths
             ~init:acc
             ~f:(fun ~key:path ~data:prob acc ->
                 List.fold_left
+		  path
                   ~init:acc
                   ~f:(fun acc e ->
                       let demand =
                         match SrcDstMap.find d (src,dst) with
                         | None -> 0.0
                         | Some x -> x in
+		      Printf.printf "demand=%f\n" demand;
+		      Printf.printf "prob=%f\n" prob;
                       match EdgeMap.find acc e with
                       | None -> EdgeMap.add ~key:e ~data:(demand *. prob) acc
-                      | Some x ->  EdgeMap.add ~key:e ~data:((demand *. prob) +. x) acc) path)
-            paths) s      
+                      | Some x ->  EdgeMap.add ~key:e ~data:((demand *. prob) +. x) acc)))
   in
   EdgeMap.fold
     ~init:EdgeMap.empty
@@ -100,6 +104,10 @@ let initial_scheme init_str topo aic ahm pic phm : scheme =
      let _ = next_demand aic ahm in 
      let d = next_demand pic phm in 
      Kulfi_Routing.Vlb.solve topo d SrcDstMap.empty
+  | Some "raeke" ->
+     let _ = next_demand aic ahm in 
+     let d = next_demand pic phm in 
+     Kulfi_Routing.Raeke.solve topo d SrcDstMap.empty
   | Some _ -> failwith  "Unrecognized initialization scheme"
 
 			
@@ -215,7 +223,8 @@ let command =
     +> flag "-spf" no_arg ~doc:" run spf"
     +> flag "-ak" no_arg ~doc:" run ak"
     +> flag "-smcf" no_arg ~doc:" run semi mcf"
-    +> flag "-init" (optional string) ~doc:" solver to inititialize input scheme: [mcf|vlb]"
+    +> flag "-raeke" no_arg ~doc:" run raeke"
+    +> flag "-init" (optional string) ~doc:" solver to inititialize input scheme: [mcf|vlb|raeke]"
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
     +> anon ("predict-file" %: string)
@@ -227,6 +236,7 @@ let command =
 	 (spf:bool)
 	 (ak:bool)
 	 (smcf:bool)
+	 (raeke:bool)
 	 (init_str:string option)
 	 (topology_file:string)
 	 (demand_file:string)
@@ -241,6 +251,7 @@ let command =
          ; if ecmp then Some Ecmp else None
          ; if spf then Some Spf else None
 	 ; if ak then Some Ak else None
+         ; if raeke then Some Raeke else None 
          ; if smcf then Some Smcf else None ] in 
      simulate algorithms init_str topology_file demand_file predict_file host_file iterations () )
 

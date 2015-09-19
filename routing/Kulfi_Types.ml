@@ -11,6 +11,7 @@ type edge = Net.Topology.edge with sexp
                                      
 type path = edge list with sexp
 
+type solver_type = | Mcf | Vlb | Ecmp | Spf | Ak | Smcf | Raeke
 
 let intercalate f s = function
   | [] ->

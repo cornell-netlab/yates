@@ -308,11 +308,16 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
       match SrcDstMap.find flow_sum (u,v) with
       | None -> assert false 
       | Some sum_rate -> 
-	 ignore (if (sum_rate <= 0.) then failwith "sum_rate leq 0. on flow" else ());
+	 ignore (if (sum_rate < 0.) then failwith "sum_rate leq 0. on flow" else ());
 	 let normalized_f_decomp = 
 	   PathMap.fold ~init:(PathMap.empty)
-	     ~f:(fun ~key:path ~data:rate acc ->
-	       let normalized_rate = rate /. sum_rate in
+			~f:(fun ~key:path ~data:rate acc ->
+			    let normalized_rate = 
+			      if sum_rate = 0. then
+				0.0
+			      else 
+				rate /. sum_rate in
+	
 	       PathMap.add ~key:path ~data:normalized_rate acc)
 	     f_decomp in
 
