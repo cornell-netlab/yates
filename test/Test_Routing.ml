@@ -61,13 +61,15 @@ let paths_are_nonempty (s:scheme) : bool =
       s (* fold over the scheme *)
       ~init:true
       (* for every pair of hosts u,v *)
-      ~f:(fun ~key:(u,v) ~data:paths acc -> 
-	  PathMap.fold
-	    paths
-	    ~init:acc
-	    (* get the possible paths, and for every path *)
-	    ~f:(fun ~key:path ~data:_ acc ->
-		acc && (not (List.is_empty path))))
+      ~f:(fun ~key:(u,v) ~data:paths acc ->
+	  if u = v then true && acc
+	  else	    
+	    PathMap.fold
+	      paths
+	      ~init:acc
+	      (* get the possible paths, and for every path *)
+	      ~f:(fun ~key:path ~data:_ acc ->
+		  acc && (not (List.is_empty path))))
 			            
 let test_mw () = false
     
