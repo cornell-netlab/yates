@@ -218,8 +218,20 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
        return ()
     | `Message(_,_,msg) -> 
        return ()
+
+let initial_scheme init_str topo ic hm : scheme =
+  match init_str with
+  | None -> SrcDstMap.empty
+  | Some "mcf" ->
+     let d = next_demand ic hm in 
+     Kulfi_Routing.Mcf.solve topo d SrcDstMap.empty
+  | Some "vlb" ->
+     let d = next_demand ic hm in 
+     Kulfi_Routing.Vlb.solve topo d SrcDstMap.empty
+  | Some _ -> failwith  "Unrecognized initialization scheme"
+	      
       
-  let start topo_fn predict_fn host_fn () =
+  let start topo_fn predict_fn host_fn init_str () =
     (* Parse topology *)
     let topo = Frenetic_Network.Net.Parse.from_dotfile topo_fn in
     (* Create fabric *)
@@ -227,11 +239,12 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
     (* Open predicted demands *)
     let (predict_host_map, predict_traffic_ic) = open_demands predict_fn host_fn topo in
     (* Helper to generate host configurations *)
+    let scheme = initial_scheme init_str topo predict_traffic_ic predict_host_map in
     let rec simulate i = 
       try 
 	let predict = next_demand predict_traffic_ic predict_host_map in
-	let scheme = Solver.solve topo predict SrcDstMap.empty in
-	print_configuration topo (configuration_of_scheme topo scheme tag_hash) i;
+	let scheme' = Solver.solve topo predict scheme in
+	print_configuration topo (configuration_of_scheme topo scheme' tag_hash) i;
 	simulate (i+1)
       with _ -> 
 	() in 

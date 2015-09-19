@@ -5,14 +5,14 @@ open Kulfi_Types
 
 type solver_type = Mcf | Vlb | Ecmp | Spf | Ak | Smcf
 
-let main algo topo_fn actual_fn predicted_fn hosts_fn () =
+let main algo topo_fn actual_fn predicted_fn hosts_fn init_str () =
   match algo with 
-  | Mcf -> let module C = Kulfi_Controller.Make(Kulfi_Mcf) in C.start topo_fn actual_fn hosts_fn ()
-  | Vlb -> let module C = Kulfi_Controller.Make(Kulfi_Vlb) in C.start topo_fn actual_fn hosts_fn ()
-  | Ecmp -> let module C = Kulfi_Controller.Make(Kulfi_Ecmp) in C.start topo_fn actual_fn hosts_fn ()  
-  | Spf -> let module C = Kulfi_Controller.Make(Kulfi_Spf) in C.start topo_fn actual_fn hosts_fn ()
-  | Ak -> let module C = Kulfi_Controller.Make(Kulfi_Ak) in C.start topo_fn actual_fn hosts_fn ()
-  | Smcf -> let module C = Kulfi_Controller.Make(Kulfi_SemiMcf) in C.start topo_fn actual_fn hosts_fn ()
+  | Mcf -> let module C = Kulfi_Controller.Make(Kulfi_Mcf) in C.start topo_fn actual_fn hosts_fn init_str ()
+  | Vlb -> let module C = Kulfi_Controller.Make(Kulfi_Vlb) in C.start topo_fn actual_fn hosts_fn init_str ()
+  | Ecmp -> let module C = Kulfi_Controller.Make(Kulfi_Ecmp) in C.start topo_fn actual_fn hosts_fn init_str ()  
+  | Spf -> let module C = Kulfi_Controller.Make(Kulfi_Spf) in C.start topo_fn actual_fn hosts_fn init_str ()
+  | Ak -> let module C = Kulfi_Controller.Make(Kulfi_Ak) in C.start topo_fn actual_fn hosts_fn init_str ()
+  | Smcf -> let module C = Kulfi_Controller.Make(Kulfi_SemiMcf) in C.start topo_fn actual_fn hosts_fn init_str ()
 								    
 let kulfi_main_cmd =
   Command.basic
@@ -50,7 +50,7 @@ let kulfi_main_cmd =
        else if vlb then Vlb
        else if smcf then Smcf
        else assert false in
-     main algorithm topo_fn actual_fn predicted_fn host_fn () )
+     main algorithm topo_fn actual_fn predicted_fn host_fn init_str () )
 
 let () = 
   Command.run kulfi_main_cmd;
