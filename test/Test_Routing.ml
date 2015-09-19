@@ -13,6 +13,7 @@ open Core.Std
 
 module VertexSet = Topology.VertexSet
 
+		    
 let create_topology_and_demands () =
   let topo = Parse.from_dotfile "./data/topologies/3cycle.dot" in
   let host_set = VertexSet.filter (Topology.vertexes topo)
@@ -55,7 +56,19 @@ let all_pairs_connectivity hosts scheme =
 		   false
 		| Some paths -> not (PathMap.is_empty paths)  && acc))
 
-    
+let paths_are_nonempty (s:scheme) : bool =
+    SrcDstMap.fold
+      s (* fold over the scheme *)
+      ~init:true
+      (* for every pair of hosts u,v *)
+      ~f:(fun ~key:(u,v) ~data:paths acc -> 
+	  PathMap.fold
+	    paths
+	    ~init:acc
+	    (* get the possible paths, and for every path *)
+	    ~f:(fun ~key:path ~data:_ acc ->
+		acc && (not (List.is_empty path))))
+			            
 let test_mw () = false
     
 let test_ecmp () = false
@@ -127,7 +140,12 @@ let test_vlb2 () =
 		| None -> 
 		   false
 		| Some paths -> not (PathMap.is_empty paths)  && acc)) 
-  
+
+let test_vlb3 () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme = Kulfi_Vlb.solve topo pairs SrcDstMap.empty in
+  paths_are_nonempty scheme
+    
 let test_raeke () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme = Kulfi_Raeke.solve topo pairs SrcDstMap.empty in
@@ -178,7 +196,9 @@ TEST "apsp" = test_apsp () = true
 TEST "vlb" = test_vlb () = true
 
 TEST "vlb2" = test_vlb2 () = true
- 			   
+
+TEST "vlb3" = test_vlb3 () = true
+			       
 TEST "mw" = test_mw () = true
 
 TEST "raeke" = test_raeke () = true

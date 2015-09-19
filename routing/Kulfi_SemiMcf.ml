@@ -186,17 +186,21 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 
   let (umap,pmap,emap) =
     SrcDstMap.fold
-      s
+      s (* fold over the scheme *)
       ~init:(UidMap.empty, PathMap.empty, EdgeMap.empty)
-      ~f:(fun ~key:(u,v) ~data:paths acc ->
-	  (* assert (not (PathMap.is_empty paths)); *)
+      (* for every pair of hosts u,v *)
+      ~f:(fun ~key:(u,v) ~data:paths acc -> 
+	  assert (not (PathMap.is_empty paths)); 
 	  PathMap.fold
 	    paths
 	    ~init:acc
+	    (* get the possible paths, and for every path *)
 	    ~f:(fun ~key:path ~data:_ (umap,pmap,emap) ->
 		let id = fresh_uid () in		      
 		let umap' = UidMap.add ~key:id ~data:(u,v,path) umap in
 		let pmap' = PathMap.add ~key:path ~data:id pmap in
+		(* get the edges in the path *)
+		(* This assertion fails because we have some paths with no edges *)
 		assert (not (List.is_empty path));
 		let emap' =
 		  List.fold_left
