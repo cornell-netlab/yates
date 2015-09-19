@@ -42,7 +42,7 @@ let create_topology_and_demands () =
   (hosts,topo,demands)
 
 
-let test_mcf = 
+let test_mcf () = 
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme = 
     Kulfi_Mcf.solve topo pairs SrcDstMap.empty in
@@ -56,7 +56,7 @@ let test_mcf =
 	 PathMap.fold paths ~init:0.0 ~f:(fun ~key:p ~data:s acc -> s +. acc) in
        (sum_of_probs > 0.9) && (sum_of_probs < 1.1)
                  		   
-let test_spf =
+let test_spf () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme = 
     Kulfi_Spf.solve topo pairs SrcDstMap.empty in
@@ -68,7 +68,7 @@ let test_spf =
   let path = sample_dist x in
   (List.length path) = 3
     
-let test_vlb =
+let test_vlb () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme = 
     Kulfi_Vlb.solve topo pairs SrcDstMap.empty in
@@ -79,7 +79,21 @@ let test_vlb =
   (* Printf.printf "%s\n" (dump_scheme topo scheme); *)
   (PathMap.length paths) = 2
 
-let test_vlb2 =
+let test_apsp () = 
+    let (hosts,topo,pairs) = create_topology_and_demands () in
+    let paths = Frenetic_Network.NetPath.all_pairs_shortest_paths ~topo:topo ~f:(fun _ _ -> true) in 
+    Array.fold
+      hosts
+      ~init:true
+      ~f:(fun acc u -> 	
+	  Array.fold
+	    hosts
+	    ~init:acc
+	    ~f:(fun acc v ->
+		if u = v then acc
+		else acc && List.exists paths (fun (_,v1,v2,_) -> v1 = u && v2 = v)))
+
+let test_vlb2 () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme = Kulfi_Vlb.solve topo pairs SrcDstMap.empty in
   Array.fold
@@ -93,35 +107,33 @@ let test_vlb2 =
 	      if u = v then true && acc
 	      else
 		match SrcDstMap.find scheme (u,v) with
-		| None -> false
-		| Some paths -> (PathMap.is_empty paths)  && acc)) 
+		| None -> 
+		   false
+		| Some paths -> not (PathMap.is_empty paths)  && acc)) 
     
+let test_mw () = false
 
-let test_mw = false
+let test_raeke () = false
 
-let test_raeke = false
+let test_ecmp () = false
 
-let test_ecmp = false
-
-let test_ak = false		  
-
-			     
-
-
-TEST "mcf" = test_mcf = true
-
-TEST "spf" = test_spf = true
-
-TEST "vlb" = test_vlb = true
-
-TEST "vlb2" = test_vlb2 = true
-
+let test_ak () = false		  
 			    
-(* TEST "mw" = test_mw = true *)
+TEST "mcf" = test_mcf () = true
 
-(* TEST "raeke" = test_raeke = true *)
+TEST "spf" = test_spf () = true
+
+TEST "apsp" = test_apsp () = true
+
+TEST "vlb" = test_vlb () = true
+
+TEST "vlb2" = test_vlb2 () = true
+ 			   
+TEST "mw" = test_mw () = true
+
+TEST "raeke" = test_raeke () = true
 			    
-(* TEST "ak" = test_ak = true *)
+TEST "ak" = test_ak () = true
 
-(* TEST "ecmp" = test_ecmp = true                *)
+TEST "ecmp" = test_ecmp () = true
 
