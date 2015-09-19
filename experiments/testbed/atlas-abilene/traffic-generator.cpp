@@ -287,7 +287,7 @@ int main(int argc, char *argv[])
     /* Loop for all rows in TM */
     while (1) {
         time(&now);
-        if (difftime(now, last_update) >= scaled_to_time+1) {
+        if (difftime(now, last_update) >= scaled_to_time) {
             /* New TM interval */
             cmd << "echo \"# Time slept: " << interval_sleep_time << "\"";
             execute(cmd.str().c_str());
