@@ -25,22 +25,47 @@ let create_topology_and_demands () =
   let demands = Array.make_matrix num_hosts num_hosts 1.0 in
   let pairs =
     let lst = ref [] in
-    Array.iteri (fun i h_i ->
-                 Array.iteri (fun j h_j ->
-                              let demand = demands.(i).(j) in
-                              if i = j || demand = 0.0 then () else
-                                lst := (hosts.(i), hosts.(j), demand)::(!lst))
-                             hosts)
-                hosts;
+    Array.iteri
+      (fun i h_i ->
+       Array.iteri
+	 (fun j h_j ->
+          let demand = demands.(i).(j) in
+          if i = j || demand = 0.0 then () else
+            lst := (hosts.(i), hosts.(j), demand)::(!lst))
+         hosts)
+      hosts;
     !lst
   in
-  let demands = List.fold_left ~init:SrcDstMap.empty
-                               ~f:(fun acc (u,v,r) -> SrcDstMap.add acc ~key:(u,v) ~data:r) pairs in
+  let demands =
+    List.fold_left
+      pairs
+      ~init:SrcDstMap.empty
+      ~f:(fun acc (u,v,r) -> SrcDstMap.add acc ~key:(u,v) ~data:r) in
   (* Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set); *)
   (* Printf.printf "# demands = %d\n" (SrcDstMap.length demands); *)
   (* Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo); *)
   (hosts,topo,demands)
 
+let all_pairs_connectivity hosts scheme =
+  Array.fold
+    hosts
+    ~init:true
+    ~f:(fun acc u -> 	
+	Array.fold
+	  hosts
+	  ~init:acc
+	  ~f:(fun acc v ->			   
+	      if u = v then true && acc
+	      else
+		match SrcDstMap.find scheme (u,v) with
+		| None -> 
+		   false
+		| Some paths -> not (PathMap.is_empty paths)  && acc))
+
+    
+let test_mw () = false
+    
+let test_ecmp () = false
 
 let test_mcf () = 
   let (hosts,topo,pairs) = create_topology_and_demands () in
@@ -110,15 +135,48 @@ let test_vlb2 () =
 		| None -> 
 		   false
 		| Some paths -> not (PathMap.is_empty paths)  && acc)) 
-    
-let test_mw () = false
+  
+let test_raeke () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme = Kulfi_Raeke.solve topo pairs SrcDstMap.empty in
+  all_pairs_connectivity hosts scheme
+  
+let test_semimcf_mcf () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme = Kulfi_Mcf.solve topo pairs SrcDstMap.empty in
+  let scheme' = Kulfi_SemiMcf.solve topo pairs scheme in
+  all_pairs_connectivity hosts scheme'
 
-let test_raeke () = false
+let test_semimcf_vlb () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme = Kulfi_Vlb.solve topo pairs SrcDstMap.empty in
+  let scheme' = Kulfi_SemiMcf.solve topo pairs scheme in
+  all_pairs_connectivity hosts scheme'
 
-let test_ecmp () = false
+let test_semimcf_raeke () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme = Kulfi_Raeke.solve topo pairs SrcDstMap.empty in
+  let scheme' = Kulfi_SemiMcf.solve topo pairs scheme in
+  all_pairs_connectivity hosts scheme'
+			 
+let test_ak_mcf () = 
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme = Kulfi_Mcf.solve topo pairs SrcDstMap.empty in
+  let scheme' = Kulfi_Ak.solve topo pairs scheme in
+  all_pairs_connectivity hosts scheme'
 
-let test_ak () = false		  
-			    
+let test_ak_vlb () = 
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme = Kulfi_Vlb.solve topo pairs SrcDstMap.empty in
+  let scheme' = Kulfi_Ak.solve topo pairs scheme in
+  all_pairs_connectivity hosts scheme'
+
+let test_ak_raeke () = 
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme = Kulfi_Raeke.solve topo pairs SrcDstMap.empty in
+  let scheme' = Kulfi_Ak.solve topo pairs scheme in
+  all_pairs_connectivity hosts scheme'
+			 
 TEST "mcf" = test_mcf () = true
 
 TEST "spf" = test_spf () = true
@@ -133,7 +191,18 @@ TEST "mw" = test_mw () = true
 
 TEST "raeke" = test_raeke () = true
 			    
-TEST "ak" = test_ak () = true
+TEST "ak_mcf" = test_ak_mcf () = true
+								
+TEST "ak_vlb" = test_ak_vlb () = true
+
+TEST "ak_raeke" = test_ak_raeke () = true								
 
 TEST "ecmp" = test_ecmp () = true
+							  
+TEST "semimcf_mcf" = test_semimcf_mcf () = true
 
+TEST "semimcf_vlb" = test_semimcf_vlb () = true
+
+TEST "semimcf_raeke" = test_semimcf_raeke () = true
+
+			       
