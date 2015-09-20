@@ -47,25 +47,23 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   (* 	 || loop (Topology.VertexSet.add acc src) rest in  *)
   (*   loop Topology.VertexSet.empty path in *)
 
-  let nv = Float.of_int (Topology.fold_vertexes (fun _ -> succ) topo 0) in 
-      
   let vlb_pps src dst = 
-    let paths = 
+    let (paths,num_switches) = 
       Topology.fold_vertexes 
-	(fun v acc ->
+	(fun v (p_acc,ns_acc) ->
 	 match device v with
-	 | Node.Host -> 
-	    (* Don't include hosts as detour nodes *)
-	    acc
+	 | Node.Switch -> 
+	    (* Only route through switches *)
+	    ((route_thru_detour src v dst)::p_acc, ns_acc +. 1.)
 	 | _ ->
-	    (route_thru_detour src v dst)::acc)
-	topo 
-	[] in
+            (p_acc, ns_acc) )
+	topo
+	([], 0.) in
     List.fold_left
       paths
       ~init:PathMap.empty
       ~f:(fun acc path -> 
-	  add_or_increment_path acc path (1.0 /. nv)) in 
+	  add_or_increment_path acc path (1.0 /. num_switches)) in 
   
   (* NB: folding over apsp just to get all src-dst pairs *)
   let scheme = 
