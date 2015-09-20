@@ -144,15 +144,6 @@ let add_or_increment_path (fd : flow_decomp) (p : path) (r : probability) : flow
   PathMap.add ~key:p ~data:new_value fd
        
 
-
-let add_or_increment_path (fd : flow_decomp) (p : path) (r : probability) : flow_decomp =
-  let new_value = match PathMap.find fd p with
-  | None -> r
-  | Some prior_value -> prior_value +. r 
-  in
-  PathMap.add ~key:p ~data:new_value fd
-       
-
 (* The following stuff was moved from Kulfi_Mcf.ml to here 
    so that it could be used in Kulfi_Ak.ml. It doesn't really
    belong in Kulfi_Types.ml, we should move it somewhere else
