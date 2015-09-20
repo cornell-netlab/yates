@@ -19,7 +19,6 @@ let dump_scheme (t:topology) (s:scheme) : string =
                                       (dump_path_prob_set t pps));
   Buffer.contents buf
 
-       
 let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   let device v = let lbl = Topology.vertex_to_label topo v in (Node.device lbl) in
   
@@ -66,7 +65,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
       paths
       ~init:PathMap.empty
       ~f:(fun acc path -> 
-	  PathMap.add acc path (1.0 /. nv)) in 
+	  add_or_increment_path acc path (1.0 /. nv)) in 
   
   (* NB: folding over apsp just to get all src-dst pairs *)
   let scheme = 

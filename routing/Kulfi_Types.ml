@@ -132,6 +132,27 @@ let sample_dist (path_dist:flow_decomp) : path =
 
 let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
 
+(* The following function is used in Kulfi_Vlb.ml and Kulfi_SemiMcf.ml,
+   and may possibly be useful elsewhere. Not sure that Kulfi_Types is 
+   where it belongs, but it's a convenient place. *)
+
+let add_or_increment_path (fd : flow_decomp) (p : path) (r : probability) : flow_decomp =
+  let new_value = match PathMap.find fd p with
+  | None -> r
+  | Some prior_value -> prior_value +. r 
+  in
+  PathMap.add ~key:p ~data:new_value fd
+       
+
+
+let add_or_increment_path (fd : flow_decomp) (p : path) (r : probability) : flow_decomp =
+  let new_value = match PathMap.find fd p with
+  | None -> r
+  | Some prior_value -> prior_value +. r 
+  in
+  PathMap.add ~key:p ~data:new_value fd
+       
+
 (* The following stuff was moved from Kulfi_Mcf.ml to here 
    so that it could be used in Kulfi_Ak.ml. It doesn't really
    belong in Kulfi_Types.ml, we should move it somewhere else

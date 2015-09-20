@@ -293,12 +293,13 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
       ~init:(SrcDstMap.empty, SrcDstMap.empty)
       ~f:(fun (us,fs) (id,flow_val) -> 
 	  match UidMap.find umap id with 
-          | None -> failwith "unrecognized uid in Gurobi solution" (* This should never happen, so if the Gurobi output
- 			                                            contains an unrecognized UID, throw an error. *)
+          | None -> failwith "unrecognized uid in Gurobi solution" 
+             (* This should never happen, so if the Gurobi output
+ 	        contains an unrecognized UID, throw an error. *)
           | Some (u,v,path) -> (* u = source, v = destination, p = path *)
 	     let new_us_data = match SrcDstMap.find us (u,v) with
 	       | None -> let pm = PathMap.empty in PathMap.add ~key:path ~data:flow_val pm 
-	       | Some pm -> PathMap.add ~key:path ~data:flow_val pm in
+	       | Some pm -> add_or_increment_path pm path flow_val in
 	     let new_fs_data = match SrcDstMap.find fs (u,v) with
 	       | None -> flow_val
 	       | Some fv -> fv +. flow_val in
