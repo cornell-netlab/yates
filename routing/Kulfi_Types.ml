@@ -121,12 +121,26 @@ type configuration = (probability TagsMap.t) SrcDstMap.t
    to other routing schemes, for example, if we want to minimize differences  *)
 
 let sample_dist (path_dist:flow_decomp) : path =
-  let paths = PathMap.keys path_dist in
-  let bound = List.length paths in
-  let i = Random.int bound in
-  match List.nth paths i with
-  | None -> assert false
-  | Some p -> p
+  (* TODO: make a correct sampling procedure here.
+           A correct procedure would do the following.
+           1. Build up a list of partial sums of the probabilities in
+              path_dist.
+           2. Simultaneously with 1, build up a map from each partial sum
+              to the path whose probability yielded that partial sum.
+           3. Sample a uniformly random float between 0 and 1.
+           4. Find which is the smallest partial sum that exceeds the
+              sampled value.
+           5. Use the map to find the corresponding path.
+  *)
+  assert false
+  (* Old but incorrect sampling routing is here:
+     let paths = PathMap.keys path_dist in
+     let bound = List.length paths in
+     let i = Random.int bound in
+     match List.nth paths i with
+     | None -> assert false
+     | Some p -> p  
+  *)
 
 let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
 
