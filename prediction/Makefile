@@ -11,10 +11,10 @@ LDFLAGS   = \
  -lopencv_core \
  -lopencv_highgui
 
-OBJDIR  = $(THISDIR)
-BINDIR  = $(THISDIR)
-SRCDIR  = $(THISDIR)
-INCDIR  = $(THISDIR)
+OBJDIR  = $(THISDIR)/obj
+BINDIR  = $(THISDIR)/bin
+SRCDIR  = $(THISDIR)/src
+INCDIR  = $(THISDIR)/include
 
 ## Implicit Section: change the following only when necessary.
 CXX      = g++
@@ -42,7 +42,7 @@ LINK    = $(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS)
 .SUFFIXES:
 
 $(OBJDIR)/%.d: $(SRCDIR)/%.cpp
-	#@mkdir -p $(dir $@)
+	@mkdir -p $(dir $@)
 	@/bin/echo -n $(dir $@) > $@
 	@$(DEPEND) $< >> $@ || rm $@
 
@@ -59,14 +59,14 @@ ifneq ($(DEPS),)
 endif
 
 clean:
-	@$(RM) -r $(OBJS) $(EXECUTABLE) *.d
+	@$(RM) -r $(OBJDIR) $(BINDIR)
 	@$(RM) -r docs/html
 
 all: $(BINDIR)/$(EXECUTABLE)
 
 $(BINDIR)/$(EXECUTABLE): $(OBJS)
 	@echo "Building $@"
-	#@mkdir -p $(dir $@)
+	@mkdir -p $(dir $@)
 	@$(LINK) $(OBJS) -o "$@"
 
 
