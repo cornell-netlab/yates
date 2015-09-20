@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <vector>
 using namespace std;
-//#include "openCVFunctions.h"
+#include "openCVFunctions.h"
 #include "readwrite.h"
 typedef double(*objCalFunctionType)(double ** X_dat, double * Y_dat, int d, int n, void * modelPara, void * additionalStuff);
 typedef void(*gradientStepFunctionType) (double * x, double y, double *gradAns, int d, bool cumu, void * modelPara, void * additionalStuff);
@@ -360,8 +360,10 @@ int main(int argc, char ** argv)
 	printf("    Please ensure data/X01-X0w is in the current directory.\n");
 	printf("    Will write the actual data to file.\n");
 	printf("    Will write the predicted data to file_predictionAlgName.\n");
-	printf("Command: 2 r h file\n");
+	printf("Command: 2 r h file scale\n");
 	printf("    This generates r rows of data for h hosts.\n");
+	printf("    please choose scale comparing with Abilene data.\n");
+	printf("    That is, scale=1.0 if using Abilene, scale=100.0, if using some network with huge traffic.\n");
 	printf("    Please ensure 'patterns' file is in the current directory.\n");
 	printf("    Will write the actual data to file.\n");
 	printf("    Will write the predicted data to file_predictionAlgName.\n");
@@ -374,6 +376,7 @@ int main(int argc, char ** argv)
 	int totRow;
 	int hosts;
 	int period = 1000;
+	double scale = 1.0;
 	if (dataCode == 1)
 	{
 		col = 144;
@@ -385,6 +388,7 @@ int main(int argc, char ** argv)
 		sscanf(argv[2], "%i", &totRow);
 		totRow += period;
 		sscanf(argv[3], "%i", &hosts);
+		sscanf(argv[5], "%lf", &scale);
 		col = hosts*hosts;
 	}
 	double ** dataM = new double *[col];
@@ -403,7 +407,7 @@ int main(int argc, char ** argv)
 	else
 		generateSyntheticData(totRow, hosts, dataM);
 
-	writeDemandMatrix(string(argv[4]), totRow, col, dataM, period);
+	writeDemandMatrix(string(argv[4]), totRow, col, dataM, period, scale);
 	
 	//Compute patterns:
 	//	if (readFiles == 24) computePatterns(dataM);
@@ -444,7 +448,7 @@ int main(int argc, char ** argv)
 					outM[i][j] = predictOneModel(lastOnePrediction, dataM[i], 2, j, NULL, additionalStuff);
 			}
 		}
-		writeDemandMatrix(string(argv[4])+string("_lastOne"), totRow, col, outM, period);
+		writeDemandMatrix(string(argv[4])+string("_lastOne"), totRow, col, outM, period, scale);
 	}
 	
 	int nLinearRegressionFeatures = 30;
@@ -467,7 +471,7 @@ int main(int argc, char ** argv)
 				}
 			}
 		}
-		writeDemandMatrix(string(argv[4])+string("_LinearRegression"), totRow, col, outM, period);
+		writeDemandMatrix(string(argv[4])+string("_LinearRegression"), totRow, col, outM, period, scale);
 	}
 
 	nLinearRegressionFeatures = 30;
@@ -491,7 +495,7 @@ int main(int argc, char ** argv)
 				}
 			}
 		}
-		writeDemandMatrix(string(argv[4])+string("_ElasticNetRegression"), totRow, col, outM, period);
+		writeDemandMatrix(string(argv[4])+string("_ElasticNetRegression"), totRow, col, outM, period, scale);
 	}
 
 
