@@ -36,7 +36,10 @@ module RRTs : MW_ALG with type structure = FRT.routing_tree = Kulfi_Mw.Make (MWI
 let solve (t:topology) (_:demands) (s:scheme) : scheme =
   if SrcDstMap.is_empty s then
     let epsilon = 0.1 in 
-    let end_points = Topology.vertexes t in (* TODO(jnf,soule): actually calculate the hosts *)
+    let end_points = 
+      VertexSet.filter (Topology.vertexes t) 
+	~f:(fun v -> let label = Topology.vertex_to_label t v in
+		     Node.device label = Node.Host) in
     let _,mw_solution,_ = RRTs.hedge_iterations epsilon t end_points in   
     let paths src dst : probability PathMap.t = 
       List.fold_left mw_solution 
