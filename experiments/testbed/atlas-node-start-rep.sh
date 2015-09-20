@@ -9,6 +9,7 @@ MODEL=$4
 DYN_RT=$5
 FACTOR=$6
 TRAFFIC_GEN=$7
+NODE_ID=`hostname | cut -d '-' -f 2`
 LOADED=`lsmod | grep modkulfi`
 if [ "$#" -ne 7 ]
 then
@@ -29,7 +30,7 @@ then
 	cd $ABILENE_DIR
 	if [ "$TRAFFIC_GEN" = "scripted" ]
 	then
-		./replay-script-gen/tcp-custom `hostname | cut -d '-' -f 2` $MODEL $SCALE $DYN_RT $FACTOR
+		./replay-script-gen/tcp-custom $NODE_ID $MODEL $SCALE $DYN_RT $FACTOR
 		chmod +x ./replay_script.sh
 	fi
 else
@@ -45,9 +46,11 @@ then
 	./replay_script.sh $DYN_RT
 else
 	echo "Using new traffic generator"
-	./traffic-generator `hostname | cut -d '-' -f 2` $MODEL $SCALE $DYN_RT $FACTOR
+	./traffic-generator $NODE_ID $MODEL $SCALE $DYN_RT $FACTOR > traffic_gen_$NODE_ID.log
 fi
 scp flow-time-* olympic:~/results/$RUN_ID/
 rm flow-time-*
 scp src-* olympic:~/results/$RUN_ID/
 rm src-*
+scp traffic_gen_* olympic:~/results/$RUN_ID/
+rm traffic_gen_*

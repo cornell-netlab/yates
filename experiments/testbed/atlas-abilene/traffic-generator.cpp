@@ -6,6 +6,7 @@
 #include<iterator>
 #include<map>
 #include<math.h>
+#include<sys/time.h>
 #include<unistd.h>
 #include<vector>
 
@@ -15,19 +16,24 @@
 #define DEMAND_FILE "AbileneTM-all/demands"
 #define FLOW_DIST "./formatted-flows.txt"
 #define BASE_PORT 5000
-#define TIMEOUT 60
-#define TM_NUM_ROWS 2
-
-#define DRY_RUN 1
-
+#define FLOW_SIZE_SCALE_UP 80
 #define THRESH 10
+
+#define TM_NUM_ROWS 10
+#define DRY_RUN 0
+
 
 using namespace std;
 
 /* return time till next flow assuming Poisson process */
-float poisson_interval(int total_num_flows, int time_interval)
+float poisson_interval(int total_num_flows, float time_interval)
 {
     return -logf(1.0f - (float)random() / (RAND_MAX)) / total_num_flows * time_interval;
+}
+
+/* return t2 - t1 time in sec */
+float diff_time(struct timeval t2, struct timeval t1){
+ return (t2.tv_sec - t1.tv_sec) + (float)(t2.tv_usec - t1.tv_usec)/1000000;
 }
 
 /* execute the given command */
@@ -98,11 +104,12 @@ read_dmd_indices_d(unsigned int dmd_index[12][12], map < string, int >routers)
     demf.close();
 }
 
-void read_flow_byte_sizes(vector < int >&flow_bytes)
+int read_flow_byte_sizes(vector < int >&flow_bytes)
 {
     ifstream fs;
     string line;
     fs.open(FLOW_DIST);
+    float total_flow_size = 0;
     if (!fs.is_open()) {
         cout << FLOW_DIST << " could not be opened/found." << endl;
     }
@@ -120,14 +127,17 @@ void read_flow_byte_sizes(vector < int >&flow_bytes)
         ssline >> tmp;	// dst port
         ssline >> flow_size;	// octets
         ssline >> flow_num_pkts;	// pkts
+        flow_size *= FLOW_SIZE_SCALE_UP;
         flow_bytes.push_back(flow_size);
+        total_flow_size += flow_size;
     }
     fs.close();
+    return (int)(total_flow_size/flow_bytes.size());
 }
 
 int sample_flow_size(vector < int >fs_dist, int fs_len)
 {
-    return fs_dist[rand() % fs_len] * 8;
+    return fs_dist[rand() % fs_len];
 }
 
 void usage()
@@ -158,20 +168,23 @@ int main(int argc, char *argv[])
     float factor = 1;   // scaling factor for demands
     int scaled_to_time; // scale down 5 min trace to scaled_to_time seconds
     stringstream cmd;   // system command
-    if (argc < 5) {
+    if (argc < 6) {
         usage();
         return 1;
     }
 
-    float interval_sleep_time = 0;
-    time_t now, last_update;
+    float interval_sleep_time = 0, pre_process_time = 0;
+    struct timeval now, last_update, pre_process_complete;
     int interval = 0;	// TM series time
     long total_demand_scheduled = 0;
     int total_num_flows = 0;
     map < string, vector < long > > send_size;
     int send_size_now;
     int num_flows_sent = 0;
-
+    int avg_flow_size = 0;
+    float actual_dst_sent[12];
+    float actual_total_sent;
+    float dst_remaining, total_remaining;
     /* Parse arguments */
     node_id = atoi(argv[1]);
     if (node_id < 1 || node_id > 12) {
@@ -191,9 +204,9 @@ int main(int argc, char *argv[])
     srand(time(NULL));
 
     /* Read flow size distribution */
-    read_flow_byte_sizes(flow_byte_sizes);
+    avg_flow_size = read_flow_byte_sizes(flow_byte_sizes) * factor;
     num_flow_byte_sizes = flow_byte_sizes.size();
-
+    cout << "Avg flow size: " << avg_flow_size << endl;
     /* Read Abilene TM */
     ifstream tm;
     tm.open(TM_FILE);
@@ -203,7 +216,7 @@ int main(int argc, char *argv[])
             float dem;
             tm >> dem;
             if (j % 5 == tm_model - 1) {
-                row.push_back(dem);
+                row.push_back(dem * 100/300 * scaled_to_time * factor);
             }
         }
         D.push_back(row);
@@ -278,7 +291,7 @@ int main(int argc, char *argv[])
     cmd << "echo \"# Start clients\"";
     execute(cmd.str().c_str());
     cmd.str("");
-    last_update = 0;
+    last_update.tv_sec = 0;
 
     /* Sychronize with other nodes */
     cmd << "./sync-client -s olympic -p 7000 " << endl;
@@ -286,12 +299,21 @@ int main(int argc, char *argv[])
     cmd.str("");
     /* Loop for all rows in TM */
     while (1) {
-        time(&now);
-        if (difftime(now, last_update) >= scaled_to_time) {
+        gettimeofday(&now, NULL);
+        float rand_throw = (float)rand()/RAND_MAX;
+        float cumul_throw = 0;
+        if (diff_time(now, last_update) >= scaled_to_time) {
             /* New TM interval */
-            cmd << "echo \"# Time slept: " << interval_sleep_time << "\"";
-            execute(cmd.str().c_str());
-            cmd.str("");
+            if(interval>0){
+		    cmd << "echo \"# Time slept: " << interval_sleep_time << "\"";
+        	    execute(cmd.str().c_str());
+	            cmd.str("");
+		    for (std::map < string, int >::iterator dst =
+				    routers.begin(); dst != routers.end(); ++dst) {
+                       cout << dst->second << "\t" << actual_dst_sent[dst->second] << " / " << D[interval-1][dmd_index[src_id][dst->second]] << " (" << actual_dst_sent[dst->second]/D[interval-1][dmd_index[src_id][dst->second]] * 100.0 << " %)" << endl ;
+		    }
+		    cout << num_flows_sent << " / " << total_num_flows << endl; 
+	    } 
             interval_sleep_time = 0;
             cmd << "echo \"# Time: " << interval << "\"";
             execute(cmd.str().c_str());
@@ -307,26 +329,11 @@ int main(int argc, char *argv[])
             // store flow sizes per destination
             for (std::map < string, int >::iterator dst =
                     routers.begin(); dst != routers.end(); ++dst) {
-                // 100 bytes / 5 mins * scaled_to_time s - bytes to be sent in scaled_to_time seconds
-                float dmd_dest =
-                    D[interval][dmd_index[src_id][dst->second]] * 100 /
-                    300 * scaled_to_time;
-
-                long total_demand_dest = 0;
-                vector < long >send_size_perdest;	// flow sizes for this destination
-                while (dmd_dest > THRESH) {
-                    long rand_flow_size =
-                        sample_flow_size(flow_byte_sizes, num_flow_byte_sizes);
-                    rand_flow_size = rand_flow_size <
-                        dmd_dest ? rand_flow_size : dmd_dest;
-                    send_size_perdest.push_back(rand_flow_size);
-                    dmd_dest -= rand_flow_size;
-                    total_demand_dest += rand_flow_size;
-                    total_num_flows++;
-                }
-                total_demand_scheduled += total_demand_dest;
-                send_size[dst->first] = send_size_perdest;
+                total_demand_scheduled += D[interval][dmd_index[src_id][dst->second]];
+                actual_dst_sent[dst->second] = 0;
             }
+            actual_total_sent = 0;
+            total_num_flows = (int)(total_demand_scheduled/avg_flow_size);
             /* Change routes if dynamic scheme */
             if (dyn_rt) {
                 cmd << "cat ./routes/10.0.0." << node_id << "_"
@@ -335,43 +342,42 @@ int main(int argc, char *argv[])
                 cmd.str("");
             }
             interval++;
+            gettimeofday(&pre_process_complete, NULL);
+            pre_process_time = diff_time(pre_process_complete, now);
+            cout << pre_process_time << endl;
         }
 
-        // Schedule flows
-        /* Select a random dst and start a flow */
+        /* Select a dst (weighted by demmand) and start a flow */
         for (std::map < string, int >::iterator dst =
                 routers.begin(); dst != routers.end(); ++dst) {
-            if(rand()%11==0) {
-                if (send_size[dst->first].size() > 0) {
-                    send_size_now = (int)(send_size[dst->first].back());
-                    send_size[dst->first].pop_back();
-                }
-                else if (num_flows_sent >= total_num_flows) {
-                    cmd << "echo \"# rand flow\"";
-                    execute(cmd.str().c_str());
-                    cmd.str("");
-                    send_size_now = sample_flow_size(flow_byte_sizes, num_flow_byte_sizes);
-                }
-                else {
-                    continue;
-                }
-                cmd << "./tcp/client -s 10.0.0."
-                    << (dst->second + 1) << " -p "
-                    << (BASE_PORT + node_id)
-                    << " -l " << send_size_now
-                    << " >> ./flow-time-src-" << node_id << "-dst-"
-                    << (dst->second + 1) << ".txt &";
-                execute(cmd.str().c_str());
-                cmd.str("");
-                num_flows_sent++;
-                float sleep_time = poisson_interval(total_num_flows, scaled_to_time);
-                cmd << "# sleep " << sleep_time;
-                execute(cmd.str().c_str());
-                usleep((unsigned int)(sleep_time * 1000000));
-                cmd.str("");
-                interval_sleep_time += sleep_time;
-                break;
-            }
+                dst_remaining = D[interval-1][dmd_index[src_id][dst->second]] - actual_dst_sent[dst->second];
+                dst_remaining = dst_remaining > 0 ? dst_remaining : 1;
+                total_remaining = (total_demand_scheduled > actual_total_sent) ? (total_demand_scheduled - actual_total_sent) : 12;
+		cumul_throw += dst_remaining/total_remaining;
+		if(cumul_throw > rand_throw){ 
+		    send_size_now = sample_flow_size(flow_byte_sizes, num_flow_byte_sizes) * factor;
+		    if (dst_remaining != 1){
+                        send_size_now = (send_size_now < (1.1 * dst_remaining)) ? send_size_now : (1.1 * dst_remaining);
+		    }
+		    cmd << "./tcp/client -s 10.0.0."
+			    << (dst->second + 1) << " -p "
+			    << (BASE_PORT + node_id)
+			    << " -l " << send_size_now << " -n " << 1
+			    << " >> ./flow-time-src-" << node_id << "-dst-"
+			    << (dst->second + 1) << ".txt &";
+		    execute(cmd.str().c_str());
+		    cmd.str("");
+		    num_flows_sent++;
+                    actual_dst_sent[dst->second] += send_size_now;
+                    actual_total_sent += send_size_now;
+		    float sleep_time = poisson_interval(total_num_flows, 0.8 * (scaled_to_time-pre_process_time));
+		    cmd << "# sleep " << sleep_time;
+		    execute(cmd.str().c_str());
+		    usleep((unsigned int)(sleep_time * 1000000));
+		    cmd.str("");
+		    interval_sleep_time += sleep_time;
+		    break;
+	    }
         }
     }
 
@@ -379,7 +385,7 @@ int main(int argc, char *argv[])
     cmd << "./sync-client -s olympic -p 7000 " << endl;
     execute(cmd.str().c_str());
     cmd.str("");
-    cmd << "sleep " << 5 << endl;
+    cmd << "sleep " << 2 << endl;
     execute(cmd.str().c_str());
     cmd.str("");
     cmd << "pkill -9 server" << endl;

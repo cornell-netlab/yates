@@ -20,7 +20,7 @@ def main():
     no_traffic_flag = True
     for time, tx_bytes in stats:
         if no_traffic_flag:
-            if tx_bytes > prev_tx:
+            if tx_bytes > (prev_tx+10):
                 no_traffic_flag = False
                 start_time, prev_tx = time, tx_bytes
         else:
