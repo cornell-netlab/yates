@@ -1,19 +1,21 @@
 #pragma once
 #include <random>
+#include "kiss_fft.h"
+//#include "kiss_fft.c"
 double abso(double a)
 {
 	if (a<0) return -a;
 	return a;
 }
 
-void writeDemandMatrix(string filename, int row, int col, double ** m, int period)
+void writeDemandMatrix(string filename, int row, int col, double ** m, int period, double scale)
 {
 	//row * col floats
 	FILE * fActual = fopen(filename.c_str(), "w");
 	for (int i = period; i < row; i++)
 	{ 
 		for (int j = 0; j < col; j++)
-			fprintf(fActual, "%.2lf ", m[j][i]);
+			fprintf(fActual, "%lf ", m[j][i]*2.666666*scale);
 		fprintf(fActual, "\n");
 	}
 	fclose(fActual);
@@ -76,11 +78,18 @@ double probabilityDensity(double x, double mean, double sigma)
 	return (1.0 / sigma / sqrt(2 * 3.141592653589793238) * exp(-(x - mean)*(x - mean) / 2 / sigma / sigma));
 }
 
+double uniondist(double mean)
+{
+	if (getRandNum(100) < 50)
+		return mean*0.8 + mean*0.2*getRandNum(20) / 20;
+	else
+		return -mean*0.8 - mean*0.2*getRandNum(20) / 20;
+}
 
 void generateW(double * x, double mean, int len)
 {
 	std::default_random_engine generator;
-	double sigma = mean / 2;
+	double sigma = sqrt(mean);
 	double sigmaJump = mean / 4;
 	std::normal_distribution<double> jumpdistribution(0, sigmaJump);
 
@@ -90,7 +99,11 @@ void generateW(double * x, double mean, int len)
 	for (int i = 1; i < len; i++)
 	{
 		x[i] = x[i - 1];
-		double nextX = x[i - 1] + jumpdistribution(generator);
+		double nextX = x[i - 1];
+		if (getRandNum(100) <= 1)
+			nextX += uniondist(mean);
+		else 
+			nextX +=jumpdistribution(generator);
 		double nextP = probabilityDensity(nextX, mean, sigma);
 		if (nextP >= curP)
 		{
@@ -114,6 +127,17 @@ void generateW(double * x, double mean, int len)
 	}
 }
 
+double cxnorm(kiss_fft_cpx a)
+{
+	return sqrt(a.r*a.r + a.i*a.i);
+}
+
+double uniform_rand(double a, double b)
+{
+	double range = 100000;
+	return a + ((double)getRandNum(range)) / range * (b - a);
+}
+
 void generateSyntheticData(int row, int hosts, double ** m)
 {
 	//return hosts*hosts
@@ -127,18 +151,78 @@ void generateSyntheticData(int row, int hosts, double ** m)
 		for (int i = 0; i < 2016; i++)
 			fscanf(fPattern, "%lf", &totflow[curWeek][i]);
 	}
+
+	const int nfft = 2016;
+	kiss_fft_cfg cfg = kiss_fft_alloc(nfft, false, 0, 0);
+	kiss_fft_cfg cfg2 = kiss_fft_alloc(nfft,true, 0, 0);
+	kiss_fft_cpx cx_in[nfft], cx_out[nfft];
+
+
+	for (int curWeek = 0; curWeek < nWeeks; curWeek++)
+	{
+		for (int i = 0; i < nfft; i++)
+		{
+			cx_in[i].r = totflow[curWeek][i];
+			cx_in[i].i = 0;
+		}
+		kiss_fft(cfg, cx_in, cx_out);
+		for (int i = 0; i < nfft; i++)
+		{
+			cx_out[i].r /= nfft;
+			cx_out[i].i /= nfft;
+		}
+		int position[nfft];
+		for (int i = 0; i < nfft; i++)
+			position[i] = i;
+
+		for (int i = 0; i < nfft - 1; i++)
+			for (int j = i + 1; j < nfft; j++)
+			{
+				double n1 = cxnorm(cx_out[position[i]]);
+				double n2 = cxnorm(cx_out[position[j]]);
+				if (n1 < n2)
+				{
+					int tmp;
+					tmp = position[i];
+					position[i] = position[j];
+					position[j] = tmp;
+				}
+			}
+		for (int i = 6; i < nfft; i++)
+		{
+			double a = uniform_rand(0, 3);
+			cx_out[position[i]].r *= a;
+			cx_out[position[i]].i *= a;
+		}
+		kiss_fft(cfg2, cx_out, cx_in);
+		for (int i = 0; i < nfft; i++)
+			totflow[curWeek][i] = cx_in[i].r;
+	}
+
+
+	FILE * fFFTout = fopen("fftout", "w");
+	for (int curWeek = 0; curWeek < nWeeks; curWeek++)
+	{
+		for (int i = 0; i < 2016; i++)
+			fprintf(fFFTout, "%.2lf  ", totflow[curWeek][i]);
+		fprintf(fFFTout, "\n");
+	}
+	fclose(fFFTout);
+
 	int nMean;
-	fscanf(fPattern, "%*i%i", &nMean);
+	FILE * fpareto = fopen("pareto", "r");
+	fscanf(fpareto, "%i", &nMean);
+
 	double * saveMean = new double[nMean];
 	double sumOfMean = 0;
 	for (int i = 0; i < nMean; i++)
 	{
-		fscanf(fPattern, "%lf", &saveMean[i]);
+		fscanf(fpareto, "%lf", &saveMean[i]);
 		sumOfMean += saveMean[i];
 	}
 	sumOfMean /= nMean;
 	for (int i = 0; i < nMean; i++)
-		saveMean[i] /= (sumOfMean / 1000);
+		saveMean[i] /= sumOfMean ;
 
 	//m[col][row];
 	int pickedTotPattern;
@@ -194,7 +278,8 @@ void generateSyntheticData(int row, int hosts, double ** m)
 	{
 		if (i % 2016 == 0)
 		{ 
-			pickedTotPattern = getRandNum(nWeeks);
+			//pickedTotPattern = getRandNum(nWeeks);
+			pickedTotPattern = (i/2016)%20;
 			printf("picked patter week=-------%i-------\n", pickedTotPattern);
 		}
 		for (int j = 0; j < hosts; j++)
@@ -202,8 +287,12 @@ void generateSyntheticData(int row, int hosts, double ** m)
 				m[j*hosts + k][i] = totflow[pickedTotPattern][i%2016] * Tin[j][i] * Tout[k][i];
 	}
 	fclose(fPattern);
+	fclose(fpareto);
 	for (int i = 0; i < nWeeks; i++)
 		delete[] totflow[i];
-	delete[] totflow,  saveMean, Tin, Tout;
+	delete[] totflow;
+	delete[] saveMean;
+	delete[] Tin;
+	delete[] Tout;
 }
 
