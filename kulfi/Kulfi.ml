@@ -3,6 +3,8 @@ open Async.Std
 open Command
 open Kulfi_Types
 
+type solver_type = | Mcf | Vlb | Ecmp | Spf | Raeke  | Ak | Smcf
+       
 let main algo topo_fn actual_fn predicted_fn hosts_fn init_str () =
   match algo with 
   | Mcf -> let module C = Kulfi_Controller.Make(Kulfi_Mcf) in C.start topo_fn actual_fn hosts_fn init_str ()

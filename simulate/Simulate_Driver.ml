@@ -9,27 +9,39 @@ open Simulate_Demands
 open RunningStat
 open ExperimentalData 
 open AutoTimer
-       
 
+type solver_type =
+  | Mcf | Vlb | Ecmp | Spf | Raeke
+  | AkMcf | AkVlb | AkRaeke
+  | SmcfMcf | SmcfVlb | SmcfRaeke
+ 
 let solver_to_string (s:solver_type) : string =
   match s with 
   | Mcf -> "mcf" 
   | Vlb -> "vlb" 
   | Ecmp -> "ecmp"
   | Spf -> "spf" 
-  | Ak -> "ak"
-  | Smcf -> "smcf"
-  | Raeke -> "raeke" 
-	      
+  | Raeke -> "raeke" 	       
+  | AkMcf -> "akmcf"
+  | AkVlb -> "akvlb"
+  | AkRaeke -> "akraeke"
+  | SmcfMcf -> "smcfmcf"
+  | SmcfVlb -> "smcfvlb"
+  | SmcfRaeke -> "smcfraeke"
+	       
 let select_algorithm solver = match solver with
   | Mcf -> Kulfi_Routing.Mcf.solve
   | Vlb -> Kulfi_Routing.Vlb.solve
   | Ecmp -> Kulfi_Routing.Ecmp.solve
   | Spf -> Kulfi_Routing.Spf.solve
-  | Ak -> Kulfi_Routing.Ak.solve
-  | Smcf -> Kulfi_Routing.SemiMcf.solve
   | Raeke -> Kulfi_Routing.Raeke.solve
-
+  | AkMcf -> Kulfi_Routing.Ak.solve
+  | AkVlb -> Kulfi_Routing.Ak.solve
+  | AkRaeke -> Kulfi_Routing.Ak.solve
+  | SmcfMcf -> Kulfi_Routing.SemiMcf.solve 
+  | SmcfVlb -> Kulfi_Routing.SemiMcf.solve 
+  | SmcfRaeke -> Kulfi_Routing.SemiMcf.solve 
+	       
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
   let sent_on_each_edge = 
     SrcDstMap.fold
@@ -90,26 +102,27 @@ let get_num_paths (s:scheme) : float =
   Float.of_int count 
 
 
-let initial_scheme init_str topo aic ahm pic phm : scheme =
-  match init_str with
-  | None -> SrcDstMap.empty
-  | Some "mcf" ->
+let initial_scheme algorithm topo aic ahm pic phm : scheme =
+  match algorithm with
+  | SmcfMcf 
+  | AkMcf ->
      let _ = next_demand aic ahm in 
      let d = next_demand pic phm in 
      Kulfi_Routing.Mcf.solve topo d SrcDstMap.empty
-  | Some "vlb" ->
+  | SmcfVlb 
+  | AkVlb ->
      let _ = next_demand aic ahm in 
      let d = next_demand pic phm in 
      Kulfi_Routing.Vlb.solve topo d SrcDstMap.empty
-  | Some "raeke" ->
+  | SmcfRaeke 
+  | AkRaeke ->
      let _ = next_demand aic ahm in 
      let d = next_demand pic phm in 
      Kulfi_Routing.Raeke.solve topo d SrcDstMap.empty
-  | Some _ -> failwith  "Unrecognized initialization scheme"
+  | _ -> SrcDstMap.empty
 
 			
 let simulate (spec_solvers:solver_type list)
-	     (init_str:string option)
 	     (topology_file:string)
 	     (demand_file:string)
 	     (predict_file:string)
@@ -156,7 +169,7 @@ let simulate (spec_solvers:solver_type list)
 	let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
 
 	(* we may need to initialize the scheme, and advance both traffic files *)
-	let start_scheme = initial_scheme init_str topo
+	let start_scheme = initial_scheme algorithm topo
 					  actual_ic actual_host_map
 					  predict_ic predict_host_map in
 	
@@ -218,10 +231,13 @@ let command =
     +> flag "-vlb" no_arg ~doc:" run vlb"
     +> flag "-ecmp" no_arg ~doc:" run ecmp"
     +> flag "-spf" no_arg ~doc:" run spf"
-    +> flag "-ak" no_arg ~doc:" run ak"
-    +> flag "-smcf" no_arg ~doc:" run semi mcf"
+    +> flag "-akmcf" no_arg ~doc:" run ak+mcf"
+    +> flag "-akvlb" no_arg ~doc:" run ak+vlb"
+    +> flag "-akraeke" no_arg ~doc:" run ak+raeke"
+    +> flag "-smcfmcf" no_arg ~doc:" run semi mcf+mcf"
+    +> flag "-smcfvlb" no_arg ~doc:" run semi mcf+vlb"
+    +> flag "-smcfraeke" no_arg ~doc:" run semi mcf+raeke"
     +> flag "-raeke" no_arg ~doc:" run raeke"
-    +> flag "-init" (optional string) ~doc:" solver to inititialize input scheme: [mcf|vlb|raeke]"
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
     +> anon ("predict-file" %: string)
@@ -231,10 +247,13 @@ let command =
 	 (vlb:bool)
 	 (ecmp:bool)
 	 (spf:bool)
-	 (ak:bool)
-	 (smcf:bool)
+	 (akmcf:bool)
+	 (akvlb:bool)
+	 (akraeke:bool)
+	 (smcfmcf:bool)
+	 (smcfvlb:bool)
+	 (smcfraeke:bool)
 	 (raeke:bool)
-	 (init_str:string option)
 	 (topology_file:string)
 	 (demand_file:string)
 	 (predict_file:string)
@@ -247,10 +266,14 @@ let command =
          ; if vlb then Some Vlb else None
          ; if ecmp then Some Ecmp else None
          ; if spf then Some Spf else None
-	 ; if ak then Some Ak else None
+	 ; if akmcf then Some AkMcf else None
+	 ; if akvlb then Some AkVlb else None
+	 ; if akraeke then Some AkRaeke else None
          ; if raeke then Some Raeke else None 
-         ; if smcf then Some Smcf else None ] in 
-     simulate algorithms init_str topology_file demand_file predict_file host_file iterations () )
+         ; if smcfmcf then Some SmcfMcf else None
+	 ; if smcfvlb then Some SmcfVlb else None
+	 ; if smcfraeke then Some SmcfRaeke else None ] in 
+     simulate algorithms topology_file demand_file predict_file host_file iterations () )
 
 let main = Command.run command
 		       
