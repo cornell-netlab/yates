@@ -45,7 +45,7 @@ let solve (t:topology) (_:demands) (_:scheme) : scheme =
            compute the physical path? Seems like it... *)
         let routing_path = FRT.get_path rt src dst in 
         let physical_path = FRT.path_to_physical rt routing_path in 
-        PathMap.add acc physical_path p) in 
+        add_or_increment_path acc physical_path p) in 
   Topology.VertexSet.fold 
     end_points
     ~init:SrcDstMap.empty
