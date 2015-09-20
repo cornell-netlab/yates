@@ -8,14 +8,19 @@ double abso(double a)
 	return a;
 }
 
-void writeDemandMatrix(string filename, int row, int col, double ** m, int period, double scale)
+void writeDemandMatrix(string filename, int row, int col, double ** m, int period, double scale, bool risk=false, double ** dataM=NULL)
 {
 	//row * col floats
 	FILE * fActual = fopen(filename.c_str(), "w");
 	for (int i = period; i < row; i++)
 	{ 
 		for (int j = 0; j < col; j++)
-			fprintf(fActual, "%lf ", m[j][i]*2.666666*scale);
+		{
+			double cur = m[j][i];
+			if ((risk) && (cur < dataM[j][i - 1]))
+				cur = dataM[j][i - 1];
+			fprintf(fActual, "%lf ", cur*2.666666*scale);
+		}
 		fprintf(fActual, "\n");
 	}
 	fclose(fActual);
@@ -214,15 +219,8 @@ void generateSyntheticData(int row, int hosts, double ** m)
 	fscanf(fpareto, "%i", &nMean);
 
 	double * saveMean = new double[nMean];
-	double sumOfMean = 0;
 	for (int i = 0; i < nMean; i++)
-	{
 		fscanf(fpareto, "%lf", &saveMean[i]);
-		sumOfMean += saveMean[i];
-	}
-	sumOfMean /= nMean;
-	for (int i = 0; i < nMean; i++)
-		saveMean[i] /= sumOfMean ;
 
 	//m[col][row];
 	int pickedTotPattern;

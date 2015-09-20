@@ -1,5 +1,3 @@
-// TODO: when ||X|| is large, should normalize it.
-// TODO: need to know what is gravity model 
 #include <stdio.h> 
 #include <stdlib.h>
 #include <time.h>
@@ -15,7 +13,6 @@ typedef double(*objCalFunctionType)(double ** X_dat, double * Y_dat, int d, int 
 typedef void(*gradientStepFunctionType) (double * x, double y, double *gradAns, int d, bool cumu, void * modelPara, void * additionalStuff);
 typedef void(*trainModelFunctionType) (double ** X_dat, double* Y_dat, int d, int n, double avg, void * modelPara, void * additionalStuff);
 typedef void(*predictNextFunctionType) (double * x, double * predictY, int d, void * modelPara, void * additionalStuff);
-
 
 
 /*
@@ -319,9 +316,16 @@ void trainModel(trainModelFunctionType trainMethod,
 	{
 		X_dat[i - numOfFeature] = new double[numOfFeature + 1];
 		X_dat[i - numOfFeature][0] = 1.0;
+		double max = 1;
 		for (int j = 1; j <= numOfFeature; j++)
+		{
 			X_dat[i - numOfFeature][j] = serve[i - j] / avg;
-		Y_dat[i - numOfFeature] = serve[i] / avg;
+			if (max < X_dat[i - numOfFeature][j])
+				max = X_dat[i - numOfFeature][j];
+		}
+		for (int j = 0; j <= numOfFeature; j++)
+			X_dat[i - numOfFeature][j] /= max;
+		Y_dat[i - numOfFeature] = serve[i] / avg/max;
 	}
 	trainMethod(X_dat, Y_dat, numOfFeature + 1, dataLen, avg, modelPara, additionalStuff);
 	for (int i = 0; i < dataLen; i++)
@@ -356,11 +360,13 @@ int main(int argc, char ** argv)
 
 	printf("Menu:\n");
 	printf("Command: 1 col w file\n");
+	printf("    Example: 1 0 2 abi\n");
 	printf("    This means read from first w weeks for abilene data's col-th column.\n");
 	printf("    Please ensure data/X01-X0w is in the current directory.\n");
 	printf("    Will write the actual data to file.\n");
 	printf("    Will write the predicted data to file_predictionAlgName.\n");
 	printf("Command: 2 r h file scale\n");
+	printf("    Example: 2 2000 3 synthetic_1 2.0\n");
 	printf("    This generates r rows of data for h hosts.\n");
 	printf("    please choose scale comparing with Abilene data.\n");
 	printf("    That is, scale=1.0 if using Abilene, scale=100.0, if using some network with huge traffic.\n");
@@ -377,6 +383,8 @@ int main(int argc, char ** argv)
 	int hosts;
 	int period = 1000;
 	double scale = 1.0;
+
+
 	if (dataCode == 1)
 	{
 		col = 144;
@@ -408,6 +416,8 @@ int main(int argc, char ** argv)
 		generateSyntheticData(totRow, hosts, dataM);
 
 	writeDemandMatrix(string(argv[4]), totRow, col, dataM, period, scale);
+
+
 	
 	//Compute patterns:
 	//	if (readFiles == 24) computePatterns(dataM);
@@ -424,12 +434,12 @@ int main(int argc, char ** argv)
 	additionalStuff[0] = 0;  //sigma
 	additionalStuff[1] = 0; //lambda
 	additionalStuff[2] = 1; // average
-	additionalStuff[3] = 0.001; //eta
+	additionalStuff[3] = 0.0002; //eta
 	additionalStuff[4] = 2.0; //beta
 	additionalStuff[5] = 0.001; //stop Err
 
 	
-	bool includeLastOneModel = true;
+	bool includeLastOneModel = false;
 	bool includeLinearRegressionModel = true;
 	bool includeElasticNetRegressionModel = true;
 
@@ -451,8 +461,11 @@ int main(int argc, char ** argv)
 		writeDemandMatrix(string(argv[4])+string("_lastOne"), totRow, col, outM, period, scale);
 	}
 	
-	int nLinearRegressionFeatures = 30;
+	int nLinearRegressionFeatures = 10;
 	double * linearRegressionW = new double[nLinearRegressionFeatures+1]; //include the constant parameter;
+	int trainPeriod = 250;
+	//!++comment this line!
+	//col = 10;
 	if (includeLinearRegressionModel)
 	{
 		printf("Current ---------------- LinearRegressionModel!\n");
@@ -465,13 +478,14 @@ int main(int argc, char ** argv)
 					outM[i][j] = dataM[i][(j>1)?(j-1):0];
 				else
 				{
-					if (j%period==0)
-						trainModel(linearRegressionTrain, dataM[i], nLinearRegressionFeatures, j, linearRegressionW, additionalStuff);
+					if (j%trainPeriod==0)
+						trainModel(linearRegressionTrain, &dataM[i][j-trainPeriod], nLinearRegressionFeatures, trainPeriod, linearRegressionW, additionalStuff);
 					outM[i][j] = predictOneModel(linearRegressionPredict, dataM[i], nLinearRegressionFeatures, j, linearRegressionW, additionalStuff);
 				}
 			}
 		}
 		writeDemandMatrix(string(argv[4])+string("_LinearRegression"), totRow, col, outM, period, scale);
+		writeDemandMatrix(string(argv[4])+string("_LinearRegression_riskAverse"), totRow, col, outM, period, scale, true, dataM);
 	}
 
 	nLinearRegressionFeatures = 30;
