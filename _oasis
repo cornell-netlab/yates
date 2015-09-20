@@ -11,8 +11,9 @@ BuildTools: ocamlbuild
 Library routing
   Path: routing
   Modules:   
-    Kulfi_Routing
-    Kulfi_Traffic
+    Kulfi_Routing,
+    Kulfi_Traffic,
+    Kulfi_Util
   BuildDepends:
    ocamlgraph,
    threads,
@@ -27,10 +28,9 @@ Library util
   if system(linux)
     CCLib:
       -lrt
-  Modules:   
+  Modules:
     RunningStat,
-    Kulfi_Time,
-    Kulfi_Options
+    Kulfi_Time
 BuildDepends:
     async,
     core,

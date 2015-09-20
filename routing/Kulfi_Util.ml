@@ -32,3 +32,11 @@ let dump_scheme (t:topology) (s:scheme) : string =
                                       (dump_path_prob_set t pps));
   Buffer.contents buf
                   
+let write_to_file filename text_to_write =
+  try
+    let cout = Out_channel.create filename in
+    let co = Format.formatter_of_out_channel cout in
+    Format.fprintf co "%s\n" text_to_write;
+    Out_channel.close cout
+  with _ as e ->
+    Format.printf "Cannot open file \"%s\": %s\n" filename (Exn.to_string e)

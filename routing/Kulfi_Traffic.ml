@@ -10,7 +10,6 @@ let open_demands (demand_file:string) (host_file:string) (topo:topology) : (inde
 		   ~init:StringMap.empty
 		   ~f:(fun acc v ->
 		       let n = (Net.Topology.vertex_to_label topo v) in
-		       Printf.printf "Adding name '%s'\n" (Node.name n);
 		       (StringMap.add acc ~key:(Node.name n) ~data:v )) in
 
   let (_,host_map) = 

@@ -2,6 +2,7 @@
 pushd ~
 pushd atlas-abilene
 make clean
+rm -rf routes sync-client
 popd
 rm atlas-kulfi-configure/agent.py atlas-kulfi-configure/modkulfi.ko
 rm -rf atlas-kulfi-configure/kernel

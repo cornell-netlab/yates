@@ -263,74 +263,78 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
         find_paths new_topo ((mapped_path,
                               bottleneck *. demand_divisor)::acc_paths) in
     let paths = find_paths topo_with_edges [] in
-    paths in
+    paths in (* This line ends find_paths by returning paths. *)
     (* For every commodity, get their paths. *)
-    Hashtbl.fold 
+    let (unnormalized_scheme, flow_sum) = Hashtbl.fold 
       flow_table 
-      ~init:SrcDstMap.empty 
-      ~f:(fun ~key:d_pair ~data:edges acc ->
+      ~init:(SrcDstMap.empty, SrcDstMap.empty)
+      ~f:(fun ~key:d_pair ~data:edges (us,fs) ->
           let (s,t) = d_pair in
           let s_v = Topology.vertex_of_label orig_topo s in
           let t_v = Topology.vertex_of_label orig_topo t in
           let paths = strip_paths (s, t) edges in
-          let p = 
+          let (p,sum_rate) = 
 	    List.fold_left 
 	      paths 
-	      ~init:PathMap.empty
-              ~f:(fun acc (path,scalar) -> PathMap.add acc path scalar) in
-          SrcDstMap.add acc ~key:(s_v,t_v) ~data:p )
-      
+	      ~init:(PathMap.empty,0.)
+	      (* TODO(rjs,rdk): the weight is wrong. *)
+              ~f:(fun (acc,sum_acc) (path,scalar) -> (PathMap.add acc path scalar, sum_acc +. scalar) ) in
+          let new_us = SrcDstMap.add us ~key:(s_v,t_v) ~data:p in
+          let new_fs = SrcDstMap.add fs ~key:(s_v,t_v) ~data:sum_rate in
+          (new_us, new_fs)) in
+      (* Now normalize the values in the scheme so that they sum to 1 for each source-dest pair *)
+  SrcDstMap.fold ~init:(SrcDstMap.empty)
+    ~f:(fun ~key:(u,v) ~data:f_decomp acc  ->
+      match SrcDstMap.find flow_sum (u,v) with
+      | None -> assert false 
+      | Some sum_rate -> 
+	 ignore (if (sum_rate < 0.) then failwith "sum_rate leq 0. on flow" else ());
+	 let normalized_f_decomp = 
+	   PathMap.fold ~init:(PathMap.empty)
+			~f:(fun ~key:path ~data:rate acc ->
+			    let normalized_rate = 
+			      if sum_rate = 0. then
+				0.0
+			      else 
+				rate /. sum_rate in
+	
+	       PathMap.add ~key:path ~data:normalized_rate acc)
+	     f_decomp in
+	 SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc) unnormalized_scheme
+
+
 
 (* Run everything. Given a topology and a set of pairs with demands,
    returns the optimal congestion ratio, the paths used, and the number
    of paths used. *)
 (* let solver_paths topo pairs verbose = *)
 let solve (topo:topology) (pairs:demands) (s:scheme) : scheme =
-  let verbose = true in
-    let name_table = Hashtbl.Poly.create () in
-    Topology.iter_vertexes (fun vert ->
-        let label = Topology.vertex_to_label topo vert in
-        let name = Node.name label in
+  
+  let name_table = Hashtbl.Poly.create () in
+  Topology.iter_vertexes (fun vert ->
+			  let label = Topology.vertex_to_label topo vert in
+			  let name = Node.name label in
         Hashtbl.Poly.add_exn name_table name vert) topo;
-
-    let lp_before = Unix.gettimeofday () in
-    let lp = lp_of_graph topo pairs in
-    let lp_after = Unix.gettimeofday () in
-    let lp_formulate_time = lp_after -. lp_before in
-
-    if verbose then
-      (Printf.printf "LP formulated in %f seconds\n" lp_formulate_time;
-       flush stdout);
-
-    let serialize_before = Unix.gettimeofday () in
-    serialize_lp lp "mcf.lp";
-    let serialize_after = Unix.gettimeofday () in
-    let serialize_time = serialize_after -. serialize_before in
-
-    if verbose then
-      (Printf.printf "LP serialized in %f seconds\n" serialize_time;
-       flush stdout);
-
-    let gurobi_in = Unix.open_process_in
-        "gurobi_cl OptimalityTol=1e-9 ResultFile=mcf.sol mcf.lp" in
-    let time_str = "Solved in [0-9]+ iterations and \\([0-9.e+-]+\\) seconds" in
-    let time_regex = Str.regexp time_str in
-    let rec read_output gurobi solve_time =
-      try
-        let line = input_line gurobi in
-        if Str.string_match time_regex line 0 then
-          let num_seconds = Float.of_string (Str.matched_group 1 line) in
+  
+  let lp = lp_of_graph topo pairs in
+  serialize_lp lp "mcf.lp";
+  
+  let gurobi_in = Unix.open_process_in
+		    "gurobi_cl OptimalityTol=1e-9 ResultFile=mcf.sol mcf.lp" in
+  let time_str = "Solved in [0-9]+ iterations and \\([0-9.e+-]+\\) seconds" in
+  let time_regex = Str.regexp time_str in
+  let rec read_output gurobi solve_time =
+    try
+      let line = input_line gurobi in
+      if Str.string_match time_regex line 0 then
+        let num_seconds = Float.of_string (Str.matched_group 1 line) in
           read_output gurobi num_seconds
         else
           read_output gurobi solve_time
       with
         End_of_file -> solve_time in
-    let solve_time = read_output gurobi_in 0. in
+    let _ = read_output gurobi_in 0. in
     ignore (Unix.close_process_in gurobi_in);
-
-    if verbose then
-      (Printf.printf "LP solved in %f seconds\n" solve_time;
-       flush stdout);
 
     (* read back all the edge flows from the .sol file *)
     let read_results input =
@@ -381,16 +385,8 @@ let solve (topo:topology) (pairs:demands) (s:scheme) : scheme =
           Hashtbl.Poly.add_exn flows_table (d_src, d_dst)
             [(e_src, e_dst, flow)]);
 
-    let before_paths = Unix.gettimeofday () in
-    let paths = recover_paths topo flows_table in
-    let after_paths = Unix.gettimeofday () in
-    let paths_time = after_paths -. before_paths in
-    if verbose then
-      (Printf.printf "Paths stripped in %f seconds\n" paths_time;
-       flush stdout);
-    (* let num_paths = List.fold_left paths ~init:0 ~f:(fun acc (_,_,paths) -> *)
-    (*     acc + (List.length paths)) in *)
-    paths
+    recover_paths topo flows_table
+
 
 
        

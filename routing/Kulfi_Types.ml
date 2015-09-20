@@ -11,6 +11,7 @@ type edge = Net.Topology.edge with sexp
                                      
 type path = edge list with sexp
 
+type solver_type = | Mcf | Vlb | Ecmp | Spf | Ak | Smcf | Raeke
 
 let intercalate f s = function
   | [] ->
@@ -81,6 +82,21 @@ end
 
 module EdgeMap = Map.Make(EdgeOrd)                     
 
+type uid = int with sexp			
+
+module UidOrd = struct
+  type t = uid with sexp
+  let compare = Pervasives.compare                    
+end
+		      
+module UidMap = Map.Make(UidOrd)
+		      
+type path_uid_map = uid PathMap.t
+			
+type uid_path_map = (Topology.vertex * Topology.vertex  * path) UidMap.t			
+
+type edge_uidlist_map = uid list EdgeMap.t
+
 (* A flow assigns a numerical value to each edge, denoting the number
    of flow units that traverse the edge. *)
 type flow = float EdgeMap.t
@@ -121,13 +137,13 @@ let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
    belong in Kulfi_Types.ml, we should move it somewhere else
    in a future re-factoring of the code. *)
 
-(* Co*)
+(* convert to Mbps for input to Gurobi *)
 let cap_divisor = 1000000.
-let demand_divisor = 1.
+let demand_divisor = 1000000.
                        
 let capacity_of_edge topo edge =
   let label = Topology.edge_to_label topo edge in
-  (Int64.to_float (Link.capacity label)) /. cap_divisor
+  (Int64.to_float (Link.capacity label))
 
 let configuration_of_scheme (topo:topology) (scm:scheme) (tag_hash: (edge,int) Hashtbl.t) : configuration =
   SrcDstMap.fold
