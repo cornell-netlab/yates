@@ -71,6 +71,10 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
       apsp 
       ~init:SrcDstMap.empty
       ~f:(fun acc (_,v1,v2,_) ->
-	  SrcDstMap.add acc ~key:(v1,v2) ~data:( vlb_pps v1 v2 ) ) in
+	    match (device v1, device v2) with 
+	    | (Node.Host,Node.Host) -> 
+	       SrcDstMap.add acc ~key:(v1,v2) ~data:( vlb_pps v1 v2 ) 
+	    | _ -> acc
+      ) in
   (* Printf.printf "%s\n" (dump_scheme topo scheme); *)
   scheme

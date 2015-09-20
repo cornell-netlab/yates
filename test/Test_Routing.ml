@@ -1,6 +1,7 @@
 open Kulfi_Routing
 open Frenetic_Network
 open Net
+open Net.Topology
 open Kulfi_Ecmp
 open Kulfi_Mcf
 open Kulfi_Mw
@@ -11,7 +12,28 @@ open Kulfi_Types
 open Kulfi_Util
 open Core.Std
 
+
 module VertexSet = Topology.VertexSet
+
+let tag_cell = ref 100
+                   
+let create_tag_hash (t:topology) =
+  let tag_hash = Hashtbl.Poly.create () in
+  iter_edges
+    (fun edge -> 
+      let src, port = edge_src edge in 
+      let lbl = vertex_to_label t src in 
+      match Node.device lbl with 
+        | Node.Switch -> 
+          begin
+            let tag = !tag_cell in 
+            incr tag_cell;
+            Hashtbl.Poly.add_exn tag_hash edge tag;
+            Printf.printf "LINK: %s -> %d\n" (dump_edges t [edge]) tag;
+          end
+        | _ -> 
+          ()) t;
+  tag_hash
 
 		    
 let create_topology_and_demands () =
@@ -31,7 +53,7 @@ let create_topology_and_demands () =
 	    hs
 	    ~init:acc
 	    ~f:(fun acc v ->
-		let r = if u = v then 0.0 else 500.0 in
+		let r = if u = v then 0.0 else 500000.0 in
 		SrcDstMap.add acc ~key:(u,v) ~data:r)) in
 
   (* Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set); *)
@@ -94,7 +116,6 @@ let test_spf () =
     Kulfi_Spf.solve topo pairs SrcDstMap.empty in
   let h1 = Array.get hosts 0  in 
   let h2 = Array.get hosts 1  in
-
   (* TODO(jnf,rjs): could just call sample_scheme here? *)
   let x = match SrcDstMap.find scheme (h1,h2)  with | None -> assert false | Some x -> x in
   let path = sample_dist x in

@@ -190,9 +190,9 @@ let bprint_tags (buf:Buffer.t) (tag_dist:probability TagsMap.t) : unit =
   TagsMap.iter
     tag_dist
     ~f:(fun ~key:tags ~data:prob ->
-        Printf.bprintf buf "%d " (Float.to_int (1000.0 *. prob));
-        Printf.bprintf buf "%d " (List.length tags);
-        List.iter tags (Printf.bprintf buf "%d "))
+        Printf.bprintf buf "prob=%d " (Float.to_int (1000.0 *. prob));
+        (* Printf.bprintf buf "tagslgth=%d " (List.length tags); *)
+        List.iter tags (Printf.bprintf buf "tag=%d "))
             
 let bprint_configuration (topo:topology) (bufs:(Topology.vertex,Buffer.t) Hashtbl.t) (conf:configuration) : unit =
   let dstCount = 
@@ -221,10 +221,10 @@ let bprint_configuration (topo:topology) (bufs:(Topology.vertex,Buffer.t) Hashtb
                | None -> 0
                | Some x -> x
              in
-             Printf.bprintf buf "%d " count;  
+             Printf.bprintf buf "count=%d " count;  
              buf in
-        Printf.bprintf buf "%lu " (Node.ip (Topology.vertex_to_label topo dst));
-        Printf.bprintf buf "%d " (TagsMap.length tag_dist);
+        Printf.bprintf buf "node=%lu " (Node.ip (Topology.vertex_to_label topo dst));
+        Printf.bprintf buf "lgth=%d " (TagsMap.length tag_dist);
         bprint_tags buf tag_dist)
 
 let print_configuration (topo:topology) (conf:configuration) (time:int) : unit =
