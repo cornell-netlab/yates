@@ -48,8 +48,9 @@ let solve (t:topology) (_:demands) (s:scheme) : scheme =
         (* TODO(jnf,soule): should FRT export a function to directly
            compute the physical path? Seems like it... *)
           let routing_path = FRT.get_path rt src dst in 
-          let physical_path = FRT.path_to_physical rt routing_path in 
-          add_or_increment_path acc physical_path p) in 
+          let physical_path = FRT.path_to_physical rt routing_path in
+          let no_loop_path = Kulfi_Frt.FRT.remove_cycles physical_path in
+          add_or_increment_path acc no_loop_path p) in 
     Topology.VertexSet.fold 
       end_points
       ~init:SrcDstMap.empty
