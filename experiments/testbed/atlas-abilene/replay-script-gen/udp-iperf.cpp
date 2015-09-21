@@ -212,6 +212,9 @@ int main(int argc, char *argv[]){
 
     replay_script << "pkill -9 iperf" << endl;
 
+    for (std::map<string, int>::iterator dst=routers.begin(); dst!=routers.end(); ++dst){
+	    replay_script << "ping 10.0.0." << (dst->second + 1) << " > ./ping-" << node_id << "-"<< (dst->second+1) << ".txt &" << endl;
+    }
     // Schedule clients
     replay_script << endl << "# Start clients" << endl << endl;
     for (std::map<string, int>::iterator src=routers.begin(); src!=routers.end(); ++src){
@@ -229,12 +232,12 @@ int main(int argc, char *argv[]){
             replay_script << "fi" << endl;
             replay_script << "./sync-client -s olympic -p 7000 " << endl;
 
-            replay_script << "killall -9 iperf" << endl;
             // iterate over all destinations
             for (std::map<string, int>::iterator dst=routers.begin(); dst!=routers.end(); ++dst){
                 // 100 bytes / 5 mins * scaled_to_time s - bytes to be sent in scaled_to_time seconds
                 long int rate_bps = demand[time][dmd_index[src->second][dst->second]] * factor *100 / 300 * 8; //bps
                 if(rate_bps > 0){
+                    replay_script << "kill -9 `ps -ax | grep \"iperf -c 10.0.0." << dst->second+1 << "\" |  cut -f 1 -d \" \"` " << endl;
                     replay_script << "iperf -c 10.0.0." << dst->second+1 << " -u -b " << rate_bps << " -t " << scaled_to_time << " &" << endl;
                 }
             }
@@ -244,6 +247,7 @@ int main(int argc, char *argv[]){
 
     replay_script << "./sync-client -s olympic -p 7000 "  << endl;
     replay_script << "killall -9 iperf" << endl;
+    replay_script << "killall -9 ping" << endl;
     replay_script.close();
 
     return 0;

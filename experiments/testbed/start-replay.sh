@@ -8,9 +8,10 @@ SCALE=$3
 MODEL=$4
 DYN_RT=$5
 FACTOR=$6
-if [ "$#" -ne 6 ]
+TRAFFIC_GEN=$7
+if [ "$#" -ne 7 ]
 then
-	echo ${RED}"Usage: $0 <run_id> <regenerate_script?(0/1)> <time-scale-down> <TM model> <Dynamic RT(0/1)> <scale-up factor>"${RESTORE}
+	echo ${RED}"Usage: $0 <run_id> <regenerate_script?(0/1)> <time-scale-down> <TM model> <Dynamic RT(0/1)> <scale-up factor> <traffic_generator scripted_tcp/scripted_udp/realtime>"${RESTORE}
 	exit 0
 fi
 
@@ -35,6 +36,12 @@ fi
 if [ "$MODEL" -gt 5 ]
 then
 	echo ${RED} "Invalid TM model: 1:realOD, 2: simpleGravityOD, 3:simpleTomogravityOD, 4:generalGravityOD, 5:generalTomogravityOD"${RESTORE}
+	exit 0
+fi
+
+if [ "$TRAFFIC_GEN" != "scripted_tcp" ] && [ "$TRAFFIC_GEN" != "scripted_udp" ] && [ "$TRAFFIC_GEN" != "realtime" ]
+then
+	echo ${RED} "Invalid TRAFFIC_GENERATOR. Exiting"${RESTORE}
 	exit 0
 fi
 
@@ -66,7 +73,7 @@ fi
 pkill -9 sync-server
 $SYNC_DIR/sync-server -n 12 &
 mkdir -p ~/results/$RUN_ID
-dsh -M -g atlas-abilene -c "scp olympic:$ATLAS_ABILENE_SCRIPT ./ ; chmod +x $ATLAS_ABILENE_SCRIPT ; $ATLAS_ABILENE_SCRIPT $RUN_ID $GEN_REP $SCALE $MODEL $DYN_RT $FACTOR" &
+dsh -M -g atlas-abilene -c "scp olympic:$ATLAS_ABILENE_SCRIPT ./ ; chmod +x $ATLAS_ABILENE_SCRIPT ; $ATLAS_ABILENE_SCRIPT $RUN_ID $GEN_REP $SCALE $MODEL $DYN_RT $FACTOR $TRAFFIC_GEN" &
 while true
 do
 	$SYNC_DIR/sync-server -n 12 -p 7000

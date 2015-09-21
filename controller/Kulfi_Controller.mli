@@ -1,5 +1,5 @@
 open Core.Std
 
 module Make(A:Kulfi_Routing.Algorithm) : sig
-  val start : Kulfi_Types.topology -> Kulfi_Types.demands -> Kulfi_Types.demands -> unit -> unit
+  val start : string -> string -> string -> string option -> unit -> unit
 end

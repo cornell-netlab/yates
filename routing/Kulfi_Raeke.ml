@@ -33,29 +33,33 @@ end
 (* multiplicative weights instantiation *)
 module RRTs : MW_ALG with type structure = FRT.routing_tree = Kulfi_Mw.Make (MWInput)
 
-let solve (t:topology) (_:demands) (_:scheme) : scheme =
-  let epsilon = 0.1 in 
-  let end_points = Topology.vertexes t in (* TODO(jnf,soule): actually calculate the hosts *)
-  let _,mw_solution,_ = RRTs.hedge_iterations epsilon t end_points in   
-  let paths src dst : probability PathMap.t = 
-    List.fold_left mw_solution 
-      ~init:PathMap.empty
-      ~f:(fun acc (rt,p) -> 
+let solve (t:topology) (_:demands) (s:scheme) : scheme =
+  if SrcDstMap.is_empty s then
+    let epsilon = 0.1 in 
+    let end_points = 
+      VertexSet.filter (Topology.vertexes t) 
+	~f:(fun v -> let label = Topology.vertex_to_label t v in
+		     Node.device label = Node.Host) in
+    let _,mw_solution,_ = RRTs.hedge_iterations epsilon t end_points in   
+    let paths src dst : probability PathMap.t = 
+      List.fold_left mw_solution 
+	~init:PathMap.empty
+	~f:(fun acc (rt,p) -> 
         (* TODO(jnf,soule): should FRT export a function to directly
            compute the physical path? Seems like it... *)
-        let routing_path = FRT.get_path rt src dst in 
-        let physical_path = FRT.path_to_physical rt routing_path in 
-        PathMap.add acc physical_path p) in 
-  Topology.VertexSet.fold 
-    end_points
-    ~init:SrcDstMap.empty
-    ~f:(fun acc src -> 
-      Topology.VertexSet.fold 
-        end_points
-        ~init:acc
-        ~f:(fun acc dst -> 
-          if src <> dst then 
-            SrcDstMap.add acc ~key:(src, dst) ~data:(paths src dst) 
-          else 
-            acc))
-    
+          let routing_path = FRT.get_path rt src dst in 
+          let physical_path = FRT.path_to_physical rt routing_path in 
+          add_or_increment_path acc physical_path p) in 
+    Topology.VertexSet.fold 
+      end_points
+      ~init:SrcDstMap.empty
+      ~f:(fun acc src -> 
+	Topology.VertexSet.fold 
+          end_points
+          ~init:acc
+          ~f:(fun acc dst -> 
+            if src <> dst then 
+              SrcDstMap.add acc ~key:(src, dst) ~data:(paths src dst) 
+            else 
+              acc))
+  else s

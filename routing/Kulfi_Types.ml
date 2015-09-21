@@ -10,8 +10,7 @@ type topology = Net.Topology.t
 type edge = Net.Topology.edge with sexp
                                      
 type path = edge list with sexp
-
-
+      
 let intercalate f s = function
   | [] ->
     ""
@@ -81,6 +80,21 @@ end
 
 module EdgeMap = Map.Make(EdgeOrd)                     
 
+type uid = int with sexp			
+
+module UidOrd = struct
+  type t = uid with sexp
+  let compare = Pervasives.compare                    
+end
+		      
+module UidMap = Map.Make(UidOrd)
+		      
+type path_uid_map = uid PathMap.t
+			
+type uid_path_map = (Topology.vertex * Topology.vertex  * path) UidMap.t			
+
+type edge_uidlist_map = uid list EdgeMap.t
+
 (* A flow assigns a numerical value to each edge, denoting the number
    of flow units that traverse the edge. *)
 type flow = float EdgeMap.t
@@ -107,26 +121,53 @@ type configuration = (probability TagsMap.t) SrcDstMap.t
    to other routing schemes, for example, if we want to minimize differences  *)
 
 let sample_dist (path_dist:flow_decomp) : path =
-  let paths = PathMap.keys path_dist in
-  let bound = List.length paths in
-  let i = Random.int bound in
-  match List.nth paths i with
-  | None -> assert false
-  | Some p -> p
+  (* TODO: make a correct sampling procedure here.
+           A correct procedure would do the following.
+           1. Build up a list of partial sums of the probabilities in
+              path_dist.
+           2. Simultaneously with 1, build up a map from each partial sum
+              to the path whose probability yielded that partial sum.
+           3. Sample a uniformly random float between 0 and 1.
+           4. Find which is the smallest partial sum that exceeds the
+              sampled value.
+           5. Use the map to find the corresponding path.
+  *)
+  assert false
+  (* Old but incorrect sampling routing is here:
+     let paths = PathMap.keys path_dist in
+     let bound = List.length paths in
+     let i = Random.int bound in
+     match List.nth paths i with
+     | None -> assert false
+     | Some p -> p  
+  *)
 
 let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
+
+(* The following function is used in Kulfi_Vlb.ml and Kulfi_SemiMcf.ml,
+   and may possibly be useful elsewhere. Not sure that Kulfi_Types is 
+   where it belongs, but it's a convenient place. *)
+
+let add_or_increment_path (fd : flow_decomp) (p : path) (r : probability) : flow_decomp =
+  let new_value = match PathMap.find fd p with
+  | None -> r
+  | Some prior_value -> prior_value +. r 
+  in
+  PathMap.add ~key:p ~data:new_value fd
+       
 
 (* The following stuff was moved from Kulfi_Mcf.ml to here 
    so that it could be used in Kulfi_Ak.ml. It doesn't really
    belong in Kulfi_Types.ml, we should move it somewhere else
    in a future re-factoring of the code. *)
 
-let cap_divisor = 100000.
-let demand_divisor = 1000.
+(* convert to Mbps for input to Gurobi *)
+let cap_divisor = 1000000.
+let demand_divisor = 1000000.
                        
 let capacity_of_edge topo edge =
   let label = Topology.edge_to_label topo edge in
-  (Int64.to_float (Link.capacity label)) /. cap_divisor
+  (Int64.to_float (Link.capacity label))
 
 let configuration_of_scheme (topo:topology) (scm:scheme) (tag_hash: (edge,int) Hashtbl.t) : configuration =
   SrcDstMap.fold
@@ -174,7 +215,7 @@ let bprint_configuration (topo:topology) (bufs:(Topology.vertex,Buffer.t) Hashtb
 	let count = 
 	  match VertexMap.find acc src with
 	  | None -> 0
-          | Some x -> Printf.printf "#dsts: %d++\n" x; x
+          | Some x -> x
         in
      VertexMap.add acc ~key:src ~data:(count+1);
      ) in

@@ -22,7 +22,7 @@ fi
 
 num_pass=`grep "packet loss" $LOG_FILE | grep " 0%" | wc -l`
 if [[ num_pass -ne 144 ]] ; then
-	echo $RED"Fabric disconnected $num_pass / 132"$RESTORE
+	echo $RED"Fabric disconnected $num_pass / 144"$RESTORE
 else
 	echo $GREEN"Fabric connected $num_pass / 144"$RESTORE
 fi

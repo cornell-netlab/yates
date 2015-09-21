@@ -1,8 +1,8 @@
 open Core.Std
 open Async.Std
-open Kulfi_Options
 open Kulfi_Routing
 open Kulfi_Types
+open Kulfi_Traffic
 open Frenetic_OpenFlow
 open Frenetic_OpenFlow0x01
 open Message
@@ -58,13 +58,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
       topo = Topology.empty ();
       congestion = [];
       churn = [] }
-      
-  let shutdown () = 
-    (match !stats_out with 
-     | None -> return ()
-     | Some out -> Writer.close out) >>= fun () -> 
-    Pervasives.exit 0 
-                    
+                          
   (* Command-line Interface *)
   let rec cli () = 
     let help () = 
@@ -125,9 +119,20 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
       end;
       return () in
     let dump fn =
-      return () in 
+      let buf = Buffer.create 101 in 
+      Hashtbl.iter 
+	global_state.stats 
+	~f:(fun ~key:(sw,pt) ~data:stats -> 
+	    List.iter 
+	      stats 
+	      ~f:(fun (time,ps) -> 
+		  Printf.bprintf buf "%s\n" (string_of_stats sw (time,ps))));
+      Kulfi_Util.write_to_file fn (Buffer.contents buf);
+      return () in
     let eof () = 
-      shutdown () in 
+      dump (Printf.sprintf "kulfi-controller-%f.txt" (Unix.time ())) >>= 
+      fun () -> let _ = Unix.system "killall -9 openflow.native" in
+        Pervasives.exit 0 in
     let split s = 
       List.filter (String.split s ' ') ((<>) "") in 
     begin 
@@ -207,29 +212,55 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
        return ()
     | `Message(sw,_,StatsReplyMsg (PortRep psl as rep)) ->
        verbose (Printf.sprintf "stats from %Ld: %s" sw (reply_to_string rep));      
+       let time = Kulfi_Time.time () in 
        List.iter
          psl
-         ~f:(fun ps -> 
-             let pt = ps.port_no in
-             let time = Kulfi_Time.time () in 
-             (match !stats_out with
-              | None -> ()
-              | Some out ->
-                 Writer.writef out "%s\n%!" (string_of_stats sw (time, ps)));
-             safe_add global_state.stats (sw,pt) [(time, ps)] (@));
+         ~f:(fun ps -> safe_add global_state.stats (sw,ps.port_no) [(time, ps)] (@));
        return ()
     | `Message(_,_,msg) -> 
        return ()
+
+let initial_scheme init_str topo ic hm : scheme =
+  match init_str with
+  | None -> SrcDstMap.empty
+  | Some "mcf" ->
+     let d = next_demand ic hm in 
+     Kulfi_Routing.Mcf.solve topo d SrcDstMap.empty
+  | Some "vlb" ->
+     let d = next_demand ic hm in 
+     Kulfi_Routing.Vlb.solve topo d SrcDstMap.empty
+  | Some "raeke" ->
+     let d = next_demand ic hm in 
+     Kulfi_Routing.Raeke.solve topo d SrcDstMap.empty
+  | Some _ -> failwith  "Unrecognized initialization scheme"
+	      
       
-  let start topo predict actual () =
+  let start topo_fn predict_fn host_fn init_str () =
+    (* Parse topology *)
+    let topo = Frenetic_Network.Net.Parse.from_dotfile topo_fn in
+    (* Create fabric *)
     let flow_hash,tag_hash = Kulfi_Fabric.create topo in
-    let scm = Solver.solve topo predict SrcDstMap.empty in
-    print_configuration topo (configuration_of_scheme topo scm tag_hash) 0;
+    (* Open predicted demands *)
+    let (predict_host_map, predict_traffic_ic) = open_demands predict_fn host_fn topo in
+    (* Helper to generate host configurations *)
+    let scheme = initial_scheme init_str topo predict_traffic_ic predict_host_map in
+    let rec simulate i = 
+      try 
+	let predict = next_demand predict_traffic_ic predict_host_map in
+	let scheme' = Solver.solve topo predict scheme in
+	print_configuration topo (configuration_of_scheme topo scheme' tag_hash) i;
+	simulate (i+1)
+      with _ -> 
+	() in 
     let open Deferred in
+    (* Main code *)
+    Printf.eprintf "[Kulfi: generating configurations]\n%!";
+    simulate 0;
+    Printf.eprintf "[Kulfi: starting controller]\n%!";
     Controller.init 6633;
-    Printf.eprintf "[Kulfi Controller started]\n%!";
+    Printf.eprintf "[Kulfi: running...]\n%!";
     don't_wait_for (cli ());
-    (* don't_wait_for (port_stats_loop ()); *)
+    don't_wait_for (port_stats_loop ());
     don't_wait_for (Pipe.iter Controller.events (handler flow_hash));
     don't_wait_for (Pipe.iter msgs send);
     ()    

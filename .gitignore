@@ -20,3 +20,11 @@ expData
 *.clib
 *.d
 *.o
+data/demands/abilene/X01-36.gravity
+data/demands/abilene/X01-36.observed
+prediction/bin
+prediction/obj
+prediction/synthetic.txt
+prediction/synthetic.txt_ElasticNetRegression
+prediction/synthetic.txt_LinearRegression
+prediction/synthetic.txt_lastOne

@@ -1,4 +1,3 @@
-
 open Core.Std
 open Kulfi_Types
 open Frenetic_Network
@@ -11,7 +10,6 @@ let open_demands (demand_file:string) (host_file:string) (topo:topology) : (inde
 		   ~init:StringMap.empty
 		   ~f:(fun acc v ->
 		       let n = (Net.Topology.vertex_to_label topo v) in
-		       Printf.printf "Adding name '%s'\n" (Node.name n);
 		       (StringMap.add acc ~key:(Node.name n) ~data:v )) in
 
   let (_,host_map) = 
@@ -47,10 +45,9 @@ let next_demand (ic:in_channel) (host_map:index_map): demands =
     for j = 0 to (size-1) do      
       let s = match IntMap.find host_map i with | None -> assert false | Some x -> x in
       let d = match IntMap.find host_map j with | None -> assert false | Some x -> x in      
-      let v = entries.((i*size) + j)  in
-      demands := SrcDstMap.add !demands ~key:(s,d) ~data:(Float.of_string v)
+      (* Can't demand from yourself *)
+      let v = if i = j then 0.0 else Float.of_string (entries.((i*size) + j)) in
+      demands := SrcDstMap.add !demands ~key:(s,d) ~data:v
     done
   done;
   !demands
-
-
