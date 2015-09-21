@@ -72,10 +72,21 @@ let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) 
     ~init:EdgeMap.empty
     ~f:(fun ~key:e ~data:amount_sent acc ->
         EdgeMap.add ~key:e ~data:(amount_sent /. (capacity_of_edge t e)) acc) sent_on_each_edge 
+
+let is_int v =
+  let c = classify_float (fst (Float.modf v)) in
+  c == FP_zero
     
+let kth_percentile (l:float list) (k:float) : float =
+  let sorted_l = List.sort l in
+  let n = List.length l in
+  let i = Int.of_float ((Float.round_up ((Float.of_int n) *. k))) in
+  assert_false
+  (* List.nth i sorted_l  *)
+					      
     
 (*  assume that flow is fractionally split in the proportions indicated by the probabilities. *)
-let get_congestion (s:scheme) (t:topology) (d:demands) : float =
+let get_max_congestion (s:scheme) (t:topology) (d:demands) : float =
   let congestions = (congestion_of_paths s t d) in
   EdgeMap.fold ~init:Float.nan ~f:(fun ~key:e ~data:a acc -> Float.max_inan a acc) congestions
 
@@ -200,7 +211,7 @@ let simulate (spec_solvers:solver_type list)
 		  (* record *)
 		  let tm = (get_time_in_seconds at) in
 		  let ch = (get_churn scheme' scheme) in
-		  let cp = (get_congestion scheme' topo actual) in
+		  let cp = (get_max_congestion scheme' topo actual) in
 		  let np = (get_num_paths scheme') in
 	      	  
 		  add_record time_data (solver_to_string algorithm) {iteration = n; time=tm; time_dev=0.0; };	     
