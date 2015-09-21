@@ -2,9 +2,6 @@
 ./parse-stats.sh spf-stats.txt 
 ./plot-load-timeline.gnu 
 mv load-timeline.eps load-timeline-spf.eps
-./parse-stats.sh ecmp-stats.txt 
-./plot-load-timeline.gnu 
-mv load-timeline.eps load-timeline-ecmp.eps
 ./parse-stats.sh mcf-stats.txt 
 ./plot-load-timeline.gnu 
 mv load-timeline.eps load-timeline-mcf.eps
