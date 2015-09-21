@@ -9,7 +9,7 @@ INCLUDES  = \
 LDFLAGS   = \
  -L /usr/local/lib \
  -lopencv_core \
- -lopencv_highgui \
+ -lopencv_highgui
 
 include ../Makefile.exe
 

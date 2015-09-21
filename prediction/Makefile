@@ -7,8 +7,8 @@ all:
 
 clean:
 	make -C libpredict clean
-	make -C generate clean
-	make -C synthesize clean
+#	make -C generate clean
+#	make -C synthesize clean
 
 
 
