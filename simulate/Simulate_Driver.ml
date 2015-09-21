@@ -90,6 +90,11 @@ let get_max_congestion (s:scheme) (t:topology) (d:demands) : float =
   let congestions = (congestion_of_paths s t d) in
   EdgeMap.fold ~init:Float.nan ~f:(fun ~key:e ~data:a acc -> Float.max_inan a acc) congestions
 
+let get_congestion_percentiles (s:scheme) (t:topology) (d:demands) : float list =
+  let congestions = (congestion_of_paths s t d) in
+  let list_of_congestions = List.map ~f:(fun (a,b) -> b) EdgeMap.to_alist congestions in
+  let sorted_congestions =  List.sort ~cmp:(Float.compare) congestions in
+  assert false
                
 (* TODO(rjs): Do we count paths that have 0 flow ? *)    
 let get_churn (old_scheme:scheme) (new_scheme:scheme) : float =
