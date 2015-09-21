@@ -148,13 +148,15 @@ void generateSyntheticData(int row, int hosts, double ** m)
 	//return hosts*hosts
 	FILE * fPattern = fopen("patterns","r");
 	int nWeeks;
-	fscanf(fPattern, "%i", &nWeeks);
+	int frlt=fscanf(fPattern, "%i", &nWeeks);
+    if (frlt<0)
+        printf("!!!\n");
 	double ** totflow = new double *[nWeeks];
 	for (int curWeek = 0; curWeek < nWeeks;curWeek++)
 	{
 		totflow[curWeek] = new double[2016];
 		for (int i = 0; i < 2016; i++)
-			fscanf(fPattern, "%lf", &totflow[curWeek][i]);
+			frlt=fscanf(fPattern, "%lf", &totflow[curWeek][i]);
 	}
 
 	const int nfft = 2016;
@@ -216,14 +218,14 @@ void generateSyntheticData(int row, int hosts, double ** m)
 
 	int nMean;
 	FILE * fpareto = fopen("pareto", "r");
-	fscanf(fpareto, "%i", &nMean);
+	frlt=fscanf(fpareto, "%i", &nMean);
 
 	double * saveMean = new double[nMean];
 	for (int i = 0; i < nMean; i++)
-		fscanf(fpareto, "%lf", &saveMean[i]);
+		frlt=fscanf(fpareto, "%lf", &saveMean[i]);
 
 	//m[col][row];
-	int pickedTotPattern;
+	int pickedTotPattern=0;
 	double ** Tin = new double*[hosts];
 	double ** Tout = new double*[hosts];
 

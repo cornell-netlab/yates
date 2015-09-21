@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <vector>
 using namespace std;
-#include "openCVFunctions.h"
+//#include "openCVFunctions.h"
 #include "readwrite.h"
 typedef double(*objCalFunctionType)(double ** X_dat, double * Y_dat, int d, int n, void * modelPara, void * additionalStuff);
 typedef void(*gradientStepFunctionType) (double * x, double y, double *gradAns, int d, bool cumu, void * modelPara, void * additionalStuff);
@@ -26,9 +26,9 @@ void getData(double** dataM, int last, int pickwhich)
 	for (int i = 1; i <= last; i++)
 	{
 		if (i<10)
-			sprintf(buf, "data\\X0%i", i);
+			sprintf(buf, "data//X0%i", i);
 		else
-			sprintf(buf, "data\\X%i", i);
+			sprintf(buf, "data//X%i", i);
 		a = buf;
 		printf("%s\n", a.c_str());
 		FILE * f = fopen(a.c_str(), "r");
@@ -39,7 +39,9 @@ void getData(double** dataM, int last, int pickwhich)
 				for (int count = 0; count<numOfModel; count++)
 				{
 					double tmp;
-					fscanf(f, "%lf", &tmp);
+					int frlt=fscanf(f, "%lf", &tmp);
+                    if (frlt<0)
+                        printf("!!!\n");
 					if (count == pickwhich)
 						dataM[k][(i - 1) * 2016 + j] = tmp;
 				}
@@ -194,7 +196,11 @@ void uniVR(double ** X_dat, double * Y_dat, int d, int n,
 			break;
 		lastVal = curObj;
 	}
-	delete[] wtilde, utilde, g1, g2, save;
+	delete[] wtilde;
+    delete[] utilde;
+    delete[] g1;
+    delete[] g2;
+    delete[] save;
 }
 
 
@@ -330,7 +336,8 @@ void trainModel(trainModelFunctionType trainMethod,
 	trainMethod(X_dat, Y_dat, numOfFeature + 1, dataLen, avg, modelPara, additionalStuff);
 	for (int i = 0; i < dataLen; i++)
 		delete[] X_dat[i];
-	delete[] X_dat, Y_dat;
+	delete[] X_dat;
+    delete[] Y_dat;
 }
 
 double predictOneModel(predictNextFunctionType predictMethod, double * serve, int numOfFeature, int length, void * modelPara, void * addtionalStuff)
@@ -373,6 +380,10 @@ int main(int argc, char ** argv)
 	printf("    Please ensure 'patterns' file is in the current directory.\n");
 	printf("    Will write the actual data to file.\n");
 	printf("    Will write the predicted data to file_predictionAlgName.\n");
+
+	bool includeLastOneModel = false;
+	bool includeLinearRegressionModel = true;
+	bool includeElasticNetRegressionModel = true;
 
 	if (argc < 5) return goerr();
 	int dataCode;
@@ -439,9 +450,6 @@ int main(int argc, char ** argv)
 	additionalStuff[5] = 0.001; //stop Err
 
 	
-	bool includeLastOneModel = false;
-	bool includeLinearRegressionModel = true;
-	bool includeElasticNetRegressionModel = true;
 
 
 	if (includeLastOneModel)
@@ -466,6 +474,9 @@ int main(int argc, char ** argv)
 	int trainPeriod = 250;
 	//!++comment this line!
 	//col = 10;
+
+
+
 	if (includeLinearRegressionModel)
 	{
 		printf("Current ---------------- LinearRegressionModel!\n");
