@@ -9,10 +9,7 @@ INCLUDES  = \
 LDFLAGS   = \
  -L /usr/local/lib \
  -lopencv_core \
- -lopencv_highgui \
- -lboost_filesystem-mt \
- -lboost_system-mt \
- -lboost_program_options
+ -lopencv_highgui
 
 include ../Makefile.exe
 

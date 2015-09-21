@@ -38,6 +38,8 @@ void getData(double** dataM, int last, int pickwhich)
 				{
 					double tmp;
 					int frlt=fscanf(f, "%lf", &tmp);
+                    if (frlt<0)
+                        frlt++;
 					if (count == pickwhich)
 						dataM[k][(i - 1) * 2016 + j] = tmp;
 				}
@@ -182,7 +184,7 @@ void uniVR(double ** X_dat, double * Y_dat, int d, int n,
 			wtilde[j] = save[j] / m;
 		m = int(m* beta);
 		double curObj = objCal(X_dat, Y_dat, d, n, modelPara, additionalStuff);
-		printf("%.5lf  eta=%.5lf  w0=%.5lf  w1=%.5lf  w2=%.5lf\n", curObj, eta, w[0], w[1], w[2]);
+		//printf("%.5lf  eta=%.5lf  w0=%.5lf  w1=%.5lf  w2=%.5lf\n", curObj, eta, w[0], w[1], w[2]);
 		if (curObj > lastVal)
 		{
 			m = n / 4;
@@ -364,9 +366,10 @@ int doit(int argc, char ** argv)
 	srand(0);
 
 	printf("Menu:\n");
-	printf("Command: 1 col w file\n");
-	printf("    Example: 1 0 2 abi\n");
+	printf("Command: 1 col w file firstbunchCol\n");
+	printf("    Example: 1 0 2 abi 144\n");
 	printf("    This means read from first w weeks for abilene data's col-th column.\n");
+	printf("    firstbunchCol means only consider the firstbunchCols instead of 144 columns.\n");
 	printf("    Please ensure data/X01-X0w is in the current directory.\n");
 	printf("    Will write the actual data to file.\n");
 	printf("    Will write the predicted data to file_predictionAlgName.\n");
@@ -379,8 +382,8 @@ int doit(int argc, char ** argv)
 	printf("    Will write the actual data to file.\n");
 	printf("    Will write the predicted data to file_predictionAlgName.\n");
 
-	bool includeLastOneModel = false;
-	bool includeLinearRegressionModel = false;
+	bool includeLastOneModel = true;
+	bool includeLinearRegressionModel = true;
 	bool includeElasticNetRegressionModel = true;
 
 	if (argc < 5) return goerr();
@@ -423,6 +426,9 @@ int doit(int argc, char ** argv)
 	}
 	else
 		generateSyntheticData(totRow, hosts, dataM);
+
+    sscanf(argv[5],"%i",&col);
+
 
 	writeDemandMatrix(string(argv[4]), totRow, col, dataM, period, scale);
 

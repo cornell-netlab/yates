@@ -153,7 +153,7 @@ void generateSyntheticData(int row, int hosts, double ** m)
 	int nWeeks;
 	int frlt=fscanf(fPattern, "%i", &nWeeks);
     if (frlt<0)
-        printf("!!!\n");
+        frlt++;
 	double ** totflow = new double *[nWeeks];
 	for (int curWeek = 0; curWeek < nWeeks;curWeek++)
 	{
