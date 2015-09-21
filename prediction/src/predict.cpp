@@ -311,10 +311,12 @@ void trainModel(trainModelFunctionType trainMethod,
 		printf("ERROR! Not enough data.\n");
 		return;
 	}
-	double avg = 0;
+	double avg = 1.0;
 	for (int i = 0; i < length; i++)
 		avg += serve[i];
 	avg /= length;
+	if (avg < 1)
+		avg = 1.0;
 	int dataLen = length - numOfFeature;
 	double ** X_dat = new double*[dataLen];
 	double * Y_dat = new double[dataLen];
@@ -322,16 +324,16 @@ void trainModel(trainModelFunctionType trainMethod,
 	{
 		X_dat[i - numOfFeature] = new double[numOfFeature + 1];
 		X_dat[i - numOfFeature][0] = 1.0;
-		double max = 1;
+		double maxV = 1;
 		for (int j = 1; j <= numOfFeature; j++)
 		{
 			X_dat[i - numOfFeature][j] = serve[i - j] / avg;
-			if (max < X_dat[i - numOfFeature][j])
-				max = X_dat[i - numOfFeature][j];
+			if (maxV < X_dat[i - numOfFeature][j])
+				maxV = X_dat[i - numOfFeature][j];
 		}
 		for (int j = 0; j <= numOfFeature; j++)
-			X_dat[i - numOfFeature][j] /= max;
-		Y_dat[i - numOfFeature] = serve[i] / avg/max;
+			X_dat[i - numOfFeature][j] /= maxV;
+		Y_dat[i - numOfFeature] = serve[i] / avg/maxV;
 	}
 	trainMethod(X_dat, Y_dat, numOfFeature + 1, dataLen, avg, modelPara, additionalStuff);
 	for (int i = 0; i < dataLen; i++)
@@ -483,6 +485,8 @@ int main(int argc, char ** argv)
 		for (int i = 0; i <col ; i++)
 		{
 			printf("i=%i  ", i);
+			if (i == 12)
+				printf("here\n");
 			for (int j = 0; j < totRow; j++)
 			{
 				if (j < period)
