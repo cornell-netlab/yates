@@ -1,108 +1,36 @@
 #!/usr/bin/gnuplot 
-set terminal postscript eps enhanced color dashed lw 1 'Helvetica' 4
-set output 'load-timeline.eps'
-set title "Traffic on each edge - Abilene topology"
-set ylabel "TX bytes in an interval"
+set terminal postscript eps enhanced color dashed lw 1 'Helvetica' 16
+set output 'congestion-timeline.eps'
+set title "Congestion"
+set ylabel "Congestion"
 set xlabel "Time (s)"
-set xrange [0:200]
-#set yrange [0:65500000]
+#set xrange [0:50]
+#set yrange[0:1.2]
+filter(x)=((x>=0.0)?(shift7(x), x):(back3+back2+back1)/3)
+filter2(x)=x
+#((x>=0.0)?(prev=x, x):(prev))
+samples(x) = (x>6) ? 7 : (x+2)
+avg7(x) = (shift7(x), (back1+back2+back3+back4+back5+back6+back7)/samples($0))
+#avg7(x) = x
+shift7(x) = (back7 = back6, back6 = back5, back5 = back4, back4 = back3, back3 = back2, back2 = back1, back1 = x)
+init(x) = (back1 = back2 = back3 = back4 = back5 = back6 = back7 = sum = prev = 0)
+plot sum = init(0), \
+ "spf-cr.txt" using (avg7(filter2($1))) title "spf-max" with lines lt 1 lc 1   , \
+ sum = init(0), \
+ "spf-cr.txt" using (avg7(filter2($2))) title "spf-median" with lines lt 2 lc 1   , \
+# sum = init(0), \
+# "ecmp-cr.txt" using (avg7(filter($1))) title "ecmp-max" with lines lt 1 lc 3   , \
+# sum = init(0), \
+# "ak-cr.txt" using (avg7(filter($1))) title "ak-max" with lines lt 1 lc 4   , \
+# sum = init(0), \
+# "mcf-cr.txt" using (avg7(filter($1))) title "mcf-max" with lines lt 1 lc 5  , \
+# sum = init(0), \
+# "ecmp-cr.txt" using (avg7(filter2($2))) title "ecmp-median" with lines lt 2 lc 3   , \
+# sum = init(0), \
+# "ak-cr.txt" using (avg7(filter2($2))) title "ak-median" with lines lt 2 lc 4  , \
+# sum = init(0), \
+# "mcf-cr.txt" using (avg7(filter2($2))) title "mcf-median" with lines lt 2 lc 5  , \
 
-samples(x) = $0 > 4 ? 5 : ($0+1)
-sum5(x) = (shift5(x), (back1+back2+back3+back4+back5))
-shift5(x) = (back5 = back4, back4 = back3, back3 = back2, back2 = back1, back1 = x)
-init(x) = (back1 = back2 = back3 = back4 = back5 = sum = 0)
-set multiplot layout 6,6 rowsfirst
-set label 1 'a' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-1-sw-2.txt" using 1:(sum5($2)) every 5 title "sw-1-sw-2.txt" with lines lt 1
-set label 1 'b' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-2-sw-1.txt" using 1:(sum5($2)) every 5 title "sw-2-sw-1.txt" with lines lt 1
-set label 1 'c' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-2-sw-5.txt" using 1:(sum5($2)) every 5 title "sw-2-sw-5.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-2-sw-6.txt" using 1:(sum5($2)) every 5 title "sw-2-sw-6.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-2-sw-12.txt" using 1:(sum5($2)) every 5 title "sw-2-sw-12.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-3-sw-6.txt" using 1:(sum5($2)) every 5 title "sw-3-sw-6.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-3-sw-9.txt" using 1:(sum5($2)) every 5 title "sw-3-sw-9.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-4-sw-7.txt" using 1:(sum5($2)) every 5 title "sw-4-sw-7.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-4-sw-10.txt" using 1:(sum5($2)) every 5 title "sw-4-sw-10.txt" with lines lt 1
-plot sum = init(0),  312500000, \
- "sw-4-sw-11.txt" using 1:(sum5($2)) every 5 title "sw-4-sw-11.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-5-sw-2.txt" using 1:(sum5($2)) every 5 title "sw-5-sw-2.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-5-sw-7.txt" using 1:(sum5($2)) every 5 title "sw-5-sw-7.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-5-sw-8.txt" using 1:(sum5($2)) every 5 title "sw-5-sw-8.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-6-sw-2.txt" using 1:(sum5($2)) every 5 title "sw-6-sw-2.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-6-sw-3.txt" using 1:(sum5($2)) every 5 title "sw-6-sw-3.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-6-sw-7.txt" using 1:(sum5($2)) every 5 title "sw-6-sw-7.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-7-sw-4.txt" using 1:(sum5($2)) every 5 title "sw-7-sw-4.txt" with lines lt 1
-plot sum = init(0),  312500000, \
- "sw-7-sw-5.txt" using 1:(sum5($2)) every 5 title "sw-7-sw-5.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-7-sw-6.txt" using 1:(sum5($2)) every 5 title "sw-7-sw-6.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-8-sw-5.txt" using 1:(sum5($2)) every 5 title "sw-8-sw-5.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-8-sw-10.txt" using 1:(sum5($2)) every 5 title "sw-8-sw-10.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-9-sw-3.txt" using 1:(sum5($2)) every 5 title "sw-9-sw-3.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-9-sw-12.txt" using 1:(sum5($2)) every 5 title "sw-9-sw-12.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-10-sw-4.txt" using 1:(sum5($2)) every 5 title "sw-10-sw-4.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-10-sw-8.txt" using 1:(sum5($2)) every 5 title "sw-10-sw-8.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-10-sw-11.txt" using 1:(sum5($2)) every 5 title "sw-10-sw-11.txt" with lines lt 1
-
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-11-sw-4.txt" using 1:(sum5($2)) every 5 title "sw-11-sw-4.txt" with lines lt 1
-
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-11-sw-10.txt" using 1:(sum5($2)) every 5 title "sw-11-sw-10.txt" with lines lt 1
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-12-sw-2.txt" using 1:(sum5($2)) every 5 title "sw-12-sw-2.txt" with lines lt 1
-
-set label 1 'd' at graph 0.92,0.9 font ',4'
-plot sum = init(0),  312500000, \
- "sw-12-sw-9.txt" using 1:(sum5($2)) every 5 title "sw-12-sw-9.txt" with lines lt 1
 
 reset
 
