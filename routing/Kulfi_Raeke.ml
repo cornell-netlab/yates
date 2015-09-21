@@ -11,13 +11,13 @@ module MWInput : MW_INPUT with type structure = FRT.routing_tree = struct
 
   type structure = FRT.routing_tree
 
-  let select_structure (topo : topology) (nodes : Topology.VertexSet.t) =
+  let select_structure (topo : topology) (_:demands) (nodes : Topology.VertexSet.t) =
     (* First, make an FRT tree decomposition from the topology. *)
     let tree = FRT.make_frt_tree topo in
     let node_list = Topology.VertexSet.elements nodes in
     (FRT.generate_rt topo tree node_list, 1.)
 
-  let usage_of_structure (_ : topology) (st : FRT.routing_tree) =
+  let usage_of_structure (_ : topology) (_:demands) (st : FRT.routing_tree) =
     FRT.usage_of_tree st
 
   let set_weight topo edge w =
@@ -33,14 +33,14 @@ end
 (* multiplicative weights instantiation *)
 module RRTs : MW_ALG with type structure = FRT.routing_tree = Kulfi_Mw.Make (MWInput)
 
-let solve (t:topology) (_:demands) (s:scheme) : scheme =
+let solve (t:topology) (d:demands) (s:scheme) : scheme =
   if SrcDstMap.is_empty s then
     let epsilon = 0.1 in 
     let end_points = 
       VertexSet.filter (Topology.vertexes t) 
 	~f:(fun v -> let label = Topology.vertex_to_label t v in
 		     Node.device label = Node.Host) in
-    let _,mw_solution,_ = RRTs.hedge_iterations epsilon t end_points in   
+    let _,mw_solution,_ = RRTs.hedge_iterations epsilon t d end_points in   
     let paths src dst : probability PathMap.t = 
       List.fold_left mw_solution 
 	~init:PathMap.empty
