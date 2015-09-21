@@ -1,3 +1,6 @@
+#include "predict.h"
+#include "readwrite.h"
+
 #include <stdio.h> 
 #include <stdlib.h>
 #include <time.h>
@@ -6,14 +9,9 @@
 #include <math.h>
 #include <algorithm>
 #include <vector>
-using namespace std;
-//#include "openCVFunctions.h"
-#include "readwrite.h"
-typedef double(*objCalFunctionType)(double ** X_dat, double * Y_dat, int d, int n, void * modelPara, void * additionalStuff);
-typedef void(*gradientStepFunctionType) (double * x, double y, double *gradAns, int d, bool cumu, void * modelPara, void * additionalStuff);
-typedef void(*trainModelFunctionType) (double ** X_dat, double* Y_dat, int d, int n, double avg, void * modelPara, void * additionalStuff);
-typedef void(*predictNextFunctionType) (double * x, double * predictY, int d, void * modelPara, void * additionalStuff);
+#include <iostream> 
 
+using namespace std;
 
 /*
 Read Data:
@@ -72,7 +70,7 @@ void getMedianCol(double ** dataM, double ** medianM, int rows, int curCol, int 
 	}
 }
 
-void getMedianTable(double ** dataM, double ** medianM, int rows, int cols, int l = 4)
+void getMedianTable(double ** dataM, double ** medianM, int rows, int cols, int l)
 {
 	for (int i = 0; i < cols; i++)
 		getMedianCol(dataM, medianM, rows, i, l);
@@ -363,7 +361,7 @@ int goerr()
 	return 0;
 }
 
-int main(int argc, char ** argv)
+int doit(int argc, char ** argv)
 {
 	srand(0);
 
@@ -549,3 +547,4 @@ int main(int argc, char ** argv)
 	delete additionalStuff;
 	return 0;
 }
+

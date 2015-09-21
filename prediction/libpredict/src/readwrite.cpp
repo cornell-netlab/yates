@@ -1,6 +1,8 @@
-#include "readwrite.h"
 #include <random>
+#include <assert.h>
+#include "readwrite.h"
 #include "kiss_fft.h"
+
 
 double abso(double a)
 {
@@ -147,6 +149,7 @@ void generateSyntheticData(int row, int hosts, double ** m)
 {
 	//return hosts*hosts
 	FILE * fPattern = fopen("patterns","r");
+	assert(fPattern != NULL && "Unable to open petterns file");
 	int nWeeks;
 	int frlt=fscanf(fPattern, "%i", &nWeeks);
     if (frlt<0)
