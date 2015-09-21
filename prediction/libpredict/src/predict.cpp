@@ -439,6 +439,10 @@ int doit(int argc, char ** argv)
 	writeDemandMatrix(string(argv[4]), totRow, col, dataM, period, scale);
 
 
+
+    writeDemandMatrix(string(argv[4])+string("+notaALG+wthBurnIn"), totRow, col, outM, period, scale);
+
+
 	
 	//Compute patterns:
 	//	if (readFiles == 24) computePatterns(dataM);
