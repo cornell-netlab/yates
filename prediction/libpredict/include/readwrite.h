@@ -27,4 +27,4 @@ double cxnorm(kiss_fft_cpx a);
 
 double uniform_rand(double a, double b);
 
-void generateSyntheticData(int row, int hosts, double ** m);
+void generateSyntheticData(int row, int hosts, double ** m, char* prefix);

@@ -373,12 +373,12 @@ int doit(int argc, char ** argv)
 	printf("    Please ensure data/X01-X0w is in the current directory.\n");
 	printf("    Will write the actual data to file.\n");
 	printf("    Will write the predicted data to file_predictionAlgName.\n");
-	printf("Command: 2 r h file scale\n");
+	printf("Command: 2 r h file scale dir\n");
 	printf("    Example: 2 2000 3 synthetic_1 2.0\n");
 	printf("    This generates r rows of data for h hosts.\n");
 	printf("    please choose scale comparing with Abilene data.\n");
 	printf("    That is, scale=1.0 if using Abilene, scale=100.0, if using some network with huge traffic.\n");
-	printf("    Please ensure 'patterns' file is in the current directory.\n");
+	printf("    Please ensure 'patterns', 'pareto' are in the dir/ directory.\n");
 	printf("    Will write the actual data to file.\n");
 	printf("    Will write the predicted data to file_predictionAlgName.\n");
 
@@ -395,7 +395,7 @@ int doit(int argc, char ** argv)
 	int hosts;
 	int period = 1000;
 	double scale = 1.0;
-
+    char prefix[200];
 
 	if (dataCode == 1)
 	{
@@ -413,6 +413,9 @@ int doit(int argc, char ** argv)
 		totRow += period;
 		sscanf(argv[3], "%i", &hosts);
 		sscanf(argv[5], "%lf", &scale);
+        if (argc>6)
+            sprintf(prefix, "%s", argv[6]);
+
 		col = hosts*hosts;
 	}
 	double ** dataM = new double *[col];
@@ -429,7 +432,7 @@ int doit(int argc, char ** argv)
 		getData(dataM, readFiles,pickwhich);
 	}
 	else
-		generateSyntheticData(totRow, hosts, dataM);
+		generateSyntheticData(totRow, hosts, dataM, prefix);
 
 
 
