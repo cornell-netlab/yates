@@ -39,7 +39,7 @@ void getData(double** dataM, int last, int pickwhich)
 					double tmp;
 					int frlt=fscanf(f, "%lf", &tmp);
                     if (frlt<0)
-                        printf("!!!\n");
+                        frlt++;
 					if (count == pickwhich)
 						dataM[k][(i - 1) * 2016 + j] = tmp;
 				}
