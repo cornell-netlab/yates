@@ -186,7 +186,8 @@ let configuration_of_scheme (topo:topology) (scm:scheme) (tag_hash: (edge,int) H
                      assert false
                   | _::path' -> 
                      let tags =
-                       List.map
+                       List.filter ~f:(fun x -> x <> 99)
+                       (List.map
                          path'
                          ~f:(fun edge ->
                              match Hashtbl.find tag_hash edge with
@@ -194,7 +195,8 @@ let configuration_of_scheme (topo:topology) (scm:scheme) (tag_hash: (edge,int) H
                                 Printf.printf "Couldn't find %s\n" (dump_edges topo [edge]);
                                 99
                              | Some t ->
-                                t) in 
+                                t)
+                        ) in 
                      TagsMap.add acc ~key:tags ~data:prob) in
         SrcDstMap.add acc ~key:(src,dst) ~data:tags)
 
