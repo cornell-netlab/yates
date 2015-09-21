@@ -21,5 +21,5 @@ sudo ethtool -K em2 tso off
 sudo ethtool -K em2 gso off
 sudo ifconfig em2 mtu 1480 up
 
-cat $DIR/routes/${IP}_0 >> /proc/kulfi
+cat $DIR/routes/${IP}_0 > /proc/kulfi
 exit 0

@@ -19,7 +19,7 @@
 #define FLOW_SIZE_SCALE_UP 80
 #define THRESH 10
 
-#define TM_NUM_ROWS 10
+#define TM_NUM_ROWS 36
 #define DRY_RUN 0
 
 
@@ -150,6 +150,7 @@ void usage()
     cout << "3: Scale 5 mins in traces to x seconds" << endl;
     cout << "4: Dynamic Routing Table? (0/1)" << endl;
     cout << "5: Scale up flow sizes by a factor" << endl;
+    cout << "6: Run id" << endl;
 }
 
 int main(int argc, char *argv[])
@@ -167,8 +168,8 @@ int main(int argc, char *argv[])
     int dyn_rt = 0;     // Should routes be dynamically updated
     float factor = 1;   // scaling factor for demands
     int scaled_to_time; // scale down 5 min trace to scaled_to_time seconds
-    stringstream cmd;   // system command
-    if (argc < 6) {
+    int run_id; 	// Run id
+    if (argc < 7) {
         usage();
         return 1;
     }
@@ -185,6 +186,7 @@ int main(int argc, char *argv[])
     float actual_dst_sent[12];
     float actual_total_sent;
     float dst_remaining, total_remaining;
+    stringstream cmd;   // system command
     /* Parse arguments */
     node_id = atoi(argv[1]);
     if (node_id < 1 || node_id > 12) {
@@ -200,8 +202,9 @@ int main(int argc, char *argv[])
     scaled_to_time = atoi(argv[3]);
     dyn_rt = atoi(argv[4]);
     factor = atof(argv[5]);
+    run_id = atoi(argv[6]);
 
-    srand(time(NULL));
+    srand(run_id);
 
     /* Read flow size distribution */
     avg_flow_size = read_flow_byte_sizes(flow_byte_sizes) * factor;
@@ -216,6 +219,7 @@ int main(int argc, char *argv[])
             float dem;
             tm >> dem;
             if (j % 5 == tm_model - 1) {
+                // Abilene data units are in 100B/5min
                 row.push_back(dem * 100/300 * scaled_to_time * factor);
             }
         }

@@ -232,12 +232,12 @@ int main(int argc, char *argv[]){
             replay_script << "fi" << endl;
             replay_script << "./sync-client -s olympic -p 7000 " << endl;
 
-            replay_script << "killall -9 iperf" << endl;
             // iterate over all destinations
             for (std::map<string, int>::iterator dst=routers.begin(); dst!=routers.end(); ++dst){
                 // 100 bytes / 5 mins * scaled_to_time s - bytes to be sent in scaled_to_time seconds
                 long int rate_bps = demand[time][dmd_index[src->second][dst->second]] * factor *100 / 300 * 8; //bps
                 if(rate_bps > 0){
+                    replay_script << "kill -9 `ps -ax | grep \"iperf -c 10.0.0." << dst->second+1 << "\" |  cut -f 1 -d \" \"` " << endl;
                     replay_script << "iperf -c 10.0.0." << dst->second+1 << " -u -b " << rate_bps << " -t " << scaled_to_time << " &" << endl;
                 }
             }

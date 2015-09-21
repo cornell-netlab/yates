@@ -11,7 +11,7 @@ FACTOR=$6
 TRAFFIC_GEN=$7
 if [ "$#" -ne 7 ]
 then
-	echo ${RED}"Usage: $0 <run_id> <regenerate_script?(0/1)> <time-scale-down> <TM model> <Dynamic RT(0/1)> <scale-up factor> <traffic_generator scripted/realtime>"${RESTORE}
+	echo ${RED}"Usage: $0 <run_id> <regenerate_script?(0/1)> <time-scale-down> <TM model> <Dynamic RT(0/1)> <scale-up factor> <traffic_generator scripted_tcp/scripted_udp/realtime>"${RESTORE}
 	exit 0
 fi
 
@@ -39,9 +39,9 @@ then
 	exit 0
 fi
 
-if [ "$TRAFFIC_GEN" != "scripted" ] && [ "$TRAFFIC_GEN" != "realtime" ]
+if [ "$TRAFFIC_GEN" != "scripted_tcp" ] && [ "$TRAFFIC_GEN" != "scripted_udp" ] && [ "$TRAFFIC_GEN" != "realtime" ]
 then
-	echo ${RED} "Invalid CANNED_REPLAY (0/1) specified. Use 0 for a more realistic traffic generator. Exiting"${RESTORE}
+	echo ${RED} "Invalid TRAFFIC_GENERATOR. Exiting"${RESTORE}
 	exit 0
 fi
 
