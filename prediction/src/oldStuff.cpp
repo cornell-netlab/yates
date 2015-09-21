@@ -11,21 +11,25 @@ int readFile_fast(std::string filename, int * n, int * d, double ** X_dat, doubl
 	*n = 0;
 	*d = 0;
 	int totf;
+    int frlt=0;
+
 	while (true)
 	{
-		fscanf(fin, "%lf", Y_dat + (*n));
+		frlt=fscanf(fin, "%lf", Y_dat + (*n));
 		if (Y_dat[*n] < -50) break;
-		fscanf(fin, "%i", &totf);
+		frlt=fscanf(fin, "%i", &totf);
 		for (int i = 0; i<totf; i++)
 		{
 			int a;
-			fscanf(fin, "%i", &a);
-			fscanf(fin, "%lf", &X_dat[*n][a]);
+			frlt=fscanf(fin, "%i", &a);
+			frlt=fscanf(fin, "%lf", &X_dat[*n][a]);
 			if (a > *d)
 				*d = a;
 		}
 		(*n)++;
 	}
 	(*d)++;
+    if (frlt<-1)
+        printf("err\n");
 	return 0;
 }

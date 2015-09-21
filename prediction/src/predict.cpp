@@ -474,10 +474,6 @@ int main(int argc, char ** argv)
 	int nLinearRegressionFeatures = 10;
 	double * linearRegressionW = new double[nLinearRegressionFeatures+1]; //include the constant parameter;
 	int trainPeriod = 250;
-	//!++comment this line!
-	//col = 10;
-
-
 
 	if (includeLinearRegressionModel)
 	{
@@ -485,8 +481,6 @@ int main(int argc, char ** argv)
 		for (int i = 0; i <col ; i++)
 		{
 			printf("i=%i  ", i);
-			if (i == 12)
-				printf("here\n");
 			for (int j = 0; j < totRow; j++)
 			{
 				if (j < period)
@@ -503,7 +497,7 @@ int main(int argc, char ** argv)
 		writeDemandMatrix(string(argv[4])+string("_LinearRegression_riskAverse"), totRow, col, outM, period, scale, true, dataM);
 	}
 
-	nLinearRegressionFeatures = 30;
+	nLinearRegressionFeatures = 10;
 	additionalStuff[0] = 0.2;  //sigma
 	additionalStuff[1] = 0.1; //lambda
 	if (includeElasticNetRegressionModel)
@@ -518,13 +512,14 @@ int main(int argc, char ** argv)
 					outM[i][j] = dataM[i][(j>1)?(j-1):0];
 				else
 				{
-					if (j%period==0)
-						trainModel(linearRegressionTrain, dataM[i], nLinearRegressionFeatures, j, linearRegressionW, additionalStuff);
+					if (j%trainPeriod==0)
+						trainModel(linearRegressionTrain, &dataM[i][j-trainPeriod], nLinearRegressionFeatures, trainPeriod, linearRegressionW, additionalStuff);
 					outM[i][j] = predictOneModel(linearRegressionPredict, dataM[i], nLinearRegressionFeatures, j, linearRegressionW, additionalStuff);
 				}
 			}
 		}
 		writeDemandMatrix(string(argv[4])+string("_ElasticNetRegression"), totRow, col, outM, period, scale);
+		writeDemandMatrix(string(argv[4])+string("_ElasticNetRegression_riskAverse"), totRow, col, outM, period, scale, true, dataM);
 	}
 
 
