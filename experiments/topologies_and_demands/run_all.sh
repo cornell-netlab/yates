@@ -1,7 +1,7 @@
 #!/bin/bash
 
 THIS_DIR=.
-PREDICT=${THIS_DIR}/prediction/bin/predict
+PREDICT=${THIS_DIR}/prediction/predict/bin/predict
 TOPOLOGY_FILES=${THIS_DIR}/data/topologies/zoo/*.dot 
 
 for tf in $TOPOLOGY_FILES
