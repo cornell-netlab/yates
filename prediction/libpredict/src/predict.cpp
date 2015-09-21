@@ -382,8 +382,8 @@ int doit(int argc, char ** argv)
 	printf("    Will write the actual data to file.\n");
 	printf("    Will write the predicted data to file_predictionAlgName.\n");
 
-	bool includeLastOneModel = false;
-	bool includeLinearRegressionModel = false;
+	bool includeLastOneModel = true;
+	bool includeLinearRegressionModel = true;
 	bool includeElasticNetRegressionModel = true;
 
 	if (argc < 5) return goerr();
@@ -427,7 +427,7 @@ int doit(int argc, char ** argv)
 	else
 		generateSyntheticData(totRow, hosts, dataM);
 
-    sscanf(argv[5],"%lf",&col);
+    sscanf(argv[5],"%i",&col);
 
 
 	writeDemandMatrix(string(argv[4]), totRow, col, dataM, period, scale);
