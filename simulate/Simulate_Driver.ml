@@ -238,6 +238,7 @@ let command =
     +> flag "-smcfvlb" no_arg ~doc:" run semi mcf+vlb"
     +> flag "-smcfraeke" no_arg ~doc:" run semi mcf+raeke"
     +> flag "-raeke" no_arg ~doc:" run raeke"
+    +> flag "-all" no_arg ~doc:" run all schemes"
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
     +> anon ("predict-file" %: string)
@@ -254,6 +255,7 @@ let command =
 	 (smcfvlb:bool)
 	 (smcfraeke:bool)
 	 (raeke:bool)
+	 (all:bool)
 	 (topology_file:string)
 	 (demand_file:string)
 	 (predict_file:string)
@@ -262,17 +264,17 @@ let command =
      let algorithms =
        List.filter_map
          ~f:(fun x -> x)
-         [ if mcf then Some Mcf else None
-         ; if vlb then Some Vlb else None
-         ; if ecmp then Some Ecmp else None
-         ; if spf then Some Spf else None
-	 ; if akmcf then Some AkMcf else None
-	 ; if akvlb then Some AkVlb else None
-	 ; if akraeke then Some AkRaeke else None
-         ; if raeke then Some Raeke else None 
-         ; if smcfmcf then Some SmcfMcf else None
-	 ; if smcfvlb then Some SmcfVlb else None
-	 ; if smcfraeke then Some SmcfRaeke else None ] in 
+         [ if mcf || all then Some Mcf else None
+         ; if vlb || all then Some Vlb else None
+         ; if ecmp || all then Some Ecmp else None
+         ; if spf || all then Some Spf else None
+	 ; if akmcf || all then Some AkMcf else None
+	 ; if akvlb || all then Some AkVlb else None
+	 ; if akraeke || all then Some AkRaeke else None
+         ; if raeke || all then Some Raeke else None 
+         ; if smcfmcf || all then Some SmcfMcf else None
+	 ; if smcfvlb || all then Some SmcfVlb else None
+	 ; if smcfraeke || all then Some SmcfRaeke else None ] in 
      simulate algorithms topology_file demand_file predict_file host_file iterations () )
 
 let main = Command.run command
