@@ -145,10 +145,13 @@ double uniform_rand(double a, double b)
 	return a + ((double)getRandNum(range)) / range * (b - a);
 }
 
-void generateSyntheticData(int row, int hosts, double ** m)
+void generateSyntheticData(int row, int hosts, double ** m,char* prefix)
 {
-	//return hosts*hosts
-	FILE * fPattern = fopen("patterns","r");
+    char filedir[200];
+    sprintf(filedir,"%s%s", prefix,"patterns");
+    printf("dir=%s!\n", filedir);
+	FILE * fPattern = fopen(filedir,"r");
+	//FILE * fPattern = fopen("patterns","r");
 	assert(fPattern != NULL && "Unable to open petterns file");
 	int nWeeks;
 	int frlt=fscanf(fPattern, "%i", &nWeeks);
@@ -210,6 +213,7 @@ void generateSyntheticData(int row, int hosts, double ** m)
 	}
 
 
+    /*
 	FILE * fFFTout = fopen("fftout", "w");
 	for (int curWeek = 0; curWeek < nWeeks; curWeek++)
 	{
@@ -218,9 +222,14 @@ void generateSyntheticData(int row, int hosts, double ** m)
 		fprintf(fFFTout, "\n");
 	}
 	fclose(fFFTout);
+    */
 
 	int nMean;
-	FILE * fpareto = fopen("pareto", "r");
+    char filedir2[200];
+    sprintf(filedir2,"%s%s", prefix,"pareto");
+    printf("dir=%s!\n", filedir2);
+	FILE * fpareto = fopen(filedir2, "r");
+	//FILE * fpareto = fopen("pareto", "r");
 	frlt=fscanf(fpareto, "%i", &nMean);
 
 	double * saveMean = new double[nMean];
@@ -283,7 +292,7 @@ void generateSyntheticData(int row, int hosts, double ** m)
 		{ 
 			//pickedTotPattern = getRandNum(nWeeks);
 			pickedTotPattern = (i/2016)%20;
-			printf("picked patter week=-------%i-------\n", pickedTotPattern);
+			//printf("picked patter week=-------%i-------\n", pickedTotPattern);
 		}
 		for (int j = 0; j < hosts; j++)
 			for (int k = 0; k < hosts; k++)
