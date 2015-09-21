@@ -12,8 +12,8 @@ open AutoTimer
 
 type solver_type =
   | Mcf | Vlb | Ecmp | Spf | Raeke
-  | AkMcf | AkVlb | AkRaeke
-  | SmcfMcf | SmcfVlb | SmcfRaeke
+  | AkMcf | AkVlb | AkRaeke | AkEcmp
+  | SmcfMcf | SmcfVlb | SmcfRaeke | SmcfEcmp
  
 let solver_to_string (s:solver_type) : string =
   match s with 
@@ -25,9 +25,11 @@ let solver_to_string (s:solver_type) : string =
   | AkMcf -> "akmcf"
   | AkVlb -> "akvlb"
   | AkRaeke -> "akraeke"
+  | AkEcmp -> "akecmp"
   | SmcfMcf -> "smcfmcf"
   | SmcfVlb -> "smcfvlb"
   | SmcfRaeke -> "smcfraeke"
+  | SmcfEcmp -> "smcfecmp"
 	       
 let select_algorithm solver = match solver with
   | Mcf -> Kulfi_Routing.Mcf.solve
@@ -35,12 +37,14 @@ let select_algorithm solver = match solver with
   | Ecmp -> Kulfi_Routing.Ecmp.solve
   | Spf -> Kulfi_Routing.Spf.solve
   | Raeke -> Kulfi_Routing.Raeke.solve
-  | AkMcf -> Kulfi_Routing.Ak.solve
-  | AkVlb -> Kulfi_Routing.Ak.solve
-  | AkRaeke -> Kulfi_Routing.Ak.solve
-  | SmcfMcf -> Kulfi_Routing.SemiMcf.solve 
-  | SmcfVlb -> Kulfi_Routing.SemiMcf.solve 
-  | SmcfRaeke -> Kulfi_Routing.SemiMcf.solve 
+  | AkMcf 
+  | AkVlb 
+  | AkRaeke 
+  | AkEcmp -> Kulfi_Routing.Ak.solve
+  | SmcfMcf 
+  | SmcfVlb 
+  | SmcfRaeke
+  | SmcfEcmp -> Kulfi_Routing.SemiMcf.solve 
 	       
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
   let sent_on_each_edge = 
@@ -75,6 +79,11 @@ let get_congestion (s:scheme) (t:topology) (d:demands) : float =
   let congestions = (congestion_of_paths s t d) in
   EdgeMap.fold ~init:Float.nan ~f:(fun ~key:e ~data:a acc -> Float.max_inan a acc) congestions
 
+let get_congestion_percentiles (s:scheme) (t:topology) (d:demands) : float list =
+  let congestions = (congestion_of_paths s t d) in
+  let list_of_congestions = List.map ~f:(fun (a,b) -> b) EdgeMap.to_alist congestions in
+  let sorted_congestions =  List.sort ~cmp:(Float.compare) congestions in
+  assert false
                
 (* TODO(rjs): Do we count paths that have 0 flow ? *)    
 let get_churn (old_scheme:scheme) (new_scheme:scheme) : float =
@@ -119,6 +128,11 @@ let initial_scheme algorithm topo aic ahm pic phm : scheme =
      let _ = next_demand aic ahm in 
      let d = next_demand pic phm in 
      Kulfi_Routing.Raeke.solve topo d SrcDstMap.empty
+  | SmcfEcmp 
+  | AkEcmp ->
+     let _ = next_demand aic ahm in 
+     let d = next_demand pic phm in 
+     Kulfi_Routing.Ecmp.solve topo d SrcDstMap.empty
   | _ -> SrcDstMap.empty
 
 			
@@ -152,7 +166,7 @@ let simulate (spec_solvers:solver_type list)
   
   let time_data = make_data "Iteratives Vs Time" in
   let churn_data = make_data "Churn Vs Time" in
-  let congestion_data = make_data "Congestion Vs Time" in
+  let max_congestion_data = make_data "Congestion Vs Time" in
   let num_paths_data = make_data "Num. Paths Vs Time" in
 
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
@@ -196,7 +210,7 @@ let simulate (spec_solvers:solver_type list)
 	      	  
 		  add_record time_data (solver_to_string algorithm) {iteration = n; time=tm; time_dev=0.0; };	     
 		  add_record churn_data (solver_to_string algorithm) {iteration = n; churn=ch; churn_dev=0.0; };
-		  add_record congestion_data (solver_to_string algorithm) {iteration = n; congestion=cp; congestion_dev=0.0; };
+		  add_record max_congestion_data (solver_to_string algorithm) {iteration = n; congestion=cp; congestion_dev=0.0; };
 		  add_record num_paths_data (solver_to_string algorithm) {iteration = n; num_paths=np; num_paths_dev=0.0; };
 		  
 		  scheme') );
@@ -212,13 +226,13 @@ let simulate (spec_solvers:solver_type list)
   let dir = "./expData/" in
 
   to_file dir "ChurnVsIterations.dat" churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
-  to_file dir "CongestionVsIterations.dat" congestion_data "# solver\titer\tcongestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "MaxCongestionVsIterations.dat" max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string;
   to_file dir "NumPathsVsIterations.dat" num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
   to_file dir "TimeVsIterations.dat" time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;  
   
   Printf.printf "%s" (to_string time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string);
   Printf.printf "%s" (to_string churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
-  Printf.printf "%s" (to_string congestion_data "# solver\titer\tcongestion\tstddev" iter_vs_congestion_to_string);
+  Printf.printf "%s" (to_string max_congestion_data "# solver\titer\tcongestion\tstddev" iter_vs_congestion_to_string);
   Printf.printf "%s" (to_string num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string)
 		
 		
@@ -234,9 +248,11 @@ let command =
     +> flag "-akmcf" no_arg ~doc:" run ak+mcf"
     +> flag "-akvlb" no_arg ~doc:" run ak+vlb"
     +> flag "-akraeke" no_arg ~doc:" run ak+raeke"
+    +> flag "-akecmp" no_arg ~doc:" run ak+ecmp"
     +> flag "-smcfmcf" no_arg ~doc:" run semi mcf+mcf"
     +> flag "-smcfvlb" no_arg ~doc:" run semi mcf+vlb"
     +> flag "-smcfraeke" no_arg ~doc:" run semi mcf+raeke"
+    +> flag "-smcfecmp" no_arg ~doc:" run semi mcf+ecmp"
     +> flag "-raeke" no_arg ~doc:" run raeke"
     +> flag "-all" no_arg ~doc:" run all schemes"
     +> anon ("topology-file" %: string)
@@ -251,9 +267,11 @@ let command =
 	 (akmcf:bool)
 	 (akvlb:bool)
 	 (akraeke:bool)
+	 (akecmp:bool)
 	 (smcfmcf:bool)
 	 (smcfvlb:bool)
 	 (smcfraeke:bool)
+	 (smcfecmp:bool)
 	 (raeke:bool)
 	 (all:bool)
 	 (topology_file:string)
@@ -270,9 +288,11 @@ let command =
          ; if spf || all then Some Spf else None
 	 ; if akmcf || all then Some AkMcf else None
 	 ; if akvlb || all then Some AkVlb else None
+	 ; if akecmp || all then Some AkVlb else None
 	 ; if akraeke || all then Some AkRaeke else None
          ; if raeke || all then Some Raeke else None 
          ; if smcfmcf || all then Some SmcfMcf else None
+	 ; if smcfecmp || all then Some SmcfMcf else None
 	 ; if smcfvlb || all then Some SmcfVlb else None
 	 ; if smcfraeke || all then Some SmcfRaeke else None ] in 
      simulate algorithms topology_file demand_file predict_file host_file iterations () )

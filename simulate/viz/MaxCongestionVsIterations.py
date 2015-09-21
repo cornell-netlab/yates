@@ -6,7 +6,7 @@ from collections import OrderedDict
 import numpy as np
 import matplotlib.pyplot as pp
 
-EXPERIMENT_NAME = "CongestionVsIterations"
+EXPERIMENT_NAME = "MaxCongestionVsIterations"
 X_LABEL         = "Iterations"
 Y_LABEL         = "Congestion"
             
