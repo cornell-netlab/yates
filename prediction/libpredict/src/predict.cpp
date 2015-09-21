@@ -366,10 +366,10 @@ int doit(int argc, char ** argv)
 	srand(0);
 
 	printf("Menu:\n");
-	printf("Command: 1 col w file firstbunchCol\n");
-	printf("    Example: 1 0 2 abi 144\n");
+	printf("Command: 1 col w file firstbunchRow\n");
+	printf("    Example: 1 0 2 abi 1016\n");
 	printf("    This means read from first w weeks for abilene data's col-th column.\n");
-	printf("    firstbunchCol means only consider the firstbunchCols instead of 144 columns.\n");
+	printf("    firstbunchRow means only consider the firstbunchRows instead of thousands of them\n");
 	printf("    Please ensure data/X01-X0w is in the current directory.\n");
 	printf("    Will write the actual data to file.\n");
 	printf("    Will write the predicted data to file_predictionAlgName.\n");
@@ -401,7 +401,11 @@ int doit(int argc, char ** argv)
 	{
 		col = 144;
 		sscanf(argv[3], "%i", &readFiles);
-		totRow = readFiles * 2016;
+		//totRow = readFiles * 2016;
+        sscanf(argv[5],"%i",&totRow);
+        totRow+=period;
+        if (totRow>readFiles*2016)
+            printf("error!\n");
 	}
 	else
 	{
@@ -427,7 +431,6 @@ int doit(int argc, char ** argv)
 	else
 		generateSyntheticData(totRow, hosts, dataM);
 
-    sscanf(argv[5],"%i",&col);
 
 
 	writeDemandMatrix(string(argv[4]), totRow, col, dataM, period, scale);
@@ -545,10 +548,12 @@ int doit(int argc, char ** argv)
 		printf("randomForest, %.5lf actual=%.5lf\n", ans, dataM[0][i]);
 	}*/
 
+    /*
 	for (int i = 0; i < col; i++)
 		delete[] dataM[i];
 	delete[] dataM;
 	delete additionalStuff;
+    */
 	return 0;
 }
 
