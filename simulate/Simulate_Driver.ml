@@ -161,7 +161,7 @@ let simulate (spec_solvers:solver_type list)
   
   let time_data = make_data "Iteratives Vs Time" in
   let churn_data = make_data "Churn Vs Time" in
-  let congestion_data = make_data "Congestion Vs Time" in
+  let max_congestion_data = make_data "Congestion Vs Time" in
   let num_paths_data = make_data "Num. Paths Vs Time" in
 
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
@@ -205,7 +205,7 @@ let simulate (spec_solvers:solver_type list)
 	      	  
 		  add_record time_data (solver_to_string algorithm) {iteration = n; time=tm; time_dev=0.0; };	     
 		  add_record churn_data (solver_to_string algorithm) {iteration = n; churn=ch; churn_dev=0.0; };
-		  add_record congestion_data (solver_to_string algorithm) {iteration = n; congestion=cp; congestion_dev=0.0; };
+		  add_record max_congestion_data (solver_to_string algorithm) {iteration = n; congestion=cp; congestion_dev=0.0; };
 		  add_record num_paths_data (solver_to_string algorithm) {iteration = n; num_paths=np; num_paths_dev=0.0; };
 		  
 		  scheme') );
@@ -221,13 +221,13 @@ let simulate (spec_solvers:solver_type list)
   let dir = "./expData/" in
 
   to_file dir "ChurnVsIterations.dat" churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
-  to_file dir "CongestionVsIterations.dat" congestion_data "# solver\titer\tcongestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "MaxCongestionVsIterations.dat" max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string;
   to_file dir "NumPathsVsIterations.dat" num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
   to_file dir "TimeVsIterations.dat" time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;  
   
   Printf.printf "%s" (to_string time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string);
   Printf.printf "%s" (to_string churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
-  Printf.printf "%s" (to_string congestion_data "# solver\titer\tcongestion\tstddev" iter_vs_congestion_to_string);
+  Printf.printf "%s" (to_string max_congestion_data "# solver\titer\tcongestion\tstddev" iter_vs_congestion_to_string);
   Printf.printf "%s" (to_string num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string)
 		
 		
