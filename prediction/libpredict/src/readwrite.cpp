@@ -213,6 +213,7 @@ void generateSyntheticData(int row, int hosts, double ** m,char* prefix)
 	}
 
 
+    /*
 	FILE * fFFTout = fopen("fftout", "w");
 	for (int curWeek = 0; curWeek < nWeeks; curWeek++)
 	{
@@ -221,6 +222,7 @@ void generateSyntheticData(int row, int hosts, double ** m,char* prefix)
 		fprintf(fFFTout, "\n");
 	}
 	fclose(fFFTout);
+    */
 
 	int nMean;
     char filedir2[200];
