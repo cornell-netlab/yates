@@ -10,10 +10,10 @@ module type MW_INPUT = sig
 
   (* Gets the next structure (e.g. path) that we are going to augment the
    * flow by, along with the weight of that structure. *)
-  val select_structure : topology -> Net.Topology.VertexSet.t -> (structure * float)
+  val select_structure : topology -> demands -> Net.Topology.VertexSet.t -> (structure * float)
 
   (* Gets the usages of every edge in the topology. *)
-  val usage_of_structure : topology -> structure -> (edge * float) list
+  val usage_of_structure : topology -> demands  -> structure -> (edge * float) list
 
   (* Gets the usage of one edge in the topology. *)
   val get_weight : topology -> edge -> float
@@ -27,11 +27,11 @@ module type MW_ALG = sig
 
   type structure
 
-  val hedge : float -> float -> topology -> Topology.VertexSet.t
+  val hedge : float -> float -> topology -> demands -> Topology.VertexSet.t
     -> (edge, float) Hashtbl.t
     -> (structure * float * topology * (edge, float) Hashtbl.t)
 
-  val hedge_iterations : float -> topology -> Topology.VertexSet.t ->
+  val hedge_iterations : float -> topology -> demands -> Topology.VertexSet.t ->
     (int * (structure * float) list * topology)
 
 end
@@ -48,10 +48,10 @@ module Make = functor (Experts : MW_INPUT) -> struct
   (* TODO(cy): rewrite most of this to eliminate clutter from
    * previous versions *)
 
-  let hedge (epsilon : float) (delta : float) (topo : topology)
+  let hedge (epsilon : float) (delta : float) (topo : topology) (d:demands)
       (nodes : Topology.VertexSet.t) (usage_table : (edge, float) Hashtbl.t) =
-    let (struc,c_min) = select_structure topo nodes in
-    let usage_vec = usage_of_structure topo struc in
+    let (struc,c_min) = select_structure topo d nodes in
+    let usage_vec = usage_of_structure topo d struc in
 
     let max_usage = List.fold_left (fun acc (_, usage) ->
         max acc usage) 0. usage_vec in
@@ -88,18 +88,18 @@ module Make = functor (Experts : MW_INPUT) -> struct
         route using that structure.
      3. The original topology, but with weights modified to reflect
         the final state of the algorithm. *)
-  let hedge_iterations (epsilon : float) (topo : topology)
+  let hedge_iterations (epsilon : float) (topo : topology) (d:demands)
       (nodes : VertexSet.t) =
     let num_edges = Topology.num_edges topo in
     if num_edges = 0 then
-      let struc,_ = select_structure topo nodes in
+      let struc,_ = select_structure topo d nodes in
       (1, [(struc, 1.)], topo)
     else
       let delta = (epsilon ** 2.0) /.
                   (log (float_of_int num_edges)) in
       let rec loop n trees topo acc_usage table =
         let (new_tree, w, new_topo, new_tb) =
-          hedge epsilon delta topo nodes table in
+          hedge epsilon delta topo d nodes table in
         if w +. acc_usage >= 1. then
           let final_weight = 1. -. acc_usage in
           (n+1, (new_tree, final_weight)::trees, new_topo)
