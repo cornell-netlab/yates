@@ -28,3 +28,4 @@ prediction/synthetic.txt
 prediction/synthetic.txt_ElasticNetRegression
 prediction/synthetic.txt_LinearRegression
 prediction/synthetic.txt_lastOne
+fftout

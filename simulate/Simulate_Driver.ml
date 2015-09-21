@@ -12,8 +12,8 @@ open AutoTimer
 
 type solver_type =
   | Mcf | Vlb | Ecmp | Spf | Raeke
-  | AkMcf | AkVlb | AkRaeke
-  | SmcfMcf | SmcfVlb | SmcfRaeke
+  | AkMcf | AkVlb | AkRaeke | AkEcmp
+  | SmcfMcf | SmcfVlb | SmcfRaeke | SmcfEcmp
  
 let solver_to_string (s:solver_type) : string =
   match s with 
@@ -25,9 +25,11 @@ let solver_to_string (s:solver_type) : string =
   | AkMcf -> "akmcf"
   | AkVlb -> "akvlb"
   | AkRaeke -> "akraeke"
+  | AkEcmp -> "akecmp"
   | SmcfMcf -> "smcfmcf"
   | SmcfVlb -> "smcfvlb"
   | SmcfRaeke -> "smcfraeke"
+  | SmcfEcmp -> "smcfecmp"
 	       
 let select_algorithm solver = match solver with
   | Mcf -> Kulfi_Routing.Mcf.solve
@@ -35,12 +37,14 @@ let select_algorithm solver = match solver with
   | Ecmp -> Kulfi_Routing.Ecmp.solve
   | Spf -> Kulfi_Routing.Spf.solve
   | Raeke -> Kulfi_Routing.Raeke.solve
-  | AkMcf -> Kulfi_Routing.Ak.solve
-  | AkVlb -> Kulfi_Routing.Ak.solve
-  | AkRaeke -> Kulfi_Routing.Ak.solve
-  | SmcfMcf -> Kulfi_Routing.SemiMcf.solve 
-  | SmcfVlb -> Kulfi_Routing.SemiMcf.solve 
-  | SmcfRaeke -> Kulfi_Routing.SemiMcf.solve 
+  | AkMcf 
+  | AkVlb 
+  | AkRaeke 
+  | AkEcmp -> Kulfi_Routing.Ak.solve
+  | SmcfMcf 
+  | SmcfVlb 
+  | SmcfRaeke
+  | SmcfEcmp -> Kulfi_Routing.SemiMcf.solve 
 	       
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
   let sent_on_each_edge = 
@@ -119,6 +123,11 @@ let initial_scheme algorithm topo aic ahm pic phm : scheme =
      let _ = next_demand aic ahm in 
      let d = next_demand pic phm in 
      Kulfi_Routing.Raeke.solve topo d SrcDstMap.empty
+  | SmcfEcmp 
+  | AkEcmp ->
+     let _ = next_demand aic ahm in 
+     let d = next_demand pic phm in 
+     Kulfi_Routing.Ecmp.solve topo d SrcDstMap.empty
   | _ -> SrcDstMap.empty
 
 			
@@ -234,9 +243,11 @@ let command =
     +> flag "-akmcf" no_arg ~doc:" run ak+mcf"
     +> flag "-akvlb" no_arg ~doc:" run ak+vlb"
     +> flag "-akraeke" no_arg ~doc:" run ak+raeke"
+    +> flag "-akecmp" no_arg ~doc:" run ak+ecmp"
     +> flag "-smcfmcf" no_arg ~doc:" run semi mcf+mcf"
     +> flag "-smcfvlb" no_arg ~doc:" run semi mcf+vlb"
     +> flag "-smcfraeke" no_arg ~doc:" run semi mcf+raeke"
+    +> flag "-smcfecmp" no_arg ~doc:" run semi mcf+ecmp"
     +> flag "-raeke" no_arg ~doc:" run raeke"
     +> flag "-all" no_arg ~doc:" run all schemes"
     +> anon ("topology-file" %: string)
@@ -251,9 +262,11 @@ let command =
 	 (akmcf:bool)
 	 (akvlb:bool)
 	 (akraeke:bool)
+	 (akecmp:bool)
 	 (smcfmcf:bool)
 	 (smcfvlb:bool)
 	 (smcfraeke:bool)
+	 (smcfecmp:bool)
 	 (raeke:bool)
 	 (all:bool)
 	 (topology_file:string)
@@ -270,9 +283,11 @@ let command =
          ; if spf || all then Some Spf else None
 	 ; if akmcf || all then Some AkMcf else None
 	 ; if akvlb || all then Some AkVlb else None
+	 ; if akecmp || all then Some AkVlb else None
 	 ; if akraeke || all then Some AkRaeke else None
          ; if raeke || all then Some Raeke else None 
          ; if smcfmcf || all then Some SmcfMcf else None
+	 ; if smcfecmp || all then Some SmcfMcf else None
 	 ; if smcfvlb || all then Some SmcfVlb else None
 	 ; if smcfraeke || all then Some SmcfRaeke else None ] in 
      simulate algorithms topology_file demand_file predict_file host_file iterations () )

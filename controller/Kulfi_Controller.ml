@@ -232,6 +232,9 @@ let initial_scheme init_str topo ic hm : scheme =
   | Some "raeke" ->
      let d = next_demand ic hm in 
      Kulfi_Routing.Raeke.solve topo d SrcDstMap.empty
+  | Some "ecmp" ->
+     let d = next_demand ic hm in 
+     Kulfi_Routing.Ecmp.solve topo d SrcDstMap.empty
   | Some _ -> failwith  "Unrecognized initialization scheme"
 	      
       
