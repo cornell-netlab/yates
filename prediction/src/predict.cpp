@@ -384,7 +384,7 @@ int main(int argc, char ** argv)
 	printf("    Will write the predicted data to file_predictionAlgName.\n");
 
 	bool includeLastOneModel = false;
-	bool includeLinearRegressionModel = true;
+	bool includeLinearRegressionModel = false;
 	bool includeElasticNetRegressionModel = true;
 
 	if (argc < 5) return goerr();
