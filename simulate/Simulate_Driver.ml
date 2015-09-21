@@ -74,27 +74,37 @@ let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) 
         EdgeMap.add ~key:e ~data:(amount_sent /. (capacity_of_edge t e)) acc) sent_on_each_edge 
 
 let is_int v =
-  let c = classify_float (fst (Float.modf v)) in
-  c == FP_zero
-    
-let kth_percentile (l:float list) (k:float) : float =
-  let sorted_l = List.sort l in
-  let n = List.length l in
-  let i = Int.of_float ((Float.round_up ((Float.of_int n) *. k))) in
-  assert_false
-  (* List.nth i sorted_l  *)
-					      
-    
-(*  assume that flow is fractionally split in the proportions indicated by the probabilities. *)
-let get_max_congestion (s:scheme) (t:topology) (d:demands) : float =
-  let congestions = (congestion_of_paths s t d) in
-  EdgeMap.fold ~init:Float.nan ~f:(fun ~key:e ~data:a acc -> Float.max_inan a acc) congestions
+  let p = (Float.modf v) in
+  let f = Float.Parts.fractional p in
+  let c = Float.classify f in
+  c = Float.Class.Zero
 
-let get_congestion_percentiles (s:scheme) (t:topology) (d:demands) : float list =
-  let congestions = (congestion_of_paths s t d) in
-  let list_of_congestions = List.map ~f:(fun (a,b) -> b) EdgeMap.to_alist congestions in
-  let sorted_congestions =  List.sort ~cmp:(Float.compare) congestions in
-  assert false
+(* assumes l is sorted *)
+let kth_percentile (l:float list) (k:float) : float =
+  let n = List.length l in
+  let x = (Float.of_int n) *. k in
+  if is_int x then
+    let i = Int.of_float (Float.round_up x) in
+    let lhs = match (List.nth l i) with
+      | Some f -> f
+      | None -> assert false in
+    let rhs = match List.nth l (i+1) with
+      | Some f -> f
+      | None -> assert false in
+    ((lhs +. rhs)/.2.)
+  else    
+    let i = Int.of_float x in
+    match (List.nth l i) with
+    | Some f -> f
+    | None -> assert false
+
+
+let get_mean_congestion (l:float list) =
+  (List.fold_left ~init:0. ~f:( +. )  l) /. (Float.of_int (List.length l))
+		     
+(*  assume that flow is fractionally split in the proportions indicated by the probabilities. *)
+let get_max_congestion (congestions:float list) : float =
+  List.fold_left ~init:Float.nan ~f:(fun a acc -> Float.max_inan a acc) congestions
                
 (* TODO(rjs): Do we count paths that have 0 flow ? *)    
 let get_churn (old_scheme:scheme) (new_scheme:scheme) : float =
@@ -177,7 +187,19 @@ let simulate (spec_solvers:solver_type list)
   
   let time_data = make_data "Iteratives Vs Time" in
   let churn_data = make_data "Churn Vs Time" in
-  let max_congestion_data = make_data "Congestion Vs Time" in
+  let max_congestion_data = make_data "Max Congestion Vs Time" in
+  let mean_congestion_data = make_data "Mean Congestion Vs Time" in
+  let k10_congestion_data = make_data "10th Congestion Vs Time" in
+  let k20_congestion_data = make_data "20th Congestion Vs Time" in
+  let k30_congestion_data = make_data "30th Congestion Vs Time" in
+  let k40_congestion_data = make_data "40th Congestion Vs Time" in
+  let k50_congestion_data = make_data "50th Congestion Vs Time" in
+  let k60_congestion_data = make_data "60th Congestion Vs Time" in
+  let k70_congestion_data = make_data "70th Congestion Vs Time" in
+  let k80_congestion_data = make_data "80th Congestion Vs Time" in
+  let k90_congestion_data = make_data "90th Congestion Vs Time" in
+  let k95_congestion_data = make_data "95th Congestion Vs Time" in
+
   let num_paths_data = make_data "Num. Paths Vs Time" in
 
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
@@ -212,18 +234,45 @@ let simulate (spec_solvers:solver_type list)
 		  start at;
 		  let scheme' = solve topo predict scheme in 
 		  stop at;
+
+		  let congestions = (congestion_of_paths scheme' topo actual) in
+		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in 
+		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
 		  
 		  (* record *)
 		  let tm = (get_time_in_seconds at) in
 		  let ch = (get_churn scheme' scheme) in
-		  let cp = (get_max_congestion scheme' topo actual) in
+		  let cmax = (get_max_congestion list_of_congestions) in
+		  let cmean = (get_mean_congestion list_of_congestions) in
+		  let c10 = (kth_percentile sorted_congestions 0.1) in
+		  let c20 = (kth_percentile sorted_congestions 0.2) in
+		  let c30 = (kth_percentile sorted_congestions 0.3) in
+		  let c40 = (kth_percentile sorted_congestions 0.4) in
+		  let c50 = (kth_percentile sorted_congestions 0.5) in
+		  let c60 = (kth_percentile sorted_congestions 0.6) in
+		  let c70 = (kth_percentile sorted_congestions 0.7) in
+		  let c80 = (kth_percentile sorted_congestions 0.8) in
+		  let c90 = (kth_percentile sorted_congestions 0.9) in
+		  let c95 = (kth_percentile sorted_congestions 0.95) in
 		  let np = (get_num_paths scheme') in
-	      	  
+
+		  (* let k95_congestion_data = make_data "95th Congestion Vs Time" in *)
+		  
 		  add_record time_data (solver_to_string algorithm) {iteration = n; time=tm; time_dev=0.0; };	     
 		  add_record churn_data (solver_to_string algorithm) {iteration = n; churn=ch; churn_dev=0.0; };
-		  add_record max_congestion_data (solver_to_string algorithm) {iteration = n; congestion=cp; congestion_dev=0.0; };
 		  add_record num_paths_data (solver_to_string algorithm) {iteration = n; num_paths=np; num_paths_dev=0.0; };
-		  
+		  add_record max_congestion_data (solver_to_string algorithm) {iteration = n; congestion=cmax; congestion_dev=0.0; };
+		  add_record mean_congestion_data (solver_to_string algorithm) {iteration = n; congestion=cmean; congestion_dev=0.0; };		      
+		  add_record k10_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c10; congestion_dev=0.0; };
+		  add_record k20_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c20; congestion_dev=0.0; };
+		  add_record k30_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c30; congestion_dev=0.0; };
+		  add_record k40_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c40; congestion_dev=0.0; };
+		  add_record k50_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c50; congestion_dev=0.0; };
+		  add_record k60_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c60; congestion_dev=0.0; };
+		  add_record k70_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c70; congestion_dev=0.0; };
+		  add_record k80_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c80; congestion_dev=0.0; };
+		  add_record k90_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c90; congestion_dev=0.0; };
+		  add_record k95_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c95; congestion_dev=0.0; };		      
 		  scheme') );
 	
 	(* start at beginning of demands for next algorithm *)
@@ -231,19 +280,27 @@ let simulate (spec_solvers:solver_type list)
 	close_demands predict_ic;
 
        );
-  
-  
-  
+    
   let dir = "./expData/" in
-
   to_file dir "ChurnVsIterations.dat" churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
-  to_file dir "MaxCongestionVsIterations.dat" max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string;
   to_file dir "NumPathsVsIterations.dat" num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
   to_file dir "TimeVsIterations.dat" time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;  
-  
+  to_file dir "MaxCongestionVsIterations.dat" max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "MeanCongestionVsIterations.dat" mean_congestion_data "# solver\titer\tmean-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "k10CongestionVsIterations.dat" k10_congestion_data "# solver\titer\t.10-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "k20CongestionVsIterations.dat" k20_congestion_data "# solver\titer\t.20-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "k30CongestionVsIterations.dat" k30_congestion_data "# solver\titer\t.30-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "k40CongestionVsIterations.dat" k40_congestion_data "# solver\titer\t.40-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "k50CongestionVsIterations.dat" k50_congestion_data "# solver\titer\t.50-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "k60CongestionVsIterations.dat" k60_congestion_data "# solver\titer\t.60-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "k70CongestionVsIterations.dat" k70_congestion_data "# solver\titer\t.70-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "k80CongestionVsIterations.dat" k80_congestion_data "# solver\titer\t.80-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "k90CongestionVsIterations.dat" k90_congestion_data "# solver\titer\t.90-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "k95CongestionVsIterations.dat" k95_congestion_data "# solver\titer\t.95-congestion\tstddev" iter_vs_congestion_to_string;
+ 
   Printf.printf "%s" (to_string time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string);
   Printf.printf "%s" (to_string churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
-  Printf.printf "%s" (to_string max_congestion_data "# solver\titer\tcongestion\tstddev" iter_vs_congestion_to_string);
+  Printf.printf "%s" (to_string max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string);
   Printf.printf "%s" (to_string num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string)
 		
 		
