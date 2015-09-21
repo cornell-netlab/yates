@@ -364,23 +364,25 @@ int goerr()
 int doit(int argc, char ** argv)
 {
 	srand(0);
-
-	printf("Menu:\n");
-	printf("Command: 1 col w file firstbunchRow\n");
-	printf("    Example: 1 0 2 abi 1016\n");
-	printf("    This means read from first w weeks for abilene data's col-th column.\n");
-	printf("    firstbunchRow means only consider the firstbunchRows instead of thousands of them\n");
-	printf("    Please ensure data/X01-X0w is in the current directory.\n");
-	printf("    Will write the actual data to file.\n");
-	printf("    Will write the predicted data to file_predictionAlgName.\n");
-	printf("Command: 2 r h file scale dir\n");
-	printf("    Example: 2 2000 3 synthetic_1 2.0\n");
-	printf("    This generates r rows of data for h hosts.\n");
-	printf("    please choose scale comparing with Abilene data.\n");
-	printf("    That is, scale=1.0 if using Abilene, scale=100.0, if using some network with huge traffic.\n");
-	printf("    Please ensure 'patterns', 'pareto' are in the dir/ directory.\n");
-	printf("    Will write the actual data to file.\n");
-	printf("    Will write the predicted data to file_predictionAlgName.\n");
+    if (argc<5)
+    {
+        printf("Menu:\n");
+        printf("Command: 1 col w file firstbunchRow\n");
+        printf("    Example: 1 0 2 abi 1016\n");
+        printf("    This means read from first w weeks for abilene data's col-th column.\n");
+        printf("    firstbunchRow means only consider the firstbunchRows instead of thousands of them\n");
+        printf("    Please ensure data/X01-X0w is in the current directory.\n");
+        printf("    Will write the actual data to file.\n");
+        printf("    Will write the predicted data to file_predictionAlgName.\n");
+        printf("Command: 2 r h file scale dir\n");
+        printf("    Example: 2 2000 3 synthetic_1 2.0\n");
+        printf("    This generates r rows of data for h hosts.\n");
+        printf("    please choose scale comparing with Abilene data.\n");
+        printf("    That is, scale=1.0 if using Abilene, scale=100.0, if using some network with huge traffic.\n");
+        printf("    Please ensure 'patterns', 'pareto' are in the dir/ directory.\n");
+        printf("    Will write the actual data to file.\n");
+        printf("    Will write the predicted data to file_predictionAlgName.\n");
+    }
 
 	bool includeLastOneModel = true;
 	bool includeLinearRegressionModel = true;
@@ -396,6 +398,7 @@ int doit(int argc, char ** argv)
 	int period = 1000;
 	double scale = 1.0;
     char prefix[200];
+    prefix[0]=0;
 
 	if (dataCode == 1)
 	{
@@ -471,7 +474,7 @@ int doit(int argc, char ** argv)
 		printf("Current ---------------- LastOneModel!\n");
 		for (int i = 0; i <col ; i++)
 		{
-			printf("i=%i  ", i);
+			//printf("i=%i  ", i);
 			for (int j = 0; j < totRow; j++)
 			{
 				if (j < period)
@@ -492,7 +495,7 @@ int doit(int argc, char ** argv)
 		printf("Current ---------------- LinearRegressionModel!\n");
 		for (int i = 0; i <col ; i++)
 		{
-			printf("i=%i  ", i);
+			//printf("i=%i  ", i);
 			for (int j = 0; j < totRow; j++)
 			{
 				if (j < period)
@@ -517,7 +520,7 @@ int doit(int argc, char ** argv)
 		printf("Current ---------------- ElasticNetRegressionModel!\n");
 		for (int i = 0; i <col ; i++)
 		{
-			printf("i=%i  ", i);
+			//printf("i=%i  ", i);
 			for (int j = 0; j < totRow; j++)
 			{
 				if (j < period)

@@ -1,11 +1,11 @@
 #!/bin/bash
 
-for i in {1..93}
+mkdir -p synthetic_demands
+cp ../pareto ./
+cp ../patterns ./
+for i in `cat num_hosts.txt | head -n 1`
 do
-./libpredict/bin/predict 2 1000 $i matrix/syn-$i 1.0
+../bin/predict 2 1000 $i synthetic_demands/syn-$i 1.0
 done
 
-for i in 110 113 125 127 145 149 153 158 193 197 754
-do
-./libpredict/bin/predict 2 1000 $i matrix/syn-$i 1.0
-done
+rm pareto patterns

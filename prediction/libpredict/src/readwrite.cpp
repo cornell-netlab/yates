@@ -290,7 +290,7 @@ void generateSyntheticData(int row, int hosts, double ** m,char* prefix)
 		{ 
 			//pickedTotPattern = getRandNum(nWeeks);
 			pickedTotPattern = (i/2016)%20;
-			printf("picked patter week=-------%i-------\n", pickedTotPattern);
+			//printf("picked patter week=-------%i-------\n", pickedTotPattern);
 		}
 		for (int j = 0; j < hosts; j++)
 			for (int k = 0; k < hosts; k++)
