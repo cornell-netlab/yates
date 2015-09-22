@@ -98,7 +98,23 @@ let kth_percentile (l:float list) (k:float) : float =
     | Some f -> f
     | None -> assert false
 
-
+let init_mcf_demands (topo:topology) : demands =
+  let host_set = VertexSet.filter (Topology.vertexes topo)
+                                  ~f:(fun v ->
+                                      let label = Topology.vertex_to_label topo v in
+                                      Node.device label = Node.Host) in
+  let hs = Topology.VertexSet.elements host_set in
+  List.fold_left
+    hs
+    ~init:SrcDstMap.empty
+    ~f:(fun acc u ->
+	List.fold_left
+	  hs
+	  ~init:acc
+	  ~f:(fun acc v ->
+	      let r = if u = v then 0.0 else 500000.0 in
+	      SrcDstMap.add acc ~key:(u,v) ~data:r))
+    
 let get_mean_congestion (l:float list) =
   (List.fold_left ~init:0. ~f:( +. )  l) /. (Float.of_int (List.length l))
 		     
@@ -132,28 +148,21 @@ let get_num_paths (s:scheme) : float =
   Float.of_int count 
 
 
-let initial_scheme algorithm topo aic ahm pic phm : scheme =
+let initial_scheme algorithm topo : scheme =
   match algorithm with
   | SmcfMcf 
   | AkMcf ->
-     let _ = next_demand aic ahm in 
-     let d = next_demand pic phm in 
+     let d = init_mcf_demands topo in 
      Kulfi_Routing.Mcf.solve topo d SrcDstMap.empty
   | SmcfVlb 
   | AkVlb ->
-     let _ = next_demand aic ahm in 
-     let d = next_demand pic phm in 
-     Kulfi_Routing.Vlb.solve topo d SrcDstMap.empty
+     Kulfi_Routing.Vlb.solve topo SrcDstMap.empty SrcDstMap.empty
   | SmcfRaeke 
   | AkRaeke ->
-     let _ = next_demand aic ahm in 
-     let d = next_demand pic phm in 
-     Kulfi_Routing.Raeke.solve topo d SrcDstMap.empty
+     Kulfi_Routing.Raeke.solve topo SrcDstMap.empty SrcDstMap.empty
   | SmcfEcmp 
   | AkEcmp ->
-     let _ = next_demand aic ahm in 
-     let d = next_demand pic phm in 
-     Kulfi_Routing.Ecmp.solve topo d SrcDstMap.empty
+     Kulfi_Routing.Ecmp.solve topo SrcDstMap.empty SrcDstMap.empty
   | _ -> SrcDstMap.empty
 
 			
@@ -216,9 +225,7 @@ let simulate (spec_solvers:solver_type list)
 	let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
 
 	(* we may need to initialize the scheme, and advance both traffic files *)
-	let start_scheme = initial_scheme algorithm topo
-					  actual_ic actual_host_map
-					  predict_ic predict_host_map in
+	let start_scheme = initial_scheme algorithm topo in
 	
 	ignore (
 	    List.fold_left
