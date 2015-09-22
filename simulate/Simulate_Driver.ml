@@ -13,7 +13,7 @@ open AutoTimer
 type solver_type =
   | Mcf | MwMcf | Vlb | Ecmp | Spf | Raeke
   | AkMcf | AkVlb | AkRaeke | AkEcmp
-  | SmcfMcf | SmcfVlb | SmcfRaeke | SmcfEcmp
+  | SemiMcfMcf | SemiMcfVlb | SemiMcfRaeke | SemiMcfEcmp
  
 let solver_to_string (s:solver_type) : string =
   match s with 
@@ -27,10 +27,10 @@ let solver_to_string (s:solver_type) : string =
   | AkVlb -> "akvlb"
   | AkRaeke -> "akraeke"
   | AkEcmp -> "akecmp"
-  | SmcfMcf -> "smcfmcf"
-  | SmcfVlb -> "smcfvlb"
-  | SmcfRaeke -> "smcfraeke"
-  | SmcfEcmp -> "smcfecmp"
+  | SemiMcfMcf -> "semimcfmcf"
+  | SemiMcfVlb -> "semimcfvlb"
+  | SemiMcfRaeke -> "semimcfraeke"
+  | SemiMcfEcmp -> "semimcfecmp"
 	       
 let select_algorithm solver = match solver with
   | Mcf -> Kulfi_Routing.Mcf.solve
@@ -43,10 +43,10 @@ let select_algorithm solver = match solver with
   | AkVlb 
   | AkRaeke 
   | AkEcmp -> Kulfi_Routing.Ak.solve
-  | SmcfMcf 
-  | SmcfVlb 
-  | SmcfRaeke
-  | SmcfEcmp -> Kulfi_Routing.SemiMcf.solve 
+  | SemiMcfMcf 
+  | SemiMcfVlb 
+  | SemiMcfRaeke
+  | SemiMcfEcmp -> Kulfi_Routing.SemiMcf.solve 
 	       
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
   let sent_on_each_edge = 
@@ -152,17 +152,17 @@ let get_num_paths (s:scheme) : float =
 
 let initial_scheme algorithm topo : scheme =
   match algorithm with
-  | SmcfMcf 
+  | SemiMcfMcf 
   | AkMcf ->
      let d = init_mcf_demands topo in 
      Kulfi_Routing.Mcf.solve topo d SrcDstMap.empty
-  | SmcfVlb 
+  | SemiMcfVlb 
   | AkVlb ->
      Kulfi_Routing.Vlb.solve topo SrcDstMap.empty SrcDstMap.empty
-  | SmcfRaeke 
+  | SemiMcfRaeke 
   | AkRaeke ->
      Kulfi_Routing.Raeke.solve topo SrcDstMap.empty SrcDstMap.empty
-  | SmcfEcmp 
+  | SemiMcfEcmp 
   | AkEcmp ->
      Kulfi_Routing.Ecmp.solve topo SrcDstMap.empty SrcDstMap.empty
   | _ -> SrcDstMap.empty
@@ -339,15 +339,17 @@ let calculate_syn_scale (topology:string)=
 	    hs
 	    ~init:acc
 	    ~f:(fun acc v ->
-		let r = if u = v then 0.0 else 2800000.0 in
+                let num_hosts = List.length hs in
+		let r = if u = v then 0.0 else 22986934.0 /. Float.of_int(num_hosts * num_hosts) in
 		SrcDstMap.add acc ~key:(u,v) ~data:r)) in
   let s=SrcDstMap.empty in 
   let s2 =Kulfi_Mcf.solve topo demands s in 
   let congestions = congestion_of_paths s2 topo demands in 
   let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in 
   let cmax = (get_max_congestion list_of_congestions) in
-      Printf.printf "%f\n\n" (1.0/.cmax);
-      1.0/.cmax
+  let scale_factor = 0.4/.cmax in 
+  Printf.printf "%f\n\n" (scale_factor);
+  scale_factor
 		
 let command =
   Command.basic
@@ -363,10 +365,10 @@ let command =
     +> flag "-akvlb" no_arg ~doc:" run ak+vlb"
     +> flag "-akraeke" no_arg ~doc:" run ak+raeke"
     +> flag "-akecmp" no_arg ~doc:" run ak+ecmp"
-    +> flag "-smcfmcf" no_arg ~doc:" run semi mcf+mcf"
-    +> flag "-smcfvlb" no_arg ~doc:" run semi mcf+vlb"
-    +> flag "-smcfraeke" no_arg ~doc:" run semi mcf+raeke"
-    +> flag "-smcfecmp" no_arg ~doc:" run semi mcf+ecmp"
+    +> flag "-semimcfmcf" no_arg ~doc:" run semi mcf+mcf"
+    +> flag "-semimcfvlb" no_arg ~doc:" run semi mcf+vlb"
+    +> flag "-semimcfraeke" no_arg ~doc:" run semi mcf+raeke"
+    +> flag "-semimcfecmp" no_arg ~doc:" run semi mcf+ecmp"
     +> flag "-raeke" no_arg ~doc:" run raeke"
     +> flag "-all" no_arg ~doc:" run all schemes"
     +> flag "-scalesyn" no_arg ~doc:" use it in synthetic data simulation"
@@ -384,10 +386,10 @@ let command =
 	 (akvlb:bool)
 	 (akraeke:bool)
 	 (akecmp:bool)
-	 (smcfmcf:bool)
-	 (smcfvlb:bool)
-	 (smcfraeke:bool)
-	 (smcfecmp:bool)
+	 (semimcfmcf:bool)
+	 (semimcfvlb:bool)
+	 (semimcfraeke:bool)
+	 (semimcfecmp:bool)
 	 (raeke:bool)
 	 (all:bool)
      (scalesyn:bool)
@@ -409,10 +411,10 @@ let command =
 	 ; if akecmp || all then Some AkEcmp else None
 	 ; if akraeke || all then Some AkRaeke else None
          ; if raeke || all then Some Raeke else None 
-         ; if smcfmcf || all then Some SmcfMcf else None
-	 ; if smcfecmp || all then Some SmcfEcmp else None
-	 ; if smcfvlb || all then Some SmcfVlb else None
-	 ; if smcfraeke || all then Some SmcfRaeke else None ] in 
+         ; if semimcfmcf || all then Some SemiMcfMcf else None
+	 ; if semimcfecmp || all then Some SemiMcfEcmp else None
+	 ; if semimcfvlb || all then Some SemiMcfVlb else None
+	 ; if semimcfraeke || all then Some SemiMcfRaeke else None ] in 
      let scale = if scalesyn then calculate_syn_scale(topology_file) else 1.0 in
      simulate algorithms topology_file demand_file predict_file host_file iterations scale scalesyn () 
   )

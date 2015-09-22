@@ -46,7 +46,7 @@ let next_demand ?scale:(scale=1.0) (ic:in_channel) (host_map:index_map) : demand
       let s = match IntMap.find host_map i with | None -> assert false | Some x -> x in
       let d = match IntMap.find host_map j with | None -> assert false | Some x -> x in      
       (* Can't demand from yourself *)
-      let v = if i = j then 0.0 else scale *. Float.of_string (entries.((i*size) + j)) in
+      let v = if i = j then 0.0 else (scale *. Float.of_string (entries.((i*size) + j))) in
       demands := SrcDstMap.add !demands ~key:(s,d) ~data:v
     done
   done;
