@@ -339,15 +339,17 @@ let calculate_syn_scale (topology:string)=
 	    hs
 	    ~init:acc
 	    ~f:(fun acc v ->
-		let r = if u = v then 0.0 else 2800000.0 in
+                let num_hosts = List.length hs in
+		let r = if u = v then 0.0 else 22986934.0 /. Float.of_int(num_hosts * num_hosts) in
 		SrcDstMap.add acc ~key:(u,v) ~data:r)) in
   let s=SrcDstMap.empty in 
   let s2 =Kulfi_Mcf.solve topo demands s in 
   let congestions = congestion_of_paths s2 topo demands in 
   let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in 
   let cmax = (get_max_congestion list_of_congestions) in
-      Printf.printf "%f\n\n" (1.0/.cmax);
-      1.0/.cmax
+  let scale_factor = 0.4/.cmax in 
+  Printf.printf "%f\n\n" (scale_factor);
+  scale_factor
 		
 let command =
   Command.basic
