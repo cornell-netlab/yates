@@ -367,10 +367,11 @@ int doit(int argc, char ** argv)
     if (argc<5)
     {
         printf("Menu:\n");
-        printf("Command: 1 col w file firstbunchRow\n");
-        printf("    Example: 1 0 2 abi 1016\n");
+        printf("Command: 1 col w file firstbunchRow scale\n");
+        printf("    Example: 1 0 2 abi 1016 1.0\n");
         printf("    This means read from first w weeks for abilene data's col-th column.\n");
         printf("    firstbunchRow means only consider the firstbunchRows instead of thousands of them\n");
+        printf("    please choose scale comparing with Abilene data.\n");
         printf("    Please ensure data/X01-X0w is in the current directory.\n");
         printf("    Will write the actual data to file.\n");
         printf("    Will write the predicted data to file_predictionAlgName.\n");
@@ -406,6 +407,7 @@ int doit(int argc, char ** argv)
 		sscanf(argv[3], "%i", &readFiles);
 		//totRow = readFiles * 2016;
         sscanf(argv[5],"%i",&totRow);
+        sscanf(argv[6],"%lf", &scale);
         totRow+=period;
         if (totRow>readFiles*2016)
             printf("error!\n");
