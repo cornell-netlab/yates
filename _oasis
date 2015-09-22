@@ -64,6 +64,18 @@ Executable kulfi
     controller,
     routing
 
+Executable topology
+  Install: False
+  Build$: flag(is_native)
+  Path:   topo
+  MainIs: TopoProcess.ml
+  CompiledObject: native
+  BuildDepends:
+    ocamlgraph,
+    frenetic,
+    routing,
+    util
+
 Executable simulator
   Install: False
   Build$: flag(is_native)
