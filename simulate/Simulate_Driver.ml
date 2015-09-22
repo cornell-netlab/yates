@@ -11,13 +11,14 @@ open ExperimentalData
 open AutoTimer
 
 type solver_type =
-  | Mcf | Vlb | Ecmp | Spf | Raeke
+  | Mcf | MwMcf | Vlb | Ecmp | Spf | Raeke
   | AkMcf | AkVlb | AkRaeke | AkEcmp
   | SmcfMcf | SmcfVlb | SmcfRaeke | SmcfEcmp
  
 let solver_to_string (s:solver_type) : string =
   match s with 
   | Mcf -> "mcf" 
+  | MwMcf -> "mwmcf"
   | Vlb -> "vlb" 
   | Ecmp -> "ecmp"
   | Spf -> "spf" 
@@ -33,6 +34,7 @@ let solver_to_string (s:solver_type) : string =
 	       
 let select_algorithm solver = match solver with
   | Mcf -> Kulfi_Routing.Mcf.solve
+  | MwMcf -> Kulfi_Routing.MwMcf.solve
   | Vlb -> Kulfi_Routing.Vlb.solve
   | Ecmp -> Kulfi_Routing.Ecmp.solve
   | Spf -> Kulfi_Routing.Spf.solve
@@ -340,6 +342,7 @@ let command =
     Command.Spec.(
     empty
     +> flag "-mcf" no_arg ~doc:" run mcf"
+    +> flag "-mwmcf" no_arg ~doc:" run mwmcf"
     +> flag "-vlb" no_arg ~doc:" run vlb"
     +> flag "-ecmp" no_arg ~doc:" run ecmp"
     +> flag "-spf" no_arg ~doc:" run spf"
@@ -360,6 +363,7 @@ let command =
     +> anon ("host-file" %: string)
     +> anon ("iterations" %: int)
   ) (fun (mcf:bool)
+         (mwmcf:bool)
 	 (vlb:bool)
 	 (ecmp:bool)
 	 (spf:bool)
@@ -383,6 +387,7 @@ let command =
        List.filter_map
          ~f:(fun x -> x)
          [ if mcf || all then Some Mcf else None
+	 ; if mwmcf || all then Some MwMcf else None
          ; if vlb || all then Some Vlb else None
          ; if ecmp || all then Some Ecmp else None
          ; if spf || all then Some Spf else None
