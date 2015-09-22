@@ -9,6 +9,8 @@ module Ecmp : Algorithm
 
 module Mcf : Algorithm
 
+module MwMcf : Algorithm
+
 module SemiMcf : Algorithm
 
 module Raeke : Algorithm

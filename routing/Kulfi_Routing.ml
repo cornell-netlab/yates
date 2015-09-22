@@ -8,6 +8,8 @@ module Ecmp = Kulfi_Ecmp
 
 module Mcf = Kulfi_Mcf
 
+module MwMcf = Kulfi_MwMcf
+
 module SemiMcf = Kulfi_SemiMcf
 
 module Raeke = Kulfi_Raeke
