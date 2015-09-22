@@ -162,7 +162,8 @@ let simulate (spec_solvers:solver_type list)
 	     (demand_file:string)
 	     (predict_file:string)
 	     (host_file:string)
-	     (iterations:int) () : unit =
+	     (iterations:int)
+         (scale:float) () : unit =
 
   (* Do some error checking on input *)
 
@@ -227,8 +228,8 @@ let simulate (spec_solvers:solver_type list)
 	      ~f:(fun scheme n ->
 		  
 		  (* get the next demand *)
-		  let actual = next_demand actual_ic actual_host_map in
-		  let predict = next_demand predict_ic predict_host_map in
+		  let actual = next_demand ~scale:scale actual_ic actual_host_map in
+		  let predict = next_demand ~scale:scale predict_ic predict_host_map in
 		  
 		  (* solve *)
 		  start at;
@@ -302,7 +303,36 @@ let simulate (spec_solvers:solver_type list)
   Printf.printf "%s" (to_string churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
   Printf.printf "%s" (to_string max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string);
   Printf.printf "%s" (to_string num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string)
-		
+
+
+
+
+  (*"./data/topologies/zoo/Vinaren.dot" *)
+let calculate_syn_scale (topology:string)=
+    let topo = Parse.from_dotfile topology in 
+  let host_set = VertexSet.filter (Topology.vertexes topo)
+                                  ~f:(fun v ->
+                                      let label = Topology.vertex_to_label topo v in
+                                      Node.device label = Node.Host) in
+  let hs = Topology.VertexSet.elements host_set in
+  let demands =
+    List.fold_left
+      hs
+      ~init:SrcDstMap.empty
+      ~f:(fun acc u ->
+	  List.fold_left
+	    hs
+	    ~init:acc
+	    ~f:(fun acc v ->
+		let r = if u = v then 0.0 else 2800000.0 in
+		SrcDstMap.add acc ~key:(u,v) ~data:r)) in
+  let s=SrcDstMap.empty in 
+  let s2 =Kulfi_Mcf.solve topo demands s in 
+  let congestions = congestion_of_paths s2 topo demands in 
+  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in 
+  let cmax = (get_max_congestion list_of_congestions) in
+      Printf.printf "%f\n\n" (1.0/.cmax);
+      1.0/.cmax
 		
 let command =
   Command.basic
@@ -323,6 +353,7 @@ let command =
     +> flag "-smcfecmp" no_arg ~doc:" run semi mcf+ecmp"
     +> flag "-raeke" no_arg ~doc:" run raeke"
     +> flag "-all" no_arg ~doc:" run all schemes"
+    +> flag "-scalesyn" no_arg ~doc:" use it in synthetic data simulation"
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
     +> anon ("predict-file" %: string)
@@ -342,6 +373,7 @@ let command =
 	 (smcfecmp:bool)
 	 (raeke:bool)
 	 (all:bool)
+     (scalesyn:bool)
 	 (topology_file:string)
 	 (demand_file:string)
 	 (predict_file:string)
@@ -363,7 +395,9 @@ let command =
 	 ; if smcfecmp || all then Some SmcfMcf else None
 	 ; if smcfvlb || all then Some SmcfVlb else None
 	 ; if smcfraeke || all then Some SmcfRaeke else None ] in 
-     simulate algorithms topology_file demand_file predict_file host_file iterations () )
+     let scale = if scalesyn then calculate_syn_scale(topology_file) else 1.0 in
+     simulate algorithms topology_file demand_file predict_file host_file iterations scale () 
+  )
 
 let main = Command.run command
 		       
