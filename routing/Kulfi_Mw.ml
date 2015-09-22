@@ -43,7 +43,7 @@ module Make = functor (Experts : MW_INPUT) -> struct
   open Experts
   type structure = Experts.structure
 
-  let exp_weight epsilon usage = exp usage
+  let exp_weight epsilon usage = exp (epsilon *. usage)
 
   (* TODO(cy): rewrite most of this to eliminate clutter from
    * previous versions *)
