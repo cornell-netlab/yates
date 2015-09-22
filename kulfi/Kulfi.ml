@@ -27,7 +27,7 @@ let kulfi_main_cmd =
       +> flag "-vlb" no_arg ~doc:" run vlb"
       +> flag "-smcf" no_arg ~doc:" run semi mcf"
       +> flag "-raeke" no_arg ~doc:" run raeke"
-      +> flag "-init" (optional string) ~doc:" solver to inititialize input scheme [mcf|vlb|raeke|vlb]"
+      +> flag "-init" (optional string) ~doc:" solver to inititialize input scheme [ecmp|mcf|raeke|vlb]"
       +> anon ("topology-file" %: string)
       +> anon ("actual-file" %: string)
       +> anon ("predicted-file" %: string)

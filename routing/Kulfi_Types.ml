@@ -254,3 +254,26 @@ let print_configuration (topo:topology) (conf:configuration) (time:int) : unit =
 	)
 
 
+let normalize_scheme (s : scheme) (fs: float SrcDstMap.t) : scheme =
+  (* s = a routing scheme, fs = the sum of flow values in each flow_decomp *)
+  SrcDstMap.fold ~init:(SrcDstMap.empty)
+    ~f:(fun ~key:(u,v) ~data:f_decomp acc  ->
+      let sum_rate = match SrcDstMap.find fs (u,v) with
+	| None -> 
+	   ( PathMap.fold f_decomp 
+	       ~init:0.
+	       ~f:(fun ~key:_ ~data:r acc -> acc +. r) )
+	| Some sr -> sr in
+       ignore (if (sum_rate < 0.) then failwith "sum_rate leq 0. on flow" else ());
+       let default_value = 1.0 /. (Float.of_int (PathMap.length f_decomp) ) in
+       let normalized_f_decomp = 
+	 PathMap.fold ~init:(PathMap.empty)
+	   ~f:(fun ~key:path ~data:rate acc ->
+	     let normalized_rate = 
+	       if sum_rate = 0. then
+		 default_value
+	       else 
+		 rate /. sum_rate in
+	     PathMap.add ~key:path ~data:normalized_rate acc)
+	     f_decomp in
+       SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc) s

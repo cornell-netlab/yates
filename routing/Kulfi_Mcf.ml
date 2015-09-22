@@ -289,12 +289,13 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
       | None -> assert false 
       | Some sum_rate -> 
 	 ignore (if (sum_rate < 0.) then failwith "sum_rate leq 0. on flow" else ());
+	 let default_value = 1.0 /. (Float.of_int (PathMap.length f_decomp) ) in
 	 let normalized_f_decomp = 
 	   PathMap.fold ~init:(PathMap.empty)
 			~f:(fun ~key:path ~data:rate acc ->
 			    let normalized_rate = 
 			      if sum_rate = 0. then
-				0.0
+				default_value
 			      else 
 				rate /. sum_rate in
 	

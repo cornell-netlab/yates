@@ -11,13 +11,14 @@ open ExperimentalData
 open AutoTimer
 
 type solver_type =
-  | Mcf | Vlb | Ecmp | Spf | Raeke
+  | Mcf | MwMcf | Vlb | Ecmp | Spf | Raeke
   | AkMcf | AkVlb | AkRaeke | AkEcmp
   | SmcfMcf | SmcfVlb | SmcfRaeke | SmcfEcmp
  
 let solver_to_string (s:solver_type) : string =
   match s with 
   | Mcf -> "mcf" 
+  | MwMcf -> "mwmcf"
   | Vlb -> "vlb" 
   | Ecmp -> "ecmp"
   | Spf -> "spf" 
@@ -33,6 +34,7 @@ let solver_to_string (s:solver_type) : string =
 	       
 let select_algorithm solver = match solver with
   | Mcf -> Kulfi_Routing.Mcf.solve
+  | MwMcf -> Kulfi_Routing.MwMcf.solve
   | Vlb -> Kulfi_Routing.Vlb.solve
   | Ecmp -> Kulfi_Routing.Ecmp.solve
   | Spf -> Kulfi_Routing.Spf.solve
@@ -166,12 +168,15 @@ let initial_scheme algorithm topo : scheme =
   | _ -> SrcDstMap.empty
 
 			
-let simulate (spec_solvers:solver_type list)
+let simulate 
+    (spec_solvers:solver_type list)
 	     (topology_file:string)
 	     (demand_file:string)
 	     (predict_file:string)
 	     (host_file:string)
-	     (iterations:int) () : unit =
+	     (iterations:int)
+         (scale:float) 
+         (scalesyn:bool) () : unit =
 
   (* Do some error checking on input *)
 
@@ -234,8 +239,8 @@ let simulate (spec_solvers:solver_type list)
 	      ~f:(fun scheme n ->
 		  
 		  (* get the next demand *)
-		  let actual = next_demand actual_ic actual_host_map in
-		  let predict = next_demand predict_ic predict_host_map in
+		  let actual = next_demand ~scale:scale actual_ic actual_host_map in
+		  let predict = next_demand ~scale:scale predict_ic predict_host_map in
 		  
 		  (* solve *)
 		  start at;
@@ -288,7 +293,11 @@ let simulate (spec_solvers:solver_type list)
 
        );
     
-  let dir = "./expData/" in
+      let split_dot_file_list = String.split_on_chars topology_file ~on:['/';'.'] in
+      let suffix =List.nth split_dot_file_list (List.length split_dot_file_list -2) in
+      let realsuffix= match suffix with Some x -> x | _-> "" in
+  let dir =
+      if scalesyn then "./expData/"^realsuffix^"/" else "./expData/" in
   to_file dir "ChurnVsIterations.dat" churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
   to_file dir "NumPathsVsIterations.dat" num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
   to_file dir "TimeVsIterations.dat" time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;  
@@ -309,7 +318,36 @@ let simulate (spec_solvers:solver_type list)
   Printf.printf "%s" (to_string churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
   Printf.printf "%s" (to_string max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string);
   Printf.printf "%s" (to_string num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string)
-		
+
+
+
+
+  (*"./data/topologies/zoo/Vinaren.dot" *)
+let calculate_syn_scale (topology:string)=
+    let topo = Parse.from_dotfile topology in 
+  let host_set = VertexSet.filter (Topology.vertexes topo)
+                                  ~f:(fun v ->
+                                      let label = Topology.vertex_to_label topo v in
+                                      Node.device label = Node.Host) in
+  let hs = Topology.VertexSet.elements host_set in
+  let demands =
+    List.fold_left
+      hs
+      ~init:SrcDstMap.empty
+      ~f:(fun acc u ->
+	  List.fold_left
+	    hs
+	    ~init:acc
+	    ~f:(fun acc v ->
+		let r = if u = v then 0.0 else 2800000.0 in
+		SrcDstMap.add acc ~key:(u,v) ~data:r)) in
+  let s=SrcDstMap.empty in 
+  let s2 =Kulfi_Mcf.solve topo demands s in 
+  let congestions = congestion_of_paths s2 topo demands in 
+  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in 
+  let cmax = (get_max_congestion list_of_congestions) in
+      Printf.printf "%f\n\n" (1.0/.cmax);
+      1.0/.cmax
 		
 let command =
   Command.basic
@@ -317,6 +355,7 @@ let command =
     Command.Spec.(
     empty
     +> flag "-mcf" no_arg ~doc:" run mcf"
+    +> flag "-mwmcf" no_arg ~doc:" run mwmcf"
     +> flag "-vlb" no_arg ~doc:" run vlb"
     +> flag "-ecmp" no_arg ~doc:" run ecmp"
     +> flag "-spf" no_arg ~doc:" run spf"
@@ -330,12 +369,14 @@ let command =
     +> flag "-smcfecmp" no_arg ~doc:" run semi mcf+ecmp"
     +> flag "-raeke" no_arg ~doc:" run raeke"
     +> flag "-all" no_arg ~doc:" run all schemes"
+    +> flag "-scalesyn" no_arg ~doc:" use it in synthetic data simulation"
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
     +> anon ("predict-file" %: string)
     +> anon ("host-file" %: string)
     +> anon ("iterations" %: int)
   ) (fun (mcf:bool)
+         (mwmcf:bool)
 	 (vlb:bool)
 	 (ecmp:bool)
 	 (spf:bool)
@@ -349,6 +390,7 @@ let command =
 	 (smcfecmp:bool)
 	 (raeke:bool)
 	 (all:bool)
+     (scalesyn:bool)
 	 (topology_file:string)
 	 (demand_file:string)
 	 (predict_file:string)
@@ -358,19 +400,22 @@ let command =
        List.filter_map
          ~f:(fun x -> x)
          [ if mcf || all then Some Mcf else None
+	 ; if mwmcf || all then Some MwMcf else None
          ; if vlb || all then Some Vlb else None
          ; if ecmp || all then Some Ecmp else None
          ; if spf || all then Some Spf else None
 	 ; if akmcf || all then Some AkMcf else None
 	 ; if akvlb || all then Some AkVlb else None
-	 ; if akecmp || all then Some AkVlb else None
+	 ; if akecmp || all then Some AkEcmp else None
 	 ; if akraeke || all then Some AkRaeke else None
          ; if raeke || all then Some Raeke else None 
          ; if smcfmcf || all then Some SmcfMcf else None
-	 ; if smcfecmp || all then Some SmcfMcf else None
+	 ; if smcfecmp || all then Some SmcfEcmp else None
 	 ; if smcfvlb || all then Some SmcfVlb else None
 	 ; if smcfraeke || all then Some SmcfRaeke else None ] in 
-     simulate algorithms topology_file demand_file predict_file host_file iterations () )
+     let scale = if scalesyn then calculate_syn_scale(topology_file) else 1.0 in
+     simulate algorithms topology_file demand_file predict_file host_file iterations scale scalesyn () 
+  )
 
 let main = Command.run command
 		       
