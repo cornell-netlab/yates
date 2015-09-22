@@ -157,13 +157,15 @@ let initial_scheme algorithm topo aic ahm pic phm : scheme =
   | _ -> SrcDstMap.empty
 
 			
-let simulate (spec_solvers:solver_type list)
+let simulate 
+    (spec_solvers:solver_type list)
 	     (topology_file:string)
 	     (demand_file:string)
 	     (predict_file:string)
 	     (host_file:string)
 	     (iterations:int)
-         (scale:float) () : unit =
+         (scale:float) 
+         (scalesyn:bool) () : unit =
 
   (* Do some error checking on input *)
 
@@ -282,7 +284,11 @@ let simulate (spec_solvers:solver_type list)
 
        );
     
-  let dir = "./expData/" in
+      let split_dot_file_list = String.split_on_chars topology_file ~on:['/';'.'] in
+      let suffix =List.nth split_dot_file_list (List.length split_dot_file_list -2) in
+      let realsuffix= match suffix with Some x -> x | _-> "" in
+  let dir =
+      if scalesyn then "./expData/"^realsuffix^"/" else "./expData/" in
   to_file dir "ChurnVsIterations.dat" churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
   to_file dir "NumPathsVsIterations.dat" num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
   to_file dir "TimeVsIterations.dat" time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;  
@@ -396,7 +402,7 @@ let command =
 	 ; if smcfvlb || all then Some SmcfVlb else None
 	 ; if smcfraeke || all then Some SmcfRaeke else None ] in 
      let scale = if scalesyn then calculate_syn_scale(topology_file) else 1.0 in
-     simulate algorithms topology_file demand_file predict_file host_file iterations scale () 
+     simulate algorithms topology_file demand_file predict_file host_file iterations scale scalesyn () 
   )
 
 let main = Command.run command
