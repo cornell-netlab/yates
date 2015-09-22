@@ -399,11 +399,11 @@ let command =
          ; if spf || all then Some Spf else None
 	 ; if akmcf || all then Some AkMcf else None
 	 ; if akvlb || all then Some AkVlb else None
-	 ; if akecmp || all then Some AkVlb else None
+	 ; if akecmp || all then Some AkEcmp else None
 	 ; if akraeke || all then Some AkRaeke else None
          ; if raeke || all then Some Raeke else None 
          ; if smcfmcf || all then Some SmcfMcf else None
-	 ; if smcfecmp || all then Some SmcfMcf else None
+	 ; if smcfecmp || all then Some SmcfEcmp else None
 	 ; if smcfvlb || all then Some SmcfVlb else None
 	 ; if smcfraeke || all then Some SmcfRaeke else None ] in 
      let scale = if scalesyn then calculate_syn_scale(topology_file) else 1.0 in
