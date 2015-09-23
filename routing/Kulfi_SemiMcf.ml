@@ -170,7 +170,13 @@ let lp_of_maps (pmap:path_uid_map) (emap:edge_uidlist_map) (topo:topology) (d:de
   assert (List.length cap_and_demand > 0);
   (objective, cap_and_demand)
 
-    
+let rec new_rand () : float =
+  let rand = (Random.float 1.0) in 
+  let try_fn = (Printf.sprintf "lp/semimcf_%f.lp" rand) in 
+  match Sys.file_exists try_fn with 
+    `Yes -> new_rand () 
+    | _ -> rand  
+   
 (* Run everything. Given a topology and a set of pairs with demands,
    returns the optimal congestion ratio, the paths used, and the number
    of paths used. *)
@@ -235,11 +241,14 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   
   
   let lp = lp_of_maps pmap emap topo d s in
-  
-  serialize_lp lp "semimcf.lp";
+
+  let rand = new_rand () in 
+  let lp_filename = (Printf.sprintf "lp/semimcf_%f.lp" rand) in
+  let lp_solname = (Printf.sprintf "lp/semimcf_%f.sol" rand) in
+  serialize_lp lp lp_filename;
 
   let gurobi_in = Unix.open_process_in
-		    "gurobi_cl OptimalityTol=1e-9 ResultFile=semimcf.sol semimcf.lp" in
+		    ("gurobi_cl OptimalityTol=1e-9 ResultFile=" ^ lp_solname ^ " " ^ lp_filename) in
   let time_str = "Solved in [0-9]+ iterations and \\([0-9.e+-]+\\) seconds" in
   let time_regex = Str.regexp time_str in
   let rec read_output gurobi solve_time =
@@ -259,7 +268,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 
   let ratio, flows =
     In_channel.with_file
-      "semimcf.sol"
+      lp_solname
       ~f:(fun file ->
 	  let result_str = "^f_\\([a-zA-Z0-9]+\\) \\([0-9.e+-]+\\)$" in
 	  let regex = Str.regexp result_str in
@@ -285,7 +294,9 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 		       (opt_z, tup::flows) 
 		     else
 		       (opt_z, flows))) in	 
-  
+ 
+  let _ = Sys.remove lp_filename in
+  let _ = Sys.remove lp_solname in
   (* First find the total amount of flow for each source-destination pair *)
   let (unnormalized_scheme, flow_sum) = 
     List.fold_left

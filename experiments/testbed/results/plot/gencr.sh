@@ -1,6 +1,6 @@
 #!/bin/sh
 
-for scm in spf ecmp mcf ak-mcf smcf-mcf ;
+for scm in spf ecmp mcf ak-ecmp ak-mcf ak-raeke ak-vlb raeke smcf-ecmp smcf-mcf smcf-raeke smcf-vlb vlb;
 do
     echo $scm
     ./parse-stats-withouttime.sh $scm-stats.txt
