@@ -6,6 +6,8 @@ open Core.Std
 
 type var = string
 
+let () = Random.self_init ()
+
 (* This is stripped down to cover only what we'll need for MCF *)
 type arith_exp =
     Var of var
@@ -303,8 +305,13 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
 	     f_decomp in
 	 SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc) unnormalized_scheme
 
-
-
+let rec new_rand () : float =
+  let rand = (Random.float 1.0) in
+  let try_fn = (Printf.sprintf "mcf_%f.lp" rand) in
+  match Sys.file_exists try_fn with
+      `Yes -> new_rand ()
+       | _ -> rand
+ 
 (* Run everything. Given a topology and a set of pairs with demands,
    returns the optimal congestion ratio, the paths used, and the number
    of paths used. *)
@@ -318,10 +325,13 @@ let solve (topo:topology) (pairs:demands) (s:scheme) : scheme =
         Hashtbl.Poly.add_exn name_table name vert) topo;
   
   let lp = lp_of_graph topo pairs in
-  serialize_lp lp "mcf.lp";
+  let rand = new_rand () in
+  let lp_filename = (Printf.sprintf "mcf_%f.lp" rand) in
+  let lp_solname = (Printf.sprintf "mcf_%f.sol" rand) in
+  serialize_lp lp lp_filename;
   
   let gurobi_in = Unix.open_process_in
-		    "gurobi_cl OptimalityTol=1e-9 ResultFile=mcf.sol mcf.lp" in
+		    ("gurobi_cl OptimalityTol=1e-9 ResultFile=" ^ lp_solname ^ " " ^ lp_filename) in
   let time_str = "Solved in [0-9]+ iterations and \\([0-9.e+-]+\\) seconds" in
   let time_regex = Str.regexp time_str in
   let rec read_output gurobi solve_time =
@@ -373,7 +383,7 @@ let solve (topo:topology) (pairs:demands) (s:scheme) : scheme =
 
       let result = read results 0. [] in
       In_channel.close results; result in
-    let ratio, flows = read_results "mcf.sol" in
+    let ratio, flows = read_results lp_solname in
     let flows_table = Hashtbl.Poly.create () in
 
     (* partition the edge flows based on which commodity they are *)
