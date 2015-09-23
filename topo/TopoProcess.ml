@@ -46,6 +46,8 @@ let process (topology_file:string) () : unit =
 
   let num_hosts = Topology.VertexSet.length host_set in 
   let num_vertices = (Topology.num_vertexes topo) in
+  let num_edges = (Topology.num_edges topo) in
+  let ratio = (Float.of_int num_edges) /. (Float.of_int num_vertices) in
   let degrees =
     VertexSet.fold
       (Topology.vertexes topo)
@@ -66,9 +68,9 @@ let process (topology_file:string) () : unit =
   let c90 = (kth_percentile sorted_degrees 0.9) in
   let c95 = (kth_percentile sorted_degrees 0.95) in
   
-  Printf.printf "%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n"
+  Printf.printf "%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\n"
 		(Filename.basename topology_file) num_vertices num_hosts
-		c10 c20 c30 c40 c50 c60 c70 c80 c90 c95
+		c10 c20 c30 c40 c50 c60 c70 c80 c90 c95 ratio
 
 		
 let command =
