@@ -5,14 +5,15 @@ import re
 from collections import OrderedDict
 import numpy as np
 import matplotlib.pyplot as pp
+import sys
 
-EXPERIMENT_NAME = "MaxCongestionVsIterations"
+EXPERIMENT_NAME = "CongestionVsIterations"
 X_LABEL         = "Iterations"
 Y_LABEL         = "Congestion"
-            
-def main(dirn, fname): 
-  (xs, ysPerSolver, ydevsPerSolver) = CommonViz.parseData(dirn, fname)
-     
+
+def main(dirn, fname, solvers):
+  (xs, ysPerSolver, ydevsPerSolver) = CommonViz.parseData(dirn, fname, solvers)
+
   CommonConf.setupMPPDefaults()
   fmts = CommonConf.getLineFormats()
   mrkrs = CommonConf.getLineMarkers()
@@ -21,7 +22,7 @@ def main(dirn, fname):
   # ax.set_xscale("log", basex=2)
 
   index = 0
-  for (solver, ys), (solver, ydevs) in zip(ysPerSolver.iteritems(),ydevsPerSolver.iteritems()) : 
+  for (solver, ys), (solver, ydevs) in zip(ysPerSolver.iteritems(),ydevsPerSolver.iteritems()) :
     ax.errorbar(xs, ys, yerr=ydevs, label=solver, marker=mrkrs[index], linestyle=fmts[index])
     index = index + 1
 
@@ -33,5 +34,7 @@ def main(dirn, fname):
   pp.show()
 
 if __name__ == "__main__":
-  main("expData", EXPERIMENT_NAME)
-
+  if len(sys.argv) < 2:
+    print sys.argv[0] + " [Max | Mean | percentile (k10, k20, ... , k95]" + " (list_of_schemes)"
+  else:
+    main("expData", sys.argv[1]+EXPERIMENT_NAME, set(sys.argv[2:]))

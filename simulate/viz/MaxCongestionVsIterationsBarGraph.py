@@ -6,17 +6,18 @@ import re
 from collections import OrderedDict
 import numpy as np
 import matplotlib.pyplot as pp
+import sys
 
 EXPERIMENT_NAME = "MaxCongestionVsIterations"
 X_LABEL         = "Iterations"
 Y_LABEL         = "Congestion"
 
-            
-def main(dirn, fname): 
+
+def main(dirn, fnamei, solvers):
     def getrandomColor():
         curc= "#%06x" % random.randint(0, 0xFFFFFF);
         return curc
-    (xs, ysPerSolver, ydevsPerSolver) = CommonViz.parseData(dirn, fname)
+    (xs, ysPerSolver, ydevsPerSolver) = CommonViz.parseData(dirn, fnamei, solvers)
 
     pp.rcParams['font.size'] = 13
     pp.rcParams['ytick.labelsize'] = 15
@@ -30,7 +31,7 @@ def main(dirn, fname):
     ax=fig.add_subplot(111)
 
     #totT=len(xs);
-    totT=10;
+    totT=100;
 
     subjects=np.arange(totT).tolist();
 
@@ -44,8 +45,8 @@ def main(dirn, fname):
 
     y=[];
     solverlabel=[]
-    for (solver, ys), (solver, ydevs) in zip(ysPerSolver.iteritems(),ydevsPerSolver.iteritems()) : 
-        y.append(ys[0:totT]); 
+    for (solver, ys), (solver, ydevs) in zip(ysPerSolver.iteritems(),ydevsPerSolver.iteritems()) :
+        y.append(ys[0:totT]);
         solverlabel.append(solver);
     width=0.9/(1+totP);
 
@@ -60,7 +61,7 @@ def main(dirn, fname):
         allbar.append(barlist[0]);
 
     ax.legend(allbar, solverlabel)
-        
+
     #pp.xticks(x+totP/2.*width, subjects)
     ax.set_xlabel(X_LABEL);
     ax.set_ylabel(Y_LABEL);
@@ -70,5 +71,5 @@ def main(dirn, fname):
     pp.show()
 
 if __name__ == "__main__":
-    main("expData", EXPERIMENT_NAME)
+    main("expData", EXPERIMENT_NAME, set(sys.argv[1:]))
 
