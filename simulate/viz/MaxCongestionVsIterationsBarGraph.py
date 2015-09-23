@@ -71,5 +71,5 @@ def main(dirn, fnamei, solvers):
     pp.show()
 
 if __name__ == "__main__":
-    main("expData", EXPERIMENT_NAME, set(sys.argv[1:]))
+    main("expData/"+sys.argv[1], EXPERIMENT_NAME, set(sys.argv[2:]))
 

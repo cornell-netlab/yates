@@ -31,9 +31,9 @@ def main(dirn, fname, solvers):
   ax.set_ylabel(Y_LABEL);
   ax.legend(loc='best', fancybox=True)
 
-  pp.savefig(dirn+"/"+fname+".pdf")
+  pp.savefig(dirn+"/"+fname+"-".join(solvers)+".pdf")
   pp.show()
 
 if __name__ == "__main__":
-  main("expData", EXPERIMENT_NAME, set(sys.argv[1:]))
+  main("expData/"+sys.argv[1], EXPERIMENT_NAME, set(sys.argv[2:]))
 

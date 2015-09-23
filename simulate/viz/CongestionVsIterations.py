@@ -30,11 +30,11 @@ def main(dirn, fname, solvers):
   ax.set_ylabel(Y_LABEL);
   ax.legend(loc='best', fancybox=True)
 
-  pp.savefig(dirn+"/"+fname+".pdf")
+  pp.savefig(dirn+"/"+fname+"-".join(solvers)+".pdf")
   pp.show()
 
 if __name__ == "__main__":
-  if len(sys.argv) < 2:
-    print sys.argv[0] + " [Max | Mean | percentile (k10, k20, ... , k95]" + " (list_of_schemes)"
+  if len(sys.argv) < 3:
+    print sys.argv[0] + "RunId" +" [Max | Mean | percentile (k10, k20, ... , k95]" + " (list_of_schemes)"
   else:
-    main("expData", sys.argv[1]+EXPERIMENT_NAME, set(sys.argv[2:]))
+    main("expData/"+sys.argv[1], sys.argv[2]+EXPERIMENT_NAME, set(sys.argv[3:]))
