@@ -8,6 +8,7 @@ echo $CURR_DIR
 mkdir -p $EXP_DIR/results
 mkdir -p $EXP_DIR/hosts
 mkdir -p $CURR_DIR/expData
+mkdir -p $CURR_DIR/lp
 mkdir -p ~/log
 TOPOLOGY_FILES=${TOPO_DIR}/*
 TM_DIR=${CURR_DIR}/prediction/scripts/synthetic_demands
