@@ -21,6 +21,7 @@ do
     echo $base
     echo $prefix
     num_hosts=`grep mac $tf | wc -l`
+    rm -rf $CURR_DIR/expData/${prefix}
     echo $num_hosts
     actual_demand=${TM_DIR}/syn-${num_hosts}
     predicted_demand=${TM_DIR}/syn-${num_hosts}_LinearRegression
