@@ -19,10 +19,13 @@ let kth_percentile (l:int list) (k:float) : int =
     let lhs = match (List.nth l i) with
       | Some f -> f
       | None -> assert false in
-    let rhs = match List.nth l (i+1) with
-      | Some f -> f
-      | None -> assert false in
-    ((lhs + rhs)/2)
+    if (i+1 >= (List.length l -1)) 
+    then lhs 
+    else
+      let rhs = match List.nth l (i+1) with
+        | Some f -> f
+        | None -> assert false in
+      ((lhs + rhs)/2)
   else    
     let i = Int.of_float x in
     match (List.nth l i) with
