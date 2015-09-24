@@ -10,9 +10,10 @@
 #include <linux/jiffies.h>
 #include <linux/spinlock.h>
 #include "stack.h"
+#include "routing_table.h"
 
-#define DEFAULT_FLOW_TABLE_SIZE 4096
-#define IDLE_TIMEOUT 1
+#define DEFAULT_FLOW_TABLE_SIZE 40960
+#define IDLE_TIMEOUT 1000
 
 struct match_stk_s {
     struct flow_keys match;
@@ -56,6 +57,8 @@ void flow_table_delete(flow_table_t *);
 
 void flow_table_set( flow_table_t *hashtable, struct flow_keys match, struct stack stk); 
 
-struct stack flow_table_get( flow_table_t *hashtable, struct flow_keys match );
+struct stack flow_table_get( flow_table_t *hashtable, struct flow_keys match, routing_table_t* routing_table, u32 dst_ip);
 
 void flow_table_rem( flow_table_t *hashtable, struct flow_keys match );
+
+struct stack get_random_stack_for_dst(u32 dst_ip, routing_table_t* routing_table);

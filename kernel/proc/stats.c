@@ -42,19 +42,21 @@ void delete_stats_proc_entry(void) {
 }
 
 void stats_entry_del(struct stats_entry *ste){
-    spin_lock(&stats_lock);
+    unsigned long flags;
+    spin_lock_irqsave(&stats_lock, flags);
     hash_del_rcu(&ste->hash_node);
-    spin_unlock(&stats_lock);
+    spin_unlock_irqrestore(&stats_lock, flags);
 }
 
 void stats_entry_add(struct stats_entry *ste){
+    unsigned long flags;
     u32 key = hash_ip(ste->dst_ip);
     ste->hash_key = key;
-    spin_lock(&stats_lock);
+    spin_lock_irqsave(&stats_lock, flags);
     hash_add_rcu(stats_table,
             &ste->hash_node,
             key);
-    spin_unlock(&stats_lock);
+    spin_unlock_irqrestore(&stats_lock, flags);
 }
 
 struct stats_entry *stats_entry_get(u32 dst_ip){

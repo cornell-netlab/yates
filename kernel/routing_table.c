@@ -67,7 +67,6 @@ struct stack_list routing_table_get( routing_table_t *rt, u32 ip ) {
 
     index = ip % rt->size;
 
-    rcu_read_lock();
     ip_stks_entry = rcu_dereference_bh(rt->table[index]);
     while(ip_stks_entry != NULL && !ip_equal(ip, ip_stks_entry->ip)) {
         ip_stks_entry = rcu_dereference_bh(ip_stks_entry->next);
@@ -78,10 +77,8 @@ struct stack_list routing_table_get( routing_table_t *rt, u32 ip ) {
         struct stack_list empty_stacks;
         empty_stacks.num_stacks = 0;
         empty_stacks.stacks = NULL;
-        rcu_read_unlock();
         return empty_stacks;
     } 
-    rcu_read_unlock();
     return ip_stks_entry->stks;
 }
 

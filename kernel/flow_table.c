@@ -2,18 +2,18 @@
 
 static DEFINE_SPINLOCK(ft_mutex);
 
-void ft_lock(void){
-    spin_lock(&ft_mutex);
+void ft_lock(unsigned long flags){
+    spin_lock_irqsave(&ft_mutex, flags);
 }
 
-void ft_unlock(void){
-    spin_unlock(&ft_mutex);
+void ft_unlock(unsigned long flags){
+    spin_unlock_irqrestore(&ft_mutex, flags);
 }
 
 u64 flow_idle_time (ulong last_used_jiffies){
     u64 idle_time;
     idle_time = jiffies_to_msecs(jiffies - last_used_jiffies);
-    return idle_time / MSEC_PER_SEC;
+    return idle_time;
 }
 
 bool flow_key_equal (struct flow_keys k1, struct flow_keys k2){
@@ -22,6 +22,42 @@ bool flow_key_equal (struct flow_keys k1, struct flow_keys k2){
     }
 
     return false;
+}
+
+struct stack get_random_stack_for_dst(u32 dst_ip, routing_table_t* routing_table) {
+    struct stack_list stks;
+    struct stack empty_stack;
+    u32 n, total_wt = 0, i;
+
+    empty_stack.num_tags = 0;
+    empty_stack.tags = NULL;
+
+    stks = routing_table_get(routing_table, dst_ip);
+    if(stks.num_stacks <= 0){
+        pr_debug("routing table miss. Returning empty_stack for (%u)", dst_ip);
+        return empty_stack;
+    }
+    else{
+        pr_debug("routing table: hit\n");
+    }
+
+    for (i=0; i< stks.num_stacks; i++){
+        total_wt += stks.stacks[i].weight;
+    }
+
+    get_random_bytes(&n, sizeof(u32));
+    n = n % total_wt;
+
+    for(i=0; i<stks.num_stacks; i++){
+        if(n < stks.stacks[i].weight){
+            break;
+        }
+        n -= stks.stacks[i].weight;
+    }
+
+    pr_debug("exit get_random_stack_for_dst: %d %d / %d \n", n, i,
+            stks.num_stacks);
+    return stks.stacks[i];
 }
 
 match_stk_t *flow_table_new_match_stk(struct flow_keys match,
@@ -49,13 +85,13 @@ void free_match_stk_entry(match_stk_t* entry){
 
 void flow_table_set( flow_table_t *ft, struct flow_keys match,
         struct stack orig_stk ) {
+    unsigned long flags = 0;
     int index = 0;
     match_stk_t *new_match_stk = NULL;
     match_stk_t *curr = NULL;
     match_stk_t *prev = NULL;
     match_stk_t *tmp = NULL;
     match_stk_t *to_free = NULL;
-    match_stk_t *next_to_free = NULL;
 
     // keep separate copies of stack in routing and flow tables
     struct stack stk = stack_dup(orig_stk);
@@ -70,12 +106,12 @@ void flow_table_set( flow_table_t *ft, struct flow_keys match,
     pr_debug("FT: setting flow entry %d ... num_flows: %d -> %d\n", index, 
             atomic_read(&ft->num_flows), atomic_read(&ft->num_flows)+1);
 
-    ft_lock();
+    ft_lock(flags);
     curr = rcu_dereference_bh(ft->table[index]);
 
     while(curr != NULL && !flow_key_equal(match, curr->match)) {
         // ---
-        if(flow_idle_time(curr->last_used) > IDLE_TIMEOUT){
+        if(flow_idle_time(curr->last_used) > IDLE_TIMEOUT && 0){
             // if idle timed-out, remove flow entry
             pr_debug("FT: non-matching flow timeout remove it %d -> %d flows\n",
                     atomic_read(&ft->num_flows), 
@@ -127,26 +163,19 @@ void flow_table_set( flow_table_t *ft, struct flow_keys match,
         }
        atomic_inc(&ft->num_flows);
     }
-    ft_unlock();
-
-    while(to_free != NULL){
-        next_to_free = to_free->next;
-        free_match_stk_entry(to_free);
-        to_free = next_to_free;
-    }
+    ft_unlock(flags);
 
 }
 
 
 void flow_table_rem(flow_table_t *ft, struct flow_keys match) {
     int index = 0;
+    unsigned long flags = 0;
     match_stk_t *curr = NULL;
     match_stk_t *last = NULL;
 
-
     index = flow_keys_hash(match) % ft->size;
 
-    rcu_read_lock();
     curr = rcu_dereference_bh(ft->table[index]);
 
     pr_debug("FT: removing bucket entry at %d\n", index);
@@ -157,7 +186,7 @@ void flow_table_rem(flow_table_t *ft, struct flow_keys match) {
 
     if(curr != NULL && flow_key_equal(match, curr->match)) {
         // entry exists
-        ft_lock();
+        ft_lock(flags);
         if(curr == ft->table[index]){
             // if at the beginning of bucket
             rcu_assign_pointer(ft->table[index], curr->next);
@@ -165,28 +194,27 @@ void flow_table_rem(flow_table_t *ft, struct flow_keys match) {
             // otherwise
             rcu_assign_pointer(last->next, curr->next);
         }
-        ft_unlock();
-        // synchronize_rcu();
+        ft_unlock(flags);
         // free both stk and entry
         free_match_stk_entry(curr);
         atomic_dec(&ft->num_flows);
     }
-    rcu_read_unlock();
     // else entry doesn't exist
 }
 
 
 
-struct stack flow_table_get( flow_table_t *ft, struct flow_keys match ) {
+struct stack flow_table_get( flow_table_t *ft, struct flow_keys match, routing_table_t* routing_table, u32 dst_ip) {
     struct stack no_stack;
+    struct stack new_stk;
+    struct stack old_stk;
+    unsigned long flags = 0;
     match_stk_t *curr = NULL;
     match_stk_t *prev = NULL;
     int index = 0;
     no_stack.num_tags = -1;
-
     index = flow_keys_hash(match) % ft->size;
 
-    rcu_read_lock();
     curr = rcu_dereference_bh(ft->table[index]);
     
     while(curr != NULL && !flow_key_equal(match, curr->match)) {
@@ -198,7 +226,6 @@ struct stack flow_table_get( flow_table_t *ft, struct flow_keys match ) {
     // flow_table returns "no_stack" on miss
     if(curr == NULL || !flow_key_equal(match, curr->match)) {
         pr_debug("FT: no matching flow\n");
-        rcu_read_unlock();
         return no_stack;
     }
 
@@ -207,27 +234,17 @@ struct stack flow_table_get( flow_table_t *ft, struct flow_keys match ) {
         pr_debug("FT: matched flow - timeout.. num_flows %d -> %d\n", 
                 atomic_read(&ft->num_flows), atomic_read(&ft->num_flows) - 1);
         // if idle timed-out, remove flow entry and return no_stack
-        ft_lock();
-        if(prev == NULL){
-            // at the beginning of bucket
-            rcu_assign_pointer(ft->table[index], curr->next);
-        }
-        else{
-            // in the middle of bucket
-            prev->next = curr->next;
-        }
-        ft_unlock();
-        atomic_dec(&ft->num_flows);
-        rcu_read_unlock();
-        // synchronize_rcu();
-        free_match_stk_entry(curr);
-        return no_stack;
+        new_stk = stack_dup(get_random_stack_for_dst(dst_ip, routing_table));
+        old_stk = curr->stk;
+        ft_lock(flags);
+        curr->stk = new_stk;
+        ft_unlock(flags);
+        stack_free(old_stk);
     }
 
     pr_debug("FT: matched flow - updating last_used\n");
     // update the last_used value for successful match
     curr->last_used = jiffies;
-    rcu_read_unlock();
     return curr->stk;
 }
 

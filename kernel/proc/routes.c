@@ -49,6 +49,7 @@ int get_int(char **buf){
 
 void process_proc(void){
     unsigned int num_dsts, n_stks, n_tags, ip, tag, i, j, weight;
+    unsigned long flags;
     char *dup;
     routing_table_t * new_routing_table = NULL;
     routing_table_t * old_routing_table = NULL;
@@ -67,7 +68,7 @@ void process_proc(void){
     // flow_table_delete(flow_table);
     // flow_table = flow_table_create(DEFAULT_FLOW_TABLE_SIZE);
 
-    spin_lock(&rt_lock);
+    spin_lock_irqsave(&rt_lock, flags);
     old_routing_table = routing_table;
     // for all destination address
     while(num_dsts-->0){
@@ -106,8 +107,7 @@ void process_proc(void){
 
     // Update routing table; 
     rcu_assign_pointer(routing_table, new_routing_table);
-    spin_unlock(&rt_lock);
-    synchronize_rcu();
+    spin_unlock_irqrestore(&rt_lock, flags);
 
     if(old_routing_table != NULL){
         pr_debug("Deleting old_routing_table\n");

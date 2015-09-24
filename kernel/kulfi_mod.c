@@ -12,7 +12,6 @@
 #define INTF_NAME "em2"
 
 static struct nf_hook_ops nfho_post;
-//static struct nf_hook_ops nfho_pre;
 
 static struct proc_dir_entry * routes_proc_entry;
 static struct proc_dir_entry * stats_proc_entry;
@@ -23,43 +22,7 @@ flow_table_t * flow_table = NULL;
 
 routing_table_t * routing_table = NULL;
 
-/* Get a random stack from set of stacks for a destination */
-struct stack get_random_stack_for_dst(u32 dst_ip) {
-    struct stack_list stks;
-    struct stack empty_stack;
-    u32 n, total_wt = 0, i;
 
-    empty_stack.num_tags = 0;
-    empty_stack.tags = NULL;
-
-    stks = routing_table_get(routing_table, dst_ip);
-    if(stks.num_stacks <= 0){
-        pr_debug("routing table miss. Returning empty_stack for (%u)", dst_ip);
-        print_ip(dst_ip) ;
-        return empty_stack;
-    }
-    else{
-        pr_debug("routing table: hit\n");
-    }
-
-    for (i=0; i< stks.num_stacks; i++){
-        total_wt += stks.stacks[i].weight;
-    }
-
-    get_random_bytes(&n, sizeof(u32));
-    n = n % total_wt;
-
-    for(i=0; i<stks.num_stacks; i++){
-        if(n < stks.stacks[i].weight){
-            break;
-        }
-        n -= stks.stacks[i].weight;
-    }
-
-    pr_debug("exit get_random_stack_for_dst: %d %d / %d \n", n, i,
-            stks.num_stacks);
-    return stks.stacks[i];
-}
 
 /* Handle linearized sk_buff post_routing */
 static unsigned int post_routing_process(const struct nf_hook_ops *ops,
@@ -125,18 +88,15 @@ static unsigned int post_routing_process(const struct nf_hook_ops *ops,
                 return NF_ACCEPT;
             }
 
-            stats_entry_inc(be32_to_cpu(flow_key.dst), ip_pkt_len);
+            //stats_entry_inc(be32_to_cpu(flow_key.dst), ip_pkt_len);
             pr_debug("Proto: IP pkt\nGetting stk from flow_table for %u\n",
                     be32_to_cpu(flow_key.dst));
+	    stk = flow_table_get(flow_table, flow_key, routing_table, be32_to_cpu(flow_key.dst));
 
-            stk = flow_table_get(flow_table, flow_key);
-            if(stk.num_tags == -1) { // no_stack
+	    if(stk.num_tags == -1) { // no_stack
                 pr_debug("flow_table miss! consulting rt_table\n");
-                stk = get_random_stack_for_dst(be32_to_cpu(flow_key.dst));
+                stk = get_random_stack_for_dst(be32_to_cpu(flow_key.dst), routing_table);
                 flow_table_set(flow_table, flow_key, stk);
-            }
-            else{
-                pr_debug("flow_table: hit\n");
             }
 
             if(stk.num_tags < 0) {
@@ -271,63 +231,6 @@ static unsigned int process_pkt_post_routing(const struct nf_hook_ops *ops,
     return err;
 }
 
-static unsigned int process_pkt_pre_routing(const struct nf_hook_ops *ops,
-        struct sk_buff *skb,
-        const struct net_device *in,
-        const struct net_device *out,
-        int (*okfn)(struct sk_buff *))
-{
-    struct flow_keys flow_key;
-    struct iphdr* ip_hdr;
-    __be16 proto;
-    u32 hash;
-    int err = 0;
-
-    if(in == NULL || in->name == NULL || strcmp(in->name, INTF_NAME) != 0){
-        return NF_ACCEPT;
-    }
-
-    pr_debug("*** Incoming pkt ***\n");
-    if(skb_is_nonlinear(skb)){
-        pr_debug("Proces_pkt: Still non-linear skb.\n");
-        return NF_ACCEPT;
-    }
-
-    proto = ntohs(skb->protocol);
-    switch (proto) {
-        case ETH_P_IP:
-            if(skb_flow_dissect(skb, &flow_key)){
-                pr_debug("Successfully dissected flow\n");
-                print_ip(flow_key.src);
-                print_ip(flow_key.dst);
-                pr_debug("Ports %d %d\n", ntohs(flow_key.port16[0]),
-                        ntohs(flow_key.port16[1]));
-                hash = flow_keys_hash(flow_key);
-                pr_debug("Hash: %x\n", hash);
-            }
-            else{
-                pr_debug("Failed to dissect flow\n");
-                return NF_ACCEPT;
-            }
-
-            ip_hdr = (struct iphdr *) skb_network_header(skb);
-
-            fix_csum(ip_hdr);
-
-            break;
-        case ETH_P_8021Q:
-            // Pop vlan
-            // err = pop_vlan(skb);
-            pr_debug("pop_vlan returned 0x%x\n", err);
-
-        default:
-            pr_debug("Unknown proto: 0x%x\n", proto);
-            break;
-    }
-
-    return NF_ACCEPT;
-}
-
 /* Initialization routine */
 int init_module()
 {
@@ -336,22 +239,9 @@ int init_module()
     nfho_post.pf       = AF_INET;
     nfho_post.priority = NF_IP_PRI_LAST;
 
-    //nfho_pre.hook     = process_pkt_pre_routing;        /* Handler function */
-    //nfho_pre.hooknum  = NF_INET_PRE_ROUTING;
-    //nfho_pre.pf       = AF_INET;
-    //nfho_pre.priority = NF_IP_PRI_FIRST;
-
-
     pr_debug("mod_vlan: Loading\n");
     // Create a flow_table [flow_match, vlan_stack]
     flow_table = flow_table_create(DEFAULT_FLOW_TABLE_SIZE);
-    /*
-    ms_cache = kmem_cache_create("ms_cache", sizeof(struct ms_pair), 0,
-                 SLAB_HWCACHE_ALIGN, NULL);
-    if(!ms_cache){
-        printk(KERN_NOTICE "Failed to allocate ms_cache\n");
-    }
-    */
 
     // Create a routing table [dst_ip, list_of_stacks]
     routing_table = routing_table_create(4096);
@@ -361,7 +251,6 @@ int init_module()
     create_new_stats_proc_entry(stats_proc_entry);
 
     nf_register_hook(&nfho_post);
-    //nf_register_hook(&nfho_pre);
 
     return 0;
 }
@@ -370,7 +259,6 @@ int init_module()
 void cleanup_module()
 {
     nf_unregister_hook(&nfho_post);
-    //nf_unregister_hook(&nfho_pre);
 
     // delete flow_table (free copied stacks here)
     flow_table_delete(flow_table);

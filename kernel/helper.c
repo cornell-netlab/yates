@@ -71,9 +71,7 @@ int get_dst_haddr(unsigned char* daddr, u32 dst_ip, struct net_device *dev){
     struct neighbour *neigh = neigh_lookup(&arp_tbl, &dst_ip, dev);
     int err = -ENXIO;
     if(neigh){
-        read_lock_bh(&neigh->lock);
         memcpy(daddr, neigh->ha, dev->addr_len);
-        read_unlock_bh(&neigh->lock);
         neigh_release(neigh);
         err = 0;
     }
