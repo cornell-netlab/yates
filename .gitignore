@@ -20,12 +20,13 @@ expData
 *.clib
 *.d
 *.o
-data/demands/abilene/X01-36.gravity
-data/demands/abilene/X01-36.observed
+data/demands/abilene
 prediction/bin
 prediction/obj
+prediction/scripts/synthetic_demands
 prediction/synthetic.txt
 prediction/synthetic.txt_ElasticNetRegression
 prediction/synthetic.txt_LinearRegression
 prediction/synthetic.txt_lastOne
+experiments/testbed/results
 fftout
