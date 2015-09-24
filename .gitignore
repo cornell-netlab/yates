@@ -18,9 +18,15 @@ gurobi.log
 expData
 *.pyc
 *.clib
+*.cmd
 *.d
 *.o
+*.order
+*.ko
+*.symvers
 data/demands/abilene
+kernel/.tmp_versions
+kernel/modkulfi.mod.c
 prediction/bin
 prediction/obj
 prediction/scripts/synthetic_demands
