@@ -35,6 +35,6 @@ def main(dirn, fname, solvers):
 
 if __name__ == "__main__":
   if len(sys.argv) < 3:
-    print sys.argv[0] + "RunId" +" [Max | Mean | percentile (k10, k20, ... , k95]" + " (list_of_schemes)"
+    print "Usage: " + sys.argv[0] + " RunId" +" [Max | Mean | percentile (k10, k20, ... , k95]" + "[optional (list_of_schemes)]"
   else:
     main("expData/"+sys.argv[1], sys.argv[2]+EXPERIMENT_NAME, set(sys.argv[3:]))

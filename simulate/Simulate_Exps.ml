@@ -26,7 +26,7 @@ type iter_vs_edge_congestions = { iteration : int ; edge_congestions : float Edg
 
 let iter_vs_edge_congestions_to_string (topo:topology) (r:iter_vs_edge_congestions) : string =
   Printf.sprintf "%d\t" r.iteration ^ 
-  EdgeMap.fold ~init:"" ~f:(fun ~key:e ~data:c acc -> acc ^ "\t" ^ "(" ^
+  EdgeMap.fold ~init:"" ~f:(fun ~key:e ~data:c acc -> acc ^ "\n\t\t" ^ "(" ^
     (Node.name (Net.Topology.vertex_to_label topo (fst (Net.Topology.edge_src e)))) ^ "," ^
     (Node.name (Net.Topology.vertex_to_label topo (fst (Net.Topology.edge_dst e)))) ^ ") : " ^
     string_of_float c) r.edge_congestions

@@ -34,5 +34,7 @@ def main(dirn, fname, solvers):
   pp.show()
 
 if __name__ == "__main__":
-  main("expData/"+sys.argv[1], EXPERIMENT_NAME, set(sys.argv[2:]))
-
+  if len(sys.argv) < 2:
+    print "Usage: " + sys.argv[0] + " RunId" + " [optional (list_of_schemes)]"
+  else:
+    main("expData/"+sys.argv[1], EXPERIMENT_NAME, set(sys.argv[2:]))
