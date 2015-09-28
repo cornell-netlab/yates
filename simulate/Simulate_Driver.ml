@@ -213,6 +213,7 @@ let simulate
   let k80_congestion_data = make_data "80th Congestion Vs Time" in
   let k90_congestion_data = make_data "90th Congestion Vs Time" in
   let k95_congestion_data = make_data "95th Congestion Vs Time" in
+  let edge_congestion_data = make_data "Edge Congestion Vs Time" in
 
   let num_paths_data = make_data "Num. Paths Vs Time" in
 
@@ -284,7 +285,9 @@ let simulate
 		  add_record k70_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c70; congestion_dev=0.0; };
 		  add_record k80_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c80; congestion_dev=0.0; };
 		  add_record k90_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c90; congestion_dev=0.0; };
-		  add_record k95_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c95; congestion_dev=0.0; };		      
+		  add_record k95_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c95; congestion_dev=0.0; };
+		  add_record edge_congestion_data (solver_to_string algorithm) {iteration = n; edge_congestions=congestions; };
+
 		  scheme') );
 	
 	(* start at beginning of demands for next algorithm *)
@@ -313,6 +316,7 @@ let simulate
   to_file dir "k80CongestionVsIterations.dat" k80_congestion_data "# solver\titer\t.80-congestion\tstddev" iter_vs_congestion_to_string;
   to_file dir "k90CongestionVsIterations.dat" k90_congestion_data "# solver\titer\t.90-congestion\tstddev" iter_vs_congestion_to_string;
   to_file dir "k95CongestionVsIterations.dat" k95_congestion_data "# solver\titer\t.95-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "EdgeCongestionVsIterations.dat" edge_congestion_data "# solver\titer\tedge-congestion" (iter_vs_edge_congestions_to_string topo);
  
   Printf.printf "%s" (to_string time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string);
   Printf.printf "%s" (to_string churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);

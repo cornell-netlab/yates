@@ -1,4 +1,6 @@
 (* Experiments that we want to run with the Simulator *)
+open Kulfi_Types
+open Frenetic_Network
 
 type iter_vs_time = { iteration : int ; time : float; time_dev : float; }
 
@@ -19,3 +21,12 @@ type iter_vs_num_paths = { iteration : int ; num_paths : float; num_paths_dev : 
 
 let iter_vs_num_paths_to_string (r:iter_vs_num_paths) : string =		      
   Printf.sprintf "%d\t%f\t%f" r.iteration r.num_paths r.num_paths_dev
+
+type iter_vs_edge_congestions = { iteration : int ; edge_congestions : float EdgeMap.t; }		 
+
+let iter_vs_edge_congestions_to_string (topo:topology) (r:iter_vs_edge_congestions) : string =
+  Printf.sprintf "%d\t" r.iteration ^ 
+  EdgeMap.fold ~init:"" ~f:(fun ~key:e ~data:c acc -> acc ^ "\t" ^ "(" ^
+    (Node.name (Net.Topology.vertex_to_label topo (fst (Net.Topology.edge_src e)))) ^ "," ^
+    (Node.name (Net.Topology.vertex_to_label topo (fst (Net.Topology.edge_dst e)))) ^ ") : " ^
+    string_of_float c) r.edge_congestions
