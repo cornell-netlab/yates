@@ -33,7 +33,7 @@ end
 (* multiplicative weights instantiation *)
 module RRTs : MW_ALG with type structure = FRT.routing_tree = Kulfi_Mw.Make (MWInput)
 
-let solve (t:topology) (d:demands) (s:scheme) : scheme =
+let solve ?(deloop=false) (t:topology) (d:demands) (s:scheme) : scheme =
   if SrcDstMap.is_empty s then
     let epsilon = 0.1 in 
     let end_points = 
@@ -49,8 +49,9 @@ let solve (t:topology) (d:demands) (s:scheme) : scheme =
            compute the physical path? Seems like it... *)
           let routing_path = FRT.get_path rt src dst in 
           let physical_path = FRT.path_to_physical rt routing_path in
-          let no_loop_path = Kulfi_Frt.FRT.remove_cycles physical_path in
-          add_or_increment_path acc no_loop_path p) in 
+          let physical_path' = if deloop then Kulfi_Frt.FRT.remove_cycles physical_path 
+                               else physical_path in
+          add_or_increment_path acc physical_path' p) in 
     Topology.VertexSet.fold 
       end_points
       ~init:SrcDstMap.empty

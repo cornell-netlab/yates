@@ -3,7 +3,7 @@ open Kulfi_Types
 open Frenetic_Network
 open Net
 
-let solve (topo:topology) (d:demands) (s:scheme) : scheme =
+let solve ?(deloop=false) (topo:topology) (d:demands) (s:scheme) : scheme =
   let device v = let lbl = Topology.vertex_to_label topo v in (Node.device lbl) in
   let apsp = NetPath.all_pairs_shortest_paths ~topo:topo
     ~f:(fun x y -> 

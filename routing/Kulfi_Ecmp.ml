@@ -102,7 +102,7 @@ let all_shortest_paths_multi topo hosts =
         Hashtbl.Poly.add_exn path_table src dst_paths_list);
   path_table
 
-let solve (topo:topology) (_:demands) (_:scheme) : scheme =
+let solve ?(deloop=false) (topo:topology) (_:demands) (_:scheme) : scheme =
   let host_set =
     VertexSet.filter
       (vertexes topo)

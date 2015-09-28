@@ -150,21 +150,21 @@ let get_num_paths (s:scheme) : float =
   Float.of_int count 
 
 
-let initial_scheme algorithm topo : scheme =
+let initial_scheme deloop algorithm topo : scheme =
   match algorithm with
   | SemiMcfMcf 
   | AkMcf ->
      let d = init_mcf_demands topo in 
-     Kulfi_Routing.Mcf.solve topo d SrcDstMap.empty
+     Kulfi_Routing.Mcf.solve ~deloop topo d SrcDstMap.empty
   | SemiMcfVlb 
   | AkVlb ->
-     Kulfi_Routing.Vlb.solve topo SrcDstMap.empty SrcDstMap.empty
+     Kulfi_Routing.Vlb.solve ~deloop topo SrcDstMap.empty SrcDstMap.empty
   | SemiMcfRaeke 
   | AkRaeke ->
-     Kulfi_Routing.Raeke.solve topo SrcDstMap.empty SrcDstMap.empty
+     Kulfi_Routing.Raeke.solve ~deloop topo SrcDstMap.empty SrcDstMap.empty
   | SemiMcfEcmp 
   | AkEcmp ->
-     Kulfi_Routing.Ecmp.solve topo SrcDstMap.empty SrcDstMap.empty
+     Kulfi_Routing.Ecmp.solve ~deloop topo SrcDstMap.empty SrcDstMap.empty
   | _ -> SrcDstMap.empty
 
 			
@@ -175,8 +175,8 @@ let simulate
 	     (predict_file:string)
 	     (host_file:string)
 	     (iterations:int)
-         (scale:float) 
-         (scalesyn:bool) () : unit =
+             (scale:float) 
+             (deloop:bool) () : unit =
 
   (* Do some error checking on input *)
 
@@ -230,7 +230,7 @@ let simulate
 	let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
 
 	(* we may need to initialize the scheme, and advance both traffic files *)
-	let start_scheme = initial_scheme algorithm topo in
+	let start_scheme = initial_scheme deloop algorithm topo in
 	
 	ignore (
 	    List.fold_left
@@ -244,7 +244,7 @@ let simulate
 		  
 		  (* solve *)
 		  start at;
-		  let scheme' = solve topo predict scheme in 
+		  let scheme' = solve ~deloop topo predict scheme in 
 		  stop at;
 
 		  let congestions = (congestion_of_paths scheme' topo actual) in
@@ -290,14 +290,14 @@ let simulate
 	(* start at beginning of demands for next algorithm *)
 	close_demands actual_ic;
 	close_demands predict_ic;
-
        );
-    
-      let split_dot_file_list = String.split_on_chars topology_file ~on:['/';'.'] in
-      let suffix =List.nth split_dot_file_list (List.length split_dot_file_list -2) in
-      let realsuffix= match suffix with Some x -> x | _-> "" in
-  let dir =
-      if scalesyn then "./expData/"^realsuffix^"/" else "./expData/" in
+
+  (* Store results in a directory name = topology name in expData *)    
+  let split_dot_file_list = String.split_on_chars topology_file ~on:['/';'.'] in
+  let suffix =List.nth split_dot_file_list (List.length split_dot_file_list -2) in
+  let realsuffix= match suffix with Some x -> x | _-> "" in
+  let dir = "./expData/" ^ realsuffix ^ "/" in
+
   to_file dir "ChurnVsIterations.dat" churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
   to_file dir "NumPathsVsIterations.dat" num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
   to_file dir "TimeVsIterations.dat" time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;  
@@ -320,11 +320,10 @@ let simulate
   Printf.printf "%s" (to_string num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string)
 
 
-
-
-  (*"./data/topologies/zoo/Vinaren.dot" *)
-let calculate_syn_scale (topology:string)=
-    let topo = Parse.from_dotfile topology in 
+(* For synthetic demands based on Abilene, scale them to current topology by multiplying by X/mcf_congestion,
+   where X is the max congestion we expect to get when run with the new demands *)
+let calculate_syn_scale (deloop:bool) (topology:string) =
+  let topo = Parse.from_dotfile topology in 
   let host_set = VertexSet.filter (Topology.vertexes topo)
                                   ~f:(fun v ->
                                       let label = Topology.vertex_to_label topo v in
@@ -343,14 +342,15 @@ let calculate_syn_scale (topology:string)=
 		let r = if u = v then 0.0 else 22986934.0 /. Float.of_int(num_hosts * num_hosts) in
 		SrcDstMap.add acc ~key:(u,v) ~data:r)) in
   let s=SrcDstMap.empty in 
-  let s2 =Kulfi_Mcf.solve topo demands s in 
+  let s2 =Kulfi_Mcf.solve ~deloop topo demands s in 
   let congestions = congestion_of_paths s2 topo demands in 
   let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in 
   let cmax = (get_max_congestion list_of_congestions) in
   let scale_factor = 0.4/.cmax in 
   Printf.printf "%f\n\n" (scale_factor);
   scale_factor
-		
+
+
 let command =
   Command.basic
     ~summary:"Simulate run of routing strategies"
@@ -371,7 +371,8 @@ let command =
     +> flag "-semimcfecmp" no_arg ~doc:" run semi mcf+ecmp"
     +> flag "-raeke" no_arg ~doc:" run raeke"
     +> flag "-all" no_arg ~doc:" run all schemes"
-    +> flag "-scalesyn" no_arg ~doc:" use it in synthetic data simulation"
+    +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
+    +> flag "-deloop" no_arg ~doc:" remove loops in paths"
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
     +> anon ("predict-file" %: string)
@@ -392,7 +393,8 @@ let command =
 	 (semimcfecmp:bool)
 	 (raeke:bool)
 	 (all:bool)
-     (scalesyn:bool)
+         (scalesyn:bool)
+         (deloop:bool)
 	 (topology_file:string)
 	 (demand_file:string)
 	 (predict_file:string)
@@ -415,8 +417,8 @@ let command =
 	 ; if semimcfecmp || all then Some SemiMcfEcmp else None
 	 ; if semimcfvlb || all then Some SemiMcfVlb else None
 	 ; if semimcfraeke || all then Some SemiMcfRaeke else None ] in 
-     let scale = if scalesyn then calculate_syn_scale(topology_file) else 1.0 in
-     simulate algorithms topology_file demand_file predict_file host_file iterations scale scalesyn () 
+     let scale = if scalesyn then calculate_syn_scale deloop topology_file else 1.0 in
+     simulate algorithms topology_file demand_file predict_file host_file iterations scale deloop () 
   )
 
 let main = Command.run command

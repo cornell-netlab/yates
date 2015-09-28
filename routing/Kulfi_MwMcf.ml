@@ -60,7 +60,7 @@ end
 (* multiplicative weights instantiation *)
 module MWAlg : MW_ALG with type structure = scheme = Kulfi_Mw.Make (MWInput)
 
-let solve (t:topology) (d:demands) (s:scheme) : scheme =
+let solve ?(deloop=false) (t:topology) (d:demands) (s:scheme) : scheme =
   if SrcDstMap.is_empty s then
     let epsilon = 0.1 in 
     let end_points = 
