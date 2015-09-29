@@ -1,3 +1,3 @@
 open Kulfi_Types
 
-val solve : ?deloop:bool -> topology -> demands -> scheme -> scheme
+val solve : topology -> demands -> scheme -> scheme

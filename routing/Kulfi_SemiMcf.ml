@@ -181,7 +181,7 @@ let rec new_rand () : float =
    returns the optimal congestion ratio, the paths used, and the number
    of paths used. *)
 (* let solver_paths topo pairs verbose = *)
-let solve ?(deloop=false) (topo:topology) (d:demands) (s:scheme) : scheme =
+let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   ignore (if (SrcDstMap.is_empty s) then failwith "Kulfi_SemiMcf must be initialized with a non-empty scheme" else ());
 
   Printf.printf "invoking solve\n";

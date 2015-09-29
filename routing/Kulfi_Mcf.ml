@@ -316,7 +316,7 @@ let rec new_rand () : float =
    returns the optimal congestion ratio, the paths used, and the number
    of paths used. *)
 (* let solver_paths topo pairs verbose = *)
-let solve ?(deloop=false) (topo:topology) (pairs:demands) (s:scheme) : scheme =
+let solve (topo:topology) (pairs:demands) (s:scheme) : scheme =
   
   let name_table = Hashtbl.Poly.create () in
   Topology.iter_vertexes (fun vert ->

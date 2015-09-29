@@ -5,6 +5,7 @@ open Net
 open Kulfi_Mw
 open Kulfi_Frt
 open Kulfi_Rrt
+open Kulfi_Globals
 
 (* multiplicative weights input *)
 module MWInput : MW_INPUT with type structure = FRT.routing_tree = struct
@@ -33,7 +34,7 @@ end
 (* multiplicative weights instantiation *)
 module RRTs : MW_ALG with type structure = FRT.routing_tree = Kulfi_Mw.Make (MWInput)
 
-let solve ?(deloop=false) (t:topology) (d:demands) (s:scheme) : scheme =
+let solve (t:topology) (d:demands) (s:scheme) : scheme =
   if SrcDstMap.is_empty s then
     let epsilon = 0.1 in 
     let end_points = 
@@ -49,7 +50,7 @@ let solve ?(deloop=false) (t:topology) (d:demands) (s:scheme) : scheme =
            compute the physical path? Seems like it... *)
           let routing_path = FRT.get_path rt src dst in 
           let physical_path = FRT.path_to_physical rt routing_path in
-          let physical_path' = if deloop then Kulfi_Frt.FRT.remove_cycles physical_path 
+          let physical_path' = if !Kulfi_Globals.deloop then Kulfi_Frt.FRT.remove_cycles physical_path 
                                else physical_path in
           add_or_increment_path acc physical_path' p) in 
     Topology.VertexSet.fold 

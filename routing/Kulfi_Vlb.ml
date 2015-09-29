@@ -2,6 +2,7 @@ open Core.Std
 open Kulfi_Types
 open Frenetic_Network
 open Net
+open Kulfi_Globals
 
 let dump_path_prob_set (t:topology) (pps:probability PathMap.t) : string =
   let buf = Buffer.create 101 in
@@ -19,7 +20,7 @@ let dump_scheme (t:topology) (s:scheme) : string =
                                       (dump_path_prob_set t pps));
   Buffer.contents buf
 
-let solve ?(deloop=false) (topo:topology) (d:demands) (s:scheme) : scheme =
+let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   let device v = let lbl = Topology.vertex_to_label topo v in (Node.device lbl) in
   
   let apsp = NetPath.all_pairs_shortest_paths ~topo:topo ~f:(fun _ _ -> true) in
@@ -33,7 +34,7 @@ let solve ?(deloop=false) (topo:topology) (d:demands) (s:scheme) : scheme =
   let route_thru_detour src det dst =
     let p = (find_path src det @ find_path det dst) in
     (* assert (not (List.is_empty p));       *)
-    let p' = if deloop then Kulfi_Frt.FRT.remove_cycles p
+    let p' = if !Kulfi_Globals.deloop then Kulfi_Frt.FRT.remove_cycles p
              else p in
     (* assert (not (List.is_empty p'));       *)
     p' in

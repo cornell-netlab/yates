@@ -9,6 +9,7 @@ open Simulate_Demands
 open RunningStat
 open ExperimentalData 
 open AutoTimer
+open Kulfi_Globals
 
 type solver_type =
   | Mcf | MwMcf | Vlb | Ecmp | Spf | Raeke
@@ -150,21 +151,21 @@ let get_num_paths (s:scheme) : float =
   Float.of_int count 
 
 
-let initial_scheme deloop algorithm topo : scheme =
+let initial_scheme algorithm topo : scheme =
   match algorithm with
   | SemiMcfMcf 
   | AkMcf ->
      let d = init_mcf_demands topo in 
-     Kulfi_Routing.Mcf.solve ~deloop topo d SrcDstMap.empty
+     Kulfi_Routing.Mcf.solve topo d SrcDstMap.empty
   | SemiMcfVlb 
   | AkVlb ->
-     Kulfi_Routing.Vlb.solve ~deloop topo SrcDstMap.empty SrcDstMap.empty
+     Kulfi_Routing.Vlb.solve topo SrcDstMap.empty SrcDstMap.empty
   | SemiMcfRaeke 
   | AkRaeke ->
-     Kulfi_Routing.Raeke.solve ~deloop topo SrcDstMap.empty SrcDstMap.empty
+     Kulfi_Routing.Raeke.solve  topo SrcDstMap.empty SrcDstMap.empty
   | SemiMcfEcmp 
   | AkEcmp ->
-     Kulfi_Routing.Ecmp.solve ~deloop topo SrcDstMap.empty SrcDstMap.empty
+     Kulfi_Routing.Ecmp.solve  topo SrcDstMap.empty SrcDstMap.empty
   | _ -> SrcDstMap.empty
 
 			
@@ -176,7 +177,7 @@ let simulate
 	     (host_file:string)
 	     (iterations:int)
              (scale:float) 
-             (deloop:bool) () : unit =
+             () : unit =
 
   (* Do some error checking on input *)
 
@@ -231,7 +232,7 @@ let simulate
 	let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
 
 	(* we may need to initialize the scheme, and advance both traffic files *)
-	let start_scheme = initial_scheme deloop algorithm topo in
+	let start_scheme = initial_scheme algorithm topo in
 	
 	ignore (
 	    List.fold_left
@@ -245,7 +246,7 @@ let simulate
 		  
 		  (* solve *)
 		  start at;
-		  let scheme' = solve ~deloop topo predict scheme in 
+		  let scheme' = solve  topo predict scheme in 
 		  stop at;
 
 		  let congestions = (congestion_of_paths scheme' topo actual) in
@@ -346,7 +347,7 @@ let calculate_syn_scale (deloop:bool) (topology:string) =
 		let r = if u = v then 0.0 else 22986934.0 /. Float.of_int(num_hosts * num_hosts) in
 		SrcDstMap.add acc ~key:(u,v) ~data:r)) in
   let s=SrcDstMap.empty in 
-  let s2 =Kulfi_Mcf.solve ~deloop topo demands s in 
+  let s2 =Kulfi_Mcf.solve topo demands s in 
   let congestions = congestion_of_paths s2 topo demands in 
   let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in 
   let cmax = (get_max_congestion list_of_congestions) in
@@ -422,7 +423,8 @@ let command =
 	 ; if semimcfvlb || all then Some SemiMcfVlb else None
 	 ; if semimcfraeke || all then Some SemiMcfRaeke else None ] in 
      let scale = if scalesyn then calculate_syn_scale deloop topology_file else 1.0 in
-     simulate algorithms topology_file demand_file predict_file host_file iterations scale deloop () 
+     Kulfi_Globals.deloop := deloop;
+     simulate algorithms topology_file demand_file predict_file host_file iterations scale () 
   )
 
 let main = Command.run command

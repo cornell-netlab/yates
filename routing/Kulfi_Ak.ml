@@ -64,7 +64,7 @@ let apply_on_each_edge (mcf:mc_flow) (fcn:edge -> float -> float) : mc_flow =
 	SrcDstMap.add ~key:(u,v) ~data:new_edge_map acc
     ) mcf
 
-let solve ?(deloop=false) (topo:topology) (d:demands) (s:scheme) : scheme =
+let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   
   ignore (if (SrcDstMap.is_empty s) then failwith "Kulfi_Ak must be initialized with a non-empty scheme" else ());
   (* First build HashMaps, keyed by edges, containing the
