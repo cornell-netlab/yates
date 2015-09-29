@@ -2,9 +2,9 @@ import pygraphviz as pgv
 import sys
 
 def congestion_to_color(c):
-    colors = ['/rdylgn5/5','/rdylgn5/4','/rdylgn5/3','/rdylgn5/2','/rdylgn5/1']
+    colors = ['/rdylgn5/5','/rdylgn5/4','/rdylgn5/2','/rdylgn5/1']
     if c == 0:
-        return '#000000'
+        return '#aaaaaa'
     elif c < 1:
         return colors[int(c * len(colors))]
     elif c < 2:
