@@ -38,7 +38,7 @@ def parse_congestions_file (filename):
                 tokens = line.split('\t')
                 if len(tokens) != 3:
                     if len(links) != 0:
-                        all_congestions[scheme][iteration] = links
+                        all_congestions[scheme][int(iteration)] = links
                         links = dict()
                     continue
                 if tokens[2] == '\n':
