@@ -207,6 +207,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 	    (* get the possible paths, and for every path *)
 	    ~f:(fun ~key:path ~data:_ (umap,pmap,emap) ->
 		let id = fresh_uid () in		      
+                Printf.printf "\npath %d\t%d : " id (List.length path);
 		let umap' = UidMap.add ~key:id ~data:(u,v,path) umap in
 		let pmap' = PathMap.add ~key:path ~data:id pmap in
 		(* get the edges in the path *)
@@ -219,12 +220,71 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 		    ~f:(fun emap e ->
 			let ids = match (EdgeMap.find emap e ) with
 			  | None -> [id]
-			  | Some ids -> id::ids
-			in EdgeMap.add ~key:e ~data:ids emap) in
+			  | Some ids -> id::ids in
+			Printf.printf "%s " (string_of_edge topo e) ;
+			EdgeMap.add ~key:e ~data:ids emap) in
 		(umap',pmap',emap')) end) in
 
   assert (not (EdgeMap.is_empty emap));
 
+  (* Begin debug code *)
+  (* Store which paths does a path intersect with *)
+  let (pxmap) =
+    SrcDstMap.fold
+      s (* fold over the scheme *)
+      ~init:(UidMap.empty)
+      (* for every pair of hosts u,v *)
+      ~f:(fun ~key:(u,v) ~data:paths acc ->
+	  if (u = v) then acc
+	  else begin
+	  assert (not (PathMap.is_empty paths));
+	  PathMap.fold
+	    paths
+	    ~init:acc
+	    (* get the possible paths, and for every path *)
+	    ~f:(fun ~key:path ~data:_ (pxmap) ->
+		let id = match (PathMap.find pmap path) with
+                  | None -> failwith "invalid path id"
+                  | Some x -> x in
+		assert (not (List.is_empty path));
+		let pxmap' =
+		  List.fold_left
+		    path
+		    ~init:pxmap
+		    ~f:(fun pxmap e ->
+                        let ids = match (UidMap.find pxmap id) with
+                          | None -> []
+                          | Some x -> x in
+			let xids = match (EdgeMap.find emap e ) with
+			  | None -> ids
+			  | Some newids -> List.sort Pervasives.compare (newids @ ids) in
+			UidMap.add ~key:id ~data:xids pxmap) in
+		(pxmap')) end) in
+
+  let rec remove_dups lst = match lst with
+    | [] -> []
+    | h::t -> let tail = remove_dups (List.filter t (fun x -> x<>h))
+              in h::tail
+    in
+
+  (* Print path intersection *)
+  let _ =
+    UidMap.fold
+      pxmap 
+      ~init:0 
+      ~f:(fun ~key:id ~data:xids acc ->
+        let xids = remove_dups xids in
+        Printf.printf "\n %d : [%d] : " id (List.length xids);
+        let _ = List.fold_left
+          xids
+          ~init:0
+          ~f:(fun acc xid -> 
+            Printf.printf "%d " xid; 
+            0
+          ) in
+        0 
+      ) in
+  (* End debug code *)
   
   (* TODO: 
      - LP: variable for every path
@@ -295,8 +355,8 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 		     else
 		       (opt_z, flows))) in	 
  
-  let _ = Sys.remove lp_filename in
-  let _ = Sys.remove lp_solname in
+(*  let _ = Sys.remove lp_filename in
+  let _ = Sys.remove lp_solname in *)
   (* First find the total amount of flow for each source-destination pair *)
   let (unnormalized_scheme, flow_sum) = 
     List.fold_left
