@@ -86,12 +86,13 @@ let is_int v =
 let kth_percentile (l:float list) (k:float) : float =
   let n = List.length l in
   let x = (Float.of_int n) *. k in
+  Printf.printf "%f / %d\n" x n;
   if is_int x then
     let i = Int.of_float (Float.round_up x) in
     let lhs = match (List.nth l i) with
       | Some f -> f
       | None -> assert false in
-    let rhs = match List.nth l (i+1) with
+    let rhs = match List.nth l (min (i+1) (n-1)) with
       | Some f -> f
       | None -> assert false in
     ((lhs +. rhs)/.2.)
