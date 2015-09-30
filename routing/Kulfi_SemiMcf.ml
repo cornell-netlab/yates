@@ -91,7 +91,7 @@ let capacity_constraints (pmap : path_uid_map) (emap : edge_uidlist_map)
 	   let all_flows = List.map ~f:(fun x -> Var(var_name_uid x)) uid_list in
       (* Add them all up *)
 	   let total_flow = Sum (all_flows) in
-	   let scaled_cap = Times (capacity_of_edge topo edge, objective) in
+	   let scaled_cap = Times ((capacity_of_edge topo edge) /. cap_divisor, objective) in
       (* Total flow is at most the scaled capacity *)
 	   let constr = minus total_flow scaled_cap in
 	   let name = Printf.sprintf "cap_%s"
