@@ -1,8 +1,9 @@
 #!/bin/bash
 set -x
 topology=$1
-for x in spf akecmp akmcf akraeke akvlb ecmp mcf mwmcf raeke semimcfecmp semimcfmcf semimcfraeke semimcfvlb vlb ;
-    do python simulate/viz/showEdgeCongestion.py $x data/topologies/zoo/${topology}.dot expData/${topology}/EdgeCongestionVsIterations.dat
+TOPO_DIR=data/gen
+for scheme in spf akecmp akmcf akraeke akvlb ecmp mcf mwmcf raeke semimcfecmp semimcfmcf semimcfraeke semimcfvlb vlb ;
+    do python simulate/viz/showEdgeCongestion.py $scheme ${TOPO_DIR}/${topology}.dot expData/${topology}/EdgeCongestionVsIterations.dat
 done
 
 python simulate/viz/CongestionVsIterations.py ${topology} Max

@@ -20,10 +20,11 @@ def display (scheme, topology, all_congestions, directory):
         link = '('+e[0]+','+e[1]+')'
         max_cong = max(get_link_congestion(all_congestions, scheme, link))
         e.attr['color'] = congestion_to_color(max_cong)
+        e.attr['label'] = int(max_cong * 100)/100.0
         if max_cong > 1:
             e.attr['weight'] = 10
     G.layout()
-    G.draw(directory+'/link_cong_'+scheme+'.eps')
+    G.draw(directory+'/link_cong_'+scheme+'.pdf')
 
 def parse_congestions_file (filename):
     all_congestions = dict()

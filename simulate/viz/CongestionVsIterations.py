@@ -31,7 +31,6 @@ def main(dirn, fname, solvers):
   ax.legend(loc='best', fancybox=True)
 
   pp.savefig(dirn+"/"+fname+"-".join(solvers)+".pdf")
-  pp.show()
 
 if __name__ == "__main__":
   if len(sys.argv) < 3:
