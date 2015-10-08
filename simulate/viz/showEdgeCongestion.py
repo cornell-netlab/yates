@@ -2,7 +2,7 @@ import pygraphviz as pgv
 import sys
 
 def congestion_to_color(c):
-    colors = ['/rdylgn5/5','/rdylgn5/4','/rdylgn5/2','/rdylgn5/1']
+    colors = ['/rdylgn6/5','/rdylgn6/4','/rdylgn6/3','/rdylgn6/2']
     if c == 0:
         return '#aaaaaa'
     elif c < 1:
@@ -24,7 +24,7 @@ def display (scheme, topology, all_congestions, directory):
         if max_cong > 1:
             e.attr['weight'] = 10
     G.layout()
-    G.draw(directory+'/link_cong_'+scheme+'.pdf')
+    G.draw(directory+'/link_cong_'+scheme+'.svg')
 
 def parse_congestions_file (filename):
     all_congestions = dict()

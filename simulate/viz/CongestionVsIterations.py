@@ -30,7 +30,7 @@ def main(dirn, fname, solvers):
   ax.set_ylabel(Y_LABEL);
   ax.legend(loc='best', fancybox=True)
 
-  pp.savefig(dirn+"/"+fname+"-".join(solvers)+".pdf")
+  pp.savefig(dirn+"/"+fname+"-".join(solvers)+".svg")
 
 if __name__ == "__main__":
   if len(sys.argv) < 3:
