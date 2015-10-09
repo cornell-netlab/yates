@@ -256,6 +256,7 @@ let simulate
 		  (* record *)
 		  let tm = (get_time_in_seconds at) in
 		  let ch = (get_churn scheme' scheme) in
+		  let np = (get_num_paths scheme') in
 		  let cmax = (get_max_congestion list_of_congestions) in
 		  let cmean = (get_mean_congestion list_of_congestions) in
 
@@ -266,9 +267,7 @@ let simulate
 		      ~f:(fun acc p ->
 			  (kth_percentile sorted_congestions p)::acc ) in
 		  
-		  let np = (get_num_paths scheme') in
 
-		  (* let k95_congestion_data = make_data "95th Congestion Vs Time" in *)
 		  
 		  add_record time_data (solver_to_string algorithm) {iteration = n; time=tm; time_dev=0.0; };	     
 		  add_record churn_data (solver_to_string algorithm) {iteration = n; churn=ch; churn_dev=0.0; };
