@@ -226,7 +226,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 		(umap',pmap',emap')) end) in
 
   assert (not (EdgeMap.is_empty emap));
-
+(*
   (* Begin debug code *)
   (* Store which paths does a path intersect with *)
   let (pxmap) =
@@ -285,7 +285,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
         0 
       ) in
   (* End debug code *)
-  
+*)  
   (* TODO: 
      - LP: variable for every path
      - minimize: Z (congestion)
@@ -355,8 +355,8 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 		     else
 		       (opt_z, flows))) in	 
  
-(*  let _ = Sys.remove lp_filename in
-  let _ = Sys.remove lp_solname in *)
+  let _ = Sys.remove lp_filename in
+  let _ = Sys.remove lp_solname in 
   (* First find the total amount of flow for each source-destination pair *)
   let (unnormalized_scheme, flow_sum) = 
     List.fold_left

@@ -2,7 +2,7 @@
 
 EXP_DIR=$( cd "$( dirname "$0" )" && pwd )
 CURR_DIR=$( pwd )
-TOPO_DIR=${CURR_DIR}/data/topologies/zoo
+TOPO_DIR=${CURR_DIR}/data/gen
 echo $EXP_DIR 
 echo $CURR_DIR
 mkdir -p $EXP_DIR/results
@@ -10,8 +10,9 @@ mkdir -p $EXP_DIR/hosts
 mkdir -p $CURR_DIR/expData
 mkdir -p $CURR_DIR/lp
 mkdir -p ~/log
-TOPOLOGY_FILES=${TOPO_DIR}/*
-TM_DIR=${CURR_DIR}/prediction/scripts/synthetic_demands
+TOPOLOGY_FILES=${TOPO_DIR}/grid5h1EvenDemand.dot
+#TM_DIR=${CURR_DIR}/prediction/scripts/synthetic_demands
+TM_DIR=${CURR_DIR}/data/gen
 
 for tf in $TOPOLOGY_FILES
 do
@@ -20,13 +21,13 @@ do
     prefix=${base%.dot}
     echo $base
     echo $prefix
-    num_hosts=`grep mac $tf | wc -l`
+    num_hosts=`grep "host" $tf | wc -l`
     rm -rf $CURR_DIR/expData/${prefix}
     echo $num_hosts
-    actual_demand=${TM_DIR}/syn-${num_hosts}
-    predicted_demand=${TM_DIR}/syn-${num_hosts}_LinearRegression
-    sed ':a;N;$!ba;s/\n/ /g' ${tf} | sed 's/\;/\n/g' | sed 's/{/\n/g' | grep host | awk '{print $1;}' | sort > $EXP_DIR/hosts/${prefix}.txt
-    cmd="./Simulate_Driver.native -scalesyn ${tf} ${actual_demand} ${predicted_demand} $EXP_DIR/hosts/${prefix}.txt 1000 -all"
+    actual_demand=${TM_DIR}/${prefix}.txt
+    predicted_demand=${TM_DIR}/${prefix}.txt
+    hosts_file=${TM_DIR}/${prefix}.host
+    cmd="./Simulate_Driver.native ${tf} ${actual_demand} ${predicted_demand} ${hosts_file} 2 -all"
     echo $cmd
     $cmd &> ~/log/${prefix}.log &
 done

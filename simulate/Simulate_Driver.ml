@@ -228,7 +228,7 @@ let simulate
     ~f:(fun algorithm ->
 	
 	let solve = select_algorithm algorithm in
-	
+	Printf.printf "Iter: %s\n" (solver_to_string algorithm);	
 	let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
 	let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
 
