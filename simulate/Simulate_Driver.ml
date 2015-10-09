@@ -195,8 +195,6 @@ let simulate
 				      let label = Topology.vertex_to_label topo v in
 				      Node.device label = Node.Host) in
 
-  (* let hosts = Topology.VertexSet.elements host_set in *)
-
   Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set);
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
   let at = make_auto_timer () in
@@ -225,6 +223,12 @@ let simulate
   List.iter
     spec_solvers
     ~f:(fun algorithm ->
+
+	(* TODO(rjs): Raeke mutates the topology. As a fast fix, I'll just create
+	 a new copy of topology for every algorithm. A better fix would be to understand
+	 Raeke and ensure that it mutates a copy of the topology, not the actual 
+	 topology *)
+	let topo = Parse.from_dotfile topology_file in
 	
 	let solve = select_algorithm algorithm in
 	Printf.printf "Iter: %s\n" (solver_to_string algorithm);	
@@ -246,7 +250,7 @@ let simulate
 		  
 		  (* solve *)
 		  start at;
-		  let scheme' = solve  topo predict scheme in 
+		  let scheme' = solve topo predict scheme in 
 		  stop at;
 
 		  let congestions = (congestion_of_paths scheme' topo actual) in
@@ -266,23 +270,19 @@ let simulate
 		      ~init:[]
 		      ~f:(fun acc p ->
 			  (kth_percentile sorted_congestions p)::acc ) in
-		  
 
-		  
-		  add_record time_data (solver_to_string algorithm) {iteration = n; time=tm; time_dev=0.0; };	     
-		  add_record churn_data (solver_to_string algorithm) {iteration = n; churn=ch; churn_dev=0.0; };
-		  add_record num_paths_data (solver_to_string algorithm) {iteration = n; num_paths=np; num_paths_dev=0.0; };
-		  add_record max_congestion_data (solver_to_string algorithm) {iteration = n; congestion=cmax; congestion_dev=0.0; };
-		  add_record mean_congestion_data (solver_to_string algorithm) {iteration = n; congestion=cmean; congestion_dev=0.0; };
-
+		  let sname = (solver_to_string algorithm) in 
+		  add_record time_data sname {iteration = n; time=tm; time_dev=0.0; };	     
+		  add_record churn_data sname {iteration = n; churn=ch; churn_dev=0.0; };
+		  add_record num_paths_data sname {iteration = n; num_paths=np; num_paths_dev=0.0; };
+		  add_record max_congestion_data sname {iteration = n; congestion=cmax; congestion_dev=0.0; };
+		  add_record mean_congestion_data sname {iteration = n; congestion=cmean; congestion_dev=0.0; };
+		  add_record edge_congestion_data sname {iteration = n; edge_congestions=congestions; };
 		  List.iter2_exn
 		    percentile_data
 		    percentile_values
-		    ~f:(fun d v ->
-			add_record d (solver_to_string algorithm) {iteration = n; congestion=v; congestion_dev=0.0; } );
+		    ~f:(fun d v -> add_record d sname {iteration = n; congestion=v; congestion_dev=0.0;});
 		  
-		  add_record edge_congestion_data (solver_to_string algorithm) {iteration = n; edge_congestions=congestions; };
-
 		  scheme') );
 	
 	(* start at beginning of demands for next algorithm *)

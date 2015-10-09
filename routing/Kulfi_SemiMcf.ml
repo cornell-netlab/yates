@@ -335,6 +335,12 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 	    end) in
 
   assert (not (EdgeMap.is_empty emap));
+ 
+  let (ratio, flows) =  solve_lp pmap emap topo d s in  
+  let (unnormalized_scheme, flow_sum) = scheme_and_flows flows umap in 
+  normalize unnormalized_scheme flow_sum
+		 
+  
   (*
   (* Begin debug code *)
   (* Store which paths does a path intersect with *)
@@ -407,13 +413,6 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
      - Re-normalize for the probabilities
    *)
   
-  
-  let (ratio, flows) =  solve_lp pmap emap topo d s in
-  
-  let (unnormalized_scheme, flow_sum) = scheme_and_flows flows umap in 
-
-  normalize unnormalized_scheme flow_sum
-		 
 
 
 		 
