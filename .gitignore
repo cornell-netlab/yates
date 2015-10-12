@@ -16,7 +16,6 @@
 _build
 _tags
 data/demands/abilene
-expData
 experiments/testbed/results
 fftout
 gurobi.log
