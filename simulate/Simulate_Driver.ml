@@ -163,10 +163,10 @@ let initial_scheme algorithm topo : scheme =
      Kulfi_Routing.Vlb.solve topo SrcDstMap.empty SrcDstMap.empty
   | SemiMcfRaeke 
   | AkRaeke ->
-     Kulfi_Routing.Raeke.solve  topo SrcDstMap.empty SrcDstMap.empty
+     Kulfi_Routing.Raeke.solve topo SrcDstMap.empty SrcDstMap.empty
   | SemiMcfEcmp 
   | AkEcmp ->
-     Kulfi_Routing.Ecmp.solve  topo SrcDstMap.empty SrcDstMap.empty
+     Kulfi_Routing.Ecmp.solve topo SrcDstMap.empty SrcDstMap.empty
   | _ -> SrcDstMap.empty
 
 			
@@ -195,30 +195,27 @@ let simulate
 				      let label = Topology.vertex_to_label topo v in
 				      Node.device label = Node.Host) in
 
-  (* let hosts = Topology.VertexSet.elements host_set in *)
-
   Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set);
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
   let at = make_auto_timer () in
-  
+
+    
   let time_data = make_data "Iteratives Vs Time" in
   let churn_data = make_data "Churn Vs Time" in
+  let edge_congestion_data = make_data "Edge Congestion Vs Time" in
+  let num_paths_data = make_data "Num. Paths Vs Time" in
   let max_congestion_data = make_data "Max Congestion Vs Time" in
   let mean_congestion_data = make_data "Mean Congestion Vs Time" in
-  let k10_congestion_data = make_data "10th Congestion Vs Time" in
-  let k20_congestion_data = make_data "20th Congestion Vs Time" in
-  let k30_congestion_data = make_data "30th Congestion Vs Time" in
-  let k40_congestion_data = make_data "40th Congestion Vs Time" in
-  let k50_congestion_data = make_data "50th Congestion Vs Time" in
-  let k60_congestion_data = make_data "60th Congestion Vs Time" in
-  let k70_congestion_data = make_data "70th Congestion Vs Time" in
-  let k80_congestion_data = make_data "80th Congestion Vs Time" in
-  let k90_congestion_data = make_data "90th Congestion Vs Time" in
-  let k95_congestion_data = make_data "95th Congestion Vs Time" in
-  let edge_congestion_data = make_data "Edge Congestion Vs Time" in
-
-  let num_paths_data = make_data "Num. Paths Vs Time" in
-
+  let percentiles = [0.1; 0.2; 0.3; 0.4; 0.5; 0.6; 0.7; 0.8; 0.9; 0.95] in
+  let percentile_data = 
+    List.fold_left
+      percentiles
+      ~init:[]
+      ~f:(fun acc p ->
+	  let i = Int.of_float (p *. 100.) in
+	  let s = Printf.sprintf "%d-th Congestion Vs Time" i in 
+	  (make_data s)::acc ) in
+  
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
   let is = range 0 iterations in 
 
@@ -226,6 +223,12 @@ let simulate
   List.iter
     spec_solvers
     ~f:(fun algorithm ->
+
+	(* TODO(rjs): Raeke mutates the topology. As a fast fix, I'll just create
+	 a new copy of topology for every algorithm. A better fix would be to understand
+	 Raeke and ensure that it mutates a copy of the topology, not the actual 
+	 topology *)
+	let topo = Parse.from_dotfile topology_file in
 	
 	let solve = select_algorithm algorithm in
 	Printf.printf "Iter: %s\n" (solver_to_string algorithm);	
@@ -247,7 +250,7 @@ let simulate
 		  
 		  (* solve *)
 		  start at;
-		  let scheme' = solve  topo predict scheme in 
+		  let scheme' = solve topo predict scheme in 
 		  stop at;
 
 		  let congestions = (congestion_of_paths scheme' topo actual) in
@@ -257,39 +260,29 @@ let simulate
 		  (* record *)
 		  let tm = (get_time_in_seconds at) in
 		  let ch = (get_churn scheme' scheme) in
+		  let np = (get_num_paths scheme') in
 		  let cmax = (get_max_congestion list_of_congestions) in
 		  let cmean = (get_mean_congestion list_of_congestions) in
-		  let c10 = (kth_percentile sorted_congestions 0.1) in
-		  let c20 = (kth_percentile sorted_congestions 0.2) in
-		  let c30 = (kth_percentile sorted_congestions 0.3) in
-		  let c40 = (kth_percentile sorted_congestions 0.4) in
-		  let c50 = (kth_percentile sorted_congestions 0.5) in
-		  let c60 = (kth_percentile sorted_congestions 0.6) in
-		  let c70 = (kth_percentile sorted_congestions 0.7) in
-		  let c80 = (kth_percentile sorted_congestions 0.8) in
-		  let c90 = (kth_percentile sorted_congestions 0.9) in
-		  let c95 = (kth_percentile sorted_congestions 0.95) in
-		  let np = (get_num_paths scheme') in
 
-		  (* let k95_congestion_data = make_data "95th Congestion Vs Time" in *)
+		  let percentile_values = 
+		    List.fold_left
+		      percentiles
+		      ~init:[]
+		      ~f:(fun acc p ->
+			  (kth_percentile sorted_congestions p)::acc ) in
+
+		  let sname = (solver_to_string algorithm) in 
+		  add_record time_data sname {iteration = n; time=tm; time_dev=0.0; };	     
+		  add_record churn_data sname {iteration = n; churn=ch; churn_dev=0.0; };
+		  add_record num_paths_data sname {iteration = n; num_paths=np; num_paths_dev=0.0; };
+		  add_record max_congestion_data sname {iteration = n; congestion=cmax; congestion_dev=0.0; };
+		  add_record mean_congestion_data sname {iteration = n; congestion=cmean; congestion_dev=0.0; };
+		  add_record edge_congestion_data sname {iteration = n; edge_congestions=congestions; };
+		  List.iter2_exn
+		    percentile_data
+		    percentile_values
+		    ~f:(fun d v -> add_record d sname {iteration = n; congestion=v; congestion_dev=0.0;});
 		  
-		  add_record time_data (solver_to_string algorithm) {iteration = n; time=tm; time_dev=0.0; };	     
-		  add_record churn_data (solver_to_string algorithm) {iteration = n; churn=ch; churn_dev=0.0; };
-		  add_record num_paths_data (solver_to_string algorithm) {iteration = n; num_paths=np; num_paths_dev=0.0; };
-		  add_record max_congestion_data (solver_to_string algorithm) {iteration = n; congestion=cmax; congestion_dev=0.0; };
-		  add_record mean_congestion_data (solver_to_string algorithm) {iteration = n; congestion=cmean; congestion_dev=0.0; };		      
-		  add_record k10_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c10; congestion_dev=0.0; };
-		  add_record k20_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c20; congestion_dev=0.0; };
-		  add_record k30_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c30; congestion_dev=0.0; };
-		  add_record k40_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c40; congestion_dev=0.0; };
-		  add_record k50_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c50; congestion_dev=0.0; };
-		  add_record k60_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c60; congestion_dev=0.0; };
-		  add_record k70_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c70; congestion_dev=0.0; };
-		  add_record k80_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c80; congestion_dev=0.0; };
-		  add_record k90_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c90; congestion_dev=0.0; };
-		  add_record k95_congestion_data (solver_to_string algorithm) {iteration = n; congestion=c95; congestion_dev=0.0; };
-		  add_record edge_congestion_data (solver_to_string algorithm) {iteration = n; edge_congestions=congestions; };
-
 		  scheme') );
 	
 	(* start at beginning of demands for next algorithm *)
@@ -302,22 +295,22 @@ let simulate
   let suffix =List.nth split_dot_file_list (List.length split_dot_file_list -2) in
   let realsuffix= match suffix with Some x -> x | _-> "" in
   let dir = "./expData/" ^ realsuffix ^ "/" in
-
+      
   to_file dir "ChurnVsIterations.dat" churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
   to_file dir "NumPathsVsIterations.dat" num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
   to_file dir "TimeVsIterations.dat" time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;  
   to_file dir "MaxCongestionVsIterations.dat" max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string;
   to_file dir "MeanCongestionVsIterations.dat" mean_congestion_data "# solver\titer\tmean-congestion\tstddev" iter_vs_congestion_to_string;
-  to_file dir "k10CongestionVsIterations.dat" k10_congestion_data "# solver\titer\t.10-congestion\tstddev" iter_vs_congestion_to_string;
-  to_file dir "k20CongestionVsIterations.dat" k20_congestion_data "# solver\titer\t.20-congestion\tstddev" iter_vs_congestion_to_string;
-  to_file dir "k30CongestionVsIterations.dat" k30_congestion_data "# solver\titer\t.30-congestion\tstddev" iter_vs_congestion_to_string;
-  to_file dir "k40CongestionVsIterations.dat" k40_congestion_data "# solver\titer\t.40-congestion\tstddev" iter_vs_congestion_to_string;
-  to_file dir "k50CongestionVsIterations.dat" k50_congestion_data "# solver\titer\t.50-congestion\tstddev" iter_vs_congestion_to_string;
-  to_file dir "k60CongestionVsIterations.dat" k60_congestion_data "# solver\titer\t.60-congestion\tstddev" iter_vs_congestion_to_string;
-  to_file dir "k70CongestionVsIterations.dat" k70_congestion_data "# solver\titer\t.70-congestion\tstddev" iter_vs_congestion_to_string;
-  to_file dir "k80CongestionVsIterations.dat" k80_congestion_data "# solver\titer\t.80-congestion\tstddev" iter_vs_congestion_to_string;
-  to_file dir "k90CongestionVsIterations.dat" k90_congestion_data "# solver\titer\t.90-congestion\tstddev" iter_vs_congestion_to_string;
-  to_file dir "k95CongestionVsIterations.dat" k95_congestion_data "# solver\titer\t.95-congestion\tstddev" iter_vs_congestion_to_string;
+
+  List.iter2_exn
+    percentile_data
+    percentiles
+    ~f:(fun d p ->
+	let s1 = Printf.sprintf "k%dCongestionVsIterations.dat" (Int.of_float (p *. 100.)) in
+	let s2 = Printf.sprintf "# solver\titer\t.%f-congestion\tstddev" p in
+	to_file dir s1 d s2  iter_vs_congestion_to_string) ;
+
+
   to_file dir "EdgeCongestionVsIterations.dat" edge_congestion_data "# solver\titer\tedge-congestion" (iter_vs_edge_congestions_to_string topo);
  
   Printf.printf "%s" (to_string time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string);
