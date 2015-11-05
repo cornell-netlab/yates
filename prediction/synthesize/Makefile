@@ -9,6 +9,7 @@ INCLUDES  = \
 
 LDFLAGS   = \
  -L /usr/local/lib \
+ -L /usr/lib/x86_64-linux-gnu/ \
  -lopencv_core \
  -lopencv_highgui \
  -lboost_filesystem \
