@@ -52,7 +52,7 @@ objs: $(OBJS)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@echo "Compiling $@"
-	$(COMPILE) -c $< -o $@
+	@$(COMPILE) -c $< -o $@
   
 docs:
 	doxygen doc/doxy.conf
