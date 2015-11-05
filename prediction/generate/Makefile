@@ -5,7 +5,8 @@ EXECUTABLE = generate
 CPPFLAGS  =
 INCLUDES  = \
  -I $(THISDIR)/../libpredict/include \
- -I /usr/local/include/opencv2 
+ -I /usr/local/include/opencv2 \
+ -I /usr/local/include
 
 LDFLAGS   = \
  -L /usr/local/lib \

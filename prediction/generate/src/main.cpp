@@ -2,8 +2,8 @@
 
 #include "predict.h"
 
-#include "boost/program_options.hpp" 
-#include "boost/filesystem.hpp" 
+#include <boost/program_options.hpp> 
+#include <boost/filesystem.hpp>
 
 
 using namespace std;
@@ -25,7 +25,7 @@ int main(int argc, char ** argv)
 	("help,h", "Print help messages") 
 	("name,n", value<std::string>()->required(), "name") 
 	("num_rows,r", value<int>(&num_rows)->required(), "num rows")
-	("num_hosts,h", value<int>(&num_hosts)->required(), "num_hosts") 
+	("num_hosts,c", value<int>(&num_hosts)->required(), "num_hosts") 
 	("scale_factor,f", value<double>(&scale_factor)->required(), "scale_factor"); 
  
       positional_options_description positionalOptions; 
