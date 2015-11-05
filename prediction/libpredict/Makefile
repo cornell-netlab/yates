@@ -1,6 +1,7 @@
 THISDIR := $(realpath .)
 
-EXECUTABLE = predict
+#EXECUTABLE = predict
+LIBRARY = libpredict.so
 
 CPPFLAGS  =
 INCLUDES  = \
@@ -11,5 +12,5 @@ LDFLAGS   = \
  -lopencv_core \
  -lopencv_highgui
 
-include ../Makefile.exe
+include ../Makefile.lib
 

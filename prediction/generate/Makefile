@@ -32,11 +32,13 @@ LDFLAGS   = \
 endif
 
 LDFLAGS   += \
+ -L $(THISDIR)/../libpredict/bin \
  -lopencv_core \
  -lopencv_highgui \
  -lboost_filesystem \
  -lboost_program_options \
- -lboost_system 
+ -lboost_system \
+ -lpredict
 
 include ../Makefile.exe
 
