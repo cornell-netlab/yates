@@ -36,3 +36,6 @@ routes/
 setup.data
 setup.log
 setup.ml
+*bin*
+*.pdf
+expData

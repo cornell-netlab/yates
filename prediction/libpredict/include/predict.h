@@ -1,9 +1,15 @@
 #pragma once
 
+
+#include <string>
+
 typedef double(*objCalFunctionType)(double ** X_dat, double * Y_dat, int d, int n, void * modelPara, void * additionalStuff);
 typedef void(*gradientStepFunctionType) (double * x, double y, double *gradAns, int d, bool cumu, void * modelPara, void * additionalStuff);
 typedef void(*trainModelFunctionType) (double ** X_dat, double* Y_dat, int d, int n, double avg, void * modelPara, void * additionalStuff);
 typedef void(*predictNextFunctionType) (double * x, double * predictY, int d, void * modelPara, void * additionalStuff);
+
+
+//int generate(std::string filename, int readFiles, int totRow, std::string prefix, double scale=1.0, int period=1000) ;
 
 /*
 Read Data:
