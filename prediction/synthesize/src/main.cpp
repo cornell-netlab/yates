@@ -72,6 +72,11 @@ int main(int argc, char ** argv)
   } 
  
   return doit(argc, argv);
-  return 0;
+
+
+  // TODO: parse arguments, and call
+  // return synthesize(filename, readFiles, hosts, prefix, scale, period); 
+  
+
   
 }

@@ -73,6 +73,9 @@ int main(int argc, char ** argv)
   } 
  
   return doit(argc, argv);
-  return 0;
+
+  // TODO(pass these args)
+  //return generate(filename, pickwhich, readFiles,  scale, period);
+    
   
 }
