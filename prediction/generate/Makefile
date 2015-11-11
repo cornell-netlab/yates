@@ -36,6 +36,7 @@ INCLUDES  += \
 
 LDFLAGS   = \
  -L /usr/lib/x86_64-linux-gnu \
+ -L $(THISDIR)/../libpredict/bin \
  -Wl,-rpath,$(THISDIR)/../libpredict/bin \
  -lopencv_core \
  -lopencv_highgui \

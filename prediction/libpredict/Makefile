@@ -12,5 +12,11 @@ LDFLAGS   = \
  -lopencv_core \
  -lopencv_highgui
 
+ifeq (($shell uname), Linux)
+LDFLAGS   += \
+ -Wl,-rpath,/usr/local/lib 
+endif
+
+
 include ../Makefile.lib
 
