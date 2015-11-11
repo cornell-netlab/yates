@@ -18,7 +18,7 @@ INCLUDES  += \
 
 LDFLAGS   = \
  -L /usr/local/lib \
- -L $(THISDIR)/../../libpredict/bin \
+ -L $(THISDIR)/../libpredict/bin \
  -lopencv_core \
  -lopencv_highgui \
  -lboost_filesystem \
