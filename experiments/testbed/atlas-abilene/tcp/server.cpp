@@ -158,7 +158,7 @@ void* report_logger(void *conf){
         bytes_rcvd = 0;
         pthread_mutex_unlock(&br_lock);
         fprintf(stdout, "Time: %ds\t Bytes: %ld\tRate: %e bps\n", t, brcvd, (float)brcvd*8/log_conf->period);
-	fflush(stdout);
+        fflush(stdout);
         t += log_conf->period;
     }
     return 0;

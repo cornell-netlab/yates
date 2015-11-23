@@ -10,7 +10,7 @@
 #include<unistd.h>
 #include<vector>
 
-#define TM_FILE "AbileneTM-all/X01"
+#define TM_FILE "bps_gravity_half"
 #define TOPO_FILE "AbileneTM-all/topo-2003-04-10.txt"
 #define ROUTING_MATRIX_FILE "AbileneTM-all/A"
 #define DEMAND_FILE "AbileneTM-all/demands"
@@ -33,7 +33,7 @@ float poisson_interval(int total_num_flows, float time_interval)
 
 /* return t2 - t1 time in sec */
 float diff_time(struct timeval t2, struct timeval t1){
- return (t2.tv_sec - t1.tv_sec) + (float)(t2.tv_usec - t1.tv_usec)/1000000;
+    return (t2.tv_sec - t1.tv_sec) + (float)(t2.tv_usec - t1.tv_usec)/1000000;
 }
 
 /* execute the given command */
@@ -46,7 +46,7 @@ int execute(const char *cmd)
         cmd_log << cmd << endl;
         cmd_log.close();
     } else {
-       ret = system(cmd);
+        ret = system(cmd);
     }
     return ret;
 }
@@ -79,7 +79,7 @@ void read_dmd_indices(unsigned int dmd_index[12][12], map < string, int >routers
     rmf.close();
 }
 
-void
+    void
 read_dmd_indices_d(unsigned int dmd_index[12][12], map < string, int >routers)
 {
     // read demand indices
@@ -215,13 +215,11 @@ int main(int argc, char *argv[])
     tm.open(TM_FILE);
     for (unsigned int i = 0; i < TM_NUM_ROWS; i++) {
         vector < float >row;
-        for (unsigned int j = 0; j < 720; j++) {
+        for (unsigned int j = 0; j < 144; j++) {
             float dem;
             tm >> dem;
-            if (j % 5 == tm_model - 1) {
-                // Abilene data units are in 100B/5min
-                row.push_back(dem * 100/300 * scaled_to_time * factor);
-            }
+            // Predictor generates in bps - convert to total bytes for the interval
+            row.push_back(dem * 8 * scaled_to_time * factor);
         }
         D.push_back(row);
     }
@@ -309,15 +307,15 @@ int main(int argc, char *argv[])
         if (diff_time(now, last_update) >= scaled_to_time) {
             /* New TM interval */
             if(interval>0){
-		    cmd << "echo \"# Time slept: " << interval_sleep_time << "\"";
-        	    execute(cmd.str().c_str());
-	            cmd.str("");
-		    for (std::map < string, int >::iterator dst =
-				    routers.begin(); dst != routers.end(); ++dst) {
-                       cout << dst->second << "\t" << actual_dst_sent[dst->second] << " / " << D[interval-1][dmd_index[src_id][dst->second]] << " (" << actual_dst_sent[dst->second]/D[interval-1][dmd_index[src_id][dst->second]] * 100.0 << " %)" << endl ;
-		    }
-		    cout << num_flows_sent << " / " << total_num_flows << endl; 
-	    } 
+                cmd << "echo \"# Time slept: " << interval_sleep_time << "\"";
+                execute(cmd.str().c_str());
+                cmd.str("");
+                for (std::map < string, int >::iterator dst =
+                        routers.begin(); dst != routers.end(); ++dst) {
+                    cout << dst->second << "\t" << actual_dst_sent[dst->second] << " / " << D[interval-1][dmd_index[src_id][dst->second]] << " (" << actual_dst_sent[dst->second]/D[interval-1][dmd_index[src_id][dst->second]] * 100.0 << " %)" << endl ;
+                }
+                cout << num_flows_sent << " / " << total_num_flows << endl; 
+            } 
             interval_sleep_time = 0;
             cmd << "echo \"# Time: " << interval << "\"";
             execute(cmd.str().c_str());
@@ -354,34 +352,34 @@ int main(int argc, char *argv[])
         /* Select a dst (weighted by demmand) and start a flow */
         for (std::map < string, int >::iterator dst =
                 routers.begin(); dst != routers.end(); ++dst) {
-                dst_remaining = D[interval-1][dmd_index[src_id][dst->second]] - actual_dst_sent[dst->second];
-                dst_remaining = dst_remaining > 0 ? dst_remaining : 1;
-                total_remaining = (total_demand_scheduled > actual_total_sent) ? (total_demand_scheduled - actual_total_sent) : 12;
-		cumul_throw += dst_remaining/total_remaining;
-		if(cumul_throw > rand_throw){ 
-		    send_size_now = sample_flow_size(flow_byte_sizes, num_flow_byte_sizes) * factor;
-		    if (dst_remaining != 1){
-                        send_size_now = (send_size_now < (1.1 * dst_remaining)) ? send_size_now : (1.1 * dst_remaining);
-		    }
-		    cmd << "./tcp/client -s 10.0.0."
-			    << (dst->second + 1) << " -p "
-			    << (BASE_PORT + node_id)
-			    << " -l " << send_size_now << " -n " << 1
-			    << " >> ./flow-time-src-" << node_id << "-dst-"
-			    << (dst->second + 1) << ".txt &";
-		    execute(cmd.str().c_str());
-		    cmd.str("");
-		    num_flows_sent++;
-                    actual_dst_sent[dst->second] += send_size_now;
-                    actual_total_sent += send_size_now;
-		    float sleep_time = poisson_interval(total_num_flows, 0.8 * (scaled_to_time-pre_process_time));
-		    cmd << "# sleep " << sleep_time;
-		    execute(cmd.str().c_str());
-		    usleep((unsigned int)(sleep_time * 1000000));
-		    cmd.str("");
-		    interval_sleep_time += sleep_time;
-		    break;
-	    }
+            dst_remaining = D[interval-1][dmd_index[src_id][dst->second]] - actual_dst_sent[dst->second];
+            dst_remaining = dst_remaining > 0 ? dst_remaining : 1;
+            total_remaining = (total_demand_scheduled > actual_total_sent) ? (total_demand_scheduled - actual_total_sent) : 12;
+            cumul_throw += dst_remaining/total_remaining;
+            if(cumul_throw > rand_throw){ 
+                send_size_now = sample_flow_size(flow_byte_sizes, num_flow_byte_sizes) * factor;
+                if (dst_remaining != 1){
+                    send_size_now = (send_size_now < (1.1 * dst_remaining)) ? send_size_now : (1.1 * dst_remaining);
+                }
+                cmd << "./tcp/client -s 10.0.0."
+                    << (dst->second + 1) << " -p "
+                    << (BASE_PORT + node_id)
+                    << " -l " << send_size_now << " -n " << FLOW_SIZE_SCALE_UP << " -t " << scaled_to_time 
+                    << " >> ./flow-time-src-" << node_id << "-dst-"
+                    << (dst->second + 1) << ".txt &";
+                execute(cmd.str().c_str());
+                cmd.str("");
+                num_flows_sent++;
+                actual_dst_sent[dst->second] += send_size_now;
+                actual_total_sent += send_size_now;
+                float sleep_time = poisson_interval(total_num_flows, 0.8 * (scaled_to_time-pre_process_time));
+                cmd << "# sleep " << sleep_time;
+                execute(cmd.str().c_str());
+                usleep((unsigned int)(sleep_time * 1000000));
+                cmd.str("");
+                interval_sleep_time += sleep_time;
+                break;
+            }
         }
     }
 
