@@ -5,11 +5,6 @@ open Net.Topology
 open Core.Std
 open Kulfi_Apsp
 
-module PQueue = Core.Heap.Removable
-module VertexSet = Topology.VertexSet
-module EdgeSet = Topology.EdgeSet
-
-
 let solve (topo:topology) (_:demands) (_:scheme) : scheme =
   let host_set =
     VertexSet.filter

@@ -2,7 +2,9 @@ open Core.Std
 open Kulfi_Types
 open Frenetic_Network
 open Net
+open Net.Topology
 open Kulfi_Globals
+open Kulfi_Apsp
 
 let dump_path_prob_set (t:topology) (pps:probability PathMap.t) : string =
   let buf = Buffer.create 101 in
@@ -24,13 +26,25 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   let device v = let lbl = Topology.vertex_to_label topo v in (Node.device lbl) in
   
   let apsp = NetPath.all_pairs_shortest_paths ~topo:topo ~f:(fun _ _ -> true) in
-  
   let spf_table =
     List.fold_left apsp ~init:SrcDstMap.empty ~f:(fun acc (c,v1,v2,p) -> 
     SrcDstMap.add acc ~key:(v1,v2) ~data:p) in 
-
   let find_path src dst = SrcDstMap.find_exn spf_table (src,dst) in  
 
+  (* TODO(rjs): replace the above code with a working version of the below code *)
+  let host_set =
+    VertexSet.filter
+      (vertexes topo)
+      ~f:(fun v ->
+          let lbl = vertex_to_label topo v in
+          Node.device lbl = Node.Host) in
+  let paths_hash = all_shortest_paths_multi topo host_set in
+  let find_path_random src dst =
+    (* TODO(rjs): need to iterate over the list of destinations, and get paths.
+       probably better to make a hash *)
+    let _ = Hashtbl.Poly.find src paths_hash in 
+    assert false in  
+  
   let route_thru_detour src det dst =
     let p = (find_path src det @ find_path det dst) in
     (* assert (not (List.is_empty p));       *)

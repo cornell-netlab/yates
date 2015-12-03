@@ -1,4 +1,4 @@
-
+open Kulfi_Types
 open Core.Std
 open Frenetic_Network                         
 open Net
@@ -11,7 +11,7 @@ code. But we're trusting that Chris Yu wrote a correct implementation
 of all pairs all shortest paths. The solve function treats
 all_shortest_paths_multi as a black box. *)
 
-let src_shortest_paths topo hosts src =
+let src_shortest_paths (topo:topology) hosts src =
   let prev_table = Hashtbl.Poly.create () in
   let dist_table = Hashtbl.Poly.create () in
   let tokens = Hashtbl.Poly.create () in
@@ -91,7 +91,7 @@ let src_shortest_paths topo hosts src =
         let forward_paths = List.map revved_paths ~f:List.rev in
         (dst, forward_paths)::acc)
 
-let all_shortest_paths_multi topo hosts =
+let all_shortest_paths_multi  (topo:topology) (hosts)  =
   let path_table = Hashtbl.Poly.create () in
   VertexSet.iter
     hosts
