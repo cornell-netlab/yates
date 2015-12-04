@@ -200,20 +200,6 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 
   let find_path src dst = SrcDstMap.find_exn spf_table (src,dst) in  
 
-  (* TODO(rjs): replace the above code with a working version of the below code *)
-  let host_set =
-    VertexSet.filter
-      (vertexes topo)
-      ~f:(fun v ->
-          let lbl = vertex_to_label topo v in
-          Node.device lbl = Node.Host) in
-  let paths_hash = all_shortest_paths_multi topo host_set in
-  let find_path_random src dst =
-    (* TODO(rjs): need to iterate over the list of destinations, and get paths.
-       probably better to make a hash *)
-    let _ = Hashtbl.Poly.find src paths_hash in 
-    assert false in  
-  
   let route_thru_detour src det dst =
     let p = (find_path src det @ find_path det dst) in
     (* assert (not (List.is_empty p));       *)
