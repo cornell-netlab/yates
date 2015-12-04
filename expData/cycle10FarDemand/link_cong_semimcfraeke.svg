@@ -130,7 +130,7 @@
 <g id="edge13" class="edge"><title>s2&#45;&gt;h2</title>
 <path fill="none" stroke="#91cf60" d="M197.19,-86.805C194.34,-76.662 189.55,-63.88 184.53,-52.776"/>
 <polygon fill="#91cf60" stroke="#91cf60" points="187.59,-51.0631 180.11,-43.56 181.279,-54.0902 187.59,-51.0631"/>
-<text text-anchor="middle" x="178.36" y="-73.59" font-family="Times,serif" font-size="14.00">0.01</text>
+<text text-anchor="middle" x="181.86" y="-73.59" font-family="Times,serif" font-size="14.00">0.0</text>
 </g>
 <!-- s3 -->
 <g id="3" class="node"><title>s3</title>
@@ -181,7 +181,7 @@
 <g id="edge19" class="edge"><title>h2&#45;&gt;s2</title>
 <path fill="none" stroke="#91cf60" d="M168.65,-45.658C171.5,-55.8 176.3,-68.582 181.31,-79.686"/>
 <polygon fill="#91cf60" stroke="#91cf60" points="178.25,-81.3989 185.73,-88.902 184.561,-78.3718 178.25,-81.3989"/>
-<text text-anchor="middle" x="162.48" y="-51.472" font-family="Times,serif" font-size="14.00">0.01</text>
+<text text-anchor="middle" x="165.98" y="-51.472" font-family="Times,serif" font-size="14.00">0.0</text>
 </g>
 <!-- s3&#45;&gt;s2 -->
 <g id="edge20" class="edge"><title>s3&#45;&gt;s2</title>

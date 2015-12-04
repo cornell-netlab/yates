@@ -209,7 +209,7 @@
 <g id="edge22" class="edge"><title>s3&#45;&gt;s4</title>
 <path fill="none" stroke="#cb181d" d="M298.9,-114.42C306.42,-120.15 315.99,-126.48 325.27,-131.96"/>
 <polygon fill="#cb181d" stroke="#cb181d" points="323.562,-135.015 333.99,-136.89 327.007,-128.922 323.562,-135.015"/>
-<text text-anchor="middle" x="299.58" y="-126.99" font-family="Times,serif" font-size="14.00">1.09</text>
+<text text-anchor="middle" x="299.58" y="-126.99" font-family="Times,serif" font-size="14.00">1.08</text>
 </g>
 <!-- s7&#45;&gt;s8 -->
 <g id="edge36" class="edge"><title>s7&#45;&gt;s8</title>
@@ -255,7 +255,7 @@
 <g id="edge24" class="edge"><title>s4&#45;&gt;s3</title>
 <path fill="none" stroke="#cb181d" d="M344.47,-129.32C336.95,-123.6 327.38,-117.26 318.1,-111.79"/>
 <polygon fill="#cb181d" stroke="#cb181d" points="319.808,-108.735 309.38,-106.86 316.363,-114.828 319.808,-108.735"/>
-<text text-anchor="middle" x="343.79" y="-109.36" font-family="Times,serif" font-size="14.00">1.09</text>
+<text text-anchor="middle" x="343.79" y="-109.36" font-family="Times,serif" font-size="14.00">1.08</text>
 </g>
 <!-- h4 -->
 <g id="node15" class="node"><title>h4</title>
@@ -277,7 +277,7 @@
 <g id="edge26" class="edge"><title>s4&#45;&gt;s5</title>
 <path fill="none" stroke="#cb181d" d="M359.8,-163.29C362.89,-174.26 368.2,-188.32 373.65,-200.31"/>
 <polygon fill="#cb181d" stroke="#cb181d" points="370.523,-201.884 378.02,-209.37 376.828,-198.842 370.523,-201.884"/>
-<text text-anchor="middle" x="354.23" y="-185.6" font-family="Times,serif" font-size="14.00">1.09</text>
+<text text-anchor="middle" x="354.23" y="-185.6" font-family="Times,serif" font-size="14.00">1.08</text>
 </g>
 <!-- h4&#45;&gt;s4 -->
 <g id="edge27" class="edge"><title>h4&#45;&gt;s4</title>
@@ -289,7 +289,7 @@
 <g id="edge28" class="edge"><title>s5&#45;&gt;s4</title>
 <path fill="none" stroke="#cb181d" d="M389.29,-207.12C386.2,-196.15 380.9,-182.09 375.44,-170.1"/>
 <polygon fill="#cb181d" stroke="#cb181d" points="378.564,-168.52 371.07,-161.03 372.257,-171.558 378.564,-168.52"/>
-<text text-anchor="middle" x="394.87" y="-192.41" font-family="Times,serif" font-size="14.00">1.09</text>
+<text text-anchor="middle" x="394.87" y="-192.41" font-family="Times,serif" font-size="14.00">1.08</text>
 </g>
 <!-- h5 -->
 <g id="node17" class="node"><title>h5</title>
