@@ -346,7 +346,7 @@ let all_pair_k_shortest_path (topo:topology) (k:int) =
       Topology.fold_vertexes
         (fun dst nacc ->
           let ksp = k_shortest_path topo src dst 3 in
-          SrcDstMap.add acc ~key:(src, dst) ~data:ksp)
+          SrcDstMap.add nacc ~key:(src, dst) ~data:ksp)
         topo
         acc)
     topo
