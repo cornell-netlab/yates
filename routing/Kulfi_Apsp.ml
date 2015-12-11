@@ -339,3 +339,15 @@ let k_shortest_path (topo:topology) (s:Topology.vertex) (t:Topology.vertex) (k:i
           Printf.printf "%s\t" (Node.name (Net.Topology.vertex_to_label topo dst))));
   edge_paths
 
+
+let all_pair_k_shortest_path (topo:topology) (k:int) =
+  Topology.fold_vertexes
+    (fun src acc ->
+      Topology.fold_vertexes
+        (fun dst nacc ->
+          let ksp = k_shortest_path topo src dst 3 in
+          SrcDstMap.add acc ~key:(src, dst) ~data:ksp)
+        topo
+        acc)
+    topo
+    SrcDstMap.empty

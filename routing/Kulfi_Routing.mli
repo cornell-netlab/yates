@@ -7,6 +7,8 @@ end
 
 module Ecmp : Algorithm 
 
+module Ksp : Algorithm 
+
 module Mcf : Algorithm
 
 module MwMcf : Algorithm

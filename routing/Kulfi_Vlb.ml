@@ -34,7 +34,6 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
       ~init:SrcDstMap.empty
       ~f:(fun ~key:(v1,v2) ~data:_ acc ->
         let rand_path =  get_random_path v1 v2 topo mpapsp in
-        let _ = k_shortest_path topo v1 v2 5 in (* for debug only *)
         SrcDstMap.add acc ~key:(v1,v2) ~data:rand_path) in
 
   let find_path src dst = SrcDstMap.find_exn spf_table (src,dst) in

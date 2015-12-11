@@ -12,7 +12,7 @@ open AutoTimer
 open Kulfi_Globals
 
 type solver_type =
-  | Mcf | MwMcf | Vlb | Ecmp | Spf | Raeke
+  | Mcf | MwMcf | Vlb | Ecmp | Ksp | Spf | Raeke
   | AkMcf | AkVlb | AkRaeke | AkEcmp
   | SemiMcfMcf | SemiMcfVlb | SemiMcfRaeke | SemiMcfEcmp
  
@@ -22,6 +22,7 @@ let solver_to_string (s:solver_type) : string =
   | MwMcf -> "mwmcf"
   | Vlb -> "vlb" 
   | Ecmp -> "ecmp"
+  | Ksp -> "ksp"
   | Spf -> "spf" 
   | Raeke -> "raeke" 	       
   | AkMcf -> "akmcf"
@@ -38,6 +39,7 @@ let select_algorithm solver = match solver with
   | MwMcf -> Kulfi_Routing.MwMcf.solve
   | Vlb -> Kulfi_Routing.Vlb.solve
   | Ecmp -> Kulfi_Routing.Ecmp.solve
+  | Ksp -> Kulfi_Routing.Ksp.solve
   | Spf -> Kulfi_Routing.Spf.solve
   | Raeke -> Kulfi_Routing.Raeke.solve
   | AkMcf 
@@ -359,6 +361,7 @@ let command =
     +> flag "-mwmcf" no_arg ~doc:" run mwmcf"
     +> flag "-vlb" no_arg ~doc:" run vlb"
     +> flag "-ecmp" no_arg ~doc:" run ecmp"
+    +> flag "-ksp" no_arg ~doc:" run ksp"
     +> flag "-spf" no_arg ~doc:" run spf"
     +> flag "-akmcf" no_arg ~doc:" run ak+mcf"
     +> flag "-akvlb" no_arg ~doc:" run ak+vlb"
@@ -381,6 +384,7 @@ let command =
          (mwmcf:bool)
 	 (vlb:bool)
 	 (ecmp:bool)
+	 (ksp:bool)
 	 (spf:bool)
 	 (akmcf:bool)
 	 (akvlb:bool)
@@ -406,6 +410,7 @@ let command =
 	 ; if mwmcf || all then Some MwMcf else None
          ; if vlb || all then Some Vlb else None
          ; if ecmp || all then Some Ecmp else None
+         ; if ksp || all then Some Ksp else None
          ; if spf || all then Some Spf else None
 	 ; if akmcf || all then Some AkMcf else None
 	 ; if akvlb || all then Some AkVlb else None
