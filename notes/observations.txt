@@ -1,0 +1,26 @@
+Mcf 
+  - Can minimize congestion on one edge, but ignore the others. 
+  - Sensitive to accuracy of prediction
+MwMcf 
+Vlb 
+  - Need to be careful about how paths are selected. Choosing
+    shortest paths deterministically can lead to hotspots
+  - Need to remove "loops" in route
+Ecmp 
+  - Poor choice if there are "shortcuts" in the topology
+    or if lots of traffic hashes to the same path 
+Spf 
+Raeke
+  - Does Raeke always perform poorly?
+AkMcf 
+  - Ak seems like it takes too many iterations to be practical
+AkVlb 
+AkRaeke 
+AkEcmp
+SemiMcfMcf 
+SemiMcfVlb 
+SemiMcfRaeke 
+SemiMcfEcmp
+  - This is what we think B4 does
+
+
