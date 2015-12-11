@@ -153,7 +153,7 @@ let all_pairs_multi_shortest_path (topo:topology) : (bool * int * (Topology.vert
     (fun i dist_mat -> Topology.fold_vertexes
         (fun j dist_mat2 ->
           let ans = if (i=j) then 0.0
-          else 10000000.0 in
+          else Float.infinity in
           SrcDstMap.add dist_mat2 ~key:(i,j) ~data:ans)
         topo
         dist_mat)
@@ -229,7 +229,7 @@ let print_mpapsp
 
 let get_random_path (i:Topology.vertex) (j:Topology.vertex) (topo:topology)
 (numpath: (bool * int * (Topology.vertex * float) List.t) SrcDstMap.t) =
-  Printf.printf "%s -> " (Node.name (Net.Topology.vertex_to_label topo i));
+  Printf.printf "\n-----\n%s -> " (Node.name (Net.Topology.vertex_to_label topo i));
   Printf.printf "%s :\t" (Node.name (Net.Topology.vertex_to_label topo j));
   let p = ref [] in
   let curr = ref i in
@@ -268,4 +268,74 @@ let get_random_path (i:Topology.vertex) (j:Topology.vertex) (topo:topology)
 
 (*--------------------------------------------------------*)
 
+let k_shortest_path (topo:topology) (s:Topology.vertex) (t:Topology.vertex) (k:int) =
+  (* k-shortest s,t paths - loops can be present *)
+  let paths = ref [] in
+  let count = Hashtbl.Poly.create () in
+  Topology.iter_vertexes
+    (fun u ->
+     Hashtbl.Poly.add_exn count u 0;
+    ) topo;
+
+  let bheap = PQueue.create
+                  ~min_size:(Topology.num_vertexes topo)
+                  ~cmp:(fun (dist1,_) (dist2,_) -> compare dist1 dist2) () in
+
+  let _ = PQueue.add_removable bheap (0.0, [s]) in
+  let rec explore () =
+    let cost_path_u = PQueue.pop bheap in
+    match cost_path_u with
+    | None -> ()
+    | Some (cost_u, path_u) ->
+        match List.hd path_u with (* path_u contains vertices in reverse order *)
+        | None -> ()
+        | Some u ->
+          let count_u = Hashtbl.Poly.find_exn count u in
+          let _  = Hashtbl.Poly.set count u (count_u + 1) in
+          if u = t then paths := List.append !paths [path_u];
+          if count_u < k then
+            (* if u = t then explore()
+            else *)
+            let _ = Topology.iter_succ
+            (fun edge ->
+              let (v,_) = Topology.edge_dst edge in
+              let path_v = v::path_u in
+              let weight = Link.weight (Topology.edge_to_label topo edge) in
+              let cost_v = cost_u +. weight in
+              let _ = PQueue.add_removable bheap (cost_v, path_v) in
+              ()) topo u in
+            explore ()
+          else if u = t then ()
+          else explore () in
+  explore ();
+  Printf.printf "Num paths %d" (List.length !paths);
+(*  let _ = List.fold_left
+    !paths
+    ~init:[]
+    ~f:(fun acc path ->
+      Printf.printf "\n";
+      List.fold_left (List.rev path)
+      ~init:[]
+      ~f:(fun acc v ->
+        Printf.printf "%s\t" (Node.name (Net.Topology.vertex_to_label topo v));
+        acc)) in *)
+  let edge_paths = List.fold_left
+    !paths
+    ~init:[]
+    ~f:(fun acc path ->
+      let edge_path = List.fold_left path
+      ~init:([], None)
+      ~f:(fun edges_u v ->
+        let edges, u = edges_u in
+        match u with
+        | None -> (edges, Some v)
+        | Some u -> let edge = Topology.find_edge topo v u in (edge::edges, Some v)) in
+      let edge_path,_ = edge_path in
+      edge_path::acc) in
+  List.iter edge_paths
+    ~f:(fun path -> Printf.printf "\n";
+        List.iter path
+        ~f:(fun edge -> let (dst,_) = Topology.edge_dst edge in
+          Printf.printf "%s\t" (Node.name (Net.Topology.vertex_to_label topo dst))));
+  edge_paths
 
