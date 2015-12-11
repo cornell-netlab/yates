@@ -163,7 +163,7 @@ let all_pairs_multi_shortest_path (topo:topology) : (bool * int * (Topology.vert
   (fun e acc ->
     let src,_ = Topology.edge_src e in
     let dst,_ = Topology.edge_dst e in
-    let weight = 1.0 in (*TODO: read correct weight*)
+    let weight = Link.weight (Topology.edge_to_label topo e) in
     let _ = SrcDstMap.add acc ~key:(src, dst) ~data:weight in
     SrcDstMap.add acc ~key:(dst, src) ~data:weight)
   topo dist_mat in
@@ -308,8 +308,8 @@ let k_shortest_path (topo:topology) (s:Topology.vertex) (t:Topology.vertex) (k:i
           else if u = t then ()
           else explore () in
   explore ();
-  Printf.printf "Num paths %d" (List.length !paths);
-(*  let _ = List.fold_left
+(*  Printf.printf "Num paths %d" (List.length !paths);
+  let _ = List.fold_left
     !paths
     ~init:[]
     ~f:(fun acc path ->
@@ -345,7 +345,7 @@ let all_pair_k_shortest_path (topo:topology) (k:int) =
     (fun src acc ->
       Topology.fold_vertexes
         (fun dst nacc ->
-          let ksp = k_shortest_path topo src dst 3 in
+          let ksp = k_shortest_path topo src dst k in
           SrcDstMap.add nacc ~key:(src, dst) ~data:ksp)
         topo
         acc)
