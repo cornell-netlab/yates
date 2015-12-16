@@ -13,8 +13,8 @@ open Kulfi_Globals
 
 type solver_type =
   | Mcf | MwMcf | Vlb | Ecmp | Ksp | Spf | Raeke
-  | AkMcf | AkVlb | AkRaeke | AkEcmp
-  | SemiMcfMcf | SemiMcfVlb | SemiMcfRaeke | SemiMcfEcmp
+  | AkMcf | AkVlb | AkRaeke | AkEcmp | AkKsp
+  | SemiMcfMcf | SemiMcfVlb | SemiMcfRaeke | SemiMcfEcmp | SemiMcfKsp
  
 let solver_to_string (s:solver_type) : string =
   match s with 
@@ -23,17 +23,19 @@ let solver_to_string (s:solver_type) : string =
   | Vlb -> "vlb" 
   | Ecmp -> "ecmp"
   | Ksp -> "ksp"
-  | Spf -> "spf" 
-  | Raeke -> "raeke" 	       
+  | Spf -> "spf"
+  | Raeke -> "raeke"
   | AkMcf -> "akmcf"
   | AkVlb -> "akvlb"
   | AkRaeke -> "akraeke"
   | AkEcmp -> "akecmp"
+  | AkKsp -> "akksp"
   | SemiMcfMcf -> "semimcfmcf"
   | SemiMcfVlb -> "semimcfvlb"
   | SemiMcfRaeke -> "semimcfraeke"
   | SemiMcfEcmp -> "semimcfecmp"
-	       
+  | SemiMcfKsp -> "semimcfksp"
+
 let select_algorithm solver = match solver with
   | Mcf -> Kulfi_Routing.Mcf.solve
   | MwMcf -> Kulfi_Routing.MwMcf.solve
@@ -42,14 +44,16 @@ let select_algorithm solver = match solver with
   | Ksp -> Kulfi_Routing.Ksp.solve
   | Spf -> Kulfi_Routing.Spf.solve
   | Raeke -> Kulfi_Routing.Raeke.solve
-  | AkMcf 
-  | AkVlb 
-  | AkRaeke 
+  | AkMcf
+  | AkVlb
+  | AkRaeke
+  | AkKsp
   | AkEcmp -> Kulfi_Routing.Ak.solve
-  | SemiMcfMcf 
-  | SemiMcfVlb 
+  | SemiMcfMcf
+  | SemiMcfVlb
   | SemiMcfRaeke
-  | SemiMcfEcmp -> Kulfi_Routing.SemiMcf.solve 
+  | SemiMcfKsp
+  | SemiMcfEcmp -> Kulfi_Routing.SemiMcf.solve
 	       
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
   let sent_on_each_edge = 
@@ -169,17 +173,20 @@ let initial_scheme algorithm topo : scheme =
   | SemiMcfEcmp 
   | AkEcmp ->
      Kulfi_Routing.Ecmp.solve topo SrcDstMap.empty SrcDstMap.empty
+  | SemiMcfKsp
+  | AkKsp ->
+     Kulfi_Routing.Ksp.solve topo SrcDstMap.empty SrcDstMap.empty
   | _ -> SrcDstMap.empty
 
-			
-let simulate 
+
+let simulate
     (spec_solvers:solver_type list)
 	     (topology_file:string)
 	     (demand_file:string)
 	     (predict_file:string)
 	     (host_file:string)
 	     (iterations:int)
-             (scale:float) 
+             (scale:float)
              () : unit =
 
   (* Do some error checking on input *)
@@ -367,10 +374,12 @@ let command =
     +> flag "-akvlb" no_arg ~doc:" run ak+vlb"
     +> flag "-akraeke" no_arg ~doc:" run ak+raeke"
     +> flag "-akecmp" no_arg ~doc:" run ak+ecmp"
+    +> flag "-akksp" no_arg ~doc:" run ak+ksp"
     +> flag "-semimcfmcf" no_arg ~doc:" run semi mcf+mcf"
     +> flag "-semimcfvlb" no_arg ~doc:" run semi mcf+vlb"
     +> flag "-semimcfraeke" no_arg ~doc:" run semi mcf+raeke"
     +> flag "-semimcfecmp" no_arg ~doc:" run semi mcf+ecmp"
+    +> flag "-semimcfksp" no_arg ~doc:" run semi mcf+ksp"
     +> flag "-raeke" no_arg ~doc:" run raeke"
     +> flag "-all" no_arg ~doc:" run all schemes"
     +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
@@ -390,10 +399,12 @@ let command =
 	 (akvlb:bool)
 	 (akraeke:bool)
 	 (akecmp:bool)
+	 (akksp:bool)
 	 (semimcfmcf:bool)
 	 (semimcfvlb:bool)
 	 (semimcfraeke:bool)
 	 (semimcfecmp:bool)
+	 (semimcfksp:bool)
 	 (raeke:bool)
 	 (all:bool)
          (scalesyn:bool)
@@ -415,10 +426,12 @@ let command =
 	 ; if akmcf || all then Some AkMcf else None
 	 ; if akvlb || all then Some AkVlb else None
 	 ; if akecmp || all then Some AkEcmp else None
+	 ; if akksp || all then Some AkKsp else None
 	 ; if akraeke || all then Some AkRaeke else None
          ; if raeke || all then Some Raeke else None 
          ; if semimcfmcf || all then Some SemiMcfMcf else None
 	 ; if semimcfecmp || all then Some SemiMcfEcmp else None
+	 ; if semimcfksp || all then Some SemiMcfKsp else None
 	 ; if semimcfvlb || all then Some SemiMcfVlb else None
 	 ; if semimcfraeke || all then Some SemiMcfRaeke else None ] in 
      let scale = if scalesyn then calculate_syn_scale deloop topology_file else 1.0 in
@@ -427,6 +440,6 @@ let command =
   )
 
 let main = Command.run command
-		       
-let _ = main 
+
+let _ = main
 
