@@ -56,7 +56,7 @@ let select_algorithm solver = match solver with
   | SemiMcfEcmp -> Kulfi_Routing.SemiMcf.solve
 	       
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
-  let sent_on_each_edge = 
+  let sent_on_each_edge =
     SrcDstMap.fold
       s
       ~init:EdgeMap.empty
@@ -82,6 +82,52 @@ let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) 
     ~f:(fun ~key:e ~data:amount_sent acc ->
         EdgeMap.add ~key:e ~data:(amount_sent /. (capacity_of_edge t e)) acc) sent_on_each_edge 
 
+let simulate_fair_share (s:scheme) (t:topology) (d:demands) =
+  (* Printf.printf "%s\n" (dump_scheme t s); *)
+  let edge_paths_map =
+    SrcDstMap.fold
+      s
+      ~init:EdgeMap.empty
+      ~f:(fun ~key:(src,dst) ~data:paths acc ->
+          PathMap.fold
+	        paths
+            ~init:acc
+            ~f:(fun ~key:path ~data:prob acc ->
+                List.fold_left
+		            path
+                  ~init:acc
+                  ~f:(fun acc e ->
+                      match EdgeMap.find acc e with
+                      | None -> EdgeMap.add ~key:e ~data:([path]) acc
+                      | Some e_paths ->  let uniq_paths = if (List.mem e_paths
+                      path) then e_paths
+                                                          else (path::e_paths) in
+                          EdgeMap.add ~key:e ~data:uniq_paths acc)))
+  in
+  let path_prob_map =
+    SrcDstMap.fold
+      s
+      ~init:PathMap.empty
+      ~f:(fun ~key:(src,dst) ~data:paths acc ->
+          PathMap.fold
+	        paths
+            ~init:acc
+            ~f:(fun ~key:path ~data:prob acc ->
+                match PathMap.find acc path with
+                      | None ->  PathMap.add ~key:path ~data:prob acc
+                      | Some x -> if path <> [] then failwith "Duplicate paths should not be present"
+                          else acc))
+  in
+  let _ = EdgeMap.iter edge_paths_map
+    ~f:(fun ~key:e ~data:paths->
+      Printf.printf "\n%s\n" (dump_edges t [e]);
+      List.iter paths
+        ~f:(fun path ->
+          let prob = PathMap.find_exn path_prob_map path in
+          Printf.printf "[%s] %f\n" (dump_edges t path) prob)) in
+  Printf.printf "Done."
+
+
 let is_int v =
   let p = (Float.modf v) in
   let f = Float.Parts.fractional p in
@@ -92,7 +138,7 @@ let is_int v =
 let kth_percentile (l:float list) (k:float) : float =
   let n = List.length l in
   let x = (Float.of_int n) *. k in
-  Printf.printf "%f / %d\n" x n;
+  (*Printf.printf "%f / %d\n" x n;*)
   if is_int x then
     let i = Int.of_float (Float.round_up x) in
     let lhs = match (List.nth l i) with
@@ -263,6 +309,7 @@ let simulate
 		  stop at;
 
 		  let congestions = (congestion_of_paths scheme' topo actual) in
+		  let _ = (simulate_fair_share scheme' topo actual) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in 
 		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
 		  

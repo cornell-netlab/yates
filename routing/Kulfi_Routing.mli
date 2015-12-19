@@ -1,13 +1,13 @@
 
 open Kulfi_Types
-                       
+
 module type Algorithm = sig
-    val solve : topology -> demands -> scheme -> scheme  
+    val solve : topology -> demands -> scheme -> scheme
 end
 
-module Ecmp : Algorithm 
+module Ecmp : Algorithm
 
-module Ksp : Algorithm 
+module Ksp : Algorithm
 
 module Mcf : Algorithm
 
