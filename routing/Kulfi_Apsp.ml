@@ -333,8 +333,10 @@ let k_shortest_path (topo:topology) (s:Topology.vertex) (t:Topology.vertex) (k:i
         match u with
         | None -> (edges, Some v)
         | Some u -> let edge = Topology.find_edge topo v u in (edge::edges, Some v)) in
-      let edge_path,_ = edge_path in
-      edge_path::acc) in
+      let p,_ = edge_path in
+      let p' = if !Kulfi_Globals.deloop then Kulfi_Frt.FRT.remove_cycles p
+                else p in
+      p'::acc) in
   (*
   List.iter
     edge_paths

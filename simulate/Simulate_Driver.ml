@@ -82,6 +82,24 @@ let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) 
     ~f:(fun ~key:e ~data:amount_sent acc ->
         EdgeMap.add ~key:e ~data:(amount_sent /. (capacity_of_edge t e)) acc) sent_on_each_edge 
 
+let get_path_prob_demand_map (s:scheme) (d:demands) =
+  (* (Probability, net s-d demand) for each path *)
+  SrcDstMap.fold s
+  ~init:PathMap.empty
+  ~f:(fun ~key:(src,dst) ~data:paths acc ->
+    let demand = match SrcDstMap.find d (src,dst) with
+                 | None -> 0.0
+                 | Some x -> x in
+    PathMap.fold
+    paths
+    ~init:acc
+    ~f:(fun ~key:path ~data:prob acc ->
+      match PathMap.find acc path with
+              | None ->  PathMap.add ~key:path ~data:(prob, demand) acc
+              | Some x -> if path <> [] then failwith "Duplicate paths should not be present"
+                          else acc))
+
+
 let simulate_fair_share (s:scheme) (t:topology) (d:demands) =
   (* Printf.printf "%s\n" (dump_scheme t s); *)
   let edge_paths_map = (* Store which paths go through an edge *)
@@ -103,23 +121,7 @@ let simulate_fair_share (s:scheme) (t:topology) (d:demands) =
                           let uniq_paths = if (List.mem e_paths path) then e_paths
                                 else (path::e_paths) in
                           EdgeMap.add ~key:e ~data:uniq_paths acc))) in
-  let path_prob_map = (* (Probability, net s-d demand) for each path *)
-    SrcDstMap.fold
-      s
-      ~init:PathMap.empty
-      ~f:(fun ~key:(src,dst) ~data:paths acc ->
-          let demand =
-            match SrcDstMap.find d (src,dst) with
-            | None -> 0.0
-            | Some x -> x in
-          PathMap.fold
-	        paths
-            ~init:acc
-            ~f:(fun ~key:path ~data:prob acc ->
-                match PathMap.find acc path with
-                      | None ->  PathMap.add ~key:path ~data:(prob, demand) acc
-                      | Some x -> if path <> [] then failwith "Duplicate paths should not be present"
-                          else acc)) in
+  let path_prob_map = get_path_prob_demand_map s d in
   (* debug prints *)
   (*
   let _ = EdgeMap.iter edge_paths_map
@@ -183,6 +185,136 @@ let simulate_fair_share (s:scheme) (t:topology) (d:demands) =
       else path_fairshare
   in
   expected_congestion_per_edge
+
+let list_last l = match l with
+  | hd::tl -> List.fold_left ~f:(fun _ x -> x) ~init:hd tl
+  | []    -> failwith "no element"
+
+let rec list_next l elem = match l with
+  | hd::tl -> if hd = elem then List.hd tl
+              else list_next tl elem
+  | [] -> failwith "not found"
+
+(* Return src and dst for a given path *)
+let get_src_dst_for_path (p:path) =
+  if p = [] then None
+  else
+    let first_link = match List.hd p with
+                        | None -> failwith "Empty path"
+                        | Some x -> x in
+    let last_link = list_last p in
+    let src,_ = Net.Topology.edge_src first_link in
+    let dst,_ = Net.Topology.edge_dst last_link in
+    Some (src, dst)
+
+(* Simulate traffic *)
+let sim (s:scheme) (t:topology) (d:demands) =
+  (*
+   * At each time-step:
+     * For each path:
+       * add traffic at source link
+       * remove traffic at dest link and update stats
+     * For each edge:
+       * store incoming traffic
+       * process incoming traffic based on fair share
+       * add traffic to corresponding next hop links
+  * *)
+  Printf.printf "%s\n" (dump_scheme t s);
+  let num_iterations = 10 in
+  let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
+  let iterations = range 0 num_iterations in
+  List.fold_left iterations
+    (* ingress link traffic, sd-delivered, traffic on each edge *)
+    ~init:(EdgeMap.empty, SrcDstMap.empty, EdgeMap.empty) 
+    ~f:(fun (in_traffic, delivered, link_loads) iter -> 
+      (* begin iteration *)
+      Printf.printf "--- Iteration : %d ---\n" iter;
+      let path_prob_map = get_path_prob_demand_map s d in
+      (* Add traffic at source of every path,
+       * stop some time before end of simulation to allow packets in transit to reach *)
+      (* out_traffic : map edge -> ingress_traffic in next iter *)
+      let out_traffic = if num_iterations - iter < 5 then EdgeMap.empty
+        else PathMap.fold path_prob_map
+          ~init:EdgeMap.empty
+          ~f:(fun ~key:path ~data:(prob,demand) acc ->
+              if path = [] then acc else
+              let first_link = match List.hd path with
+                                | None -> failwith "Empty path"
+                                | Some x -> x in
+              let sched_traf_first_link = match EdgeMap.find acc first_link with
+                      | None -> PathMap.empty
+                      | Some v -> v in
+              let _ = match PathMap.find sched_traf_first_link path with
+                      | None -> true
+                      | Some x -> failwith "Scheduling duplicate flow at first link" in
+              let traf_first_link = PathMap.add ~key:path ~data:(prob *. demand) sched_traf_first_link in
+              EdgeMap.add ~key:first_link ~data:traf_first_link acc) in
+      (* Remove traffic at destination for every path *)
+      let new_delivered, new_link_loads = PathMap.fold path_prob_map
+        ~init:(delivered, link_loads) 
+        (* SrcDstMap containing amount of data delivered, EdgeMap of total traffic carried *)
+        ~f:(fun ~key:path ~data:_ acc ->
+          if path = [] then acc else
+          let (dlvd, ll) = acc in
+          let (src,dst) = match get_src_dst_for_path path with
+                          | None -> failwith "Empty path"
+                          | Some x -> x in
+          let last_link = list_last path in
+          let in_link_traffic = match EdgeMap.find in_traffic last_link with
+                                  | None -> PathMap.empty
+                                  | Some x -> x in
+          let in_link_path_traffic = match PathMap.find in_link_traffic path with
+                                      | None -> 0.0
+                                      | Some x -> x in
+          let prev_delivered = match SrcDstMap.find dlvd (src,dst) with
+                                | None -> 0.0
+                                | Some x -> x in
+          let prev_ll_link = match EdgeMap.find ll last_link with
+                              | None -> 0.0
+                              | Some x -> x in
+          let new_dlvd = SrcDstMap.add ~key:(src,dst) ~data:(in_link_path_traffic +. prev_delivered) dlvd in
+          let new_ll = EdgeMap.add ~key:last_link ~data:(prev_ll_link +. in_link_path_traffic) ll in
+          (new_dlvd, new_ll)) in
+      (* For each link, forward traffic to next links *)
+      let out_traffic,new_link_loads = EdgeMap.fold in_traffic
+        ~init:(out_traffic, new_link_loads)
+        ~f:(fun ~key:e ~data:ingress_e acc ->
+          PathMap.fold ingress_e
+          ~init:acc
+          ~f:(fun ~key:path ~data:flow_val acc ->
+            let (ot,ll) = acc in
+            let next_link_opt = list_next path e in
+            match next_link_opt with
+            | None -> acc
+            | Some next_link ->
+                let sched_traf_next_link = match EdgeMap.find ot next_link with
+                    | None -> PathMap.empty
+                    | Some v -> v in
+                let _ = match PathMap.find sched_traf_next_link path with
+                    | None -> true
+                    | Some x -> Printf.printf "%s" (dump_edges t path); failwith "Scheduling duplicate flow at next link" in
+                let traf_next_link = PathMap.add ~key:path ~data:flow_val sched_traf_next_link in
+                let new_ot = EdgeMap.add ~key:next_link ~data:traf_next_link ot in
+                let prev_ll_link = match EdgeMap.find ll e with
+                              | None -> 0.0
+                              | Some x -> x in
+                let new_ll = EdgeMap.add ~key:e ~data:(prev_ll_link +. flow_val) ll in
+                (new_ot, new_ll))) in
+      (*Dump state to debug *)
+      
+      EdgeMap.iter out_traffic
+        ~f:(fun ~key:e ~data:dem ->
+          Printf.printf "%s\n" (dump_edges t [e]);
+          PathMap.iter dem
+          ~f:(fun ~key:path ~data:d -> Printf.printf "%s\t%f\n" (dump_edges t path) d));
+      SrcDstMap.iter new_delivered
+        ~f:(fun ~key:(src,dst) ~data:delvd ->
+          Printf.printf "%s %s\t%f\n" (Node.name (Net.Topology.vertex_to_label t src))
+        (Node.name (Net.Topology.vertex_to_label t dst)) delvd);
+        
+      (* state carried over to next iter *)
+      (out_traffic, new_delivered, new_link_loads))
+      (* end iteration *)
 
 
 let is_int v =
@@ -366,6 +498,7 @@ let simulate
 		  stop at;
 
 		  let congestions = (simulate_fair_share scheme' topo actual) in
+		  let _ = (sim scheme' topo actual) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in 
 		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
 		  
