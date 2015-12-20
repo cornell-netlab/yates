@@ -213,17 +213,17 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
    * At each time-step:
      * For each path:
        * add traffic at source link
-       * remove traffic at dest link and update stats
      * For each edge:
-       * store incoming traffic
        * process incoming traffic based on fair share
        * add traffic to corresponding next hop links
+       * or deliver to end host if last link in a path
   * *)
   let local_debug = false in
-  let num_iterations = 10 in
+  let num_iterations = 1000 in
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
-  let iterations = range 0 num_iterations in
+  let iterations = range 0 (num_iterations+5) in
   if local_debug then Printf.printf "%s\n" (dump_scheme t s);
+  let _,sd_delivered,link_utils =
   List.fold_left
     iterations
     (* ingress link traffic, sd-delivered, traffic on each edge *)
@@ -235,7 +235,7 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
       (* Add traffic at source of every path,
        * stop some time before end of simulation to allow packets in transit to reach *)
       (* next_iter_traffic : map edge -> in_traffic in next iter *)
-      let next_iter_traffic = if num_iterations - iter < 5 then EdgeMap.empty
+      let next_iter_traffic = if num_iterations < iter then EdgeMap.empty
         else PathMap.fold path_prob_map
           ~init:EdgeMap.empty
           ~f:(fun ~key:path ~data:(prob,sd_demand) acc ->
@@ -253,37 +253,9 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
               EdgeMap.add ~key:first_link ~data:traf_first_link acc) in
       (* Done generating traffic at source *)
 
-      (* Deliver traffic at destination for every path *)
-      let new_delivered, new_link_utils = PathMap.fold path_prob_map
-        ~init:(delivered, link_utils)
-        (* SrcDstMap containing amount of data delivered, EdgeMap of total traffic carried *)
-        ~f:(fun ~key:path ~data:_ acc ->
-          if path = [] then acc else
-          let (dlvd, lutil) = acc in
-          let (src,dst) = match get_src_dst_for_path path with
-                          | None -> failwith "Empty path"
-                          | Some x -> x in
-          let last_link = list_last path in
-          let in_link_traffic = match EdgeMap.find in_traffic last_link with
-                                  | None -> PathMap.empty
-                                  | Some x -> x in
-          let in_link_path_traffic = match PathMap.find in_link_traffic path with
-                                      | None -> 0.0
-                                      | Some x -> x in
-          let prev_delivered = match SrcDstMap.find dlvd (src,dst) with
-                                | None -> 0.0
-                                | Some x -> x in
-          let prev_lutil_link = match EdgeMap.find lutil last_link with
-                              | None -> 0.0
-                              | Some x -> x in
-          let new_dlvd = SrcDstMap.add ~key:(src,dst) ~data:(in_link_path_traffic +. prev_delivered) dlvd in
-          let new_lutil = EdgeMap.add ~key:last_link ~data:(prev_lutil_link +. in_link_path_traffic) lutil in
-          (new_dlvd, new_lutil)) in
-      (* Done delivering traffic at destination *)
-
-      (* For each link, forward fair share of flows to next links *)
-      let next_iter_traffic,new_link_utils = EdgeMap.fold in_traffic
-        ~init:(next_iter_traffic, new_link_utils)
+      (* For each link, forward fair share of flows to next links or deliver to destination *)
+      let next_iter_traffic, new_delivered, new_link_utils = EdgeMap.fold in_traffic
+        ~init:(next_iter_traffic, delivered, link_utils)
         ~f:(fun ~key:e ~data:ingress_e acc ->
           let demand_on_link = PathMap.fold ingress_e
             ~init:0.0
@@ -323,29 +295,42 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
               fair_share_at_edge (capacity_of_edge t e) [] PathMap.empty
               (* done calculating fair share *)
               else ingress_e in
+
           PathMap.fold fs_ingress_e
           ~init:acc
-          ~f:(fun ~key:path ~data:flow_dem acc ->
-            let (ot,ll) = acc in
+          ~f:(fun ~key:path ~data:flow_fair_share acc ->
+            let (nit,dlvd,lutil) = acc in
             let next_link_opt = list_next path e in
             match next_link_opt with
-            | None -> acc
-            | Some next_link ->
-                let sched_traf_next_link = match EdgeMap.find ot next_link with
+            | None -> (* End of path, deliver traffic to dst *)
+                let (src,dst) = match get_src_dst_for_path path with
+                                | None -> failwith "Empty path"
+                                | Some x -> x in
+                let prev_delivered = match SrcDstMap.find dlvd (src,dst) with
+                                      | None -> 0.0
+                                      | Some x -> x in
+                let prev_lutil_link = match EdgeMap.find lutil e with
+                              | None -> 0.0
+                              | Some x -> x in
+                let new_dlvd = SrcDstMap.add ~key:(src,dst) ~data:(prev_delivered +. flow_fair_share) dlvd in
+                let new_lutil = EdgeMap.add ~key:e ~data:(prev_lutil_link +. flow_fair_share) lutil in
+                (nit, new_dlvd, new_lutil)
+            | Some next_link -> (* Forward traffic to next link *)
+                let sched_traf_next_link = match EdgeMap.find nit next_link with
                     | None -> PathMap.empty
                     | Some v -> v in
                 let _ = match PathMap.find sched_traf_next_link path with
                     | None -> true
                     | Some x -> Printf.printf "%s" (dump_edges t path); failwith "Scheduling duplicate flow at next link" in
-                let traf_next_link = PathMap.add ~key:path ~data:flow_dem sched_traf_next_link in
-                let new_ot = EdgeMap.add ~key:next_link ~data:traf_next_link ot in
-                let prev_ll_link = match EdgeMap.find ll e with
+                let traf_next_link = PathMap.add ~key:path ~data:flow_fair_share sched_traf_next_link in
+                let new_nit = EdgeMap.add ~key:next_link ~data:traf_next_link nit in
+                let prev_lutil_link = match EdgeMap.find lutil e with
                               | None -> 0.0
                               | Some x -> x in
-                let new_ll = EdgeMap.add ~key:e ~data:(prev_ll_link +. flow_dem) ll in
-                (new_ot, new_ll))) in
-      (* Done link-to-link forwarding *)
-      (*Dump state to debug *)
+                let new_lutil = EdgeMap.add ~key:e ~data:(prev_lutil_link +. flow_fair_share) lutil in
+                (new_nit, dlvd, new_lutil))) in
+      (* Done forwarding *)
+      (*Dump state for debugging *)
       if local_debug then
           EdgeMap.iter next_iter_traffic
             ~f:(fun ~key:e ~data:dem ->
@@ -358,8 +343,16 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
             (Node.name (Net.Topology.vertex_to_label t dst)) delvd);
       (* state carried over to next iter *)
       (next_iter_traffic, new_delivered, new_link_utils))
-      (* end iteration *)
-
+      (* end iteration *) in
+  let tput = SrcDstMap.fold sd_delivered
+    ~init:SrcDstMap.empty
+    ~f:(fun ~key:sd ~data:dlvd acc ->
+      SrcDstMap.add ~key:sd ~data:(dlvd /. (Float.of_int num_iterations)) acc) in
+  let congestions = EdgeMap.fold link_utils
+    ~init:EdgeMap.empty
+    ~f:(fun ~key:e ~data:util acc ->
+      EdgeMap.add ~key:e ~data:(util /. (Float.of_int (num_iterations+5)) /. (capacity_of_edge t e)) acc) in
+  tput, congestions
 
 let is_int v =
   let p = (Float.modf v) in
@@ -541,8 +534,8 @@ let simulate
 		  let scheme' = solve topo predict scheme in
 		  stop at;
 
-		  let congestions = (simulate_fair_share scheme' topo actual) in
-		  let _ = (simulate_routing scheme' topo actual) in
+		  let expected_congestions = (congestion_of_paths scheme' topo actual) in
+		  let tput,congestions = (simulate_routing scheme' topo actual) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in
 		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
 
@@ -611,7 +604,7 @@ let simulate
 (* For synthetic demands based on Abilene, scale them to current topology by multiplying by X/mcf_congestion,
    where X is the max congestion we expect to get when run with the new demands *)
 let calculate_syn_scale (deloop:bool) (topology:string) =
-  let topo = Parse.from_dotfile topology in 
+  let topo = Parse.from_dotfile topology in
   let host_set = VertexSet.filter (Topology.vertexes topo)
                                   ~f:(fun v ->
                                       let label = Topology.vertex_to_label topo v in
@@ -629,12 +622,12 @@ let calculate_syn_scale (deloop:bool) (topology:string) =
                 let num_hosts = List.length hs in
 		let r = if u = v then 0.0 else 22986934.0 /. Float.of_int(num_hosts * num_hosts) in
 		SrcDstMap.add acc ~key:(u,v) ~data:r)) in
-  let s=SrcDstMap.empty in 
-  let s2 =Kulfi_Mcf.solve topo demands s in 
-  let congestions = congestion_of_paths s2 topo demands in 
-  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in 
+  let s=SrcDstMap.empty in
+  let s2 =Kulfi_Mcf.solve topo demands s in
+  let expected_congestions = congestion_of_paths s2 topo demands in
+  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist expected_congestions) in
   let cmax = (get_max_congestion list_of_congestions) in
-  let scale_factor = 0.4/.cmax in 
+  let scale_factor = 0.4/.cmax in
   Printf.printf "%f\n\n" (scale_factor);
   scale_factor
 
