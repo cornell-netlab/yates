@@ -12,7 +12,7 @@ let solve (topo:topology) (_:demands) (_:scheme) : scheme =
       ~f:(fun v ->
           let lbl = vertex_to_label topo v in
           Node.device lbl = Node.Host) in
-  let all_ksp = all_pair_k_shortest_path topo 3 host_set in
+  let all_ksp = all_pair_k_shortest_path topo 2 host_set in
   SrcDstMap.fold
     all_ksp
     ~init:SrcDstMap.empty

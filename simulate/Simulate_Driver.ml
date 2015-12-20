@@ -84,7 +84,7 @@ let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) 
 
 let simulate_fair_share (s:scheme) (t:topology) (d:demands) =
   (* Printf.printf "%s\n" (dump_scheme t s); *)
-  let edge_paths_map =
+  let edge_paths_map = (* Store which paths go through an edge *)
     SrcDstMap.fold
       s
       ~init:EdgeMap.empty
@@ -99,33 +99,90 @@ let simulate_fair_share (s:scheme) (t:topology) (d:demands) =
                   ~f:(fun acc e ->
                       match EdgeMap.find acc e with
                       | None -> EdgeMap.add ~key:e ~data:([path]) acc
-                      | Some e_paths ->  let uniq_paths = if (List.mem e_paths
-                      path) then e_paths
-                                                          else (path::e_paths) in
-                          EdgeMap.add ~key:e ~data:uniq_paths acc)))
-  in
-  let path_prob_map =
+                      | Some e_paths ->
+                          let uniq_paths = if (List.mem e_paths path) then e_paths
+                                else (path::e_paths) in
+                          EdgeMap.add ~key:e ~data:uniq_paths acc))) in
+  let path_prob_map = (* (Probability, net s-d demand) for each path *)
     SrcDstMap.fold
       s
       ~init:PathMap.empty
       ~f:(fun ~key:(src,dst) ~data:paths acc ->
+          let demand =
+            match SrcDstMap.find d (src,dst) with
+            | None -> 0.0
+            | Some x -> x in
           PathMap.fold
 	        paths
             ~init:acc
             ~f:(fun ~key:path ~data:prob acc ->
                 match PathMap.find acc path with
-                      | None ->  PathMap.add ~key:path ~data:prob acc
+                      | None ->  PathMap.add ~key:path ~data:(prob, demand) acc
                       | Some x -> if path <> [] then failwith "Duplicate paths should not be present"
-                          else acc))
-  in
+                          else acc)) in
+  (* debug prints *)
+  (*
   let _ = EdgeMap.iter edge_paths_map
     ~f:(fun ~key:e ~data:paths->
       Printf.printf "\n%s\n" (dump_edges t [e]);
       List.iter paths
         ~f:(fun path ->
-          let prob = PathMap.find_exn path_prob_map path in
-          Printf.printf "[%s] %f\n" (dump_edges t path) prob)) in
-  Printf.printf "Done."
+          let prob,demand = PathMap.find_exn path_prob_map path in
+          Printf.printf "[%s] %f %f\n" (dump_edges t path) prob demand)) in
+  *)
+  let expected_flow_per_edge =
+    EdgeMap.fold
+    ~init:EdgeMap.empty
+    ~f:(fun ~key:e ~data:paths acc ->
+       List.fold_left paths
+        ~init:acc
+        ~f:(fun acc path ->
+          let prob,demand = PathMap.find_exn path_prob_map path in
+          let existing_flow = match EdgeMap.find acc e with
+                              | None -> 0.0
+                              | Some x -> x in
+          EdgeMap.add ~key:e ~data:(existing_flow +. (prob *. demand)) acc))
+    edge_paths_map in
+  let expected_congestion_per_edge = EdgeMap.fold
+    ~init:EdgeMap.empty
+    ~f:(fun ~key:e ~data:amount_sent acc ->
+        EdgeMap.add ~key:e ~data:(amount_sent /. (capacity_of_edge t e)) acc)
+    expected_flow_per_edge in
+
+  (* Test with previous version for sanity check *)
+  (*
+	let test_congestions = (congestion_of_paths s t d) in
+  EdgeMap.iter test_congestions
+    ~f:(fun ~key:e ~data:c ->
+      let c' = EdgeMap.find_exn expected_congestion_per_edge e in
+      if (c -. c' > 0.01 || c' -. c > 0.01) then failwith "New congestion values differ too much");
+  *)
+  let rec fair_share_at_edge (e:edge) (spare_cap:float) (sat_paths) (path_share_map) =
+    let paths = EdgeMap.find_exn edge_paths_map e in
+    let n_unsat_paths = (List.length paths)  - (List.length sat_paths) in
+    if n_unsat_paths = 0 then path_share_map else
+    let path_fairshare, new_sat_paths = List.fold_left paths
+      ~init:(PathMap.empty,sat_paths)
+      ~f:(fun acc path -> 
+        let acc_path_share_map, acc_sat_paths = acc in
+        let prob,sd_demand = PathMap.find_exn path_prob_map path in 
+        let req_share = prob *. sd_demand in
+        let path_allocated_share = match PathMap.find path_share_map path with
+                                    | None -> 0.0
+                                    | Some x -> x in
+        let new_path_share = if List.mem acc_sat_paths path then path_allocated_share 
+                      else min req_share (path_allocated_share +. (spare_cap /. (Float.of_int n_unsat_paths))) in
+        let acc_sat_paths = if (new_path_share < req_share -. 0.001) || (List.mem acc_sat_paths path)
+                            then acc_sat_paths 
+                            else path::acc_sat_paths in
+        (PathMap.add ~key:path ~data:new_path_share acc_path_share_map, acc_sat_paths)) in
+    let residual_cap = PathMap.fold path_fairshare
+      ~init:(capacity_of_edge t e)
+      ~f:(fun ~key:path ~data:link_share acc -> acc -. link_share) in
+    if residual_cap > 0.0 then fair_share_at_edge e residual_cap new_sat_paths path_fairshare
+      else path_fairshare
+  in
+  expected_congestion_per_edge
 
 
 let is_int v =
@@ -308,8 +365,7 @@ let simulate
 		  let scheme' = solve topo predict scheme in 
 		  stop at;
 
-		  let congestions = (congestion_of_paths scheme' topo actual) in
-		  let _ = (simulate_fair_share scheme' topo actual) in
+		  let congestions = (simulate_fair_share scheme' topo actual) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in 
 		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
 		  
