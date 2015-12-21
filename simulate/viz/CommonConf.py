@@ -17,7 +17,7 @@ def getLineMarkers():
     #          r'$\clubsuit$',
     #          r'$\checkmark$',
     #           '<', '>']
-    return ['s', 'o', '<', '>', '^', 'v', 'd', '^', 'v', '.'] *10
+    return ['s', 'o', '<', '>', '^', 'v', 'd', '.','*', 'p'] *10
 
 def getLineFormats():
     return [':',':', '--', '--'] * 100

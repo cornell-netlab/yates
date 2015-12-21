@@ -1,3 +1,6 @@
+import json
+import networkx as nx
+from networkx.readwrite import json_graph
 import pygraphviz as pgv
 import sys
 
@@ -14,17 +17,24 @@ def congestion_to_color(c):
     else:
         return '/reds9/9'
 
-def display (scheme, topology, all_congestions, directory):
+def display (scheme, topology, all_congestions, directory, expected):
     G = pgv.AGraph(topology)
     for e in G.edges():
         link = '('+e[0]+','+e[1]+')'
         max_cong = max(get_link_congestion(all_congestions, scheme, link))
         e.attr['color'] = congestion_to_color(max_cong)
+        e.attr['congestion'] = max_cong
         e.attr['label'] = int(max_cong * 100)/100.0
         if max_cong > 1:
             e.attr['weight'] = 10
+    nxg = nx.from_agraph(G)
+    data = json_graph.node_link_data(nxg)
+    s = json.dump(data, open('test.json', 'w'))
     G.layout()
-    G.draw(directory+'/link_cong_'+scheme+'.svg')
+    if expected:
+        G.draw(directory+'/link_cong_exp_'+scheme+'.svg')
+    else:
+        G.draw(directory+'/link_cong_'+scheme+'.svg')
 
 def parse_congestions_file (filename):
     all_congestions = dict()
@@ -64,11 +74,15 @@ def get_link_congestion (all_congestions, scheme, link):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 4:
-        print "Usage: " + sys.argv[0] + " <scheme_name> <topology_file> <edge_congestion_file>"
+    if len(sys.argv) < 5:
+        print "Usage: " + sys.argv[0] + " <scheme_name> <topology_file> <edge_congestion_file> <simulation/expected>"
     else:
         scheme = sys.argv[1]
         topology = sys.argv[2]
         directory='/'.join(sys.argv[3].split('/')[:-1])
         all_congestions = parse_congestions_file(sys.argv[3])
-        display(scheme, topology, all_congestions, directory)
+        if sys.argv[4] == 'expected':
+            expected=True
+        else:
+            expected=False
+        display(scheme, topology, all_congestions, directory, expected)

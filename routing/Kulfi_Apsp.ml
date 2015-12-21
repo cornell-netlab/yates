@@ -1,11 +1,11 @@
 open Kulfi_Types
 open Core.Std
-open Frenetic_Network                         
+open Frenetic_Network
 open Net
 open Net.Topology
 
 module PQueue = Core.Heap.Removable
-       
+
 (* TODO(jnf,rjs): We don't really understand the details of this
 code. But we're trusting that Chris Yu wrote a correct implementation
 of all pairs all shortest paths. The solve function treats
@@ -24,7 +24,7 @@ let src_shortest_paths (topo:topology) hosts src =
      let token = PQueue.add_removable p_queue (dist, v) in
      Hashtbl.Poly.add_exn dist_table v dist;
      Hashtbl.Poly.add_exn tokens v token) topo;
-  
+
   (* Modified Dijkstra's that saves all shortest paths of equal length *)
   let rec extend_paths () =
     let closest_opt = PQueue.pop p_queue in
@@ -270,6 +270,7 @@ let get_random_path (i:Topology.vertex) (j:Topology.vertex) (topo:topology)
 
 let k_shortest_path (topo:topology) (s:Topology.vertex) (t:Topology.vertex) (k:int) =
   (* k-shortest s,t paths - loops can be present *)
+  if s = t then [] else
   let paths = ref [] in
   let count = Hashtbl.Poly.create () in
   Topology.iter_vertexes
@@ -308,7 +309,8 @@ let k_shortest_path (topo:topology) (s:Topology.vertex) (t:Topology.vertex) (k:i
           else if u = t then ()
           else explore () in
   explore ();
-(*  Printf.printf "Num paths %d" (List.length !paths);
+  (*
+  Printf.printf "Num paths %d" (List.length !paths);
   let _ = List.fold_left
     !paths
     ~init:[]
@@ -318,7 +320,8 @@ let k_shortest_path (topo:topology) (s:Topology.vertex) (t:Topology.vertex) (k:i
       ~init:[]
       ~f:(fun acc v ->
         Printf.printf "%s\t" (Node.name (Net.Topology.vertex_to_label topo v));
-        acc)) in *)
+        acc)) in
+  *)
   let edge_paths = List.fold_left
     !paths
     ~init:[]
@@ -330,24 +333,33 @@ let k_shortest_path (topo:topology) (s:Topology.vertex) (t:Topology.vertex) (k:i
         match u with
         | None -> (edges, Some v)
         | Some u -> let edge = Topology.find_edge topo v u in (edge::edges, Some v)) in
-      let edge_path,_ = edge_path in
-      edge_path::acc) in
-  List.iter edge_paths
+      let p,_ = edge_path in
+      let p' = if !Kulfi_Globals.deloop then Kulfi_Frt.FRT.remove_cycles p
+                else p in
+      p'::acc) in
+  (*
+  List.iter
+    edge_paths
     ~f:(fun path -> Printf.printf "\n";
-        List.iter path
-        ~f:(fun edge -> let (dst,_) = Topology.edge_dst edge in
+        Printf.printf "%s -> " (Node.name (Net.Topology.vertex_to_label topo s));
+        Printf.printf "%s\t" (Node.name (Net.Topology.vertex_to_label topo t));
+        List.iter
+        path
+        ~f:(fun edge ->
+          let (dst,_) = Topology.edge_dst edge in
           Printf.printf "%s\t" (Node.name (Net.Topology.vertex_to_label topo dst))));
+  *)
   edge_paths
 
 
-let all_pair_k_shortest_path (topo:topology) (k:int) =
-  Topology.fold_vertexes
-    (fun src acc ->
-      Topology.fold_vertexes
-        (fun dst nacc ->
+let all_pair_k_shortest_path (topo:topology) (k:int) hosts =
+  VertexSet.fold
+  hosts
+  ~init:SrcDstMap.empty
+  ~f:(fun acc src ->
+        VertexSet.fold
+        hosts
+        ~init:acc
+        ~f:(fun nacc dst ->
           let ksp = k_shortest_path topo src dst k in
-          SrcDstMap.add nacc ~key:(src, dst) ~data:ksp)
-        topo
-        acc)
-    topo
-    SrcDstMap.empty
+          SrcDstMap.add nacc ~key:(src, dst) ~data:ksp))

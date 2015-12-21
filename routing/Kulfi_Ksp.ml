@@ -6,7 +6,13 @@ open Core.Std
 open Kulfi_Apsp
 
 let solve (topo:topology) (_:demands) (_:scheme) : scheme =
-  let all_ksp = all_pair_k_shortest_path topo 3 in
+  let host_set =
+    VertexSet.filter
+      (vertexes topo)
+      ~f:(fun v ->
+          let lbl = vertex_to_label topo v in
+          Node.device lbl = Node.Host) in
+  let all_ksp = all_pair_k_shortest_path topo 5 host_set in
   SrcDstMap.fold
     all_ksp
     ~init:SrcDstMap.empty

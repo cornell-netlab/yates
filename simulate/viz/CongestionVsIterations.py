@@ -23,7 +23,7 @@ def main(dirn, fname, solvers):
 
   index = 0
   for (solver, ys), (solver, ydevs) in zip(ysPerSolver.iteritems(),ydevsPerSolver.iteritems()) :
-    ax.errorbar(xs, ys, yerr=ydevs, label=solver, marker=mrkrs[index], linestyle=fmts[index])
+    ax.errorbar(xs, ys, yerr=ydevs, label=solver, marker=mrkrs[index], linestyle=fmts[index], alpha=0.8)
     index = index + 1
 
   ax.set_xlabel(X_LABEL);
