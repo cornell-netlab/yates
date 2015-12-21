@@ -4,28 +4,33 @@ open Frenetic_Network
 
 type iter_vs_time = { iteration : int ; time : float; time_dev : float; }
 
-let iter_vs_time_to_string (r:iter_vs_time) : string =		      
+let iter_vs_time_to_string (r:iter_vs_time) : string =
   Printf.sprintf "%d\t%f\t%f" r.iteration r.time r.time_dev
 
-type iter_vs_congestion = { iteration : int ; congestion : float; congestion_dev : float; }		 
+type iter_vs_congestion = { iteration : int ; congestion : float; congestion_dev : float; }
 
-let iter_vs_congestion_to_string (r:iter_vs_congestion) : string =		      
+let iter_vs_congestion_to_string (r:iter_vs_congestion) : string =
   Printf.sprintf "%d\t%f\t%f" r.iteration r.congestion r.congestion_dev
 
-type iter_vs_churn = { iteration : int ; churn : float; churn_dev : float; }		 
+type iter_vs_churn = { iteration : int ; churn : float; churn_dev : float; }
 
-let iter_vs_churn_to_string (r:iter_vs_churn) : string =		      
+let iter_vs_churn_to_string (r:iter_vs_churn) : string =
   Printf.sprintf "%d\t%f\t%f" r.iteration r.churn r.churn_dev
 
-type iter_vs_num_paths = { iteration : int ; num_paths : float; num_paths_dev : float; }		 
+type iter_vs_num_paths = { iteration : int ; num_paths : float; num_paths_dev : float; }
 
-let iter_vs_num_paths_to_string (r:iter_vs_num_paths) : string =		      
+let iter_vs_num_paths_to_string (r:iter_vs_num_paths) : string =
   Printf.sprintf "%d\t%f\t%f" r.iteration r.num_paths r.num_paths_dev
 
-type iter_vs_edge_congestions = { iteration : int ; edge_congestions : float EdgeMap.t; }		 
+type iter_vs_throughput = { iteration : int ; throughput : float; throughput_dev : float; }
+
+let iter_vs_throughput_to_string (r:iter_vs_throughput) : string =
+  Printf.sprintf "%d\t%f\t%f" r.iteration r.throughput r.throughput_dev
+
+type iter_vs_edge_congestions = { iteration : int ; edge_congestions : float EdgeMap.t; }
 
 let iter_vs_edge_congestions_to_string (topo:topology) (r:iter_vs_edge_congestions) : string =
-  Printf.sprintf "%d\t" r.iteration ^ 
+  Printf.sprintf "%d\t" r.iteration ^
   EdgeMap.fold ~init:"" ~f:(fun ~key:e ~data:c acc -> acc ^ "\n\t\t" ^ "(" ^
     (Node.name (Net.Topology.vertex_to_label topo (fst (Net.Topology.edge_src e)))) ^ "," ^
     (Node.name (Net.Topology.vertex_to_label topo (fst (Net.Topology.edge_dst e)))) ^ ") : " ^

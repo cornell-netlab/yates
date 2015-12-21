@@ -1,13 +1,13 @@
 open Core.Std
 open Frenetic_Network
-open Net      
+open Net
 open Kulfi_Types
 open Kulfi_Routing
 open Kulfi_Traffic
 open Simulate_Exps
 open Simulate_Demands
 open RunningStat
-open ExperimentalData 
+open ExperimentalData
 open AutoTimer
 open Kulfi_Globals
 
@@ -15,12 +15,12 @@ type solver_type =
   | Mcf | MwMcf | Vlb | Ecmp | Ksp | Spf | Raeke
   | AkMcf | AkVlb | AkRaeke | AkEcmp | AkKsp
   | SemiMcfMcf | SemiMcfVlb | SemiMcfRaeke | SemiMcfEcmp | SemiMcfKsp
- 
+
 let solver_to_string (s:solver_type) : string =
-  match s with 
-  | Mcf -> "mcf" 
+  match s with
+  | Mcf -> "mcf"
   | MwMcf -> "mwmcf"
-  | Vlb -> "vlb" 
+  | Vlb -> "vlb"
   | Ecmp -> "ecmp"
   | Ksp -> "ksp"
   | Spf -> "spf"
@@ -54,7 +54,7 @@ let select_algorithm solver = match solver with
   | SemiMcfRaeke
   | SemiMcfKsp
   | SemiMcfEcmp -> Kulfi_Routing.SemiMcf.solve
-	       
+
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
   let sent_on_each_edge =
     SrcDstMap.fold
@@ -219,7 +219,7 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
        * or deliver to end host if last link in a path
   * *)
   let local_debug = false in
-  let num_iterations = 1000 in
+  let num_iterations = 100 in
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
   let iterations = range 0 (num_iterations+5) in
   if local_debug then Printf.printf "%s\n" (dump_scheme t s);
@@ -230,7 +230,7 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
     ~init:(EdgeMap.empty, SrcDstMap.empty, EdgeMap.empty)
     ~f:(fun (in_traffic, delivered, link_utils) iter ->
       (* begin iteration *)
-      Printf.printf "--- Iteration : %d ---\n" iter;
+      Printf.printf "--- Iteration : %d ---\n%!" iter;
       let path_prob_map = get_path_prob_demand_map s d in
       (* Add traffic at source of every path,
        * stop some time before end of simulation to allow packets in transit to reach *)
@@ -429,6 +429,11 @@ let get_num_paths (s:scheme) : float =
 		s in
   Float.of_int count
 
+let get_total_tput tput : float =
+  SrcDstMap.fold
+  tput
+  ~init:0.0
+  ~f:(fun ~key:_ ~data:delivered acc -> acc +. delivered)
 
 let initial_scheme algorithm topo : scheme =
   match algorithm with
@@ -484,18 +489,25 @@ let simulate
   let time_data = make_data "Iteratives Vs Time" in
   let churn_data = make_data "Churn Vs Time" in
   let edge_congestion_data = make_data "Edge Congestion Vs Time" in
+  let edge_exp_congestion_data = make_data "Edge Expected Congestion Vs Time" in
   let num_paths_data = make_data "Num. Paths Vs Time" in
   let max_congestion_data = make_data "Max Congestion Vs Time" in
   let mean_congestion_data = make_data "Mean Congestion Vs Time" in
+  let max_exp_congestion_data = make_data "Max Expected Congestion Vs Time" in
+  let mean_exp_congestion_data = make_data "Mean Expected Congestion Vs Time" in
+  let total_tput_data = make_data "Total Throughput vs Time" in
   let percentiles = [0.1; 0.2; 0.3; 0.4; 0.5; 0.6; 0.7; 0.8; 0.9; 0.95] in
-  let percentile_data =
+  let create_percentile_data (metric:string) =
     List.fold_left
       percentiles
       ~init:[]
       ~f:(fun acc p ->
 	  let i = Int.of_float (p *. 100.) in
-	  let s = Printf.sprintf "%d-th Congestion Vs Time" i in
+	  let s = Printf.sprintf "%d-th %s Vs Time" i metric in
 	  (make_data s)::acc ) in
+
+  let percentile_data = create_percentile_data "Congestion" in
+  let exp_percentile_data = create_percentile_data "Expected Congestion" in
 
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
   let is = range 0 iterations in
@@ -534,7 +546,10 @@ let simulate
 		  let scheme' = solve topo predict scheme in
 		  stop at;
 
-		  let expected_congestions = (congestion_of_paths scheme' topo actual) in
+		  let exp_congestions = (congestion_of_paths scheme' topo actual) in
+		  let list_of_exp_congestions = List.map ~f:snd (EdgeMap.to_alist exp_congestions) in
+		  let sorted_exp_congestions = List.sort ~cmp:(Float.compare) list_of_exp_congestions in
+
 		  let tput,congestions = (simulate_routing scheme' topo actual) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in
 		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
@@ -545,13 +560,16 @@ let simulate
 		  let np = (get_num_paths scheme') in
 		  let cmax = (get_max_congestion list_of_congestions) in
 		  let cmean = (get_mean_congestion list_of_congestions) in
+		  let expcmax = (get_max_congestion list_of_exp_congestions) in
+		  let expcmean = (get_mean_congestion list_of_exp_congestions) in
+      let total_tput = (get_total_tput tput) in
 
-		  let percentile_values =
+		  let percentile_values sort_cong =
 		    List.fold_left
 		      percentiles
 		      ~init:[]
 		      ~f:(fun acc p ->
-			  (kth_percentile sorted_congestions p)::acc ) in
+			  (kth_percentile sort_cong p)::acc ) in
 
 		  let sname = (solver_to_string algorithm) in
 		  add_record time_data sname {iteration = n; time=tm; time_dev=0.0; };
@@ -559,10 +577,18 @@ let simulate
 		  add_record num_paths_data sname {iteration = n; num_paths=np; num_paths_dev=0.0; };
 		  add_record max_congestion_data sname {iteration = n; congestion=cmax; congestion_dev=0.0; };
 		  add_record mean_congestion_data sname {iteration = n; congestion=cmean; congestion_dev=0.0; };
+		  add_record max_exp_congestion_data sname {iteration = n; congestion=expcmax; congestion_dev=0.0; };
+		  add_record mean_exp_congestion_data sname {iteration = n; congestion=expcmean; congestion_dev=0.0; };
 		  add_record edge_congestion_data sname {iteration = n; edge_congestions=congestions; };
+		  add_record edge_exp_congestion_data sname {iteration = n; edge_congestions=exp_congestions; };
+		  add_record total_tput_data sname {iteration = n; throughput=total_tput; throughput_dev=0.0; };
 		  List.iter2_exn
 		    percentile_data
-		    percentile_values
+		    (percentile_values sorted_congestions)
+		    ~f:(fun d v -> add_record d sname {iteration = n; congestion=v; congestion_dev=0.0;});
+		  List.iter2_exn
+		    exp_percentile_data
+		    (percentile_values sorted_exp_congestions)
 		    ~f:(fun d v -> add_record d sname {iteration = n; congestion=v; congestion_dev=0.0;});
 
 		  scheme') );
@@ -580,9 +606,12 @@ let simulate
 
   to_file dir "ChurnVsIterations.dat" churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
   to_file dir "NumPathsVsIterations.dat" num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
-  to_file dir "TimeVsIterations.dat" time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;  
+  to_file dir "TimeVsIterations.dat" time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;
   to_file dir "MaxCongestionVsIterations.dat" max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string;
   to_file dir "MeanCongestionVsIterations.dat" mean_congestion_data "# solver\titer\tmean-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "MaxExpCongestionVsIterations.dat" max_exp_congestion_data "# solver\titer\tmax-exp-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "MeanExpCongestionVsIterations.dat" mean_exp_congestion_data "# solver\titer\tmean-exp-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file dir "TotalThroughputVsIterations.dat" total_tput_data "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string;
 
   List.iter2_exn
     percentile_data
@@ -592,12 +621,21 @@ let simulate
 	let s2 = Printf.sprintf "# solver\titer\t.%f-congestion\tstddev" p in
 	to_file dir s1 d s2  iter_vs_congestion_to_string) ;
 
+  List.iter2_exn
+    exp_percentile_data
+    percentiles
+    ~f:(fun d p ->
+	let s1 = Printf.sprintf "k%dExpCongestionVsIterations.dat" (Int.of_float (p *. 100.)) in
+	let s2 = Printf.sprintf "# solver\titer\t.%f-exp-congestion\tstddev" p in
+	to_file dir s1 d s2  iter_vs_congestion_to_string) ;
 
   to_file dir "EdgeCongestionVsIterations.dat" edge_congestion_data "# solver\titer\tedge-congestion" (iter_vs_edge_congestions_to_string topo);
+  to_file dir "EdgeExpCongestionVsIterations.dat" edge_exp_congestion_data "# solver\titer\tedge-exp-congestion" (iter_vs_edge_congestions_to_string topo);
 
   Printf.printf "%s" (to_string time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string);
   Printf.printf "%s" (to_string churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
   Printf.printf "%s" (to_string max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string);
+  Printf.printf "%s" (to_string total_tput_data "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string);
   Printf.printf "%s" (to_string num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string)
 
 
@@ -701,15 +739,15 @@ let command =
 	 ; if akecmp || all then Some AkEcmp else None
 	 ; if akksp || all then Some AkKsp else None
 	 ; if akraeke || all then Some AkRaeke else None
-         ; if raeke || all then Some Raeke else None 
+         ; if raeke || all then Some Raeke else None
          ; if semimcfmcf || all then Some SemiMcfMcf else None
 	 ; if semimcfecmp || all then Some SemiMcfEcmp else None
 	 ; if semimcfksp || all then Some SemiMcfKsp else None
 	 ; if semimcfvlb || all then Some SemiMcfVlb else None
-	 ; if semimcfraeke || all then Some SemiMcfRaeke else None ] in 
+	 ; if semimcfraeke || all then Some SemiMcfRaeke else None ] in
      let scale = if scalesyn then calculate_syn_scale deloop topology_file else 1.0 in
      Kulfi_Globals.deloop := deloop;
-     simulate algorithms topology_file demand_file predict_file host_file iterations scale () 
+     simulate algorithms topology_file demand_file predict_file host_file iterations scale ()
   )
 
 let main = Command.run command
