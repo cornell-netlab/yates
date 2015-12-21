@@ -1,3 +1,6 @@
+open Kulfi_Types
+open Frenetic_Network
+open Net
 open Net.Topology
 open Core.Std
 open Kulfi_Apsp
