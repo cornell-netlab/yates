@@ -41,21 +41,32 @@ let solve (topo:topology) (_:demands) (_:scheme) : scheme =
      * we simply pick random 1000 of the shortest paths
    *)
   let mpapsp=all_pairs_multi_shortest_path topo in
-  let max_tot=1000 in
+  let host_set =
+    VertexSet.filter
+      (vertexes topo)
+      ~f:(fun v ->
+          let lbl = vertex_to_label topo v in
+          Node.device lbl = Node.Host) in
+
+  let max_tot=20 in
   let sp_table=
     SrcDstMap.fold
         mpapsp
         ~init: SrcDstMap.empty
         ~f:(fun ~key:(v1,v2) ~data:(_,n,probs) acc ->
-              let paths=getAllSp v1 v2 topo mpapsp max_tot in
-              let prob=1.0 /. Float.of_int (List.length paths) in
-              let path_dist= List.fold_left paths
-                ~init: PathMap.empty
-                ~f:( fun acc path ->
-                  PathMap.add acc ~key:path ~data:prob
-                  ) in
-                SrcDstMap.add acc ~key:(v1,v2) ~data: path_dist
+              if (VertexSet.mem host_set v1) && (VertexSet.mem host_set v2) then
+                let paths=getAllSp v1 v2 topo mpapsp max_tot in
+                let prob=1.0 /. Float.of_int (List.length paths) in
+                let path_dist= List.fold_left paths
+                  ~init: PathMap.empty
+                  ~f:( fun acc path ->
+                    PathMap.add acc ~key:path ~data:prob;) in
+                  SrcDstMap.add acc ~key:(v1,v2) ~data: path_dist
+              else
+                acc
         ) in
+  (*Printf.printf "Done calculating paths %!";*)
+  (*Printf.printf "%s" (dump_scheme topo sp_table);*)
   sp_table
 
 

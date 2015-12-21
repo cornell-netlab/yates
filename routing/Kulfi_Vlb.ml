@@ -11,7 +11,7 @@ let () = Random.self_init ()
 let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   let device v = let lbl = Topology.vertex_to_label topo v in (Node.device lbl) in
   let mpapsp = all_pairs_multi_shortest_path topo in
-  let _ = print_mpapsp mpapsp topo in
+  (* let _ = print_mpapsp mpapsp topo in *)
   let spf_table =
     SrcDstMap.fold
       mpapsp

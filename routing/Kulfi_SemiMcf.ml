@@ -315,7 +315,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 		(* get the possible paths, and for every path *)
 		~f:(fun ~key:path ~data:_ (umap,pmap,emap) ->
 		    let id = fresh_uid () in		      
-		    Printf.printf "\npath %d\t%d : " id (List.length path);
+		    (*Printf.printf "\npath %d\t%d : " id (List.length path);*)
 		    let umap' = UidMap.add ~key:id ~data:(u,v,path) umap in
 		    let pmap' = PathMap.add ~key:path ~data:id pmap in
 		    (* get the edges in the path *)

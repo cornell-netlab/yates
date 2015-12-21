@@ -5,8 +5,9 @@ import re
 from collections import OrderedDict
 import numpy as np
 import matplotlib.pyplot as pp
+import random
 import sys
-
+random.seed(5)
 EXPERIMENT_NAME = "CongestionVsIterations"
 X_LABEL         = "Iterations"
 Y_LABEL         = "Congestion"
@@ -23,7 +24,9 @@ def main(dirn, fname, solvers):
 
   index = 0
   for (solver, ys), (solver, ydevs) in zip(ysPerSolver.iteritems(),ydevsPerSolver.iteritems()) :
-    ax.errorbar(xs, ys, yerr=ydevs, label=solver, marker=mrkrs[index], linestyle=fmts[index], alpha=0.8)
+    xs_arr = np.asarray(xs)
+    xs_arr = xs_arr + random.random()
+    ax.errorbar(xs_arr, ys, yerr=ydevs, label=solver, marker=mrkrs[index], linestyle=fmts[index], alpha=0.8)
     index = index + 1
 
   ax.set_xlabel(X_LABEL);

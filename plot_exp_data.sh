@@ -2,7 +2,7 @@
 set -x
 topology=$1
 TOPO_DIR=data/gen
-for scheme in spf ksp akecmp akksp akmcf akraeke akvlb  ecmp mcf mwmcf raeke semimcfecmp semimcfksp semimcfmcf semimcfraeke semimcfvlb  vlb;
+for scheme in spf ksp ecmp mcf mwmcf raeke semimcfecmp semimcfksp semimcfmcf semimcfraeke semimcfvlb vlb;
     do
         python simulate/viz/showEdgeCongestion.py $scheme ${TOPO_DIR}/${topology}.dot expData/${topology}/EdgeCongestionVsIterations.dat simulation
         python simulate/viz/showEdgeCongestion.py $scheme ${TOPO_DIR}/${topology}.dot expData/${topology}/EdgeExpCongestionVsIterations.dat expected

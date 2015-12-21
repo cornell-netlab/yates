@@ -5,7 +5,10 @@ import re
 from collections import OrderedDict
 import numpy as np
 import matplotlib.pyplot as pp
+import random
 import sys
+
+random.seed(5)
 
 EXPERIMENT_NAME = "NumPathsVsIterations"
 X_LABEL         = "Iterations"
@@ -23,7 +26,9 @@ def main(dirn, fname, solvers):
 
   index = 0
   for (solver, ys), (solver, ydevs) in zip(ysPerSolver.iteritems(),ydevsPerSolver.iteritems()) :
-    ax.errorbar(xs, ys, yerr=ydevs, label=solver, marker=mrkrs[index], linestyle=fmts[index])
+    xs_arr = np.asarray(xs)
+    xs_arr = xs_arr + random.random()
+    ax.errorbar(xs_arr, ys, yerr=ydevs, label=solver, marker=mrkrs[index], linestyle=fmts[index])
     print index
     index = index + 1
 

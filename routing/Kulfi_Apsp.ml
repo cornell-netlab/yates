@@ -182,12 +182,14 @@ let all_pairs_multi_shortest_path (topo:topology) : (bool * int * (Topology.vert
         topo acc)
     topo dist_mat_init in
   (* Floyd-Warshall complete *)
+  (*
   let _ = SrcDstMap.iter
     dist_mat_sp
     ~f:(fun ~key:(src,dst) ~data:wt ->
         let sstr = Node.name (Topology.vertex_to_label topo src) in
         let dstr = Node.name (Topology.vertex_to_label topo dst) in
         Printf.printf "%s\t%s\t%f\n" sstr dstr wt) in
+  *)
   (* initialize visited to be true for i,i *)
   let init_vis_npath_pathlist_map = Topology.fold_vertexes
     (fun i acc_i ->
@@ -229,8 +231,10 @@ let print_mpapsp
 
 let get_random_path (i:Topology.vertex) (j:Topology.vertex) (topo:topology)
 (numpath: (bool * int * (Topology.vertex * float) List.t) SrcDstMap.t) =
+  (*
   Printf.printf "\n-----\n%s -> " (Node.name (Net.Topology.vertex_to_label topo i));
   Printf.printf "%s :\t" (Node.name (Net.Topology.vertex_to_label topo j));
+  *)
   let p = ref [] in
   let curr = ref i in
   let stop_cond = ref false in
@@ -249,12 +253,14 @@ let get_random_path (i:Topology.vertex) (j:Topology.vertex) (topo:topology)
     stop_cond := if !curr = j then true else false;
   done;
   let v_path = !p in
+  (*
   let _ = List.fold_left v_path
     ~init:[]
     ~f:(fun acc v ->
       Printf.printf "%s " (Node.name (Net.Topology.vertex_to_label topo v));
       acc) in
   Printf.printf "\n";
+  *)
   let e_path = ref [] in
   let _ = List.fold_left v_path
     ~init:i

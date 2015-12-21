@@ -221,7 +221,8 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
   let local_debug = false in
   let num_iterations = 100 in
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
-  let iterations = range 0 (num_iterations+5) in
+  let net_diameter = 2 in
+  let iterations = range 0 (num_iterations+net_diameter) in
   if local_debug then Printf.printf "%s\n" (dump_scheme t s);
   let _,sd_delivered,link_utils =
   List.fold_left
@@ -351,7 +352,7 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
   let congestions = EdgeMap.fold link_utils
     ~init:EdgeMap.empty
     ~f:(fun ~key:e ~data:util acc ->
-      EdgeMap.add ~key:e ~data:(util /. (Float.of_int (num_iterations+5)) /. (capacity_of_edge t e)) acc) in
+      EdgeMap.add ~key:e ~data:(util /. (Float.of_int (num_iterations)) /. (capacity_of_edge t e)) acc) in
   tput, congestions
 
 let is_int v =
@@ -524,7 +525,7 @@ let simulate
 	let topo = Parse.from_dotfile topology_file in
 
 	let solve = select_algorithm algorithm in
-	Printf.printf "Iter: %s\n" (solver_to_string algorithm);
+	Printf.printf "Iter: %s\n%!" (solver_to_string algorithm);
 	let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
 	let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
 
@@ -734,11 +735,11 @@ let command =
          ; if ecmp || all then Some Ecmp else None
          ; if ksp || all then Some Ksp else None
          ; if spf || all then Some Spf else None
-	 ; if akmcf || all then Some AkMcf else None
-	 ; if akvlb || all then Some AkVlb else None
-	 ; if akecmp || all then Some AkEcmp else None
-	 ; if akksp || all then Some AkKsp else None
-	 ; if akraeke || all then Some AkRaeke else None
+	 ; if akmcf then Some AkMcf else None
+	 ; if akvlb then Some AkVlb else None
+	 ; if akecmp then Some AkEcmp else None
+	 ; if akksp then Some AkKsp else None
+	 ; if akraeke then Some AkRaeke else None
          ; if raeke || all then Some Raeke else None
          ; if semimcfmcf || all then Some SemiMcfMcf else None
 	 ; if semimcfecmp || all then Some SemiMcfEcmp else None
