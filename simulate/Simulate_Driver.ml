@@ -230,7 +230,7 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
     ~init:(EdgeMap.empty, SrcDstMap.empty, EdgeMap.empty)
     ~f:(fun (in_traffic, delivered, link_utils) iter ->
       (* begin iteration *)
-      Printf.printf "--- Iteration : %d ---\n%!" iter;
+      if local_debug then Printf.printf "--- Iteration : %d ---\n%!" iter;
       let path_prob_map = get_path_prob_demand_map s d in
       (* Add traffic at source of every path,
        * stop some time before end of simulation to allow packets in transit to reach *)

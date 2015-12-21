@@ -17,7 +17,7 @@ def congestion_to_color(c):
     else:
         return '/reds9/9'
 
-def display (scheme, topology, all_congestions, directory):
+def display (scheme, topology, all_congestions, directory, expected):
     G = pgv.AGraph(topology)
     for e in G.edges():
         link = '('+e[0]+','+e[1]+')'
@@ -31,7 +31,10 @@ def display (scheme, topology, all_congestions, directory):
     data = json_graph.node_link_data(nxg)
     s = json.dump(data, open('test.json', 'w'))
     G.layout()
-    G.draw(directory+'/link_cong_'+scheme+'.svg')
+    if expected:
+        G.draw(directory+'/link_cong_exp_'+scheme+'.svg')
+    else:
+        G.draw(directory+'/link_cong_'+scheme+'.svg')
 
 def parse_congestions_file (filename):
     all_congestions = dict()
@@ -71,11 +74,15 @@ def get_link_congestion (all_congestions, scheme, link):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 4:
-        print "Usage: " + sys.argv[0] + " <scheme_name> <topology_file> <edge_congestion_file>"
+    if len(sys.argv) < 5:
+        print "Usage: " + sys.argv[0] + " <scheme_name> <topology_file> <edge_congestion_file> <simulation/expected>"
     else:
         scheme = sys.argv[1]
         topology = sys.argv[2]
         directory='/'.join(sys.argv[3].split('/')[:-1])
         all_congestions = parse_congestions_file(sys.argv[3])
-        display(scheme, topology, all_congestions, directory)
+        if sys.argv[4] == 'expected':
+            expected=True
+        else:
+            expected=False
+        display(scheme, topology, all_congestions, directory, expected)

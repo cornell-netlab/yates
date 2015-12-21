@@ -7,9 +7,9 @@ import numpy as np
 import matplotlib.pyplot as pp
 import sys
 
-EXPERIMENT_NAME = "CongestionVsIterations"
+EXPERIMENT_NAME = "TotalThroughputVsIterations"
 X_LABEL         = "Iterations"
-Y_LABEL         = "Congestion"
+Y_LABEL         = "Total Throughput"
 
 def main(dirn, fname, solvers):
   (xs, ysPerSolver, ydevsPerSolver) = CommonViz.parseData(dirn, fname, solvers)
@@ -33,7 +33,7 @@ def main(dirn, fname, solvers):
   pp.savefig(dirn+"/"+fname+"-".join(solvers)+".svg")
 
 if __name__ == "__main__":
-  if len(sys.argv) < 3:
-    print "Usage: " + sys.argv[0] + " RunId" +" [Max | Mean | percentile (k10, k20, ... , k95]" + "[optional (list_of_schemes)]"
+  if len(sys.argv) < 2:
+    print "Usage: " + sys.argv[0] + " RunId" + " [optional (list_of_schemes)]"
   else:
-    main("expData/"+sys.argv[1], sys.argv[2]+EXPERIMENT_NAME, set(sys.argv[3:]))
+    main("expData/"+sys.argv[1], EXPERIMENT_NAME, set(sys.argv[2:]))
