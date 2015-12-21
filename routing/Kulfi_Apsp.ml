@@ -300,6 +300,7 @@ let k_shortest_path (topo:topology) (s:Topology.vertex) (t:Topology.vertex) (k:i
             let _ = Topology.iter_succ
             (fun edge ->
               let (v,_) = Topology.edge_dst edge in
+              if !Kulfi_Globals.deloop && (List.mem path_u v) then () else (* consider only simple paths *)
               let path_v = v::path_u in
               let weight = Link.weight (Topology.edge_to_label topo edge) in
               let cost_v = cost_u +. weight in
@@ -337,7 +338,7 @@ let k_shortest_path (topo:topology) (s:Topology.vertex) (t:Topology.vertex) (k:i
       let p' = if !Kulfi_Globals.deloop then Kulfi_Frt.FRT.remove_cycles p
                 else p in
       p'::acc) in
-  (*
+ (*
   List.iter
     edge_paths
     ~f:(fun path -> Printf.printf "\n";
