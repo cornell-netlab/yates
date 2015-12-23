@@ -225,8 +225,8 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
   let local_debug = false in
   let num_iterations = 100 in
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
-  let net_diameter = 2 in
-  let iterations = range 0 (num_iterations+net_diameter) in
+  let steady_state_time = 10 in (* ideally, should be >= diameter of graph*)
+  let iterations = range 0 (num_iterations + steady_state_time) in
   if local_debug then Printf.printf "%s\n" (dump_scheme t s);
   let _,delivered_map,lat_tput_map_map,link_utils =
   List.fold_left
@@ -237,11 +237,15 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
       (* begin iteration *)
       if local_debug then Printf.printf "--- Iteration : %d ---\n%!" iter;
       let path_prob_map = get_path_prob_demand_map s d in
-      (* Add traffic at source of every path,
-       * stop some time before end of simulation to allow packets in transit to reach *)
+
+      (* Reset stats when steady state is reached *)
+      let tmp_delivered_map, tmp_lat_tput_map_map, tmp_link_utils =
+        if iter = steady_state_time then (SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty)
+        else (tmp_delivered_map, tmp_lat_tput_map_map, tmp_link_utils) in
+
+      (* Add traffic at source of every path *)
       (* next_iter_traffic : map edge -> in_traffic in next iter *)
-      let next_iter_traffic = if num_iterations < iter then EdgeMap.empty
-        else PathMap.fold path_prob_map
+      let next_iter_traffic = PathMap.fold path_prob_map
           ~init:EdgeMap.empty
           ~f:(fun ~key:path ~data:(prob,sd_demand) acc ->
               if path = [] then acc else
@@ -358,6 +362,7 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
       (* state carried over to next iter *)
       (next_iter_traffic, new_delivered_map, new_lat_tput_map_map, new_link_utils))
       (* end iteration *) in
+
   let tput = SrcDstMap.fold delivered_map
     ~init:SrcDstMap.empty
     ~f:(fun ~key:sd ~data:dlvd acc ->
