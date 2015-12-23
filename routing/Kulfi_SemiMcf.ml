@@ -274,26 +274,26 @@ let normalize (unnormalized_scheme:scheme) (flow_sum:float SrcDstMap.t) : scheme
 	| Some sum_rate -> 
 	   ignore (if (sum_rate < 0.) then failwith "sum_rate leq 0. on flow" else ());
 	   let default_value = 1.0 /. (Float.of_int (PathMap.length f_decomp) ) in
-	   let normalized_f_decomp = 
+	   let normalized_f_decomp =
 	     PathMap.fold
 	       ~init:(PathMap.empty)
 	       ~f:(fun ~key:path ~data:rate acc ->
-		   let normalized_rate = 
+		   let normalized_rate =
 		     if sum_rate = 0. then
 		       default_value
-		     else 
-		       rate /. sum_rate in	
+		     else
+		       rate /. sum_rate in
 		   PathMap.add ~key:path ~data:normalized_rate acc)
-	       f_decomp in	   
-	   SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc) 
+	       f_decomp in
+	   SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc)
 
 
-      
+
 let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   ignore (if (SrcDstMap.is_empty s) then failwith "Kulfi_SemiMcf must be initialized with a non-empty scheme" else ());
 
   Printf.printf "invoking solve\n";
-  
+
   let uuid = ref (-1) in
   let fresh_uid () =
     uuid := !uuid + 1;
@@ -314,7 +314,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 		~init:acc
 		(* get the possible paths, and for every path *)
 		~f:(fun ~key:path ~data:_ (umap,pmap,emap) ->
-		    let id = fresh_uid () in		      
+		    let id = fresh_uid () in
 		    (*Printf.printf "\npath %d\t%d : " id (List.length path);*)
 		    let umap' = UidMap.add ~key:id ~data:(u,v,path) umap in
 		    let pmap' = PathMap.add ~key:path ~data:id pmap in
@@ -329,18 +329,18 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 			    let ids = match (EdgeMap.find emap e ) with
 			      | None -> [id]
 			      | Some ids -> id::ids in
-			    Printf.printf "%s " (string_of_edge topo e) ;
+			    (*Printf.printf "%s " (string_of_edge topo e) ;*)
 			    EdgeMap.add ~key:e ~data:ids emap) in
 		    (umap',pmap',emap'))
 	    end) in
 
   assert (not (EdgeMap.is_empty emap));
- 
-  let (ratio, flows) =  solve_lp pmap emap topo d s in  
-  let (unnormalized_scheme, flow_sum) = scheme_and_flows flows umap in 
+
+  let (ratio, flows) =  solve_lp pmap emap topo d s in
+  let (unnormalized_scheme, flow_sum) = scheme_and_flows flows umap in
   normalize unnormalized_scheme flow_sum
-		 
-  
+
+
   (*
   (* Begin debug code *)
   (* Store which paths does a path intersect with *)

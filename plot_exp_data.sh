@@ -12,8 +12,5 @@ python simulate/viz/CongestionVsIterations.py ${topology} Max
 python simulate/viz/CongestionVsIterations.py ${topology} Mean
 python simulate/viz/CongestionVsIterations.py ${topology} k50
 
-python simulate/viz/CongestionVsIterations.py ${topology} Max ecmp mcf semimcfecmp semimcfmcf semimcfraeke semimcfvlb vlb
-python simulate/viz/CongestionVsIterations.py ${topology} Mean ecmp mcf semimcfecmp semimcfmcf semimcfraeke semimcfvlb vlb
-python simulate/viz/CongestionVsIterations.py ${topology} k50 ecmp mcf semimcfecmp semimcfmcf semimcfraeke semimcfvlb vlb
-
 python simulate/viz/TotalThroughputVsIterations.py ${topology}
+python simulate/viz/LatencyCDF.py expData/${topology}/LatencyDistributionVsIterations.dat

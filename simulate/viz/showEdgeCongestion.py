@@ -1,4 +1,3 @@
-import json
 import networkx as nx
 from networkx.readwrite import json_graph
 import pygraphviz as pgv
@@ -27,9 +26,6 @@ def display (scheme, topology, all_congestions, directory, expected):
         e.attr['label'] = int(max_cong * 100)/100.0
         if max_cong > 1:
             e.attr['weight'] = 10
-    nxg = nx.from_agraph(G)
-    data = json_graph.node_link_data(nxg)
-    s = json.dump(data, open('test.json', 'w'))
     G.layout()
     if expected:
         G.draw(directory+'/link_cong_exp_'+scheme+'.svg')

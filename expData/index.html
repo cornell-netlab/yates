@@ -128,6 +128,52 @@ display:inline-block;
 </div>
 </div>
 <hr>
+LATENCY
+<input type=checkbox onclick="chksel('latency');"/>Show All
+<hr>
+<div id="latency">
+<table style="width:100%">
+<tr>
+<td>
+</td>
+<td>
+<input type=checkbox id="chklatencygrid5h1EvenDemand"onclick="toggledisplay('imglatencygrid5h1EvenDemand');" />
+<label for="chklatencygrid5h1EvenDemand">grid5h1EvenDemand</label>
+</td>
+<td>
+<input type=checkbox id="chklatencygrid5h1FarDemand"onclick="toggledisplay('imglatencygrid5h1FarDemand');" />
+<label for="chklatencygrid5h1FarDemand">grid5h1FarDemand</label>
+</td>
+<td>
+<input type=checkbox id="chklatencygrid5h1NearDemand"onclick="toggledisplay('imglatencygrid5h1NearDemand');" />
+<label for="chklatencygrid5h1NearDemand">grid5h1NearDemand</label>
+</td>
+</tr>
+</table>
+</div>
+<hr>
+<style>
+#flat {width:100%; margin:0 auto 0 auto; text-align:center;}
+#flat div 
+{
+display:inline-block;
+}
+</style>
+<div id="flat">
+<div id="imglatencygrid5h1EvenDemand" style="display:none">
+		<img src="grid5h1EvenDemand/LatencyCDF.svg">
+ <br>grid5h1EvenDemand
+</div>
+<div id="imglatencygrid5h1FarDemand" style="display:none">
+		<img src="grid5h1FarDemand/LatencyCDF.svg">
+ <br>grid5h1FarDemand
+</div>
+<div id="imglatencygrid5h1NearDemand" style="display:none">
+		<img src="grid5h1NearDemand/LatencyCDF.svg">
+ <br>grid5h1NearDemand
+</div>
+</div>
+<hr>
 EDGE CONGESTION (based on simulation)
 Show all: 
 <input type=checkbox onclick="chksel('grid5h1EvenDemand');"/>grid5h1EvenDemand

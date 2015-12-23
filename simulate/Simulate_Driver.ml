@@ -451,6 +451,7 @@ let get_total_tput tput : float =
   ~init:0.0
   ~f:(fun ~key:_ ~data:delivered acc -> acc +. delivered)
 
+(* Aggregate latency-tput over all sd-pairs *)
 let get_aggregate_latency sd_lat_tput_map_map =
   SrcDstMap.fold sd_lat_tput_map_map
   ~init:LatencyMap.empty
@@ -463,6 +464,19 @@ let get_aggregate_latency sd_lat_tput_map_map =
                       | Some x -> x in
       let agg_tput = prev_agg_tput +. tput in
       LatencyMap.add ~key:latency ~data:agg_tput acc))
+
+let get_latency_percentiles lat_tput_map =
+  let total_tput = LatencyMap.fold lat_tput_map
+    ~init:0.0
+    ~f:(fun ~key:_ ~data:tput acc -> tput +. acc) in
+  let latency_percentiles,_ = LatencyMap.fold lat_tput_map
+    ~init:(LatencyMap.empty,0.0)
+    ~f:(fun ~key:latency ~data:tput acc ->
+      let lat_percentile_map,sum_tput = acc in
+      let sum_tput' = sum_tput +. tput in
+      (LatencyMap.add ~key:latency ~data:(sum_tput' /. total_tput)
+      lat_percentile_map, sum_tput')) in
+  latency_percentiles
 
 let initial_scheme algorithm topo : scheme =
   match algorithm with
@@ -518,7 +532,7 @@ let simulate
   let time_data = make_data "Iteratives Vs Time" in
   let churn_data = make_data "Churn Vs Time" in
   let edge_congestion_data = make_data "Edge Congestion Vs Time" in
-  let latency_distribution_data = make_data "Latency distribution vs Time" in
+  let latency_percentiles_data = make_data "Latency distribution vs Time" in
   let edge_exp_congestion_data = make_data "Edge Expected Congestion Vs Time" in
   let num_paths_data = make_data "Num. Paths Vs Time" in
   let max_congestion_data = make_data "Max Congestion Vs Time" in
@@ -594,6 +608,7 @@ let simulate
 		  let expcmean = (get_mean_congestion list_of_exp_congestions) in
       let total_tput = (get_total_tput tput) in
       let aggregate_latency_dist = (get_aggregate_latency latency) in
+      let latency_percentiles = (get_latency_percentiles aggregate_latency_dist) in
 
 		  let percentile_values sort_cong =
 		    List.fold_left
@@ -612,7 +627,7 @@ let simulate
 		  add_record mean_exp_congestion_data sname {iteration = n; congestion=expcmean; congestion_dev=0.0; };
 		  add_record edge_congestion_data sname {iteration = n; edge_congestions=congestions; };
 		  add_record edge_exp_congestion_data sname {iteration = n; edge_congestions=exp_congestions; };
-		  add_record latency_distribution_data sname {iteration = n; latency_distribution=aggregate_latency_dist; };
+		  add_record latency_percentiles_data sname {iteration = n; latency_percentiles=latency_percentiles; };
 		  add_record total_tput_data sname {iteration = n; throughput=total_tput; throughput_dev=0.0; };
 		  List.iter2_exn
 		    percentile_data
@@ -664,7 +679,7 @@ let simulate
   to_file dir "EdgeCongestionVsIterations.dat" edge_congestion_data "# solver\titer\tedge-congestion" (iter_vs_edge_congestions_to_string topo);
   to_file dir "EdgeExpCongestionVsIterations.dat" edge_exp_congestion_data "# solver\titer\tedge-exp-congestion" (iter_vs_edge_congestions_to_string topo);
 
-  to_file dir "LatencyDistributionVsIterations.dat" latency_distribution_data "#solver\titer\tlatency-throughput" (iter_vs_latency_distribution_to_string);
+  to_file dir "LatencyDistributionVsIterations.dat" latency_percentiles_data "#solver\titer\tlatency-throughput" (iter_vs_latency_percentiles_to_string);
 
   Printf.printf "%s" (to_string time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string);
   Printf.printf "%s" (to_string churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);

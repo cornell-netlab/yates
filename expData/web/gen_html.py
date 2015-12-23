@@ -95,6 +95,31 @@ for topo in topologies:
 print '</div>'
 
 print '<hr>'
+print 'LATENCY'
+print '<input type=checkbox onclick="chksel(\'latency\');"/>' + "Show All"
+print '<hr>'
+print '<div id="latency">'
+print '<table style="width:100%">'
+print '<tr>'
+print '<td>'
+print '</td>'
+for topo in topologies:
+    print '<td>'
+    print '<input type=checkbox id="chklatency'+ topo +'"onclick="toggledisplay(\'imglatency' + topo +'\');" />'
+    print '<label for="chklatency' + topo + '">'+topo+'</label>'
+    print '</td>'
+print '</tr>'
+print '</table>'
+print '</div>'
+
+print '<hr>'
+print '<style>\n#flat {width:100%; margin:0 auto 0 auto; text-align:center;}\n#flat div \n{\ndisplay:inline-block;\n}\n</style>'
+print '<div id="flat">'
+for topo in topologies:
+      print '<div id="imglatency'+topo+'" style="display:none">\n\t\t<img src="'+topo+'/LatencyCDF.svg">\n <br>'+topo + '\n</div>'
+print '</div>'
+
+print '<hr>'
 print 'EDGE CONGESTION (based on simulation)'
 print "Show all: "
 for topo in topologies:

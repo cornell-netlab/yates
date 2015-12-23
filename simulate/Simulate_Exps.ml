@@ -37,13 +37,13 @@ let iter_vs_edge_congestions_to_string (topo:topology) (r:iter_vs_edge_congestio
     (Node.name (Net.Topology.vertex_to_label topo (fst (Net.Topology.edge_dst e)))) ^ ") : " ^
     string_of_float c) r.edge_congestions
 
-type iter_vs_latency_distribution = { iteration : int ; latency_distribution : float LatencyMap.t; }
+type iter_vs_latency_percentiles = { iteration : int ; latency_percentiles : float LatencyMap.t; }
 
-let iter_vs_latency_distribution_to_string (r:iter_vs_latency_distribution) : string =
+let iter_vs_latency_percentiles_to_string (r:iter_vs_latency_percentiles) : string =
   Printf.sprintf "%d\t" r.iteration ^
-  LatencyMap.fold r.latency_distribution
+  LatencyMap.fold r.latency_percentiles
     ~init:""
-    ~f:(fun ~key:latency ~data:tput acc ->
-      acc ^ "\n\t\t" ^ string_of_float latency ^ " " ^ string_of_float tput)
+    ~f:(fun ~key:latency ~data:percentile acc ->
+      acc ^ "\n\t\t" ^ string_of_float latency ^ " : " ^ string_of_float percentile)
 
 
