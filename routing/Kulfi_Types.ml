@@ -30,9 +30,13 @@ type probability = float with sexp
 
 type congestion = float with sexp
 
+type latency = float with sexp
+
+type throughput = float with sexp
+
 module PathOrd = struct
   type t = path with sexp
-  let compare = Pervasives.compare                    
+  let compare = Pervasives.compare
 end
 
 module PathMap = Map.Make(PathOrd)
@@ -40,7 +44,11 @@ module PathMap = Map.Make(PathOrd)
 module IntMap = Map.Make(Int)
 
 type index_map = Topology.vertex IntMap.t
-			
+
+module Latency = Float
+module LatencyMap = Map.Make(Latency)
+type latency_tput_map = throughput LatencyMap.t
+
 module PathSet = Set.Make(PathOrd)
 
 type tag = int

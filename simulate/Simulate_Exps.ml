@@ -29,9 +29,21 @@ let iter_vs_throughput_to_string (r:iter_vs_throughput) : string =
 
 type iter_vs_edge_congestions = { iteration : int ; edge_congestions : float EdgeMap.t; }
 
+
 let iter_vs_edge_congestions_to_string (topo:topology) (r:iter_vs_edge_congestions) : string =
   Printf.sprintf "%d\t" r.iteration ^
   EdgeMap.fold ~init:"" ~f:(fun ~key:e ~data:c acc -> acc ^ "\n\t\t" ^ "(" ^
     (Node.name (Net.Topology.vertex_to_label topo (fst (Net.Topology.edge_src e)))) ^ "," ^
     (Node.name (Net.Topology.vertex_to_label topo (fst (Net.Topology.edge_dst e)))) ^ ") : " ^
     string_of_float c) r.edge_congestions
+
+type iter_vs_latency_distribution = { iteration : int ; latency_distribution : float LatencyMap.t; }
+
+let iter_vs_latency_distribution_to_string (r:iter_vs_latency_distribution) : string =
+  Printf.sprintf "%d\t" r.iteration ^
+  LatencyMap.fold r.latency_distribution
+    ~init:""
+    ~f:(fun ~key:latency ~data:tput acc ->
+      acc ^ "\n\t\t" ^ string_of_float latency ^ " " ^ string_of_float tput)
+
+
