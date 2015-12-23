@@ -47,7 +47,6 @@ type index_map = Topology.vertex IntMap.t
 
 module Latency = Float
 module LatencyMap = Map.Make(Latency)
-type latency_tput_map = throughput LatencyMap.t
 
 module PathSet = Set.Make(PathOrd)
 
