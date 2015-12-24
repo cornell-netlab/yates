@@ -23,7 +23,7 @@ let dump_edges (t:topology) (es:path) : string =
      Printf.sprintf "(%s,%s)" 
                     (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_src e))))
                     (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_dst e))))) ", "  es
-                  
+
 type demand = float with sexp
 
 type probability = float with sexp
@@ -32,7 +32,7 @@ type congestion = float with sexp
 
 type latency = float with sexp
 
-type throughput = float with sexp
+type failure = EdgeSet.t with sexp
 
 module PathOrd = struct
   type t = path with sexp

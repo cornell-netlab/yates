@@ -100,17 +100,17 @@ let get_path_prob_demand_map (s:scheme) (d:demands) =
                           else acc))
 
 (* Modify routing scheme by renormalizing path probabilites while avoiding failed links *)
-let local_recovery (t:topology) (s:scheme) (failed_links:EdgeSet.t) : scheme =
+let local_recovery (t:topology) (s:scheme) (failed_links:failure) : scheme =
   let new_scheme = SrcDstMap.fold s
   ~init:SrcDstMap.empty
   ~f:(fun ~key:(src,dst) ~data:paths acc ->
-    let is_path_alive path : bool =
-      List.fold_left path
+    let is_path_alive (p:path) : bool =
+      List.fold_left p
       ~init:true
       ~f:(fun valid edge ->
         let edge_is_safe = not (EdgeSet.mem failed_links edge) in
         valid && edge_is_safe) in
-    let n_paths = PathMap.filter ~f:(fun ~key:path ~data:_ -> is_path_alive path) paths in
+    let n_paths = PathMap.filter ~f:(fun ~key:p ~data:_ -> is_path_alive p) paths in
     let t_prob = PathMap.fold n_paths
       ~init:0.0
       ~f:(fun ~key:_ ~data:prob acc -> acc +. prob) in
@@ -122,92 +122,6 @@ let local_recovery (t:topology) (s:scheme) (failed_links:EdgeSet.t) : scheme =
     SrcDstMap.add ~key:(src,dst) ~data:renormalized_paths acc) in
   Printf.printf "%s\n" (dump_scheme t new_scheme);
   new_scheme
-
-let simulate_fair_share (s:scheme) (t:topology) (d:demands) =
-  (* Printf.printf "%s\n" (dump_scheme t s); *)
-  let edge_paths_map = (* Store which paths go through an edge *)
-    SrcDstMap.fold
-      s
-      ~init:EdgeMap.empty
-      ~f:(fun ~key:(src,dst) ~data:paths acc ->
-          PathMap.fold
-	        paths
-            ~init:acc
-            ~f:(fun ~key:path ~data:prob acc ->
-                List.fold_left
-		            path
-                  ~init:acc
-                  ~f:(fun acc e ->
-                      match EdgeMap.find acc e with
-                      | None -> EdgeMap.add ~key:e ~data:([path]) acc
-                      | Some e_paths ->
-                          let uniq_paths = if (List.mem e_paths path) then e_paths
-                                else (path::e_paths) in
-                          EdgeMap.add ~key:e ~data:uniq_paths acc))) in
-  let path_prob_map = get_path_prob_demand_map s d in
-  (* debug prints *)
-  (*
-  let _ = EdgeMap.iter edge_paths_map
-    ~f:(fun ~key:e ~data:paths->
-      Printf.printf "\n%s\n" (dump_edges t [e]);
-      List.iter paths
-        ~f:(fun path ->
-          let prob,demand = PathMap.find_exn path_prob_map path in
-          Printf.printf "[%s] %f %f\n" (dump_edges t path) prob demand)) in
-  *)
-  let expected_flow_per_edge =
-    EdgeMap.fold
-    ~init:EdgeMap.empty
-    ~f:(fun ~key:e ~data:paths acc ->
-       List.fold_left paths
-        ~init:acc
-        ~f:(fun acc path ->
-          let prob,demand = PathMap.find_exn path_prob_map path in
-          let existing_flow = match EdgeMap.find acc e with
-                              | None -> 0.0
-                              | Some x -> x in
-          EdgeMap.add ~key:e ~data:(existing_flow +. (prob *. demand)) acc))
-    edge_paths_map in
-  let expected_congestion_per_edge = EdgeMap.fold
-    ~init:EdgeMap.empty
-    ~f:(fun ~key:e ~data:amount_sent acc ->
-        EdgeMap.add ~key:e ~data:(amount_sent /. (capacity_of_edge t e)) acc)
-    expected_flow_per_edge in
-
-  (* Test with previous version for sanity check *)
-  (*
-	let test_congestions = (congestion_of_paths s t d) in
-  EdgeMap.iter test_congestions
-    ~f:(fun ~key:e ~data:c ->
-      let c' = EdgeMap.find_exn expected_congestion_per_edge e in
-      if (c -. c' > 0.01 || c' -. c > 0.01) then failwith "New congestion values differ too much");
-  *)
-  let rec fair_share_at_edge (e:edge) (spare_cap:float) (sat_paths) (path_share_map) =
-    let paths = EdgeMap.find_exn edge_paths_map e in
-    let n_unsat_paths = (List.length paths)  - (List.length sat_paths) in
-    if n_unsat_paths = 0 then path_share_map else
-    let path_fairshare, new_sat_paths = List.fold_left paths
-      ~init:(PathMap.empty,sat_paths)
-      ~f:(fun acc path -> 
-        let acc_path_share_map, acc_sat_paths = acc in
-        let prob,sd_demand = PathMap.find_exn path_prob_map path in 
-        let req_share = prob *. sd_demand in
-        let path_allocated_share = match PathMap.find path_share_map path with
-                                    | None -> 0.0
-                                    | Some x -> x in
-        let new_path_share = if List.mem acc_sat_paths path then path_allocated_share 
-                      else min req_share (path_allocated_share +. (spare_cap /. (Float.of_int n_unsat_paths))) in
-        let acc_sat_paths = if (new_path_share < req_share -. 0.001) || (List.mem acc_sat_paths path)
-                            then acc_sat_paths 
-                            else path::acc_sat_paths in
-        (PathMap.add ~key:path ~data:new_path_share acc_path_share_map, acc_sat_paths)) in
-    let residual_cap = PathMap.fold path_fairshare
-      ~init:(capacity_of_edge t e)
-      ~f:(fun ~key:path ~data:link_share acc -> acc -. link_share) in
-    if residual_cap > 0.0 then fair_share_at_edge e residual_cap new_sat_paths path_fairshare
-      else path_fairshare
-  in
-  expected_congestion_per_edge
 
 let list_last l = match l with
   | hd::tl -> List.fold_left ~f:(fun _ x -> x) ~init:hd tl
@@ -232,19 +146,21 @@ let get_src_dst_for_path (p:path) =
 
 (* Latency for a path *)
 let get_path_latency (p:path) =
-  Float.of_int (List.length p)
+  Float.of_int (List.length p) (*TODO: replace with actual latency values *)
 
-let curr_capacity_of_edge (t:topology) (e:edge) (f:EdgeSet.t) : float =
-  if EdgeSet.mem f e then 0.0 else
-    capacity_of_edge t e
+(* Capacity of a link in a given failure scenario *)
+let curr_capacity_of_edge (topo:topology) (link:edge) (fail:failure) : float =
+  if EdgeSet.mem fail link then 0.0 else
+    capacity_of_edge topo link
 
-let get_some_edge (t:topology) : edge =
-  match EdgeSet.choose (Topology.edges t) with
+(* Return some edge for testing *)
+let get_some_edge (topo:topology) : edge =
+  match EdgeSet.choose (Topology.edges topo) with
     | None -> failwith "No edge chosen"
-    | Some x -> Printf.printf "Failing edge: %s\n" (dump_edges t [x]); x
+    | Some x -> Printf.printf "Failing edge: %s\n" (dump_edges topo [x]); x
 
 (* Simulate routing *)
-let simulate_routing (s:scheme) (t:topology) (d:demands) =
+let simulate_routing (start_scheme:scheme) (topo:topology) (dem:demands) =
   (*
    * At each time-step:
      * For each path:
@@ -263,12 +179,12 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
   let recovery_time = 50 + steady_state_time in
 
   let iterations = range 0 (num_iterations + steady_state_time) in
-  if local_debug then Printf.printf "%s\n" (dump_scheme t s);
+  if local_debug then Printf.printf "%s\n" (dump_scheme topo start_scheme);
   let _,delivered_map,lat_tput_map_map,link_utils,_,_ =
   List.fold_left
     iterations
     (* ingress link traffic, sd-delivered, sd-latency-tput-product, traffic on each edge *)
-    ~init:(EdgeMap.empty, SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, s, EdgeSet.empty)
+    ~init:(EdgeMap.empty, SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, start_scheme, EdgeSet.empty)
     ~f:(fun current_state iter ->
       (* begin iteration *)
       if true then Printf.printf "--- Iteration : %d ---\n%!" iter;
@@ -278,17 +194,16 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
         if iter = steady_state_time then (SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty)
         else (curr_delivered_map, curr_lat_tput_map_map, curr_link_utils) in
 
-      (*TODO: update failed links*)
       let failed_links = if iter = failure_time
-                            then EdgeSet.add curr_failed_links (get_some_edge t)
+                            then EdgeSet.add curr_failed_links (get_some_edge topo)
                             else curr_failed_links in
 
       let new_scheme = if iter = recovery_time
-                        then local_recovery t curr_scheme failed_links
+                        then local_recovery topo curr_scheme failed_links
                         else curr_scheme in
 
       (* probability of taking each path *)
-      let path_prob_map = get_path_prob_demand_map new_scheme d in
+      let path_prob_map = get_path_prob_demand_map new_scheme dem in
 
       (* Add traffic at source of every path *)
       (* next_iter_traffic : map edge -> in_traffic in next iter *)
@@ -316,16 +231,16 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
           let demand_on_link = PathMap.fold in_queue_edge
             ~init:0.0
             ~f:(fun ~key:_ ~data:flow_dem acc -> acc +. flow_dem) in
-          if local_debug then Printf.printf "%s: %f / %f\n" (dump_edges t [e]) (demand_on_link /. 1e9) ((curr_capacity_of_edge t e failed_links) /. 1e9);
-          let fs_in_queue_edge = if demand_on_link > (curr_capacity_of_edge t e failed_links) then
-              (* calculate each flow's fair share *)
-              let rec fair_share_at_edge (spare_cap:float) (sat_paths) (path_share_map) =
-                if local_debug then Printf.printf "%f\n.%!" spare_cap;
-                let n_unsat_paths = (PathMap.length in_queue_edge) - (List.length sat_paths) in
-                if n_unsat_paths = 0 then path_share_map else
+          if local_debug then Printf.printf "%s: %f / %f\n" (dump_edges topo [e]) (demand_on_link /. 1e9) ((curr_capacity_of_edge topo e failed_links) /. 1e9);
+          let fs_in_queue_edge = if demand_on_link > (curr_capacity_of_edge topo e failed_links) then
+            (* calculate each flow's fair share *)
+            let rec fair_share_at_edge (spare_cap:float) (sat_paths: path list) (path_share_map: float PathMap.t) =
+              if local_debug then Printf.printf "%f\n.%!" spare_cap;
+              let n_unsat_paths = (PathMap.length in_queue_edge) - (List.length sat_paths) in
+              if n_unsat_paths = 0 then path_share_map
+              else
                 let path_fairshare, new_sat_paths =
-                  PathMap.fold
-                  in_queue_edge
+                  PathMap.fold in_queue_edge
                   ~init:(PathMap.empty, sat_paths)
                   ~f:(fun ~key:path ~data:req_share acc ->
                     let (acc_path_share_map, acc_sat_paths) = acc in
@@ -333,24 +248,22 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
                                                 | None -> 0.0
                                                 | Some x -> x in
                     let new_path_share = if List.mem acc_sat_paths path
-                                  then path_allocated_share
-                                  else min req_share (path_allocated_share +. (spare_cap /. (Float.of_int n_unsat_paths))) in
-                    let acc_sat_paths = if (new_path_share < req_share -. 0.01)
-                                                || (List.mem acc_sat_paths path)
+                            then path_allocated_share
+                            else min req_share (path_allocated_share +. (spare_cap /. (Float.of_int n_unsat_paths))) in
+                    let acc_sat_paths = if (new_path_share < req_share -. 0.01) || (List.mem acc_sat_paths path)
                                         then acc_sat_paths
                                         else path::acc_sat_paths in
                     (PathMap.add ~key:path ~data:new_path_share acc_path_share_map, acc_sat_paths)) in
-                let residual_cap =
-                  PathMap.fold
-                  path_fairshare
-                  ~init:(curr_capacity_of_edge t e failed_links)
-                  ~f:(fun ~key:path ~data:link_share acc -> acc -. link_share) in
-                if residual_cap > 0.01
-                  then fair_share_at_edge residual_cap new_sat_paths path_fairshare
-                  else path_fairshare in
-              fair_share_at_edge (curr_capacity_of_edge t e failed_links) [] PathMap.empty
+                  let residual_cap =
+                    PathMap.fold path_fairshare
+                    ~init:(curr_capacity_of_edge topo e failed_links)
+                    ~f:(fun ~key:path ~data:link_share acc -> acc -. link_share) in
+                    if residual_cap > 0.01
+                      then fair_share_at_edge residual_cap new_sat_paths path_fairshare
+                      else path_fairshare in
+            fair_share_at_edge (curr_capacity_of_edge topo e failed_links) [] PathMap.empty
               (* done calculating fair share *)
-              else in_queue_edge in
+                  else in_queue_edge in
 
           PathMap.fold fs_in_queue_edge
           ~init:acc
@@ -358,7 +271,8 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
             let (nit,dlvd_map,ltm_map,lutil_map) = acc in
             let next_link_opt = list_next path e in
             match next_link_opt with
-            | None -> (* End of path, deliver traffic to dst *)
+            | None ->
+                (* End of path, deliver traffic to dst *)
                 let (src,dst) = match get_src_dst_for_path path with
                                 | None -> failwith "Empty path"
                                 | Some x -> x in
@@ -380,13 +294,14 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
                 let new_ltm_map = SrcDstMap.add ~key:(src,dst) ~data:new_sd_ltm ltm_map in
                 let new_lutil_map = EdgeMap.add ~key:e ~data:(prev_lutil_link +. flow_fair_share) lutil_map in
                 (nit, new_dlvd, new_ltm_map, new_lutil_map)
-            | Some next_link -> (* Forward traffic to next link *)
+            | Some next_link ->
+                (* Forward traffic to next link *)
                 let sched_traf_next_link = match EdgeMap.find nit next_link with
                     | None -> PathMap.empty
                     | Some v -> v in
                 let _ = match PathMap.find sched_traf_next_link path with
                     | None -> true
-                    | Some x -> Printf.printf "%s" (dump_edges t path); failwith "Scheduling duplicate flow at next link" in
+                    | Some x -> Printf.printf "%s" (dump_edges topo path); failwith "Scheduling duplicate flow at next link" in
                 let traf_next_link = PathMap.add ~key:path ~data:flow_fair_share sched_traf_next_link in
                 let new_nit = EdgeMap.add ~key:next_link ~data:traf_next_link nit in
                 let prev_lutil_link = match EdgeMap.find lutil_map e with
@@ -394,18 +309,19 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
                               | Some x -> x in
                 let new_lutil_map = EdgeMap.add ~key:e ~data:(prev_lutil_link +. flow_fair_share) lutil_map in
                 (new_nit, dlvd_map, ltm_map, new_lutil_map))) in
+
       (* Done forwarding *)
-      (*Dump state for debugging *)
+      (* Print state for debugging *)
       if local_debug then
           EdgeMap.iter next_iter_traffic
-            ~f:(fun ~key:e ~data:dem ->
-              Printf.printf "%s\n" (dump_edges t [e]);
-              PathMap.iter dem
-              ~f:(fun ~key:path ~data:d -> Printf.printf "%s\t%f\n" (dump_edges t path) d));
+            ~f:(fun ~key:e ~data:paths_demand ->
+              Printf.printf "%s\n" (dump_edges topo [e]);
+              PathMap.iter paths_demand
+              ~f:(fun ~key:path ~data:d -> Printf.printf "%s\t%f\n" (dump_edges topo path) d));
       if local_debug then SrcDstMap.iter new_delivered_map
             ~f:(fun ~key:(src,dst) ~data:delvd ->
-              Printf.printf "%s %s\t%f\n" (Node.name (Net.Topology.vertex_to_label t src))
-            (Node.name (Net.Topology.vertex_to_label t dst)) delvd);
+              Printf.printf "%s %s\t%f\n" (Node.name (Net.Topology.vertex_to_label topo src))
+            (Node.name (Net.Topology.vertex_to_label topo dst)) delvd);
       (* state carried over to next iter *)
       let next_state = (next_iter_traffic, new_delivered_map, new_lat_tput_map_map, new_link_utils, new_scheme, failed_links) in
       next_state)
@@ -419,7 +335,7 @@ let simulate_routing (s:scheme) (t:topology) (d:demands) =
   let congestions = EdgeMap.fold link_utils
     ~init:EdgeMap.empty
     ~f:(fun ~key:e ~data:util acc ->
-      EdgeMap.add ~key:e ~data:(util /. (Float.of_int (num_iterations)) /. (capacity_of_edge t e)) acc) in
+      EdgeMap.add ~key:e ~data:(util /. (Float.of_int (num_iterations)) /. (capacity_of_edge topo e)) acc) in
   tput, latency, congestions
 
 let is_int v =
