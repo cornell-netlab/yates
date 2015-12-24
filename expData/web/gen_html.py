@@ -95,6 +95,59 @@ for topo in topologies:
 print '</div>'
 
 print '<hr>'
+print 'FAILURE LOSS'
+print '<input type=checkbox onclick="chksel(\'fail\');"/>' + "Show All"
+print '<hr>'
+print '<div id="fail">'
+print '<table style="width:100%">'
+print '<tr>'
+print '<td>'
+print '</td>'
+for topo in topologies:
+    print '<td>'
+    print '<input type=checkbox id="chkfail'+ topo +'"onclick="toggledisplay(\'imgfail' + topo +'\');" />'
+    print '<label for="chkfail' + topo + '">'+topo+'</label>'
+    print '</td>'
+print '</tr>'
+print '</table>'
+print '</div>'
+
+print '<hr>'
+print '<style>\n#flat {width:100%; margin:0 auto 0 auto; text-align:center;}\n#flat div \n{\ndisplay:inline-block;\n}\n</style>'
+print '<div id="flat">'
+for topo in topologies:
+      print '<div id="imgfail'+topo+'" style="display:none">\n\t\t<img src="'+topo+'/FailureLossVsIterations.svg">\n <br>'+topo + '\n</div>'
+print '</div>'
+
+
+print '<hr>'
+print 'CONGESTION LOSS'
+print '<input type=checkbox onclick="chksel(\'cong\');"/>' + "Show All"
+print '<hr>'
+print '<div id="cong">'
+print '<table style="width:100%">'
+print '<tr>'
+print '<td>'
+print '</td>'
+for topo in topologies:
+    print '<td>'
+    print '<input type=checkbox id="chkcong'+ topo +'"onclick="toggledisplay(\'imgcong' + topo +'\');" />'
+    print '<label for="chkcong' + topo + '">'+topo+'</label>'
+    print '</td>'
+print '</tr>'
+print '</table>'
+print '</div>'
+
+print '<hr>'
+print '<style>\n#flat {width:100%; margin:0 auto 0 auto; text-align:center;}\n#flat div \n{\ndisplay:inline-block;\n}\n</style>'
+print '<div id="flat">'
+for topo in topologies:
+      print '<div id="imgcong'+topo+'" style="display:none">\n\t\t<img src="'+topo+'/CongestionLossVsIterations.svg">\n <br>'+topo + '\n</div>'
+print '</div>'
+
+
+
+print '<hr>'
 print 'LATENCY'
 print '<input type=checkbox onclick="chksel(\'latency\');"/>' + "Show All"
 print '<hr>'

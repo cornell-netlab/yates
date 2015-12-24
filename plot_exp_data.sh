@@ -14,3 +14,5 @@ python simulate/viz/CongestionVsIterations.py ${topology} k50
 
 python simulate/viz/TotalThroughputVsIterations.py ${topology}
 python simulate/viz/LatencyCDF.py expData/${topology}/LatencyDistributionVsIterations.dat
+python simulate/viz/LossVsIterations.py grid5h1EvenDemand Failure
+python simulate/viz/LossVsIterations.py grid5h1EvenDemand Congestion
