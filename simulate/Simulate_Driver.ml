@@ -180,19 +180,19 @@ let simulate_routing (start_scheme:scheme) (topo:topology) (dem:demands) =
 
   let iterations = range 0 (num_iterations + steady_state_time) in
   if local_debug then Printf.printf "%s\n" (dump_scheme topo start_scheme);
-  let _,delivered_map,lat_tput_map_map,link_utils,_,_ =
+  let _,delivered_map,lat_tput_map_map,link_utils,_,_,fail_drop,cong_drop =
   List.fold_left
     iterations
-    (* ingress link traffic, sd-delivered, sd-latency-tput-product, traffic on each edge *)
-    ~init:(EdgeMap.empty, SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, start_scheme, EdgeSet.empty)
+    (* ingress link traffic, sd-delivered, sd-latency-tput-product, traffic on each edge, scheme, failure, fail_drop, cong_drop *)
+    ~init:(EdgeMap.empty, SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, start_scheme, EdgeSet.empty, 0.0, 0.0)
     ~f:(fun current_state iter ->
       (* begin iteration *)
       if true then Printf.printf "--- Iteration : %d ---\n%!" iter;
-      let (in_traffic, curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_scheme, curr_failed_links) = current_state in
+      let (in_traffic, curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_scheme, curr_failed_links, curr_fail_drop, curr_cong_drop) = current_state in
       (* Reset stats when steady state is reached *)
-      let curr_delivered_map, curr_lat_tput_map_map, curr_link_utils =
-        if iter = steady_state_time then (SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty)
-        else (curr_delivered_map, curr_lat_tput_map_map, curr_link_utils) in
+      let curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop =
+        if iter = steady_state_time then (SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, 0.0, 0.0)
+        else (curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop) in
 
       let failed_links = if iter = failure_time
                             then EdgeSet.add curr_failed_links (get_some_edge topo)
@@ -225,14 +225,18 @@ let simulate_routing (start_scheme:scheme) (topo:topology) (dem:demands) =
       (* Done generating traffic at source *)
 
       (* For each link, forward fair share of flows to next links or deliver to destination *)
-      let next_iter_traffic, new_delivered_map, new_lat_tput_map_map, new_link_utils = EdgeMap.fold in_traffic
-        ~init:(next_iter_traffic, curr_delivered_map, curr_lat_tput_map_map, curr_link_utils)
-        ~f:(fun ~key:e ~data:in_queue_edge acc ->
+      let next_iter_traffic, new_delivered_map, new_lat_tput_map_map, new_link_utils, new_fail_drop, new_cong_drop = EdgeMap.fold in_traffic
+        ~init:(next_iter_traffic, curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop)
+        ~f:(fun ~key:e ~data:in_queue_edge link_iter_acc ->
+          (* total ingress traffic on link *)
           let demand_on_link = PathMap.fold in_queue_edge
             ~init:0.0
-            ~f:(fun ~key:_ ~data:flow_dem acc -> acc +. flow_dem) in
+            ~f:(fun ~key:_ ~data:flow_dem link_dem -> link_dem +. flow_dem) in
+
           if local_debug then Printf.printf "%s: %f / %f\n" (dump_edges topo [e]) (demand_on_link /. 1e9) ((curr_capacity_of_edge topo e failed_links) /. 1e9);
-          let fs_in_queue_edge = if demand_on_link > (curr_capacity_of_edge topo e failed_links) then
+          let fs_in_queue_edge = if demand_on_link <= (curr_capacity_of_edge topo e failed_links)
+            then in_queue_edge
+            else
             (* calculate each flow's fair share *)
             let rec fair_share_at_edge (spare_cap:float) (sat_paths: path list) (path_share_map: float PathMap.t) =
               if local_debug then Printf.printf "%f\n.%!" spare_cap;
@@ -242,8 +246,8 @@ let simulate_routing (start_scheme:scheme) (topo:topology) (dem:demands) =
                 let path_fairshare, new_sat_paths =
                   PathMap.fold in_queue_edge
                   ~init:(PathMap.empty, sat_paths)
-                  ~f:(fun ~key:path ~data:req_share acc ->
-                    let (acc_path_share_map, acc_sat_paths) = acc in
+                  ~f:(fun ~key:path ~data:req_share share_acc ->
+                    let (acc_path_share_map, acc_sat_paths) = share_acc in
                     let path_allocated_share = match PathMap.find path_share_map path with
                                                 | None -> 0.0
                                                 | Some x -> x in
@@ -257,18 +261,27 @@ let simulate_routing (start_scheme:scheme) (topo:topology) (dem:demands) =
                   let residual_cap =
                     PathMap.fold path_fairshare
                     ~init:(curr_capacity_of_edge topo e failed_links)
-                    ~f:(fun ~key:path ~data:link_share acc -> acc -. link_share) in
+                    ~f:(fun ~key:path ~data:link_share resid_acc -> resid_acc -. link_share) in
                     if residual_cap > 0.01
                       then fair_share_at_edge residual_cap new_sat_paths path_fairshare
                       else path_fairshare in
             fair_share_at_edge (curr_capacity_of_edge topo e failed_links) [] PathMap.empty
-              (* done calculating fair share *)
-                  else in_queue_edge in
+            (* done calculating fair share *) in
 
+          (* Update traffic dropped due to failure or congestion *)
+          let forwarded_by_link = PathMap.fold fs_in_queue_edge
+            ~init:0.0
+            ~f:(fun ~key:_ ~data:flow_dem fwd_acc -> fwd_acc +. flow_dem) in
+          let dropped = demand_on_link -. forwarded_by_link in
+          let (_,_,_,_,curr_fail_drop,curr_cong_drop) = link_iter_acc in
+          let new_fail_drop = if EdgeSet.mem failed_links e then curr_fail_drop +. dropped else curr_fail_drop in
+          let new_cong_drop = if EdgeSet.mem failed_links e then curr_cong_drop else curr_cong_drop +. dropped in
+
+          (* Forward/deliver traffic on this edge *)
           PathMap.fold fs_in_queue_edge
-          ~init:acc
+          ~init:link_iter_acc
           ~f:(fun ~key:path ~data:flow_fair_share acc ->
-            let (nit,dlvd_map,ltm_map,lutil_map) = acc in
+            let (nit,dlvd_map,ltm_map,lutil_map,_,_) = acc in
             let next_link_opt = list_next path e in
             match next_link_opt with
             | None ->
@@ -293,7 +306,7 @@ let simulate_routing (start_scheme:scheme) (topo:topology) (dem:demands) =
                 let new_dlvd = SrcDstMap.add ~key:(src,dst) ~data:(prev_sd_dlvd +. flow_fair_share) dlvd_map in
                 let new_ltm_map = SrcDstMap.add ~key:(src,dst) ~data:new_sd_ltm ltm_map in
                 let new_lutil_map = EdgeMap.add ~key:e ~data:(prev_lutil_link +. flow_fair_share) lutil_map in
-                (nit, new_dlvd, new_ltm_map, new_lutil_map)
+                (nit, new_dlvd, new_ltm_map, new_lutil_map, new_fail_drop, new_cong_drop)
             | Some next_link ->
                 (* Forward traffic to next link *)
                 let sched_traf_next_link = match EdgeMap.find nit next_link with
@@ -308,9 +321,9 @@ let simulate_routing (start_scheme:scheme) (topo:topology) (dem:demands) =
                               | None -> 0.0
                               | Some x -> x in
                 let new_lutil_map = EdgeMap.add ~key:e ~data:(prev_lutil_link +. flow_fair_share) lutil_map in
-                (new_nit, dlvd_map, ltm_map, new_lutil_map))) in
+                (new_nit, dlvd_map, ltm_map, new_lutil_map, new_fail_drop, new_cong_drop))) in
+      (* Done forwarding for each link*)
 
-      (* Done forwarding *)
       (* Print state for debugging *)
       if local_debug then
           EdgeMap.iter next_iter_traffic
@@ -322,11 +335,12 @@ let simulate_routing (start_scheme:scheme) (topo:topology) (dem:demands) =
             ~f:(fun ~key:(src,dst) ~data:delvd ->
               Printf.printf "%s %s\t%f\n" (Node.name (Net.Topology.vertex_to_label topo src))
             (Node.name (Net.Topology.vertex_to_label topo dst)) delvd);
-      (* state carried over to next iter *)
-      let next_state = (next_iter_traffic, new_delivered_map, new_lat_tput_map_map, new_link_utils, new_scheme, failed_links) in
+      (* State carried over to next iter *)
+      let next_state = (next_iter_traffic, new_delivered_map, new_lat_tput_map_map, new_link_utils, new_scheme, failed_links, new_fail_drop, new_cong_drop) in
       next_state)
       (* end iteration *) in
 
+  (* Generate stats *)
   let tput = SrcDstMap.fold delivered_map
     ~init:SrcDstMap.empty
     ~f:(fun ~key:sd ~data:dlvd acc ->
@@ -336,7 +350,9 @@ let simulate_routing (start_scheme:scheme) (topo:topology) (dem:demands) =
     ~init:EdgeMap.empty
     ~f:(fun ~key:e ~data:util acc ->
       EdgeMap.add ~key:e ~data:(util /. (Float.of_int (num_iterations)) /. (capacity_of_edge topo e)) acc) in
-  tput, latency, congestions
+  let fail_drop = fail_drop /. (Float.of_int num_iterations) in
+  let cong_drop = cong_drop /. (Float.of_int num_iterations) in
+  tput, latency, congestions, fail_drop, cong_drop
 
 let is_int v =
   let p = (Float.modf v) in
@@ -509,6 +525,8 @@ let simulate
   let max_exp_congestion_data = make_data "Max Expected Congestion Vs Time" in
   let mean_exp_congestion_data = make_data "Mean Expected Congestion Vs Time" in
   let total_tput_data = make_data "Total Throughput vs Time" in
+  let failure_drop_data = make_data "Drop due to failure vs Time" in
+  let congestion_drop_data = make_data "Drop due to congestion vs Time" in
   let percentiles = [0.1; 0.2; 0.3; 0.4; 0.5; 0.6; 0.7; 0.8; 0.9; 0.95] in
   let create_percentile_data (metric:string) =
     List.fold_left
@@ -563,7 +581,7 @@ let simulate
 		  let list_of_exp_congestions = List.map ~f:snd (EdgeMap.to_alist exp_congestions) in
 		  let sorted_exp_congestions = List.sort ~cmp:(Float.compare) list_of_exp_congestions in
 
-		  let tput,latency,congestions = (simulate_routing scheme' topo actual) in
+		  let tput,latency,congestions,failure_drop,congestion_drop = (simulate_routing scheme' topo actual) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in
 		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
 
@@ -598,6 +616,8 @@ let simulate
 		  add_record edge_exp_congestion_data sname {iteration = n; edge_congestions=exp_congestions; };
 		  add_record latency_percentiles_data sname {iteration = n; latency_percentiles=latency_percentiles; };
 		  add_record total_tput_data sname {iteration = n; throughput=total_tput; throughput_dev=0.0; };
+		  add_record failure_drop_data sname {iteration = n; throughput=failure_drop; throughput_dev=0.0; };
+		  add_record congestion_drop_data sname {iteration = n; throughput=congestion_drop; throughput_dev=0.0; };
 		  List.iter2_exn
 		    percentile_data
 		    (percentile_values sorted_congestions)
@@ -628,6 +648,8 @@ let simulate
   to_file dir "MaxExpCongestionVsIterations.dat" max_exp_congestion_data "# solver\titer\tmax-exp-congestion\tstddev" iter_vs_congestion_to_string;
   to_file dir "MeanExpCongestionVsIterations.dat" mean_exp_congestion_data "# solver\titer\tmean-exp-congestion\tstddev" iter_vs_congestion_to_string;
   to_file dir "TotalThroughputVsIterations.dat" total_tput_data "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string;
+  to_file dir "FailureLossVsIterations.dat" failure_drop_data "# solver\titer\tfailure-drop\tstddev" iter_vs_throughput_to_string;
+  to_file dir "CongestionLossVsIterations.dat" congestion_drop_data "# solver\titer\tcongestion-drop\tstddev" iter_vs_throughput_to_string;
 
   List.iter2_exn
     percentile_data
@@ -654,6 +676,8 @@ let simulate
   Printf.printf "%s" (to_string churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
   Printf.printf "%s" (to_string max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string);
   Printf.printf "%s" (to_string total_tput_data "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string);
+  Printf.printf "%s" (to_string failure_drop_data "# solver\titer\tfailure-drop\tstddev" iter_vs_throughput_to_string);
+  Printf.printf "%s" (to_string congestion_drop_data "# solver\titer\tcongestion-drop\tstddev" iter_vs_throughput_to_string);
   Printf.printf "%s" (to_string num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string)
 
 
