@@ -10,7 +10,7 @@ import sys
 
 EXPERIMENT_NAME = "LossVsIterations"
 X_LABEL         = "Iterations"
-Y_LABEL         = "Loss due to failure"
+Y_LABEL         = "Loss"
 
 random.seed(5)
 

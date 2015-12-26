@@ -153,14 +153,26 @@ let curr_capacity_of_edge (topo:topology) (link:edge) (fail:failure) : float =
   if EdgeSet.mem fail link then 0.0 else
     capacity_of_edge topo link
 
-(* Return some edge for testing *)
-let get_some_edge (topo:topology) : edge =
-  match EdgeSet.choose (Topology.edges topo) with
-    | None -> failwith "No edge chosen"
-    | Some x -> Printf.printf "Failing edge: %s\n" (dump_edges topo [x]); x
+(* Create some failure scenario *)
+let get_test_failure_scenario (topo:topology) (iter_pos:float): failure =
+  let edge_list = EdgeSet.elements (Topology.edges topo) in
+  let f_sel_pos = (Float.of_int (List.length edge_list) -. 1.0) *. iter_pos in
+  let sel_pos = Int.of_float (Float.round_down f_sel_pos) in
+  let sel_edge = match List.nth edge_list sel_pos with
+                  | None -> failwith "Invalid index to select edge"
+                  | Some x -> x in
+  Printf.printf "%d / %d\t%s\n" sel_pos (List.length edge_list) (dump_edges topo [sel_edge]);
+  let src,_ = Net.Topology.edge_src sel_edge in
+  let dst,_ = Net.Topology.edge_dst sel_edge in
+  let src_label = Topology.vertex_to_label topo src in
+  let dst_label = Topology.vertex_to_label topo dst in
+  (* If edge connects a switch and host, assume it can't fail *)
+  if Node.device src_label = Node.Host then EdgeSet.empty
+  else if Node.device dst_label = Node.Host then EdgeSet.empty
+  else EdgeSet.singleton sel_edge
 
 (* Simulate routing *)
-let simulate_routing (start_scheme:scheme) (topo:topology) (dem:demands) =
+let simulate_routing (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:failure) =
   (*
    * At each time-step:
      * For each path:
@@ -176,7 +188,7 @@ let simulate_routing (start_scheme:scheme) (topo:topology) (dem:demands) =
 
   let steady_state_time = 10 in (* ideally, should be >= diameter of graph*)
   let failure_time = 20 + steady_state_time in (* static values for testing *)
-  let recovery_time = 50 + steady_state_time in
+  let local_recovery_delay = 50 in
 
   let iterations = range 0 (num_iterations + steady_state_time) in
   if local_debug then Printf.printf "%s\n" (dump_scheme topo start_scheme);
@@ -194,11 +206,10 @@ let simulate_routing (start_scheme:scheme) (topo:topology) (dem:demands) =
         if iter = steady_state_time then (SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, 0.0, 0.0)
         else (curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop) in
 
-      let failed_links = if iter = failure_time
-                            then EdgeSet.add curr_failed_links (get_some_edge topo)
+      let failed_links = if iter = failure_time then fail_edges
                             else curr_failed_links in
 
-      let new_scheme = if iter = recovery_time
+      let new_scheme = if iter = (local_recovery_delay + failure_time)
                         then local_recovery topo curr_scheme failed_links
                         else curr_scheme in
 
@@ -580,8 +591,10 @@ let simulate
 		  let exp_congestions = (congestion_of_paths scheme' topo actual) in
 		  let list_of_exp_congestions = List.map ~f:snd (EdgeMap.to_alist exp_congestions) in
 		  let sorted_exp_congestions = List.sort ~cmp:(Float.compare) list_of_exp_congestions in
+      let failing_edges = get_test_failure_scenario topo (Float.of_int n /. Float.of_int iterations) in
 
-		  let tput,latency,congestions,failure_drop,congestion_drop = (simulate_routing scheme' topo actual) in
+		  let tput,latency,congestions,failure_drop,congestion_drop =
+        (simulate_routing scheme' topo actual failing_edges) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in
 		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
 
