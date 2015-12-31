@@ -32,6 +32,8 @@ type congestion = float with sexp
 
 type latency = float with sexp
 
+type throughput = float with sexp
+
 type failure = EdgeSet.t with sexp
 
 module PathOrd = struct

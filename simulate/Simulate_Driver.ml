@@ -80,9 +80,10 @@ let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) 
   EdgeMap.fold
     ~init:EdgeMap.empty
     ~f:(fun ~key:e ~data:amount_sent acc ->
-        EdgeMap.add ~key:e ~data:(amount_sent /. (capacity_of_edge t e)) acc) sent_on_each_edge 
+        EdgeMap.add ~key:e ~data:(amount_sent /. (capacity_of_edge t e)) acc) sent_on_each_edge
 
-let get_path_prob_demand_map (s:scheme) (d:demands) =
+(* Get a map from path to it's probability and src-dst demand *)
+let get_path_prob_demand_map (s:scheme) (d:demands) : (probability * demand) PathMap.t =
   (* (Probability, net s-d demand) for each path *)
   SrcDstMap.fold s
   ~init:PathMap.empty
@@ -100,8 +101,8 @@ let get_path_prob_demand_map (s:scheme) (d:demands) =
                           else acc))
 
 (* Modify routing scheme by renormalizing path probabilites while avoiding failed links *)
-let local_recovery (t:topology) (s:scheme) (failed_links:failure) : scheme =
-  let new_scheme = SrcDstMap.fold s
+let local_recovery (topo:topology) (curr_scheme:scheme) (failed_links:failure) : scheme =
+  let new_scheme = SrcDstMap.fold curr_scheme
   ~init:SrcDstMap.empty
   ~f:(fun ~key:(src,dst) ~data:paths acc ->
     let is_path_alive (p:path) : bool =
@@ -120,7 +121,7 @@ let local_recovery (t:topology) (s:scheme) (failed_links:failure) : scheme =
       ~f:(fun ~key:path ~data:prob acc ->
         PathMap.add ~key:path ~data:(1.0 /. t_prob *. prob) acc) in
     SrcDstMap.add ~key:(src,dst) ~data:renormalized_paths acc) in
-  Printf.printf "%s\n" (dump_scheme t new_scheme);
+  Printf.printf "%s\n" (dump_scheme topo new_scheme);
   new_scheme
 
 let list_last l = match l with
@@ -128,6 +129,7 @@ let list_last l = match l with
   | []    -> failwith "no element"
 
 let rec list_next l elem = match l with
+  (* Assumes no duplicate elems in list *)
   | hd::tl -> if hd = elem then List.hd tl
               else list_next tl elem
   | [] -> failwith "not found"
@@ -150,11 +152,12 @@ let get_path_latency (p:path) =
 
 (* Capacity of a link in a given failure scenario *)
 let curr_capacity_of_edge (topo:topology) (link:edge) (fail:failure) : float =
-  if EdgeSet.mem fail link then 0.0 else
-    capacity_of_edge topo link
+  if EdgeSet.mem fail link
+    then 0.0
+    else capacity_of_edge topo link
 
 (* Create some failure scenario *)
-let get_test_failure_scenario (topo:topology) (iter_pos:float): failure =
+let get_test_failure_scenario (topo:topology) (iter_pos:float) : failure =
   let edge_list = EdgeSet.elements (Topology.edges topo) in
   let f_sel_pos = (Float.of_int (List.length edge_list) -. 1.0) *. iter_pos in
   let sel_pos = Int.of_float (Float.round_down f_sel_pos) in
@@ -171,8 +174,25 @@ let get_test_failure_scenario (topo:topology) (iter_pos:float): failure =
   else if Node.device dst_label = Node.Host then EdgeSet.empty
   else EdgeSet.singleton sel_edge
 
-(* Simulate routing *)
-let simulate_routing (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:failure) =
+
+(* For a given scheme, find the number of paths through each edge *)
+let count_paths_through_edge (s:scheme) : (int EdgeMap.t) =
+  SrcDstMap.fold s
+  ~init:EdgeMap.empty
+  ~f:(fun ~key:_ ~data:ppm acc ->
+    PathMap.fold ppm
+    ~init:acc
+    ~f:(fun ~key:path ~data:_ acc ->
+      List.fold_left path
+      ~init:acc
+      ~f:(fun acc edge ->
+        let c = match EdgeMap.find acc edge with
+                | None -> 0
+                | Some x -> x in
+        EdgeMap.add ~key:edge ~data:(c+1) acc)))
+
+(* Simulate routing for one TM *)
+let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:failure) =
   (*
    * At each time-step:
      * For each path:
@@ -192,9 +212,9 @@ let simulate_routing (start_scheme:scheme) (topo:topology) (dem:demands) (fail_e
 
   let iterations = range 0 (num_iterations + steady_state_time) in
   if local_debug then Printf.printf "%s\n" (dump_scheme topo start_scheme);
+
   let _,delivered_map,lat_tput_map_map,link_utils,_,_,fail_drop,cong_drop =
-  List.fold_left
-    iterations
+  List.fold_left iterations
     (* ingress link traffic, sd-delivered, sd-latency-tput-product, traffic on each edge, scheme, failure, fail_drop, cong_drop *)
     ~init:(EdgeMap.empty, SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, start_scheme, EdgeSet.empty, 0.0, 0.0)
     ~f:(fun current_state iter ->
@@ -441,14 +461,14 @@ let get_num_paths (s:scheme) : float =
   Float.of_int count
 
 (* Sum througput over all src-dst pairs *)
-let get_total_tput tput : float =
+let get_total_tput (sd_tput:throughput SrcDstMap.t) : throughput =
   SrcDstMap.fold
-  tput
+  sd_tput
   ~init:0.0
   ~f:(fun ~key:_ ~data:delivered acc -> acc +. delivered)
 
 (* Aggregate latency-tput over all sd-pairs *)
-let get_aggregate_latency sd_lat_tput_map_map =
+let get_aggregate_latency (sd_lat_tput_map_map:(throughput LatencyMap.t) SrcDstMap.t) : (throughput LatencyMap.t) =
   SrcDstMap.fold sd_lat_tput_map_map
   ~init:LatencyMap.empty
   ~f:(fun ~key:_ ~data:lat_tput_map acc ->
@@ -461,7 +481,8 @@ let get_aggregate_latency sd_lat_tput_map_map =
       let agg_tput = prev_agg_tput +. tput in
       LatencyMap.add ~key:latency ~data:agg_tput acc))
 
-let get_latency_percentiles lat_tput_map =
+(* Generate latency percentile based on throughput *)
+let get_latency_percentiles (lat_tput_map : throughput LatencyMap.t) : (float LatencyMap.t) =
   let total_tput = LatencyMap.fold lat_tput_map
     ~init:0.0
     ~f:(fun ~key:_ ~data:tput acc -> tput +. acc) in
@@ -594,7 +615,7 @@ let simulate
       let failing_edges = get_test_failure_scenario topo (Float.of_int n /. Float.of_int iterations) in
 
 		  let tput,latency,congestions,failure_drop,congestion_drop =
-        (simulate_routing scheme' topo actual failing_edges) in
+        (simulate_tm scheme' topo actual failing_edges) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in
 		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
 
