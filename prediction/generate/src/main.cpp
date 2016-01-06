@@ -18,20 +18,24 @@ int main(int argc, char ** argv)
       std::string appName = boost::filesystem::basename(argv[0]);
       
       int num_rows = 0; 
-      int num_hosts = 0;
+	  int pick_which=0;
       double scale_factor = 0;
+	  int period = 0;
+	  double addn = 0;
       
       options_description desc("Options"); 
       desc.add_options() 
 	("help,h", "Print help messages") 
-	("name,n", value<std::string>()->required(), "name") 
-	("num_rows,r", value<int>(&num_rows)->required(), "num rows")
-	("num_hosts,c", value<int>(&num_hosts)->required(), "num_hosts") 
-	("scale_factor,f", value<double>(&scale_factor)->required(), "scale_factor"); 
+		("name,n", value<std::string>()->required(), "name of the file") 
+			("num_rows,r", value<int>(&num_rows)->default_value(20), "consider the first num rows of  the Abilene data.")
+				("pick_which,p", value<int>(&pick_which)->default_value(0), "Which Abilene data type? 0 means real data, 1 means gravity model.") 
+					("scale_factor,f", value<double>(&scale_factor)->default_value(1.0), "scale_factor") 
+						("period,d", value<int>(&period)->default_value(3000), "period") 
+							("adnoise,a", value<double>(&addn)->default_value(0.5), "add random noise to which level"); 
  
       positional_options_description positionalOptions; 
       positionalOptions.add("num_rows", 1); 
-      positionalOptions.add("num_hosts", 1);
+      positionalOptions.add("pick_which", 1);
       positionalOptions.add("scale_factor", 1); 
  
       variables_map vm; 
@@ -62,8 +66,12 @@ int main(int argc, char ** argv)
        }
 
      std::cout << "num_rows = " << num_rows << std::endl;    
+     std::cout << "pick_which = " << pick_which << std::endl;    
      std::cout << "name = " << vm["name"].as<std::string>() << std::endl; 
-  
+     std::cout << "period = " << vm["period"].as<int>()<< std::endl;    
+
+	 mygenerate(pick_which,  vm["name"].as<std::string>(), num_rows, scale_factor, period, addn);
+	 return 0;
   } 
   catch(std::exception& e) 
   { 
@@ -71,11 +79,4 @@ int main(int argc, char ** argv)
               << e.what() << ", application will now exit" << std::endl; 
     return 1; 
   } 
- 
-  return doit(argc, argv);
-
-  // TODO(pass these args)
-  //return generate(filename, pickwhich, readFiles,  scale, period);
-    
-  
 }

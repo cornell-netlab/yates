@@ -3,6 +3,7 @@
 #include "kiss_fft.h"
 
 double abso(double a);
+void getData(double** dataM, int last, int pickwhich);
 
 void writeDemandMatrix(std::string filename,
 		       int row, int col,
@@ -27,4 +28,4 @@ double cxnorm(kiss_fft_cpx a);
 
 double uniform_rand(double a, double b);
 
-void generateSyntheticData(int row, int hosts, double ** m, char* prefix);
+void generateSyntheticData(int row, int hosts, double ** m, std::string prefix, std::string topofile);

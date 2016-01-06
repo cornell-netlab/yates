@@ -2,6 +2,7 @@
 #include "imgproc/imgproc.hpp"
 #include "ml/ml.hpp"
 #include "highgui/highgui.hpp"
+#include <vector>
 
 
 #include <iostream>
@@ -11,6 +12,7 @@
 #include "opencv2/ocl/ocl.hpp"
 #endif
 using namespace cv;
+using namespace std;
 
 /*
 Random Forest: */
