@@ -100,7 +100,7 @@ let get_path_prob_demand_map (s:scheme) (d:demands) : (probability * demand) Pat
               | Some x -> if path <> [] then failwith "Duplicate paths should not be present"
                           else acc))
 
-(* Modify routing scheme by renormalizing path probabilites while avoiding failed links *)
+(* Modify routing scheme by normalizing path probabilites while avoiding failed links *)
 let local_recovery (topo:topology) (curr_scheme:scheme) (failed_links:failure) : scheme =
   let new_scheme = SrcDstMap.fold curr_scheme
   ~init:SrcDstMap.empty
@@ -121,7 +121,16 @@ let local_recovery (topo:topology) (curr_scheme:scheme) (failed_links:failure) :
       ~f:(fun ~key:path ~data:prob acc ->
         PathMap.add ~key:path ~data:(1.0 /. t_prob *. prob) acc) in
     SrcDstMap.add ~key:(src,dst) ~data:renormalized_paths acc) in
-  Printf.printf "%s\n" (dump_scheme topo new_scheme);
+  (* Printf.printf "Local: %s\n-----\n" (dump_scheme topo new_scheme); *)
+  new_scheme
+
+(* Global recovery: recompute routing scheme after removing failed links *)
+let global_recovery (topo:topology) (start_scheme:scheme) (failed_links:failure) (predict:demands) solve =
+  let topo' = EdgeSet.fold failed_links
+    ~init:topo
+    ~f:(fun acc link -> Topology.remove_edge acc link) in
+  let new_scheme = solve topo' predict start_scheme in
+  Printf.printf "Global: %s\n-----\n" (dump_scheme topo' new_scheme);
   new_scheme
 
 let list_last l = match l with
@@ -192,7 +201,7 @@ let count_paths_through_edge (s:scheme) : (int EdgeMap.t) =
         EdgeMap.add ~key:edge ~data:(c+1) acc)))
 
 (* Simulate routing for one TM *)
-let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:failure) =
+let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:failure) (predict:demands) solve =
   (*
    * At each time-step:
      * For each path:
@@ -207,8 +216,9 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
 
   let steady_state_time = 10 in (* ideally, should be >= diameter of graph*)
-  let failure_time = 20 + steady_state_time in (* static values for testing *)
-  let local_recovery_delay = 50 in
+  let failure_time = 10 + steady_state_time in (* static values for testing *)
+  let local_recovery_delay = 20 in
+  let global_recovery_delay = 50 in
 
   let iterations = range 0 (num_iterations + steady_state_time) in
   if local_debug then Printf.printf "%s\n" (dump_scheme topo start_scheme);
@@ -229,9 +239,10 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
       let failed_links = if iter = failure_time then fail_edges
                             else curr_failed_links in
 
-      let new_scheme = if iter = (local_recovery_delay + failure_time)
-                        then local_recovery topo curr_scheme failed_links
-                        else curr_scheme in
+      (* local and global recovery *)
+      let new_scheme = if iter = (local_recovery_delay + failure_time) then local_recovery topo curr_scheme failed_links
+                      else if iter = (global_recovery_delay + failure_time) then global_recovery topo start_scheme failed_links predict solve
+                      else curr_scheme in
 
       (* probability of taking each path *)
       let path_prob_map = get_path_prob_demand_map new_scheme dem in
@@ -615,7 +626,7 @@ let simulate
       let failing_edges = get_test_failure_scenario topo (Float.of_int n /. Float.of_int iterations) in
 
 		  let tput,latency,congestions,failure_drop,congestion_drop =
-        (simulate_tm scheme' topo actual failing_edges) in
+        (simulate_tm scheme' topo actual failing_edges predict solve) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in
 		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
 
