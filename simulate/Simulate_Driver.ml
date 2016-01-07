@@ -55,6 +55,43 @@ let select_algorithm solver = match solver with
   | SemiMcfKsp
   | SemiMcfEcmp -> Kulfi_Routing.SemiMcf.solve
 
+let init_mcf_demands (topo:topology) : demands =
+  let host_set = VertexSet.filter (Topology.vertexes topo)
+                                  ~f:(fun v ->
+                                      let label = Topology.vertex_to_label topo v in
+                                      Node.device label = Node.Host) in
+  let hs = Topology.VertexSet.elements host_set in
+  List.fold_left
+    hs
+    ~init:SrcDstMap.empty
+    ~f:(fun acc u ->
+	List.fold_left
+	  hs
+	  ~init:acc
+	  ~f:(fun acc v ->
+	      let r = if u = v then 0.0 else 500000.0 in
+	      SrcDstMap.add acc ~key:(u,v) ~data:r))
+
+let initial_scheme algorithm topo : scheme =
+  match algorithm with
+  | SemiMcfMcf
+  | AkMcf ->
+     let d = init_mcf_demands topo in
+     Kulfi_Routing.Mcf.solve topo d SrcDstMap.empty
+  | SemiMcfVlb
+  | AkVlb ->
+     Kulfi_Routing.Vlb.solve topo SrcDstMap.empty SrcDstMap.empty
+  | SemiMcfRaeke
+  | AkRaeke ->
+     Kulfi_Routing.Raeke.solve topo SrcDstMap.empty SrcDstMap.empty
+  | SemiMcfEcmp
+  | AkEcmp ->
+     Kulfi_Routing.Ecmp.solve topo SrcDstMap.empty SrcDstMap.empty
+  | SemiMcfKsp
+  | AkKsp ->
+     Kulfi_Routing.Ksp.solve topo SrcDstMap.empty SrcDstMap.empty
+  | _ -> SrcDstMap.empty
+
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
   let sent_on_each_edge =
     SrcDstMap.fold
@@ -115,7 +152,7 @@ let local_recovery (topo:topology) (curr_scheme:scheme) (failed_links:failure) :
     let t_prob = PathMap.fold n_paths
       ~init:0.0
       ~f:(fun ~key:_ ~data:prob acc -> acc +. prob) in
-    Printf.printf "%f\n" t_prob;
+    (* Printf.printf "%f\n" t_prob; *)
     let renormalized_paths = PathMap.fold n_paths
       ~init:PathMap.empty
       ~f:(fun ~key:path ~data:prob acc ->
@@ -125,12 +162,16 @@ let local_recovery (topo:topology) (curr_scheme:scheme) (failed_links:failure) :
   new_scheme
 
 (* Global recovery: recompute routing scheme after removing failed links *)
-let global_recovery (topo:topology) (start_scheme:scheme) (failed_links:failure) (predict:demands) solve =
-  let topo' = EdgeSet.fold failed_links
+let global_recovery (topo:topology) (failed_links:failure) (predict:demands) algorithm =
+  Printf.printf "Global recovery..";
+	let topo' = EdgeSet.fold failed_links
     ~init:topo
     ~f:(fun acc link -> Topology.remove_edge acc link) in
+
+  let start_scheme = initial_scheme algorithm topo' in
+	let solve = select_algorithm algorithm in
   let new_scheme = solve topo' predict start_scheme in
-  Printf.printf "Global: %s\n-----\n" (dump_scheme topo' new_scheme);
+  (* Printf.printf "Global: %s\n-----\n" (dump_scheme topo' new_scheme); *)
   new_scheme
 
 let list_last l = match l with
@@ -173,7 +214,7 @@ let get_test_failure_scenario (topo:topology) (iter_pos:float) : failure =
   let sel_edge = match List.nth edge_list sel_pos with
                   | None -> failwith "Invalid index to select edge"
                   | Some x -> x in
-  Printf.printf "%d / %d\t%s\n" sel_pos (List.length edge_list) (dump_edges topo [sel_edge]);
+  Printf.printf "%d / %d\t%s\n%!" sel_pos (List.length edge_list) (dump_edges topo [sel_edge]);
   let src,_ = Net.Topology.edge_src sel_edge in
   let dst,_ = Net.Topology.edge_dst sel_edge in
   let src_label = Topology.vertex_to_label topo src in
@@ -201,7 +242,7 @@ let count_paths_through_edge (s:scheme) : (int EdgeMap.t) =
         EdgeMap.add ~key:edge ~data:(c+1) acc)))
 
 (* Simulate routing for one TM *)
-let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:failure) (predict:demands) solve =
+let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:failure) (predict:demands) algorithm =
   (*
    * At each time-step:
      * For each path:
@@ -229,7 +270,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
     ~init:(EdgeMap.empty, SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, start_scheme, EdgeSet.empty, 0.0, 0.0)
     ~f:(fun current_state iter ->
       (* begin iteration *)
-      if true then Printf.printf "--- Iteration : %d ---\n%!" iter;
+      if false then Printf.printf "--- Iteration : %d ---\n%!" iter;
       let (in_traffic, curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_scheme, curr_failed_links, curr_fail_drop, curr_cong_drop) = current_state in
       (* Reset stats when steady state is reached *)
       let curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop =
@@ -241,7 +282,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
 
       (* local and global recovery *)
       let new_scheme = if iter = (local_recovery_delay + failure_time) then local_recovery topo curr_scheme failed_links
-                      else if iter = (global_recovery_delay + failure_time) then global_recovery topo start_scheme failed_links predict solve
+                      else if iter = (global_recovery_delay + failure_time) then global_recovery topo failed_links predict algorithm
                       else curr_scheme in
 
       (* probability of taking each path *)
@@ -422,23 +463,6 @@ let kth_percentile (l:float list) (k:float) : float =
     | Some f -> f
     | None -> assert false
 
-let init_mcf_demands (topo:topology) : demands =
-  let host_set = VertexSet.filter (Topology.vertexes topo)
-                                  ~f:(fun v ->
-                                      let label = Topology.vertex_to_label topo v in
-                                      Node.device label = Node.Host) in
-  let hs = Topology.VertexSet.elements host_set in
-  List.fold_left
-    hs
-    ~init:SrcDstMap.empty
-    ~f:(fun acc u ->
-	List.fold_left
-	  hs
-	  ~init:acc
-	  ~f:(fun acc v ->
-	      let r = if u = v then 0.0 else 500000.0 in
-	      SrcDstMap.add acc ~key:(u,v) ~data:r))
-
 let get_mean_congestion (l:float list) =
   (List.fold_left ~init:0. ~f:( +. )  l) /. (Float.of_int (List.length l))
 
@@ -505,27 +529,6 @@ let get_latency_percentiles (lat_tput_map : throughput LatencyMap.t) : (float La
       (LatencyMap.add ~key:latency ~data:(sum_tput' /. total_tput)
       lat_percentile_map, sum_tput')) in
   latency_percentiles
-
-let initial_scheme algorithm topo : scheme =
-  match algorithm with
-  | SemiMcfMcf
-  | AkMcf ->
-     let d = init_mcf_demands topo in
-     Kulfi_Routing.Mcf.solve topo d SrcDstMap.empty
-  | SemiMcfVlb
-  | AkVlb ->
-     Kulfi_Routing.Vlb.solve topo SrcDstMap.empty SrcDstMap.empty
-  | SemiMcfRaeke
-  | AkRaeke ->
-     Kulfi_Routing.Raeke.solve topo SrcDstMap.empty SrcDstMap.empty
-  | SemiMcfEcmp
-  | AkEcmp ->
-     Kulfi_Routing.Ecmp.solve topo SrcDstMap.empty SrcDstMap.empty
-  | SemiMcfKsp
-  | AkKsp ->
-     Kulfi_Routing.Ksp.solve topo SrcDstMap.empty SrcDstMap.empty
-  | _ -> SrcDstMap.empty
-
 
 let simulate
     (spec_solvers:solver_type list)
@@ -626,7 +629,7 @@ let simulate
       let failing_edges = get_test_failure_scenario topo (Float.of_int n /. Float.of_int iterations) in
 
 		  let tput,latency,congestions,failure_drop,congestion_drop =
-        (simulate_tm scheme' topo actual failing_edges predict solve) in
+        (simulate_tm scheme' topo actual failing_edges predict algorithm) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in
 		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
 
