@@ -164,8 +164,7 @@ let all_pairs_multi_shortest_path (topo:topology) : (bool * int * (Topology.vert
     let src,_ = Topology.edge_src e in
     let dst,_ = Topology.edge_dst e in
     let weight = Link.weight (Topology.edge_to_label topo e) in
-    let _ = SrcDstMap.add acc ~key:(src, dst) ~data:weight in
-    SrcDstMap.add acc ~key:(dst, src) ~data:weight)
+    SrcDstMap.add acc ~key:(src, dst) ~data:weight)
   topo dist_mat in
   let dist_mat_sp = Topology.fold_vertexes
     (fun k acc ->
