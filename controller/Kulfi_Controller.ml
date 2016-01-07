@@ -224,16 +224,16 @@ let initial_scheme init_str topo ic hm : scheme =
   | None -> SrcDstMap.empty
   | Some "mcf" ->
      let d = next_demand ic hm in 
-     Kulfi_Routing.Mcf.solve topo d SrcDstMap.empty
+     Kulfi_Routing.Mcf.solve topo d
   | Some "vlb" ->
      let d = next_demand ic hm in 
-     Kulfi_Routing.Vlb.solve topo d SrcDstMap.empty
+     Kulfi_Routing.Vlb.solve topo d
   | Some "raeke" ->
      let d = next_demand ic hm in 
-     Kulfi_Routing.Raeke.solve topo d SrcDstMap.empty
+     Kulfi_Routing.Raeke.solve topo d
   | Some "ecmp" ->
      let d = next_demand ic hm in 
-     Kulfi_Routing.Ecmp.solve topo d SrcDstMap.empty
+     Kulfi_Routing.Ecmp.solve topo d
   | Some _ -> failwith  "Unrecognized initialization scheme"
 	      
       
@@ -246,10 +246,11 @@ let initial_scheme init_str topo ic hm : scheme =
     let (predict_host_map, predict_traffic_ic) = open_demands predict_fn host_fn topo in
     (* Helper to generate host configurations *)
     let scheme = initial_scheme init_str topo predict_traffic_ic predict_host_map in
+    let _ = Solver.initialize scheme in
     let rec simulate i = 
       try 
 	let predict = next_demand predict_traffic_ic predict_host_map in
-	let scheme' = Solver.solve topo predict scheme in
+	let scheme' = Solver.solve topo predict in
 	print_configuration topo (configuration_of_scheme topo scheme' tag_hash) i;
 	simulate (i+1)
       with _ -> 

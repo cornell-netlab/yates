@@ -5,7 +5,7 @@ open Net.Topology
 open Core.Std
 open Kulfi_Apsp
 
-let solve (topo:topology) (_:demands) (_:scheme) : scheme =
+let solve (topo:topology) (_:demands) : scheme =
   let host_set =
     VertexSet.filter
       (vertexes topo)
@@ -24,3 +24,5 @@ let solve (topo:topology) (_:demands) (_:scheme) : scheme =
               let prob = 1.0 /. Float.of_int (List.length paths) in
               PathMap.add acc ~key:path ~data:prob) in
       SrcDstMap.add acc ~key:(v1,v2) ~data:path_map)
+
+let initialize _ = ()

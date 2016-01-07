@@ -32,7 +32,7 @@ SrcDstMap.t) (max_tot: int) : (Topology.edge List.t) List.t=
         ) in
     p1
 
-let solve (topo:topology) (_:demands) (_:scheme) : scheme =
+let solve (topo:topology) (_:demands) : scheme =
   (*
    * Yang: my implementation is the following:
      * If there are less than max_tot=1000 different shortest paths between s and t,
@@ -70,3 +70,4 @@ let solve (topo:topology) (_:demands) (_:scheme) : scheme =
   sp_table
 
 
+let initialize _ = ()

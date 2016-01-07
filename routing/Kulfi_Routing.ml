@@ -1,7 +1,8 @@
 open Kulfi_Types
                  
 module type Algorithm = sig
-  val solve : topology -> demands -> scheme -> scheme
+  val solve : topology -> demands -> scheme
+  val initialize : scheme -> unit
 end
 
 module Ecmp = Kulfi_Ecmp

@@ -5,7 +5,9 @@ open Net
 open Core.Std
 
 type var = string
-	     
+
+let prev_scheme = ref SrcDstMap.empty
+
 (* This is stripped down to cover only what we'll need for MCF *)
 type arith_exp =
     Var of var
@@ -287,10 +289,12 @@ let normalize (unnormalized_scheme:scheme) (flow_sum:float SrcDstMap.t) : scheme
 	       f_decomp in
 	   SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc)
 
+let initialize (s:scheme) : unit =
+  prev_scheme := s;
+  ()
 
-
-let solve (topo:topology) (d:demands) (s:scheme) : scheme =
-  ignore (if (SrcDstMap.is_empty s) then failwith "Kulfi_SemiMcf must be initialized with a non-empty scheme" else ());
+let solve (topo:topology) (d:demands) : scheme =
+  ignore (if (SrcDstMap.is_empty !prev_scheme) then failwith "Kulfi_SemiMcf must be initialized with a non-empty scheme" else ());
 
   Printf.printf "invoking solve\n";
 
@@ -302,7 +306,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 
   let (umap,pmap,emap) =
     SrcDstMap.fold
-      s (* fold over the scheme *)
+      !prev_scheme (* fold over the scheme *)
       ~init:(UidMap.empty, PathMap.empty, EdgeMap.empty)
       (* for every pair of hosts u,v *)
       ~f:(fun ~key:(u,v) ~data:paths acc ->
@@ -336,7 +340,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 
   assert (not (EdgeMap.is_empty emap));
 
-  let (ratio, flows) =  solve_lp pmap emap topo d s in
+  let (ratio, flows) =  solve_lp pmap emap topo d !prev_scheme in
   let (unnormalized_scheme, flow_sum) = scheme_and_flows flows umap in
   normalize unnormalized_scheme flow_sum
 

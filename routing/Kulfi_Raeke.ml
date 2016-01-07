@@ -34,8 +34,11 @@ end
 (* multiplicative weights instantiation *)
 module RRTs : MW_ALG with type structure = FRT.routing_tree = Kulfi_Mw.Make (MWInput)
 
-let solve (t:topology) (d:demands) (s:scheme) : scheme =
-  if SrcDstMap.is_empty s then
+let prev_scheme = ref SrcDstMap.empty
+
+let solve (t:topology) (d:demands) : scheme =
+  let new_scheme =
+  if SrcDstMap.is_empty !prev_scheme then
     let epsilon = 0.1 in 
     let end_points = 
       VertexSet.filter (Topology.vertexes t) 
@@ -65,4 +68,8 @@ let solve (t:topology) (d:demands) (s:scheme) : scheme =
               SrcDstMap.add acc ~key:(src, dst) ~data:(paths src dst) 
             else 
               acc))
-  else s
+  else !prev_scheme in
+  prev_scheme := new_scheme;
+  new_scheme
+
+let initialize _ = ()

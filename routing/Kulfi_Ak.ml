@@ -7,6 +7,7 @@ open Net
     of Multi-Commodity Flows by Awerbuch and Khandekar *)
        
 let mu = ref Float.nan
+let prev_scheme = ref SrcDstMap.empty
 
 (* Make epsilon bigger for faster solving and worse approximation *)             
 let epsilon = 0.5
@@ -64,18 +65,18 @@ let apply_on_each_edge (mcf:mc_flow) (fcn:edge -> float -> float) : mc_flow =
 	SrcDstMap.add ~key:(u,v) ~data:new_edge_map acc
     ) mcf
 
-let solve (topo:topology) (d:demands) (s:scheme) : scheme =
+let solve (topo:topology) (d:demands) : scheme =
   
-  ignore (if (SrcDstMap.is_empty s) then failwith "Kulfi_Ak must be initialized with a non-empty scheme" else ());
+  ignore (if (SrcDstMap.is_empty !prev_scheme) then failwith "Kulfi_Ak must be initialized with a non-empty scheme" else ());
   (* First build HashMaps, keyed by edges, containing the
      values f(e), f_i(e), from the pseudocode. *)
   let f' = Topology.fold_edges (fun edge acc -> EdgeMap.add acc ~key:edge ~data:0.0 ) topo EdgeMap.empty in
-  let f_i' = SrcDstMap.fold ~init:SrcDstMap.empty ~f:(fun ~key:(u,v) ~data:_ acc -> SrcDstMap.add ~key:(u,v) ~data:f' acc) s in
+  let f_i' = SrcDstMap.fold ~init:SrcDstMap.empty ~f:(fun ~key:(u,v) ~data:_ acc -> SrcDstMap.add ~key:(u,v) ~data:f' acc) !prev_scheme in
 
   (* populate f,f_i according to what we saw in the last scheme *)
   let (f,f_i) =
     SrcDstMap.fold
-      s
+      !prev_scheme
       ~init:(f',f_i')
       ~f:(fun ~key:(u,v) ~data:path_map (f,f_i) ->
           let r = match SrcDstMap.find d (u,v) with
@@ -109,7 +110,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
                     ~f:(fun ~key:p ~data:x acc -> Float.max_inan acc (Float.of_int (List.length p)))
                     path_map
                )
-            s in
+            !prev_scheme in
 
   (* Step 4 of FlowControl *)
   let scale_factor = (beta topo) /. (4.0 *. h) in
@@ -118,6 +119,7 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
   let delta_plus = apply_on_each_edge f_i step_fourbee_rhs in
 
   (* Procedure REROUTE *)
+  let new_scheme =
   SrcDstMap.fold (* Iterate over each commodity i *)
     ~init:SrcDstMap.empty (* Initialize new routing scheme to be empty *)
     ~f:(fun ~key:(u,v) ~data:(path_map) new_path_map ->
@@ -223,7 +225,14 @@ let solve (topo:topology) (d:demands) (s:scheme) : scheme =
 	else (* matches if (target >. 0.) && ( List.length p ) > 0 *)
 	  fd
       in
-      SrcDstMap.add ~key:(u,v) ~data:(reroute initial_target fi ( find_or_die s (u,v) ) dmi dpi ) new_path_map
-    ) s      
+      SrcDstMap.add ~key:(u,v) ~data:(reroute initial_target fi ( find_or_die
+      !prev_scheme (u,v) ) dmi dpi ) new_path_map
+    ) !prev_scheme
+  in
+  prev_scheme := new_scheme;
+  new_scheme
   
 
+let initialize (s:scheme) : unit =
+  prev_scheme := s;
+  ()

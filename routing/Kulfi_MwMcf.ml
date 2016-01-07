@@ -60,8 +60,11 @@ end
 (* multiplicative weights instantiation *)
 module MWAlg : MW_ALG with type structure = scheme = Kulfi_Mw.Make (MWInput)
 
-let solve (t:topology) (d:demands) (s:scheme) : scheme =
-  if SrcDstMap.is_empty s then
+let prev_scheme = ref SrcDstMap.empty
+
+let solve (t:topology) (d:demands) : scheme =
+  let new_scheme =
+  if SrcDstMap.is_empty !prev_scheme then
     let epsilon = 0.1 in 
     let end_points = 
       VertexSet.filter (Topology.vertexes t) 
@@ -90,4 +93,8 @@ let solve (t:topology) (d:demands) (s:scheme) : scheme =
 	      ( SrcDstMap.add ~key:(u,v) ~data:new_us_data us,
 	        SrcDstMap.add ~key:(u,v) ~data:new_fs_data fs ) ) ) in
     normalize_scheme unnormalized_scheme flow_sum
-  else s
+  else !prev_scheme in
+  prev_scheme := new_scheme;
+  new_scheme
+
+let initialize _ = ()

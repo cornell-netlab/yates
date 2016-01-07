@@ -110,27 +110,27 @@ let test_mw () = false
     
 let test_ecmp () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Ecmp.solve topo pairs SrcDstMap.empty in
+  let scheme = Kulfi_Ecmp.solve topo pairs in
   probabilities_sum_to_one scheme
 
 let test_mcf () = 
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme = 
-    Kulfi_Mcf.solve topo pairs SrcDstMap.empty in
+    Kulfi_Mcf.solve topo pairs in
   all_pairs_connectivity hosts scheme &&
     probabilities_sum_to_one scheme
 
 let test_mwmcf () = 
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme = 
-    Kulfi_Mcf.solve topo pairs SrcDstMap.empty in
+    Kulfi_Mcf.solve topo pairs in
   all_pairs_connectivity hosts scheme &&
     probabilities_sum_to_one scheme
                  		   
 let test_spf () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme = 
-    Kulfi_Spf.solve topo pairs SrcDstMap.empty in
+    Kulfi_Spf.solve topo pairs in
   let h1 = Array.get hosts 0  in 
   let h2 = Array.get hosts 1  in
   (* TODO(jnf,rjs): could just call sample_scheme here? *)
@@ -143,7 +143,7 @@ let test_spf () =
 let test_vlb () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme = 
-    Kulfi_Vlb.solve topo pairs SrcDstMap.empty in
+    Kulfi_Vlb.solve topo pairs in
   let h1 = Array.get hosts 0  in 
   let h2 = Array.get hosts 1  in
   let paths = match SrcDstMap.find scheme (h1,h2) with | None -> assert false | Some x -> x in
@@ -167,7 +167,7 @@ let test_apsp () =
 
 let test_vlb2 () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Vlb.solve topo pairs SrcDstMap.empty in
+  let scheme = Kulfi_Vlb.solve topo pairs in
   Array.fold
     hosts
     ~init:true
@@ -185,55 +185,61 @@ let test_vlb2 () =
 
 let test_vlb3 () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Vlb.solve topo pairs SrcDstMap.empty in
+  let scheme = Kulfi_Vlb.solve topo pairs in
   paths_are_nonempty scheme
     
 let test_raeke () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Raeke.solve topo pairs SrcDstMap.empty in
+  let scheme = Kulfi_Raeke.solve topo pairs in
   all_pairs_connectivity hosts scheme &&
     probabilities_sum_to_one scheme
   
 let test_semimcf_mcf () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Mcf.solve topo pairs SrcDstMap.empty in
-  let scheme' = Kulfi_SemiMcf.solve topo pairs scheme in
+  let scheme = Kulfi_Mcf.solve topo pairs in
+  let _ = Kulfi_SemiMcf.initialize scheme in
+  let scheme' = Kulfi_SemiMcf.solve topo pairs in
   all_pairs_connectivity hosts scheme' &&
     probabilities_sum_to_one scheme
 
 
 let test_semimcf_vlb () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Vlb.solve topo pairs SrcDstMap.empty in
-  let scheme' = Kulfi_SemiMcf.solve topo pairs scheme in
+  let scheme = Kulfi_Vlb.solve topo pairs in
+  let _ = Kulfi_SemiMcf.initialize scheme in
+  let scheme' = Kulfi_SemiMcf.solve topo pairs in
   all_pairs_connectivity hosts scheme' &&
     probabilities_sum_to_one scheme
 
 let test_semimcf_raeke () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Raeke.solve topo pairs SrcDstMap.empty in
-  let scheme' = Kulfi_SemiMcf.solve topo pairs scheme in
+  let scheme = Kulfi_Raeke.solve topo pairs in
+  let _ = Kulfi_SemiMcf.initialize scheme in
+  let scheme' = Kulfi_SemiMcf.solve topo pairs in
   all_pairs_connectivity hosts scheme' &&
     probabilities_sum_to_one scheme
 			 
 let test_ak_mcf () = 
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Mcf.solve topo pairs SrcDstMap.empty in
-  let scheme' = Kulfi_Ak.solve topo pairs scheme in
+  let scheme = Kulfi_Mcf.solve topo pairs in
+  let _ = Kulfi_Ak.initialize scheme in
+  let scheme' = Kulfi_Ak.solve topo pairs in
   all_pairs_connectivity hosts scheme' &&
     probabilities_sum_to_one scheme
 
 let test_ak_vlb () = 
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Vlb.solve topo pairs SrcDstMap.empty in
-  let scheme' = Kulfi_Ak.solve topo pairs scheme in
+  let scheme = Kulfi_Vlb.solve topo pairs in
+  let _ = Kulfi_Ak.initialize scheme in
+  let scheme' = Kulfi_Ak.solve topo pairs in
   all_pairs_connectivity hosts scheme' &&
     probabilities_sum_to_one scheme
 
 let test_ak_raeke () = 
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Raeke.solve topo pairs SrcDstMap.empty in
-  let scheme' = Kulfi_Ak.solve topo pairs scheme in
+  let scheme = Kulfi_Raeke.solve topo pairs in
+  let _ = Kulfi_Ak.initialize scheme in
+  let scheme' = Kulfi_Ak.solve topo pairs in
   all_pairs_connectivity hosts scheme' &&
     probabilities_sum_to_one scheme
 			 

@@ -77,20 +77,37 @@ let initial_scheme algorithm topo : scheme =
   | SemiMcfMcf
   | AkMcf ->
      let d = init_mcf_demands topo in
-     Kulfi_Routing.Mcf.solve topo d SrcDstMap.empty
+     Kulfi_Routing.Mcf.solve topo d
   | SemiMcfVlb
   | AkVlb ->
-     Kulfi_Routing.Vlb.solve topo SrcDstMap.empty SrcDstMap.empty
+     Kulfi_Routing.Vlb.solve topo SrcDstMap.empty
   | SemiMcfRaeke
   | AkRaeke ->
-     Kulfi_Routing.Raeke.solve topo SrcDstMap.empty SrcDstMap.empty
+     Kulfi_Routing.Raeke.solve topo SrcDstMap.empty
   | SemiMcfEcmp
   | AkEcmp ->
-     Kulfi_Routing.Ecmp.solve topo SrcDstMap.empty SrcDstMap.empty
+     Kulfi_Routing.Ecmp.solve topo SrcDstMap.empty
   | SemiMcfKsp
   | AkKsp ->
-     Kulfi_Routing.Ksp.solve topo SrcDstMap.empty SrcDstMap.empty
+     Kulfi_Routing.Ksp.solve topo SrcDstMap.empty
   | _ -> SrcDstMap.empty
+
+let initialize_scheme algorithm topo : scheme =
+  let start_scheme = initial_scheme algorithm topo in
+  let _ = match algorithm with
+  | SemiMcfEcmp
+  | SemiMcfKsp
+  | SemiMcfMcf
+  | SemiMcfRaeke
+  | SemiMcfVlb -> Kulfi_Routing.SemiMcf.initialize start_scheme 
+  | AkEcmp
+  | AkKsp
+  | AkMcf
+  | AkRaeke
+  | AkVlb -> Kulfi_Routing.Ak.initialize start_scheme
+  | _ -> ()
+  in start_scheme
+
 
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
   let sent_on_each_edge =
@@ -164,13 +181,13 @@ let local_recovery (topo:topology) (curr_scheme:scheme) (failed_links:failure) :
 (* Global recovery: recompute routing scheme after removing failed links *)
 let global_recovery (topo:topology) (failed_links:failure) (predict:demands) algorithm =
   Printf.printf "Global recovery..";
-	let topo' = EdgeSet.fold failed_links
+  let topo' = EdgeSet.fold failed_links
     ~init:topo
     ~f:(fun acc link -> Topology.remove_edge acc link) in
 
-  let start_scheme = initial_scheme algorithm topo' in
+  let start_scheme = initialize_scheme algorithm topo' in
 	let solve = select_algorithm algorithm in
-  let new_scheme = solve topo' predict start_scheme in
+  let new_scheme = solve topo' predict in
   (* Printf.printf "Global: %s\n-----\n" (dump_scheme topo' new_scheme); *)
   new_scheme
 
@@ -606,7 +623,7 @@ let simulate
 	let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
 
 	(* we may need to initialize the scheme, and advance both traffic files *)
-	let start_scheme = initial_scheme algorithm topo in
+	let start_scheme = initialize_scheme algorithm topo in
 
 	ignore (
 	    List.fold_left
@@ -620,7 +637,7 @@ let simulate
 
 		  (* solve *)
 		  start at;
-		  let scheme' = solve topo predict scheme in
+		  let scheme' = solve topo predict in
 		  stop at;
 
 		  let exp_congestions = (congestion_of_paths scheme' topo actual) in
@@ -750,9 +767,8 @@ let calculate_syn_scale (deloop:bool) (topology:string) =
                 let num_hosts = List.length hs in
 		let r = if u = v then 0.0 else 22986934.0 /. Float.of_int(num_hosts * num_hosts) in
 		SrcDstMap.add acc ~key:(u,v) ~data:r)) in
-  let s=SrcDstMap.empty in
-  let s2 =Kulfi_Mcf.solve topo demands s in
-  let expected_congestions = congestion_of_paths s2 topo demands in
+  let s =Kulfi_Mcf.solve topo demands in
+  let expected_congestions = congestion_of_paths s topo demands in
   let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist expected_congestions) in
   let cmax = (get_max_congestion list_of_congestions) in
   let scale_factor = 0.4/.cmax in
