@@ -342,7 +342,9 @@ let solve (topo:topology) (d:demands) : scheme =
 
   let (ratio, flows) =  solve_lp pmap emap topo d !prev_scheme in
   let (unnormalized_scheme, flow_sum) = scheme_and_flows flows umap in
-  normalize unnormalized_scheme flow_sum
+  let new_scheme = normalize unnormalized_scheme flow_sum in
+  prev_scheme := new_scheme;
+  new_scheme
 
 
   (*
