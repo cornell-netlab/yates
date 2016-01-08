@@ -229,7 +229,7 @@ let curr_capacity_of_edge (topo:topology) (link:edge) (fail:failure) : float =
     else capacity_of_edge topo link
 
 (* Create some failure scenario *)
-let get_test_failure_scenario (topo:topology) (iter_pos:float) : failure =
+let rec get_test_failure_scenario (topo:topology) (iter_pos:float) : failure =
   let edge_list = EdgeSet.elements (Topology.edges topo) in
   let f_sel_pos = (Float.of_int (List.length edge_list) -. 1.0) *. iter_pos in
   let sel_pos = Int.of_float (Float.round_down f_sel_pos) in
@@ -242,9 +242,9 @@ let get_test_failure_scenario (topo:topology) (iter_pos:float) : failure =
   let src_label = Topology.vertex_to_label topo src in
   let dst_label = Topology.vertex_to_label topo dst in
   (* If edge connects a switch and host, assume it can't fail *)
-  if Node.device src_label = Node.Host then EdgeSet.empty
-  else if Node.device dst_label = Node.Host then EdgeSet.empty
-  else EdgeSet.singleton sel_edge
+  if Node.device src_label = Node.Host then EdgeSet.empty (*(get_test_failure_scenario topo (iter_pos+.1.0)) *)
+  else if Node.device dst_label = Node.Host then EdgeSet.empty (* (get_test_failure_scenario topo (iter_pos+.1.0)) *)
+  else (EdgeSet.add (EdgeSet.singleton sel_edge) (match Topology.inverse_edge topo sel_edge with | Some e -> e | None -> assert false))
 
 
 (* For a given scheme, find the number of paths through each edge *)
