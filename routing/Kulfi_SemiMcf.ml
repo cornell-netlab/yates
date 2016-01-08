@@ -290,13 +290,14 @@ let normalize (unnormalized_scheme:scheme) (flow_sum:float SrcDstMap.t) : scheme
 	   SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc)
 
 let initialize (s:scheme) : unit =
+  ignore (if (SrcDstMap.is_empty s) then failwith "SemiMcf must be initialized with a non-empty scheme" else ());
   prev_scheme := s;
   ()
 
 let solve (topo:topology) (d:demands) : scheme =
-  ignore (if (SrcDstMap.is_empty !prev_scheme) then failwith "Kulfi_SemiMcf must be initialized with a non-empty scheme" else ());
+  ignore (if (SrcDstMap.is_empty !prev_scheme) then failwith "Kulfi_SemiMcf must have with a non-empty scheme" else ());
 
-  Printf.printf "invoking solve\n";
+  Printf.printf "invoking semimcf solve\n";
 
   let uuid = ref (-1) in
   let fresh_uid () =

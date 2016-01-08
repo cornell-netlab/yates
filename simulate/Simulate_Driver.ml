@@ -94,12 +94,13 @@ let initial_scheme algorithm topo : scheme =
 
 let initialize_scheme algorithm topo : scheme =
   let start_scheme = initial_scheme algorithm topo in
+  Printf.printf "Initializing with scheme: %s\n-----\n" (dump_scheme topo start_scheme);
   let _ = match algorithm with
   | SemiMcfEcmp
   | SemiMcfKsp
   | SemiMcfMcf
   | SemiMcfRaeke
-  | SemiMcfVlb -> Kulfi_Routing.SemiMcf.initialize start_scheme 
+  | SemiMcfVlb -> Kulfi_Routing.SemiMcf.initialize start_scheme
   | AkEcmp
   | AkKsp
   | AkMcf
@@ -189,7 +190,7 @@ let global_recovery (topo:topology) (failed_links:failure) (predict:demands) alg
   let _ = initialize_scheme algorithm topo' in
 	let solve = select_algorithm algorithm in
   let new_scheme = solve topo' predict in
-  Printf.printf "Global: %s\n-----\n" (dump_scheme topo' new_scheme);
+  Printf.printf "New scheme: %s\n-----\n" (dump_scheme topo' new_scheme);
   Printf.printf "Global recovery.. done\n%!";
   new_scheme
 
@@ -466,7 +467,7 @@ let is_int v =
 let kth_percentile (l:float list) (k:float) : float =
   let n = List.length l in
   let x = (Float.of_int n) *. k in
-  Printf.printf "%f / %d\n" x n;
+  Printf.printf "%f / %d\n%!" x n;
   if is_int x then
     let i = Int.of_float (Float.round_up x) in
     let lhs = match (List.nth l i) with
