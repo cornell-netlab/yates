@@ -179,16 +179,18 @@ let local_recovery (topo:topology) (curr_scheme:scheme) (failed_links:failure) :
   new_scheme
 
 (* Global recovery: recompute routing scheme after removing failed links *)
-let global_recovery (topo:topology) (failed_links:failure) (predict:demands) algorithm =
-  Printf.printf "Global recovery..";
+let global_recovery (topo:topology) (failed_links:failure) (predict:demands) algorithm : scheme =
+  Printf.printf "Performing global recovery..\n%!";
+  let topo' = Marshal.from_string (Marshal.to_string topo [Marshal.Closures]) 0 in
   let topo' = EdgeSet.fold failed_links
-    ~init:topo
+    ~init:topo'
     ~f:(fun acc link -> Topology.remove_edge acc link) in
 
-  let start_scheme = initialize_scheme algorithm topo' in
+  let _ = initialize_scheme algorithm topo' in
 	let solve = select_algorithm algorithm in
   let new_scheme = solve topo' predict in
-  (* Printf.printf "Global: %s\n-----\n" (dump_scheme topo' new_scheme); *)
+  Printf.printf "Global: %s\n-----\n" (dump_scheme topo' new_scheme);
+  Printf.printf "Global recovery.. done\n%!";
   new_scheme
 
 let list_last l = match l with
@@ -464,7 +466,7 @@ let is_int v =
 let kth_percentile (l:float list) (k:float) : float =
   let n = List.length l in
   let x = (Float.of_int n) *. k in
-  (*Printf.printf "%f / %d\n" x n;*)
+  Printf.printf "%f / %d\n" x n;
   if is_int x then
     let i = Int.of_float (Float.round_up x) in
     let lhs = match (List.nth l i) with
