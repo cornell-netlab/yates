@@ -94,7 +94,7 @@ let initial_scheme algorithm topo : scheme =
 
 let initialize_scheme algorithm topo : unit =
   let start_scheme = initial_scheme algorithm topo in
-  Printf.printf "Initializing with scheme: %s\n-----\n" (dump_scheme topo start_scheme);
+  Printf.printf "Initializing with scheme: %s\n-----\n%!" (dump_scheme topo start_scheme);
   match algorithm with
   | SemiMcfEcmp
   | SemiMcfKsp
@@ -178,9 +178,12 @@ let local_recovery (topo:topology) (curr_scheme:scheme) (failed_links:failure) :
   new_scheme
 
 (* Global recovery: recompute routing scheme after removing failed links *)
-let global_recovery (topo:topology) (failed_links:failure) (predict:demands) algorithm : scheme =
+let global_recovery (topo:topology) (failed_links:failure) (predict:demands) (algorithm:solver_type) : scheme =
   Printf.printf "Performing global recovery..\n%!";
-  let topo' = Marshal.from_string (Marshal.to_string topo [Marshal.Closures]) 0 in
+
+  (*  ignore (if ( 1 < (EdgeSet.cardinal failed_links)) then failwith "global_recovery too many failed edges" else ()); *)
+    
+  let topo' = Marshal.from_string (Marshal.to_string topo [Marshal.Closures]) 0 in 
   let topo' = EdgeSet.fold failed_links
     ~init:topo'
     ~f:(fun acc link -> Topology.remove_edge acc link) in
@@ -188,7 +191,8 @@ let global_recovery (topo:topology) (failed_links:failure) (predict:demands) alg
   initialize_scheme algorithm topo';
   let solve = select_algorithm algorithm in
   let new_scheme = solve topo' predict in
-  Printf.printf "New scheme: %s\n-----\n" (dump_scheme topo' new_scheme);
+  ignore (if (SrcDstMap.is_empty new_scheme) then failwith "new_scheme is empty in global driver" else ());
+  Printf.printf "New scheme: %s\n-----\n%!" (dump_scheme topo' new_scheme);
   Printf.printf "Global recovery.. done\n%!";
   new_scheme
 
@@ -280,7 +284,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   let global_recovery_delay = 50 in
 
   let iterations = range 0 (num_iterations + steady_state_time) in
-  if local_debug then Printf.printf "%s\n" (dump_scheme topo start_scheme);
+  if local_debug then Printf.printf "%s\n%!" (dump_scheme topo start_scheme);
 
   let _,delivered_map,lat_tput_map_map,link_utils,_,_,fail_drop,cong_drop =
   List.fold_left iterations
@@ -334,7 +338,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
             ~init:0.0
             ~f:(fun ~key:_ ~data:flow_dem link_dem -> link_dem +. flow_dem) in
 
-          if local_debug then Printf.printf "%s: %f / %f\n" (dump_edges topo [e]) (demand_on_link /. 1e9) ((curr_capacity_of_edge topo e failed_links) /. 1e9);
+          if local_debug then Printf.printf "%s: %f / %f\n%!" (dump_edges topo [e]) (demand_on_link /. 1e9) ((curr_capacity_of_edge topo e failed_links) /. 1e9);
           let fs_in_queue_edge = if demand_on_link <= (curr_capacity_of_edge topo e failed_links)
             then in_queue_edge
             else
@@ -415,7 +419,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                     | Some v -> v in
                 let _ = match PathMap.find sched_traf_next_link path with
                     | None -> true
-                    | Some x -> Printf.printf "%s" (dump_edges topo path); failwith "Scheduling duplicate flow at next link" in
+                    | Some x -> Printf.printf "%s%!" (dump_edges topo path); failwith "Scheduling duplicate flow at next link" in
                 let traf_next_link = PathMap.add ~key:path ~data:flow_fair_share sched_traf_next_link in
                 let new_nit = EdgeMap.add ~key:next_link ~data:traf_next_link nit in
                 let prev_lutil_link = match EdgeMap.find lutil_map e with
@@ -429,12 +433,12 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
       if local_debug then
           EdgeMap.iter next_iter_traffic
             ~f:(fun ~key:e ~data:paths_demand ->
-              Printf.printf "%s\n" (dump_edges topo [e]);
+              Printf.printf "%s\n%!" (dump_edges topo [e]);
               PathMap.iter paths_demand
-              ~f:(fun ~key:path ~data:d -> Printf.printf "%s\t%f\n" (dump_edges topo path) d));
+              ~f:(fun ~key:path ~data:d -> Printf.printf "%s\t%f\n%!" (dump_edges topo path) d));
       if local_debug then SrcDstMap.iter new_delivered_map
             ~f:(fun ~key:(src,dst) ~data:delvd ->
-              Printf.printf "%s %s\t%f\n" (Node.name (Net.Topology.vertex_to_label topo src))
+              Printf.printf "%s %s\t%f\n%!" (Node.name (Net.Topology.vertex_to_label topo src))
             (Node.name (Net.Topology.vertex_to_label topo dst)) delvd);
       (* State carried over to next iter *)
       let next_state = (next_iter_traffic, new_delivered_map, new_lat_tput_map_map, new_link_utils, new_scheme, failed_links, new_fail_drop, new_cong_drop) in
