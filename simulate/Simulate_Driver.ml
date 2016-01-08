@@ -92,10 +92,10 @@ let initial_scheme algorithm topo : scheme =
      Kulfi_Routing.Ksp.solve topo SrcDstMap.empty
   | _ -> SrcDstMap.empty
 
-let initialize_scheme algorithm topo : scheme =
+let initialize_scheme algorithm topo : unit =
   let start_scheme = initial_scheme algorithm topo in
   Printf.printf "Initializing with scheme: %s\n-----\n" (dump_scheme topo start_scheme);
-  let _ = match algorithm with
+  match algorithm with
   | SemiMcfEcmp
   | SemiMcfKsp
   | SemiMcfMcf
@@ -107,8 +107,6 @@ let initialize_scheme algorithm topo : scheme =
   | AkRaeke
   | AkVlb -> Kulfi_Routing.Ak.initialize start_scheme
   | _ -> ()
-  in start_scheme
-
 
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
   let sent_on_each_edge =
@@ -187,8 +185,8 @@ let global_recovery (topo:topology) (failed_links:failure) (predict:demands) alg
     ~init:topo'
     ~f:(fun acc link -> Topology.remove_edge acc link) in
 
-  let _ = initialize_scheme algorithm topo' in
-	let solve = select_algorithm algorithm in
+  initialize_scheme algorithm topo';
+  let solve = select_algorithm algorithm in
   let new_scheme = solve topo' predict in
   Printf.printf "New scheme: %s\n-----\n" (dump_scheme topo' new_scheme);
   Printf.printf "Global recovery.. done\n%!";
@@ -626,12 +624,12 @@ let simulate
 	let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
 
 	(* we may need to initialize the scheme, and advance both traffic files *)
-	let start_scheme = initialize_scheme algorithm topo in
+	initialize_scheme algorithm topo ;
 
 	ignore (
 	    List.fold_left
 	      is (* 0..iterations *)
-	      ~init:start_scheme
+	      ~init:SrcDstMap.empty
 	      ~f:(fun scheme n ->
 
 		  (* get the next demand *)
