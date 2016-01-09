@@ -114,12 +114,10 @@ let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) 
       s
       ~init:EdgeMap.empty
       ~f:(fun ~key:(src,dst) ~data:paths acc ->
-          PathMap.fold
-	    paths
+          PathMap.fold paths
             ~init:acc
             ~f:(fun ~key:path ~data:prob acc ->
-                List.fold_left
-		  path
+                List.fold_left path
                   ~init:acc
                   ~f:(fun acc e ->
                       let demand =
@@ -189,7 +187,7 @@ let global_recovery (topo:topology) (failed_links:failure) (predict:demands) (al
   let solve = select_algorithm algorithm in
   let new_scheme = solve topo' predict in
   ignore (if (SrcDstMap.is_empty new_scheme) then failwith "new_scheme is empty in global driver" else ());
-  Printf.printf "New scheme: %s\n-----\n%!" (dump_scheme topo' new_scheme);
+  (*Printf.printf "New scheme: %s\n-----\n%!" (dump_scheme topo' new_scheme);*)
   Printf.printf "Global recovery.. done\n%!";
   new_scheme
 
@@ -225,6 +223,32 @@ let curr_capacity_of_edge (topo:topology) (link:edge) (fail:failure) : float =
     then 0.0
     else capacity_of_edge topo link
 
+
+let get_util_based_failure_scenario (topo:topology) (utils: congestion EdgeMap.t) : failure =
+  let alpha = 1.0 in
+  let failure_weights = List.map ~f:(fun (e,c) -> (e, c ** alpha)) (EdgeMap.to_alist utils) in
+  let total_weight = List.fold_left failure_weights ~init:0.0 ~f:(fun acc (_,w) -> acc +. w) in
+  let rand = Random.float total_weight in
+  let first_el = match List.hd failure_weights with
+              | None -> failwith "empty list of utilizations"
+              | Some x -> x in
+  let (e,_),_ = List.fold_left failure_weights
+    ~init:(first_el, rand)
+    ~f:(fun (selected,sum) (e,w) ->
+      if sum <= 0.0 then (selected,sum)
+      else ((e,w), sum -. w)) in
+  let e' = match Topology.inverse_edge topo e with 
+          | Some x -> x 
+          | None -> assert false in
+  EdgeSet.add (EdgeSet.singleton e) e'
+(*
+ *
+	let sorted_failure_weights = List.sort ~cmp:(fun x y -> Float.compare (snd x) (snd y)) failure_weights in
+ignore (List.iter sorted_failure_weights
+    ~f:(fun (e,c) -> Printf.printf "%s : %f\n" (dump_edges topo [e]) c));
+  
+ *)
+      
 (* Create some failure scenario *)
 let rec get_test_failure_scenario (topo:topology) (iter_pos:float) : failure =
   let edge_list = EdgeSet.elements (Topology.edges topo) in
@@ -466,7 +490,7 @@ let is_int v =
 let kth_percentile (l:float list) (k:float) : float =
   let n = List.length l in
   let x = (Float.of_int n) *. k in
-  Printf.printf "%f / %d\n%!" x n;
+  (*Printf.printf "%f / %d\n%!" x n;*)
   if is_int x then
     let i = Int.of_float (Float.round_up x) in
     let lhs = match (List.nth l i) with
@@ -645,8 +669,8 @@ let simulate
 		  let exp_congestions = (congestion_of_paths scheme' topo actual) in
 		  let list_of_exp_congestions = List.map ~f:snd (EdgeMap.to_alist exp_congestions) in
 		  let sorted_exp_congestions = List.sort ~cmp:(Float.compare) list_of_exp_congestions in
-      let failing_edges = get_test_failure_scenario topo (Float.of_int n /. Float.of_int iterations) in
-
+      (* let failing_edges = get_test_failure_scenario topo (Float.of_int n /. Float.of_int iterations) in *)
+      let failing_edges = get_util_based_failure_scenario topo exp_congestions in
 		  let tput,latency,congestions,failure_drop,congestion_drop =
         (simulate_tm scheme' topo actual failing_edges predict algorithm) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in
