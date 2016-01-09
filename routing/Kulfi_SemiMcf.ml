@@ -99,32 +99,49 @@ let capacity_constraints (pmap : path_uid_map) (emap : edge_uidlist_map)
 	let name = Printf.sprintf "cap_%s"
 				  (string_of_edge topo edge) in
 	(Leq (name, constr, 0.))::acc) topo init_acc
-    
+
 let demand_constraints (pmap : path_uid_map) (emap : edge_uidlist_map) (topo : topology) (d : demands) (s : scheme)
 		       (init_acc : constrain list) : constrain list =
   (* Every source-sink pair has a demand constraint *)
+  let _ = SrcDstMap.fold d
+  ~init:0
+  ~f:(fun ~key:(ds, dd) ~data:_ acc ->
+    SrcDstMap.fold s
+    ~init:acc
+    ~f:(fun ~key:(ss, sd) ~data:_ acc ->
+      if (ss = ds && sd = dd) then (Printf.printf "(%s,%s) = (%s,%s)\n%!"
+      (name_of_vertex topo ds) (name_of_vertex topo dd) (name_of_vertex topo ss)
+      (name_of_vertex topo sd); acc)
+      else (Printf.printf "(%s,%s) != (%s,%s)\n%!"
+      (name_of_vertex topo ds) (name_of_vertex topo dd) (name_of_vertex topo ss)
+      (name_of_vertex topo sd); acc))) in
+
   SrcDstMap.fold
     ~init:init_acc
     ~f:(fun ~key:(src,dst) ~data:(demand) acc ->
-	if (src = dst) then acc
-	else 
-	  (* We need to add up the rates for all paths in pmap(src,dst) *)
-	  match SrcDstMap.find s (src,dst) with
-	  | None -> if (demand <= 0.) then acc else (assert false) 
-	  | Some flowdec -> 
-	     let all_flows = PathMap.fold
-			       ~init:[]
-			       ~f:(fun ~key:p ~data:prob acc ->
-				   let pvar = match PathMap.find pmap p with
-				     | None -> assert false 
-				     | Some id -> Var(var_name_uid id) in
-				   pvar::acc ) flowdec in
-	     (* some code to generate a constraint *)
-	     let total_flow = Sum(all_flows) in
-	     let name = Printf.sprintf "dem-%s-%s" (name_of_vertex topo src)
+      Printf.printf "%s %s\n%!" (name_of_vertex topo src) (name_of_vertex topo dst);
+      if (src = dst) then acc
+	    else
+	    (* We need to add up the rates for all paths in pmap(src,dst) *)
+	      match SrcDstMap.find s (src,dst) with
+	      | None -> if (demand <= 0.) then acc else (
+            Printf.printf "%s %s\n%!" (name_of_vertex topo src) (name_of_vertex topo dst);
+            Printf.printf "Scheme: %s\n-----\n%!" (dump_scheme topo s);
+            assert false)
+	      | Some flowdec ->
+	          let all_flows = PathMap.fold
+			        ~init:[]
+			        ~f:(fun ~key:p ~data:prob acc ->
+				        let pvar = match PathMap.find pmap p with
+				          | None -> assert false
+				          | Some id -> Var(var_name_uid id) in
+				        pvar::acc ) flowdec in
+	          (* some code to generate a constraint *)
+	          let total_flow = Sum(all_flows) in
+	          let name = Printf.sprintf "dem-%s-%s" (name_of_vertex topo src)
 				       (name_of_vertex topo dst) in
-	     (Geq (name, total_flow, demand /. demand_divisor))::acc) d
-    
+	          (Geq (name, total_flow, demand /. demand_divisor))::acc) d
+
 let rec string_of_aexp ae =
   match ae with
   | Var v -> v
@@ -252,7 +269,7 @@ let scheme_and_flows flows umap : (scheme * float SrcDstMap.t) =
 	  match UidMap.find umap id with 
           | None -> failwith "unrecognized uid in Gurobi solution" 
           (* This should never happen, so if the Gurobi output
- 	        contains an unrecognized UID, throw an error. *)
+	        contains an unrecognized UID, throw an error. *)
           | Some (u,v,path) -> (* u = source, v = destination, p = path *)
 	     let new_us_data = match SrcDstMap.find us (u,v) with
 	       | None -> let pm = PathMap.empty in PathMap.add ~key:path ~data:flow_val pm 
@@ -264,30 +281,29 @@ let scheme_and_flows flows umap : (scheme * float SrcDstMap.t) =
 	     let new_fs = SrcDstMap.add ~key:(u,v) ~data:new_fs_data fs in 
 	     (new_us,new_fs) )  in
   (unnormalized_scheme, flow_sum) 
-  
-  (* Now normalize the values in the scheme so that they sum to 1 for each source-dest pair *)
-let normalize (unnormalized_scheme:scheme) (flow_sum:float SrcDstMap.t) : scheme = 
+
+(* Now normalize the values in the scheme so that they sum to 1 for each source-dest pair *)
+let normalize (unnormalized_scheme:scheme) (flow_sum:float SrcDstMap.t) : scheme =
   SrcDstMap.fold
     unnormalized_scheme
     ~init:(SrcDstMap.empty)
     ~f:(fun ~key:(u,v) ~data:f_decomp acc  ->
-	match SrcDstMap.find flow_sum (u,v) with
-	| None -> assert false 
-	| Some sum_rate -> 
-	   ignore (if (sum_rate < 0.) then failwith "sum_rate leq 0. on flow" else ());
-	   let default_value = 1.0 /. (Float.of_int (PathMap.length f_decomp) ) in
-	   let normalized_f_decomp =
-	     PathMap.fold
-	       ~init:(PathMap.empty)
-	       ~f:(fun ~key:path ~data:rate acc ->
-		   let normalized_rate =
-		     if sum_rate = 0. then
-		       default_value
-		     else
-		       rate /. sum_rate in
-		   PathMap.add ~key:path ~data:normalized_rate acc)
-	       f_decomp in
-	   SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc)
+       match SrcDstMap.find flow_sum (u,v) with
+       | None -> assert false
+       | Some sum_rate ->
+           ignore (if (sum_rate < 0.) then failwith "sum_rate leq 0. on flow" else ());
+           let default_value = 1.0 /. (Float.of_int (PathMap.length f_decomp) ) in
+           let normalized_f_decomp =
+             PathMap.fold
+             ~init:(PathMap.empty)
+             ~f:(fun ~key:path ~data:rate acc ->
+               let normalized_rate =
+                 if sum_rate = 0. then
+                   default_value
+                 else
+                   rate /. sum_rate in
+               PathMap.add ~key:path ~data:normalized_rate acc) f_decomp in
+             SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc)
 
 let initialize (s:scheme) : unit =
   ignore (if (SrcDstMap.is_empty s) then failwith "SemiMcf must be initialized with a non-empty scheme" else ());
@@ -295,8 +311,7 @@ let initialize (s:scheme) : unit =
   ()
 
 let solve (topo:topology) (d:demands) : scheme =
-  ignore (if (SrcDstMap.is_empty !prev_scheme) then failwith "Kulfi_SemiMcf must have with a non-empty scheme" else ());
-
+  ignore (if (SrcDstMap.is_empty !prev_scheme) then failwith "Kulfi_SemiMcf: scheme in previous iteration was empty!" else ());
   Printf.printf "invoking semimcf solve\n";
 
   let uuid = ref (-1) in
@@ -311,33 +326,33 @@ let solve (topo:topology) (d:demands) : scheme =
       ~init:(UidMap.empty, PathMap.empty, EdgeMap.empty)
       (* for every pair of hosts u,v *)
       ~f:(fun ~key:(u,v) ~data:paths acc ->
-	  if (u = v) then acc
-	  else
-	    begin
-	      PathMap.fold
-		paths
-		~init:acc
-		(* get the possible paths, and for every path *)
-		~f:(fun ~key:path ~data:_ (umap,pmap,emap) ->
-		    let id = fresh_uid () in
-		    (*Printf.printf "\npath %d\t%d : " id (List.length path);*)
-		    let umap' = UidMap.add ~key:id ~data:(u,v,path) umap in
-		    let pmap' = PathMap.add ~key:path ~data:id pmap in
-		    (* get the edges in the path *)
-		    (* This assertion fails because we have some paths with no edges *)
-		    assert (not (List.is_empty path));
-		    let emap' =
-		      List.fold_left
-			path
-			~init:emap
-			~f:(fun emap e ->
-			    let ids = match (EdgeMap.find emap e ) with
-			      | None -> [id]
-			      | Some ids -> id::ids in
-			    (*Printf.printf "%s " (string_of_edge topo e) ;*)
-			    EdgeMap.add ~key:e ~data:ids emap) in
-		    (umap',pmap',emap'))
-	    end) in
+        if (u = v) then acc
+        else
+          begin
+            PathMap.fold
+              paths
+              ~init:acc
+              (* get the possible paths, and for every path *)
+              ~f:(fun ~key:path ~data:_ (umap,pmap,emap) ->
+                  let id = fresh_uid () in
+                  (*Printf.printf "\npath %d\t%d : " id (List.length path);*)
+                  let umap' = UidMap.add ~key:id ~data:(u,v,path) umap in
+                  let pmap' = PathMap.add ~key:path ~data:id pmap in
+                  (* get the edges in the path *)
+                  (* This assertion fails because we have some paths with no edges *)
+                  assert (not (List.is_empty path));
+                  let emap' =
+                    List.fold_left
+                      path
+                      ~init:emap
+                      ~f:(fun emap e ->
+                        let ids = match (EdgeMap.find emap e ) with
+                          | None -> [id]
+                          | Some ids -> id::ids in
+                              (*Printf.printf "%s " (string_of_edge topo e) ;*)
+                              EdgeMap.add ~key:e ~data:ids emap) in
+                  (umap',pmap',emap'))
+          end) in
 
   assert (not (EdgeMap.is_empty emap));
 
@@ -419,8 +434,4 @@ let solve (topo:topology) (d:demands) : scheme =
          flow_var >= 0
      - Re-normalize for the probabilities
    *)
-  
 
-
-		 
-                 

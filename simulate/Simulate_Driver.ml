@@ -180,9 +180,6 @@ let local_recovery (topo:topology) (curr_scheme:scheme) (failed_links:failure) :
 (* Global recovery: recompute routing scheme after removing failed links *)
 let global_recovery (topo:topology) (failed_links:failure) (predict:demands) (algorithm:solver_type) : scheme =
   Printf.printf "Performing global recovery..\n%!";
-
-  (*  ignore (if ( 1 < (EdgeSet.cardinal failed_links)) then failwith "global_recovery too many failed edges" else ()); *)
-    
   let topo' = Marshal.from_string (Marshal.to_string topo [Marshal.Closures]) 0 in 
   let topo' = EdgeSet.fold failed_links
     ~init:topo'

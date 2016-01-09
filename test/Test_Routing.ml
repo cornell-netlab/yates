@@ -196,51 +196,51 @@ let test_raeke () =
   
 let test_semimcf_mcf () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Mcf.solve topo pairs in
-  let _ = Kulfi_SemiMcf.initialize scheme in
-  let scheme' = Kulfi_SemiMcf.solve topo pairs in
-  all_pairs_connectivity hosts scheme' &&
+  let start_scheme = Kulfi_Mcf.solve topo pairs in
+  Kulfi_SemiMcf.initialize start_scheme;
+  let scheme = Kulfi_SemiMcf.solve topo pairs in
+  all_pairs_connectivity hosts scheme &&
     probabilities_sum_to_one scheme
 
 
 let test_semimcf_vlb () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Vlb.solve topo pairs in
-  let _ = Kulfi_SemiMcf.initialize scheme in
-  let scheme' = Kulfi_SemiMcf.solve topo pairs in
-  all_pairs_connectivity hosts scheme' &&
+  let start_scheme = Kulfi_Vlb.solve topo pairs in
+  Kulfi_SemiMcf.initialize start_scheme;
+  let scheme = Kulfi_SemiMcf.solve topo pairs in
+  all_pairs_connectivity hosts scheme &&
     probabilities_sum_to_one scheme
 
 let test_semimcf_raeke () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Raeke.solve topo pairs in
-  let _ = Kulfi_SemiMcf.initialize scheme in
-  let scheme' = Kulfi_SemiMcf.solve topo pairs in
-  all_pairs_connectivity hosts scheme' &&
+  let start_scheme = Kulfi_Raeke.solve topo pairs in
+  Kulfi_SemiMcf.initialize start_scheme;
+  let scheme = Kulfi_SemiMcf.solve topo pairs in
+  all_pairs_connectivity hosts scheme &&
     probabilities_sum_to_one scheme
 			 
-let test_ak_mcf () = 
+let test_ak_mcf () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Mcf.solve topo pairs in
-  let _ = Kulfi_Ak.initialize scheme in
-  let scheme' = Kulfi_Ak.solve topo pairs in
-  all_pairs_connectivity hosts scheme' &&
+  let start_scheme = Kulfi_Mcf.solve topo pairs in
+  Kulfi_Ak.initialize start_scheme;
+  let scheme = Kulfi_Ak.solve topo pairs in
+  all_pairs_connectivity hosts scheme &&
     probabilities_sum_to_one scheme
 
-let test_ak_vlb () = 
+let test_ak_vlb () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Vlb.solve topo pairs in
-  let _ = Kulfi_Ak.initialize scheme in
-  let scheme' = Kulfi_Ak.solve topo pairs in
-  all_pairs_connectivity hosts scheme' &&
+  let start_scheme = Kulfi_Vlb.solve topo pairs in
+  Kulfi_Ak.initialize start_scheme;
+  let scheme = Kulfi_Ak.solve topo pairs in
+  all_pairs_connectivity hosts scheme &&
     probabilities_sum_to_one scheme
 
-let test_ak_raeke () = 
+let test_ak_raeke () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Raeke.solve topo pairs in
-  let _ = Kulfi_Ak.initialize scheme in
-  let scheme' = Kulfi_Ak.solve topo pairs in
-  all_pairs_connectivity hosts scheme' &&
+  let start_scheme = Kulfi_Raeke.solve topo pairs in
+  Kulfi_Ak.initialize start_scheme;
+  let scheme = Kulfi_Ak.solve topo pairs in
+  all_pairs_connectivity hosts scheme &&
     probabilities_sum_to_one scheme
 			 
 TEST "mcf" = test_mcf () = true
