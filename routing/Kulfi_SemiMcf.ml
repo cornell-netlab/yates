@@ -103,31 +103,14 @@ let capacity_constraints (pmap : path_uid_map) (emap : edge_uidlist_map)
 let demand_constraints (pmap : path_uid_map) (emap : edge_uidlist_map) (topo : topology) (d : demands) (s : scheme)
 		       (init_acc : constrain list) : constrain list =
   (* Every source-sink pair has a demand constraint *)
-  let _ = SrcDstMap.fold d
-  ~init:0
-  ~f:(fun ~key:(ds, dd) ~data:_ acc ->
-    SrcDstMap.fold s
-    ~init:acc
-    ~f:(fun ~key:(ss, sd) ~data:_ acc ->
-      if (ss = ds && sd = dd) then (Printf.printf "(%s,%s) = (%s,%s)\n%!"
-      (name_of_vertex topo ds) (name_of_vertex topo dd) (name_of_vertex topo ss)
-      (name_of_vertex topo sd); acc)
-      else (Printf.printf "(%s,%s) != (%s,%s)\n%!"
-      (name_of_vertex topo ds) (name_of_vertex topo dd) (name_of_vertex topo ss)
-      (name_of_vertex topo sd); acc))) in
-
   SrcDstMap.fold
     ~init:init_acc
     ~f:(fun ~key:(src,dst) ~data:(demand) acc ->
-      Printf.printf "%s %s\n%!" (name_of_vertex topo src) (name_of_vertex topo dst);
       if (src = dst) then acc
 	    else
 	    (* We need to add up the rates for all paths in pmap(src,dst) *)
 	      match SrcDstMap.find s (src,dst) with
-	      | None -> if (demand <= 0.) then acc else (
-            Printf.printf "%s %s\n%!" (name_of_vertex topo src) (name_of_vertex topo dst);
-            Printf.printf "Scheme: %s\n-----\n%!" (dump_scheme topo s);
-            assert false)
+	      | None -> if (demand <= 0.) then acc else (assert false)
 	      | Some flowdec ->
 	          let all_flows = PathMap.fold
 			        ~init:[]
@@ -313,6 +296,23 @@ let initialize (s:scheme) : unit =
 let solve (topo:topology) (d:demands) : scheme =
   ignore (if (SrcDstMap.is_empty !prev_scheme) then failwith "Kulfi_SemiMcf: scheme in previous iteration was empty!" else ());
   Printf.printf "invoking semimcf solve\n";
+
+  (* Begin debug *)
+  (*
+  let _ = SrcDstMap.fold d
+  ~init:0
+  ~f:(fun ~key:(ds, dd) ~data:_ acc ->
+    SrcDstMap.fold !prev_scheme
+    ~init:acc
+    ~f:(fun ~key:(ss, sd) ~data:_ acc ->
+      if (ss = ds && sd = dd) then (Printf.printf "(%s,%s) = (%s,%s)\n%!"
+      (name_of_vertex topo ds) (name_of_vertex topo dd) (name_of_vertex topo ss)
+      (name_of_vertex topo sd); acc)
+      else (Printf.printf "(%s,%s) <> (%s,%s)\n%!"
+      (name_of_vertex topo ds) (name_of_vertex topo dd) (name_of_vertex topo ss)
+      (name_of_vertex topo sd); acc))) in
+  *)
+  (* End debug *)
 
   let uuid = ref (-1) in
   let fresh_uid () =

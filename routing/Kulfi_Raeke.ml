@@ -72,4 +72,6 @@ let solve (t:topology) (d:demands) : scheme =
   prev_scheme := new_scheme;
   new_scheme
 
-let initialize _ = ()
+let initialize (s:scheme) : unit =
+  prev_scheme := s;
+  ()

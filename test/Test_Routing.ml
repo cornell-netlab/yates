@@ -190,6 +190,7 @@ let test_vlb3 () =
     
 let test_raeke () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Raeke.initialize SrcDstMap.empty;
   let scheme = Kulfi_Raeke.solve topo pairs in
   all_pairs_connectivity hosts scheme &&
     probabilities_sum_to_one scheme
@@ -213,9 +214,10 @@ let test_semimcf_vlb () =
 
 let test_semimcf_raeke () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let start_scheme = Kulfi_Raeke.solve topo pairs in
-  Kulfi_SemiMcf.initialize start_scheme;
-  let scheme = Kulfi_SemiMcf.solve topo pairs in
+  Kulfi_Raeke.initialize SrcDstMap.empty;
+  let start_scheme = Kulfi_Routing.Raeke.solve topo pairs in
+  Kulfi_Routing.SemiMcf.initialize start_scheme;
+  let scheme = Kulfi_Routing.SemiMcf.solve topo pairs in
   all_pairs_connectivity hosts scheme &&
     probabilities_sum_to_one scheme
 			 
@@ -237,6 +239,7 @@ let test_ak_vlb () =
 
 let test_ak_raeke () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Raeke.initialize SrcDstMap.empty;
   let start_scheme = Kulfi_Raeke.solve topo pairs in
   Kulfi_Ak.initialize start_scheme;
   let scheme = Kulfi_Ak.solve topo pairs in

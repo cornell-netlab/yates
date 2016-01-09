@@ -83,6 +83,7 @@ let initial_scheme algorithm topo : scheme =
      Kulfi_Routing.Vlb.solve topo SrcDstMap.empty
   | SemiMcfRaeke
   | AkRaeke ->
+     let _ = Kulfi_Routing.Raeke.initialize SrcDstMap.empty in
      Kulfi_Routing.Raeke.solve topo SrcDstMap.empty
   | SemiMcfEcmp
   | AkEcmp ->
@@ -94,7 +95,8 @@ let initial_scheme algorithm topo : scheme =
 
 let initialize_scheme algorithm topo : unit =
   let start_scheme = initial_scheme algorithm topo in
-  Printf.printf "Initializing with scheme: %s\n-----\n%!" (dump_scheme topo start_scheme);
+  Printf.printf "Initializing...\n";
+  (* Printf.printf "%s\n%!" (dump_scheme topo start_scheme); *)
   match algorithm with
   | SemiMcfEcmp
   | SemiMcfKsp
@@ -106,6 +108,7 @@ let initialize_scheme algorithm topo : unit =
   | AkMcf
   | AkRaeke
   | AkVlb -> Kulfi_Routing.Ak.initialize start_scheme
+  | Raeke -> Kulfi_Routing.Raeke.initialize SrcDstMap.empty
   | _ -> ()
 
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
@@ -176,12 +179,18 @@ let local_recovery (topo:topology) (curr_scheme:scheme) (failed_links:failure) :
   new_scheme
 
 (* Global recovery: recompute routing scheme after removing failed links *)
-let global_recovery (topo:topology) (failed_links:failure) (predict:demands) (algorithm:solver_type) : scheme =
+let global_recovery (failed_links:failure) (predict:demands) (algorithm:solver_type) (topo:topology) : scheme =
   Printf.printf "Performing global recovery..\n%!";
-  let topo' = Marshal.from_string (Marshal.to_string topo [Marshal.Closures]) 0 in 
+  let topo = Marshal.from_string (Marshal.to_string topo [Marshal.Closures]) 0 in
   let topo' = EdgeSet.fold failed_links
-    ~init:topo'
+    ~init:topo
     ~f:(fun acc link -> Topology.remove_edge acc link) in
+
+  ignore(EdgeSet.iter failed_links
+  ~f:(fun e -> assert ((EdgeSet.mem (Topology.edges topo) e) &&
+      not (EdgeSet.mem (Topology.edges topo') e)) ););
+  ignore(EdgeSet.iter (Topology.edges topo')
+      ~f:(fun e -> assert (EdgeSet.mem (Topology.edges topo) e)));
 
   initialize_scheme algorithm topo';
   let solve = select_algorithm algorithm in
@@ -190,6 +199,11 @@ let global_recovery (topo:topology) (failed_links:failure) (predict:demands) (al
   (*Printf.printf "New scheme: %s\n-----\n%!" (dump_scheme topo' new_scheme);*)
   Printf.printf "Global recovery.. done\n%!";
   new_scheme
+
+(* Restore the state of solver based on original topology *)
+let restore_solver_state (algorithm:solver_type) (topo:topology) : unit =
+  Printf.printf "Restoring...\n%!";
+  initialize_scheme algorithm topo
 
 let list_last l = match l with
   | hd::tl -> List.fold_left ~f:(fun _ x -> x) ~init:hd tl
@@ -226,7 +240,14 @@ let curr_capacity_of_edge (topo:topology) (link:edge) (fail:failure) : float =
 
 let get_util_based_failure_scenario (topo:topology) (utils: congestion EdgeMap.t) : failure =
   let alpha = 1.0 in
-  let failure_weights = List.map ~f:(fun (e,c) -> (e, c ** alpha)) (EdgeMap.to_alist utils) in
+  let edge_utils = List.filter (EdgeMap.to_alist utils)
+    ~f:(fun (e,_) ->
+      let src,_ = Topology.edge_src e in
+      let src_label = Topology.vertex_to_label topo src in
+      let dst,_ = Topology.edge_dst e in
+      let dst_label = Topology.vertex_to_label topo dst in
+      Node.device src_label <> Node.Host && Node.device dst_label <> Node.Host) in
+  let failure_weights = List.map ~f:(fun (e,c) -> (e, c ** alpha)) edge_utils in
   let total_weight = List.fold_left failure_weights ~init:0.0 ~f:(fun acc (_,w) -> acc +. w) in
   let rand = Random.float total_weight in
   let first_el = match List.hd failure_weights with
@@ -237,18 +258,11 @@ let get_util_based_failure_scenario (topo:topology) (utils: congestion EdgeMap.t
     ~f:(fun (selected,sum) (e,w) ->
       if sum <= 0.0 then (selected,sum)
       else ((e,w), sum -. w)) in
-  let e' = match Topology.inverse_edge topo e with 
-          | Some x -> x 
+  let e' = match Topology.inverse_edge topo e with
+          | Some x -> x
           | None -> assert false in
   EdgeSet.add (EdgeSet.singleton e) e'
-(*
- *
-	let sorted_failure_weights = List.sort ~cmp:(fun x y -> Float.compare (snd x) (snd y)) failure_weights in
-ignore (List.iter sorted_failure_weights
-    ~f:(fun (e,c) -> Printf.printf "%s : %f\n" (dump_edges topo [e]) c));
-  
- *)
-      
+
 (* Create some failure scenario *)
 let rec get_test_failure_scenario (topo:topology) (iter_pos:float) : failure =
   let edge_list = EdgeSet.elements (Topology.edges topo) in
@@ -303,7 +317,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   let failure_time = 10 + steady_state_time in (* static values for testing *)
   let local_recovery_delay = 20 in
   let global_recovery_delay = 50 in
-
+  let topo_modified = ref false in
   let iterations = range 0 (num_iterations + steady_state_time) in
   if local_debug then Printf.printf "%s\n%!" (dump_scheme topo start_scheme);
 
@@ -313,7 +327,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
     ~init:(EdgeMap.empty, SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, start_scheme, EdgeSet.empty, 0.0, 0.0)
     ~f:(fun current_state iter ->
       (* begin iteration *)
-      if false then Printf.printf "--- Iteration : %d ---\n%!" iter;
+      if true then Printf.printf "--- Iteration : %d ---\r%!" iter;
       let (in_traffic, curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_scheme, curr_failed_links, curr_fail_drop, curr_cong_drop) = current_state in
       (* Reset stats when steady state is reached *)
       let curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop =
@@ -324,8 +338,13 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                             else curr_failed_links in
 
       (* local and global recovery *)
-      let new_scheme = if iter = (local_recovery_delay + failure_time) then local_recovery topo curr_scheme failed_links
-                      else if iter = (global_recovery_delay + failure_time) then global_recovery topo failed_links predict algorithm
+      let new_scheme = if iter = (local_recovery_delay + failure_time)
+                        then local_recovery topo curr_scheme failed_links
+                      else if iter = (global_recovery_delay + failure_time)
+                        then begin
+                          topo_modified := true;
+                          global_recovery failed_links predict algorithm topo
+                          end
                       else curr_scheme in
 
       (* probability of taking each path *)
@@ -478,6 +497,9 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
       EdgeMap.add ~key:e ~data:(util /. (Float.of_int (num_iterations)) /. (capacity_of_edge topo e)) acc) in
   let fail_drop = fail_drop /. (Float.of_int num_iterations) in
   let cong_drop = cong_drop /. (Float.of_int num_iterations) in
+  (* if topology was modified, assume all failures are corrected
+   * and restore the solvers to use original topology for next TM *)
+  let _ = if !topo_modified then restore_solver_state algorithm topo else () in
   tput, latency, congestions, fail_drop, cong_drop
 
 let is_int v =
@@ -649,7 +671,7 @@ let simulate
 	let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
 
 	(* we may need to initialize the scheme, and advance both traffic files *)
-	initialize_scheme algorithm topo ;
+	initialize_scheme algorithm topo;
 
 	ignore (
 	    List.fold_left
