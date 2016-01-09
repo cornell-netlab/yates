@@ -10,6 +10,7 @@ open RunningStat
 open ExperimentalData
 open AutoTimer
 open Kulfi_Globals
+open Kulfi_Util
 
 type solver_type =
   | Mcf | MwMcf | Vlb | Ecmp | Ksp | Spf | Raeke
@@ -166,14 +167,14 @@ let local_recovery (topo:topology) (curr_scheme:scheme) (failed_links:failure) :
         let edge_is_safe = not (EdgeSet.mem failed_links edge) in
         valid && edge_is_safe) in
     let n_paths = PathMap.filter ~f:(fun ~key:p ~data:_ -> is_path_alive p) paths in
-    let t_prob = PathMap.fold n_paths
+    let total_prob = PathMap.fold n_paths
       ~init:0.0
       ~f:(fun ~key:_ ~data:prob acc -> acc +. prob) in
-    (* Printf.printf "%f\n" t_prob; *)
+    (* Printf.printf "%f\n" total_prob; *)
     let renormalized_paths = PathMap.fold n_paths
       ~init:PathMap.empty
       ~f:(fun ~key:path ~data:prob acc ->
-        PathMap.add ~key:path ~data:(1.0 /. t_prob *. prob) acc) in
+        PathMap.add ~key:path ~data:(1.0 /. total_prob *. prob) acc) in
     SrcDstMap.add ~key:(src,dst) ~data:renormalized_paths acc) in
   (* Printf.printf "Local: %s\n-----\n" (dump_scheme topo new_scheme); *)
   new_scheme
@@ -194,7 +195,7 @@ let global_recovery (failed_links:failure) (predict:demands) (algorithm:solver_t
 
   initialize_scheme algorithm topo';
   let solve = select_algorithm algorithm in
-  let new_scheme = solve topo' predict in
+  let new_scheme = prune_scheme (solve topo' predict) !Kulfi_Globals.budget in
   ignore (if (SrcDstMap.is_empty new_scheme) then failwith "new_scheme is empty in global driver" else ());
   (*Printf.printf "New scheme: %s\n-----\n%!" (dump_scheme topo' new_scheme);*)
   Printf.printf "Global recovery.. done\n%!";
@@ -204,16 +205,6 @@ let global_recovery (failed_links:failure) (predict:demands) (algorithm:solver_t
 let restore_solver_state (algorithm:solver_type) (topo:topology) : unit =
   Printf.printf "Restoring...\n%!";
   initialize_scheme algorithm topo
-
-let list_last l = match l with
-  | hd::tl -> List.fold_left ~f:(fun _ x -> x) ~init:hd tl
-  | []    -> failwith "no element"
-
-let rec list_next l elem = match l with
-  (* Assumes no duplicate elems in list *)
-  | hd::tl -> if hd = elem then List.hd tl
-              else list_next tl elem
-  | [] -> failwith "not found"
 
 (* Return src and dst for a given path *)
 let get_src_dst_for_path (p:path) =
@@ -327,7 +318,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
     ~init:(EdgeMap.empty, SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, start_scheme, EdgeSet.empty, 0.0, 0.0)
     ~f:(fun current_state iter ->
       (* begin iteration *)
-      if true then Printf.printf "--- Iteration : %d ---\r%!" iter;
+      if true then Printf.printf "%s\t--- Iteration : %d ---\r%!" (solver_to_string algorithm) iter;
       let (in_traffic, curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_scheme, curr_failed_links, curr_fail_drop, curr_cong_drop) = current_state in
       (* Reset stats when steady state is reached *)
       let curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop =
@@ -497,10 +488,13 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
       EdgeMap.add ~key:e ~data:(util /. (Float.of_int (num_iterations)) /. (capacity_of_edge topo e)) acc) in
   let fail_drop = fail_drop /. (Float.of_int num_iterations) in
   let cong_drop = cong_drop /. (Float.of_int num_iterations) in
+
   (* if topology was modified, assume all failures are corrected
    * and restore the solvers to use original topology for next TM *)
   let _ = if !topo_modified then restore_solver_state algorithm topo else () in
+
   tput, latency, congestions, fail_drop, cong_drop
+  (* end simulate_tm *)
 
 let is_int v =
   let p = (Float.modf v) in
@@ -602,7 +596,7 @@ let simulate
 	     (predict_file:string)
 	     (host_file:string)
 	     (iterations:int)
-             (scale:float)
+       (scale:float)
              () : unit =
 
   (* Do some error checking on input *)
@@ -666,7 +660,6 @@ let simulate
 	let topo = Parse.from_dotfile topology_file in
 
 	let solve = select_algorithm algorithm in
-	Printf.printf "Iter: %s\n%!" (solver_to_string algorithm);
 	let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
 	let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
 
@@ -679,13 +672,14 @@ let simulate
 	      ~init:SrcDstMap.empty
 	      ~f:(fun scheme n ->
 
+      Printf.printf "Algorithm: %s \tTM: %d\n%!" (solver_to_string algorithm) n;
 		  (* get the next demand *)
 		  let actual = next_demand ~scale:scale actual_ic actual_host_map in
 		  let predict = next_demand ~scale:scale predict_ic predict_host_map in
 
 		  (* solve *)
 		  start at;
-		  let scheme' = solve topo predict in
+		  let scheme' = prune_scheme (solve topo predict) !Kulfi_Globals.budget in
 		  stop at;
 
 		  let exp_congestions = (congestion_of_paths scheme' topo actual) in
@@ -815,7 +809,7 @@ let calculate_syn_scale (deloop:bool) (topology:string) =
                 let num_hosts = List.length hs in
 		let r = if u = v then 0.0 else 22986934.0 /. Float.of_int(num_hosts * num_hosts) in
 		SrcDstMap.add acc ~key:(u,v) ~data:r)) in
-  let s =Kulfi_Mcf.solve topo demands in
+  let s = Kulfi_Mcf.solve topo demands in
   let expected_congestions = congestion_of_paths s topo demands in
   let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist expected_congestions) in
   let cmax = (get_max_congestion list_of_congestions) in
@@ -849,6 +843,7 @@ let command =
     +> flag "-all" no_arg ~doc:" run all schemes"
     +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
     +> flag "-deloop" no_arg ~doc:" remove loops in paths"
+    +> flag "-budget" (optional int) ~doc:" max paths between each pair of hosts"
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
     +> anon ("predict-file" %: string)
@@ -872,13 +867,15 @@ let command =
 	 (semimcfksp:bool)
 	 (raeke:bool)
 	 (all:bool)
-         (scalesyn:bool)
-         (deloop:bool)
+   (scalesyn:bool)
+   (deloop:bool)
+   (budget:int option)
 	 (topology_file:string)
 	 (demand_file:string)
 	 (predict_file:string)
 	 (host_file:string)
-	 (iterations:int) () ->
+	 (iterations:int)
+   () ->
      let algorithms =
        List.filter_map
          ~f:(fun x -> x)
@@ -901,6 +898,7 @@ let command =
 	 ; if semimcfraeke || all then Some SemiMcfRaeke else None ] in
      let scale = if scalesyn then calculate_syn_scale deloop topology_file else 1.0 in
      Kulfi_Globals.deloop := deloop;
+     ignore(Kulfi_Globals.budget := match budget with | None -> Int.max_value | Some x -> x);
      simulate algorithms topology_file demand_file predict_file host_file iterations scale ()
   )
 

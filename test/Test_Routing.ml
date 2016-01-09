@@ -107,6 +107,17 @@ let probabilities_sum_to_one (s:scheme) : bool =
 	    ~f:(fun ~key:path ~data:r acc -> acc +. r) in
 	acc && (sum_rate > 0.9) && (sum_rate < 1.1) )
 
+
+let check_budget (s:scheme) (n:int) : bool =
+  SrcDstMap.fold
+    s
+    ~init:true
+    ~f:(fun ~key:(u,v) ~data:f_decomp acc ->
+      if u = v then acc
+      else let num_paths = PathMap.length f_decomp in
+      acc && (num_paths <= n))
+
+
 let test_mw () = false
 
 let test_ecmp () =
@@ -268,6 +279,31 @@ let test_ak_raeke () =
   all_pairs_connectivity hosts scheme &&
     probabilities_sum_to_one scheme
 
+let test_budget_raeke () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Raeke.initialize SrcDstMap.empty;
+  let scheme = prune_scheme (Kulfi_Raeke.solve topo pairs) 1 in
+  all_pairs_connectivity hosts scheme &&
+    probabilities_sum_to_one scheme &&
+    check_budget scheme 1
+
+let test_budget_mcf () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme =
+    prune_scheme (Kulfi_Mcf.solve topo pairs) 1 in
+  all_pairs_connectivity hosts scheme &&
+    probabilities_sum_to_one scheme &&
+    check_budget scheme 1
+
+let test_budget_semimcf_vlb () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let start_scheme = Kulfi_Vlb.solve topo pairs in
+  Kulfi_SemiMcf.initialize start_scheme;
+  let scheme = prune_scheme (Kulfi_SemiMcf.solve topo pairs) 1 in
+  all_pairs_connectivity hosts scheme &&
+    probabilities_sum_to_one scheme &&
+    check_budget scheme 1
+
 TEST "spf" = test_spf () = true
 
 TEST "ecmp" = test_ecmp () = true
@@ -305,4 +341,10 @@ TEST "semimcf_vlb" = test_semimcf_vlb () = true
 TEST "semimcf_raeke" = test_semimcf_raeke () = true
 
 TEST "mwmcf" = test_mwmcf () = true
+
+TEST "budget_raeke" = test_budget_raeke () = true
+
+TEST "budget_mcf" = test_budget_mcf () = true
+
+TEST "budget_semimcf_vlb" = test_budget_semimcf_vlb () = true
 

@@ -40,3 +40,40 @@ let write_to_file filename text_to_write =
     Out_channel.close cout
   with _ as e ->
     Format.printf "Cannot open file \"%s\": %s\n" filename (Exn.to_string e)
+
+let list_last l = match l with
+  | hd::tl -> List.fold_left ~f:(fun _ x -> x) ~init:hd tl
+  | []    -> failwith "no element"
+
+let rec list_next l elem = match l with
+  (* Assumes no duplicate elems in list *)
+  | hd::tl -> if hd = elem then List.hd tl
+              else list_next tl elem
+  | [] -> failwith "not found"
+
+(* sublist containing first n elements *)
+let rec list_first_n l n =
+  if n = 0 then []
+  else match l with
+  | hd::tl -> hd::(list_first_n tl (n-1))
+  | [] -> failwith "not enough elements"
+
+(* prune a scheme by limiting number of s-d paths within a given budget *)
+let prune_scheme (s:scheme) (budget:int) : scheme =
+  let new_scheme = SrcDstMap.fold s
+    ~init:SrcDstMap.empty
+    ~f:(fun ~key:(src,dst) ~data:paths acc ->
+      let pruned_paths = if PathMap.length paths <= budget then paths
+              else
+                let pplist = PathMap.to_alist paths in
+                let sorted_pp = List.sort ~cmp:(fun x y -> Float.compare (snd y) (snd x)) pplist in
+                let top_pp = list_first_n sorted_pp budget in
+                let total_prob = List.fold_left top_pp ~init:0.0 ~f:(fun acc (_,prob) -> acc +. prob) in
+                List.fold_left top_pp
+                  ~init:PathMap.empty
+                  ~f:(fun acc (path,prob) -> PathMap.add acc ~key:path ~data:(prob /. total_prob))
+                in
+      SrcDstMap.add acc ~key:(src,dst) ~data:pruned_paths) in
+  new_scheme
+
+

@@ -31,11 +31,12 @@ let kulfi_main_cmd =
       +> flag "-raeke" no_arg ~doc:" run raeke"
       +> flag "-init" (optional string) ~doc:" solver to inititialize input
       scheme [ecmp|ksp|mcf|raeke|vlb]"
+      +> flag "-budget" (optional int) ~doc:" max paths between each pair of hosts"
       +> anon ("topology-file" %: string)
       +> anon ("actual-file" %: string)
       +> anon ("predicted-file" %: string)
       +> anon ("host-file" %: string)
-      ) 
+      )
     (fun (ak:bool)
 	 (ecmp:bool)
 	 (ksp:bool)
@@ -45,12 +46,14 @@ let kulfi_main_cmd =
 	 (smcf:bool)
 	 (raeke:bool)
 	 (init_str:string option)
+   (budget:int option)
 	 (topo_fn:string)
 	 (actual_fn:string)
 	 (predicted_fn:string)
 	 (host_fn:string) () ->
+     ignore(Kulfi_Globals.budget := match budget with | None -> Int.max_value | Some x -> x);
      let algorithm =
-       if ak then Spf 
+       if ak then Spf
        else if ecmp then Ecmp
        else if ksp then Ksp
        else if mcf then Mcf

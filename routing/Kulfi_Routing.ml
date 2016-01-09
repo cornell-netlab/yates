@@ -1,5 +1,5 @@
 open Kulfi_Types
-                 
+
 module type Algorithm = sig
   val solve : topology -> demands -> scheme
   val initialize : scheme -> unit
