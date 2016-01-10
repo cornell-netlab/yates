@@ -18,5 +18,5 @@ LDFLAGS   += \
 endif
 
 
-include ../Makefile.lib
+include ../Makefile.library
 
