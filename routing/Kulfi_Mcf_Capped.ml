@@ -3,6 +3,7 @@ open Kulfi_Types
 open Frenetic_Network
 open Net
 open Core.Std
+open Kulfi_LP_Lang
 
 (*
 LP that uses polynomially many binary-valued variables, which solves MCF with a capped number of paths.
@@ -58,9 +59,24 @@ Finally, we have non-negative real-valued variables a_{e,i} and b_{i,s,t} denoti
   (The total amount of flow on e doesn't violate its capacity.)
 
  *)
-       
+				 		     
+let mk_objective () : arith_exp =
+  Var "Z"
+      
+let mk_constraints (topo : Topology.t) (demand_pairs : demands) (k:int) (l:int) : (constrain list) =
+  let constr = Eq ("foo", Var "x", 0.) in
+  [constr]
 
-let solve (topo:topology) (pairs:demands) (s:scheme) : scheme =
+let mk_lp (topo : Topology.t) (demand_pairs : demands) (k:int) (l:int) : lp =
+  let o = mk_objective () in
+  let c = mk_constraints topo demand_pairs k l in
+  (o, c)
+	 	 
+let solve (topo:topology) (pairs:demands) : scheme =
+  let k = 10 in (* total number of paths allowed in the MCF solution *) 
+  let l = 16 in (* maximum allowable path length *) 
+  let lp = mk_lp topo pairs k l in
+  Printf.printf "%s" (string_of_lp lp);
   assert false
 
   

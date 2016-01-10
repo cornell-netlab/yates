@@ -13,6 +13,7 @@
 *.sol
 *.swp
 *.symvers
+*.dat
 _build
 _tags
 data/demands/abilene

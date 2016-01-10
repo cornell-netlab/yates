@@ -1,4 +1,4 @@
 open Kulfi_Types
 
-val solve : topology -> demands -> scheme -> scheme
+val solve : topology -> demands -> scheme
 

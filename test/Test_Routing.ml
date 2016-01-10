@@ -293,6 +293,14 @@ let test_budget_mcf () =
     prune_scheme (Kulfi_Mcf.solve topo pairs) 1 in
   all_pairs_connectivity hosts scheme &&
     probabilities_sum_to_one scheme &&
+      check_budget scheme 1
+
+let test_capped_mcf () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme =
+    prune_scheme (Kulfi_Mcf_Capped.solve topo pairs) 1 in
+  all_pairs_connectivity hosts scheme &&
+    probabilities_sum_to_one scheme &&
     check_budget scheme 1
 
 let test_budget_semimcf_vlb () =
@@ -345,6 +353,8 @@ TEST "mwmcf" = test_mwmcf () = true
 TEST "budget_raeke" = test_budget_raeke () = true
 
 TEST "budget_mcf" = test_budget_mcf () = true
+
+(*					   TEST "capped_mcf" = test_capped_mcf () = true *)
 
 TEST "budget_semimcf_vlb" = test_budget_semimcf_vlb () = true
 
