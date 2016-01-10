@@ -62,10 +62,56 @@ Finally, we have non-negative real-valued variables a_{e,i} and b_{i,s,t} denoti
 				 		     
 let mk_objective () : arith_exp =
   Var "Z"
-      
+
+
+let range (i:int) (j:int) : (int list) = 
+  let rec aux n acc =
+    if n < i then acc else aux (n-1) (n :: acc)
+  in aux j [] 
+	 
+
+(*
+ (c1) for all i,j:
+  the sum of x_{e,i,j} over all edges e is at most 1.
+  (A path can have at most one j-th hop.)
+(c2) for all edges e, all i, and all j>1:
+  x_{e,i,j} is less or equal to the sum of x_{e',i,j-1} over all edges e' coming into v.
+  (If a path contains an edge leaving v, and it is not the first edge on the path, then the path must contain an edge coming into v.)
+(c3) for all vertices v, and all i:
+  the sum of x_{e,i,j} over all j and all edges e leaving v is at most 1.
+  Similarly, the sum of x_{e,i,j} over all j and all edges e coming into v is at most 1.
+  (A path cannot enter or leave a vertex twice.)
+ *)
+
+
+let x_var topo e i j =
+  let src,_ = Topology.edge_src e in
+  let dst,_ = Topology.edge_dst e in
+  Printf.sprintf "x_%s--%s_%d_%d"
+		 (name_of_vertex topo dst) (name_of_vertex topo src) i j
+		 
 let mk_constraints (topo : Topology.t) (demand_pairs : demands) (k:int) (l:int) : (constrain list) =
-  let constr = Eq ("foo", Var "x", 0.) in
-  [constr]
+
+  let is = (range 1 k) in (* i from 1 to k *)
+  let js = (range 1 l) in (* j from 1 to l *)
+  let cs1 =     
+       List.fold_left
+	 is
+	 ~init:[]
+	 ~f:(fun acc i ->
+	     List.fold_left
+	       js
+	       ~init:acc
+	       ~f:(fun acc j ->
+		   let xs = 
+		     Topology.fold_edges
+		       (fun e acc2 -> let x = x_var topo e i j in Var(x)::acc2) topo [] in
+		   let sum = Sum(xs) in
+		   let (c:constrain) = Leq("c1",sum,1.0) in
+		   c::acc )) in
+		  
+  cs1
+
 
 let mk_lp (topo : Topology.t) (demand_pairs : demands) (k:int) (l:int) : lp =
   let o = mk_objective () in

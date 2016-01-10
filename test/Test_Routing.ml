@@ -354,7 +354,7 @@ TEST "budget_raeke" = test_budget_raeke () = true
 
 TEST "budget_mcf" = test_budget_mcf () = true
 
-(*					   TEST "capped_mcf" = test_capped_mcf () = true *)
-
 TEST "budget_semimcf_vlb" = test_budget_semimcf_vlb () = true
+
+							   (* TEST "capped_mcf" = test_capped_mcf () = true *)
 

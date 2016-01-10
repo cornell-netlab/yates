@@ -1,6 +1,11 @@
-open Core.Std
+open Core.Std       
+open Frenetic_Network
+open Net
 
 (* This is stripped down to cover only what we'll need for MCF *)
+
+(* (s,t,r) = node s wants to send to node t at rate r *)
+type demand_pair = Topology.vertex * Topology.vertex * float
        
 type arith_exp =
   | Var of string
@@ -52,6 +57,41 @@ let string_of_constraint c =
   | Geq (name, ae, f) ->
     Printf.sprintf "%s: %s >= %s" name (string_of_aexp ae) (Float.to_string f)
 
+let name_of_vertex topo v =
+  let label = Topology.vertex_to_label topo v in
+  Node.name label
+
+let string_of_edge topo e =
+  let (v1,_) = Topology.edge_src e in
+  let (v2,_) = Topology.edge_dst e in
+  Printf.sprintf "%s--%s"
+    (name_of_vertex topo v1)
+    (name_of_vertex topo v2)
+
+let string_of_pair topo (s,t) =
+  Printf.sprintf "%s--%s"
+    (name_of_vertex topo s)
+    (name_of_vertex topo t)
+
+(* Given an edge (i,j) and a source-sink pair (s,t),
+ * returns the name of the variable representing the
+ * flow on (i,j) originating from s and going to t. *)
+let var_name topo edge d_pair =
+  let src,_ = Topology.edge_src edge in
+  let dst,_ = Topology.edge_dst edge in
+  Printf.sprintf "f_%s_%s--%s"
+    (string_of_pair topo d_pair)
+    (name_of_vertex topo src)
+    (name_of_vertex topo dst)
+
+(* Same as above, but for the flow in the reverse direction (j,i). *)
+let var_name_rev topo edge d_pair =
+  let src,_ = Topology.edge_src edge in
+  let dst,_ = Topology.edge_dst edge in
+  Printf.sprintf "f_%s_%s--%s"
+    (string_of_pair topo d_pair)
+    (name_of_vertex topo dst)
+    (name_of_vertex topo src)		   
 
 let string_of_lp ((objective, constrs) : lp) : string =
   let cs = 
