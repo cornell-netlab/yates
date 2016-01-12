@@ -1,6 +1,8 @@
 open Core.Std
 open Frenetic_Network
 open Kulfi_Types
+open Net
+open Net.Topology
 
 let intercalate f s = function
   | [] ->
@@ -58,8 +60,54 @@ let rec list_first_n l n =
   | hd::tl -> hd::(list_first_n tl (n-1))
   | [] -> failwith "not enough elements"
 
+let get_hosts (topo:topology) =
+  let host_set = VertexSet.filter (Topology.vertexes topo)
+  ~f:(fun v ->
+    let label = Topology.vertex_to_label topo v in
+    Node.device label = Node.Host) in
+  Topology.VertexSet.elements host_set
+
+let all_pairs_connectivity hosts scheme =
+  List.fold_left hosts
+    ~init:true
+    ~f:(fun acc u ->
+      List.fold_left hosts
+        ~init:acc
+        ~f:(fun acc v ->
+	         if u = v then acc
+           else
+             match SrcDstMap.find scheme (u,v) with
+             | None -> false
+             | Some paths -> not (PathMap.is_empty paths)  && acc))
+
+let paths_are_nonempty (s:scheme) : bool =
+    SrcDstMap.fold s
+      ~init:true
+      (* for every pair of hosts u,v *)
+      ~f:(fun ~key:(u,v) ~data:paths acc ->
+        if u = v then true && acc
+        else
+          PathMap.fold paths
+          ~init:acc
+	        (* get the possible paths, and for every path *)
+          ~f:(fun ~key:path ~data:_ acc ->
+		         acc && (not (List.is_empty path))))
+
+let probabilities_sum_to_one (s:scheme) : bool =
+  SrcDstMap.fold s
+    ~init:true
+    ~f:(fun ~key:(u,v) ~data:f_decomp acc ->
+      if u = v then acc
+      else
+        let sum_rate =
+          PathMap.fold f_decomp
+          ~init:0.
+	        ~f:(fun ~key:path ~data:r acc -> acc +. r) in
+	      acc && (sum_rate > 0.9) && (sum_rate < 1.1) )
+
+
 (* prune a scheme by limiting number of s-d paths within a given budget *)
-let prune_scheme (s:scheme) (budget:int) : scheme =
+let prune_scheme (t:topology) (s:scheme) (budget:int) : scheme =
   let new_scheme = SrcDstMap.fold s
     ~init:SrcDstMap.empty
     ~f:(fun ~key:(src,dst) ~data:paths acc ->
@@ -74,6 +122,6 @@ let prune_scheme (s:scheme) (budget:int) : scheme =
                   ~f:(fun acc (path,prob) -> PathMap.add acc ~key:path ~data:(prob /. total_prob))
                 in
       SrcDstMap.add acc ~key:(src,dst) ~data:pruned_paths) in
+  assert (probabilities_sum_to_one new_scheme);
+  assert (all_pairs_connectivity (get_hosts t) new_scheme);
   new_scheme
-
-

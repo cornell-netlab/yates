@@ -39,19 +39,14 @@ let create_tag_hash (t:topology) =
 
 let create_topology_and_demands () =
   let topo = Parse.from_dotfile "./data/topologies/3cycle.dot" in
-  let host_set = VertexSet.filter (Topology.vertexes topo)
-                                  ~f:(fun v ->
-                                      let label = Topology.vertex_to_label topo v in
-                                      Node.device label = Node.Host) in
-  let hs = Topology.VertexSet.elements host_set in
-  let hosts = Array.of_list hs in
+  let hosts = get_hosts topo in
   let demands =
     List.fold_left
-      hs
+    hosts
       ~init:SrcDstMap.empty
       ~f:(fun acc u ->
 	  List.fold_left
-	    hs
+	   hosts 
 	    ~init:acc
 	    ~f:(fun acc v ->
 		let r = if u = v then 0.0 else 500000.0 in
@@ -62,51 +57,6 @@ let create_topology_and_demands () =
   (* Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo); *)
 
   (hosts,topo,demands)
-
-let all_pairs_connectivity hosts scheme =
-  Array.fold
-    hosts
-    ~init:true
-    ~f:(fun acc u ->
-	Array.fold
-	  hosts
-	  ~init:acc
-	  ~f:(fun acc v ->
-	      if u = v then true && acc
-	      else
-		match SrcDstMap.find scheme (u,v) with
-		| None -> 
-		   false
-		| Some paths -> not (PathMap.is_empty paths)  && acc))
-
-let paths_are_nonempty (s:scheme) : bool =
-    SrcDstMap.fold
-      s (* fold over the scheme *)
-      ~init:true
-      (* for every pair of hosts u,v *)
-      ~f:(fun ~key:(u,v) ~data:paths acc ->
-	  if u = v then true && acc
-    else
-	    PathMap.fold
-	      paths
-	      ~init:acc
-	      (* get the possible paths, and for every path *)
-	      ~f:(fun ~key:path ~data:_ acc ->
-		  acc && (not (List.is_empty path))))
-
-let probabilities_sum_to_one (s:scheme) : bool =
-  SrcDstMap.fold
-    s
-    ~init:true
-    ~f:(fun ~key:(u,v) ~data:f_decomp acc ->
-      if u = v then acc
-      else
-	let sum_rate =
-	  PathMap.fold f_decomp
-	    ~init:0.
-	    ~f:(fun ~key:path ~data:r acc -> acc +. r) in
-	acc && (sum_rate > 0.9) && (sum_rate < 1.1) )
-
 
 let check_budget (s:scheme) (n:int) : bool =
   SrcDstMap.fold
@@ -149,34 +99,36 @@ let test_spf () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme =
     Kulfi_Spf.solve topo pairs in
-  let h1 = Array.get hosts 0  in
-  let h2 = Array.get hosts 1  in
-  (* TODO(jnf,rjs): could just call sample_scheme here? *)
-  let x = match SrcDstMap.find scheme (h1,h2)  with | None -> assert false | Some x -> x in
-  PathMap.fold x
+  match hosts with
+  | h1::h2::tail ->
+      (* TODO(jnf,rjs): could just call sample_scheme here? *)
+      let x = match SrcDstMap.find scheme (h1,h2)  with | None -> assert false | Some x -> x in
+      PathMap.fold x
     ~init:true
     ~f:( fun ~key:path ~data:_ acc ->
       acc && ((List.length path) = 3) )
+  | _ -> assert false
 
 let test_vlb () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme =
     Kulfi_Vlb.solve topo pairs in
-  let h1 = Array.get hosts 0  in
-  let h2 = Array.get hosts 1  in
-  let paths = match SrcDstMap.find scheme (h1,h2) with | None -> assert false | Some x -> x in
-  (* Printf.printf "VLB set length =%d\n"  (PathMap.length paths); *)
-  (* Printf.printf "%s\n" (dump_scheme topo scheme); *)
-  (PathMap.length paths) = 2
+  match hosts with
+  | h1::h2::tail ->
+      let paths = match SrcDstMap.find scheme (h1,h2) with | None -> assert false | Some x -> x in
+      (* Printf.printf "VLB set length =%d\n"  (PathMap.length paths); *)
+      (* Printf.printf "%s\n" (dump_scheme topo scheme); *)
+      (PathMap.length paths) = 2
+  | _ -> assert false
 
 let test_apsp () =
     let (hosts,topo,pairs) = create_topology_and_demands () in
     let paths = Frenetic_Network.NetPath.all_pairs_shortest_paths ~topo:topo ~f:(fun _ _ -> true) in
-    Array.fold
+    List.fold_left
       hosts
       ~init:true
       ~f:(fun acc u ->
-	  Array.fold
+	  List.fold_left
 	    hosts
 	    ~init:acc
 	    ~f:(fun acc v ->
@@ -186,11 +138,11 @@ let test_apsp () =
 let test_vlb2 () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme = Kulfi_Vlb.solve topo pairs in
-  Array.fold
+  List.fold_left
     hosts
     ~init:true
     ~f:(fun acc u ->
-	Array.fold
+	List.fold_left
 	  hosts
 	  ~init:acc
 	  ~f:(fun acc v ->
@@ -282,7 +234,7 @@ let test_ak_raeke () =
 let test_budget_raeke () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   Kulfi_Raeke.initialize SrcDstMap.empty;
-  let scheme = prune_scheme (Kulfi_Raeke.solve topo pairs) 1 in
+  let scheme = prune_scheme topo (Kulfi_Raeke.solve topo pairs) 1 in
   all_pairs_connectivity hosts scheme &&
     probabilities_sum_to_one scheme &&
     check_budget scheme 1
@@ -290,7 +242,7 @@ let test_budget_raeke () =
 let test_budget_mcf () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme =
-    prune_scheme (Kulfi_Mcf.solve topo pairs) 1 in
+    prune_scheme topo (Kulfi_Mcf.solve topo pairs) 1 in
   all_pairs_connectivity hosts scheme &&
     probabilities_sum_to_one scheme &&
       check_budget scheme 1
@@ -298,7 +250,7 @@ let test_budget_mcf () =
 let test_capped_mcf () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme =
-    prune_scheme (Kulfi_Mcf_Capped.solve topo pairs) 1 in
+    prune_scheme topo (Kulfi_Mcf_Capped.solve topo pairs) 1 in
   all_pairs_connectivity hosts scheme &&
     probabilities_sum_to_one scheme &&
     check_budget scheme 1
@@ -307,7 +259,7 @@ let test_budget_semimcf_vlb () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let start_scheme = Kulfi_Vlb.solve topo pairs in
   Kulfi_SemiMcf.initialize start_scheme;
-  let scheme = prune_scheme (Kulfi_SemiMcf.solve topo pairs) 1 in
+  let scheme = prune_scheme topo (Kulfi_SemiMcf.solve topo pairs) 1 in
   all_pairs_connectivity hosts scheme &&
     probabilities_sum_to_one scheme &&
     check_budget scheme 1

@@ -57,11 +57,7 @@ let select_algorithm solver = match solver with
   | SemiMcfEcmp -> Kulfi_Routing.SemiMcf.solve
 
 let init_mcf_demands (topo:topology) : demands =
-  let host_set = VertexSet.filter (Topology.vertexes topo)
-                                  ~f:(fun v ->
-                                      let label = Topology.vertex_to_label topo v in
-                                      Node.device label = Node.Host) in
-  let hs = Topology.VertexSet.elements host_set in
+  let hs = get_hosts topo in
   List.fold_left
     hs
     ~init:SrcDstMap.empty
@@ -195,7 +191,7 @@ let global_recovery (failed_links:failure) (predict:demands) (algorithm:solver_t
 
   initialize_scheme algorithm topo';
   let solve = select_algorithm algorithm in
-  let new_scheme = prune_scheme (solve topo' predict) !Kulfi_Globals.budget in
+  let new_scheme = prune_scheme topo' (solve topo' predict) !Kulfi_Globals.budget in
   ignore (if (SrcDstMap.is_empty new_scheme) then failwith "new_scheme is empty in global driver" else ());
   (*Printf.printf "New scheme: %s\n-----\n%!" (dump_scheme topo' new_scheme);*)
   Printf.printf "Global recovery.. done\n%!";
@@ -679,7 +675,7 @@ let simulate
 
 		  (* solve *)
 		  start at;
-		  let scheme' = prune_scheme (solve topo predict) !Kulfi_Globals.budget in
+		  let scheme' = prune_scheme topo (solve topo predict) !Kulfi_Globals.budget in
 		  stop at;
 
 		  let exp_congestions = (congestion_of_paths scheme' topo actual) in
@@ -792,11 +788,7 @@ let simulate
    where X is the max congestion we expect to get when run with the new demands *)
 let calculate_syn_scale (deloop:bool) (topology:string) =
   let topo = Parse.from_dotfile topology in
-  let host_set = VertexSet.filter (Topology.vertexes topo)
-                                  ~f:(fun v ->
-                                      let label = Topology.vertex_to_label topo v in
-                                      Node.device label = Node.Host) in
-  let hs = Topology.VertexSet.elements host_set in
+  let hs = get_hosts topo in
   let demands =
     List.fold_left
       hs
