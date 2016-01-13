@@ -253,25 +253,23 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 			for (int iter = 0; iter < period;iter++)
 				outM[curCol][iter] = dataM[curCol][(iter>=1) ? (iter - 1) : 0];
 			int batch = 5;
-			int deg = 3;
+			int deg = 2;
 			for (int iter = period; iter < totRow; iter++)
-				if ((iter-period) %batch==0)
-				{
-					std::vector<double> x;
-					std::vector<double> y;
-					for (int i = 0; i < batch; i++) {
-						x.push_back(i);
-						y.push_back(dataM[curCol][iter - batch + i]);
-					}
+            {
+                std::vector<double> x;
+                std::vector<double> y;
+                for (int i = 0; i < batch; i++) {
+                    x.push_back(i);
+                    y.push_back(dataM[curCol][iter - batch + i]);
+                }
 
-					std::vector<double> coeff;
-					coeff=polyfit(x,y,deg);
-					for (int i = 0; i < batch; i++) {
-						std::vector<double> guess {double(batch+i)};
-						std::vector<double> mg = polyval(coeff, guess);
-						outM[curCol][iter + i] = mg[0];
-					}
-				}
+                std::vector<double> coeff;
+                coeff=polyfit(x,y,deg);
+
+                std::vector<double> guess {double(batch)};
+                std::vector<double> mg = polyval(coeff, guess);
+                outM[curCol][iter] = mg[0];
+            }
 		}
 		writeDemandMatrix(filename + string("_PolyFit"), totRow, col, outM, period, scale);
 		writeDemandMatrix(filename + string("_PolyFit_riskAverse"), totRow, col, outM, period, scale, true, dataM);
