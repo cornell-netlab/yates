@@ -12,7 +12,8 @@
 #include <vector>
 #include <iostream> 
 #include <cassert>
-//#include "openCVFunctions.h"
+#include "polyfit.h"
+#include "openCVFunctions.h"
 
 using namespace std;
 
@@ -20,8 +21,10 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 
 	bool includeLastOneModel = true;
 	bool includeFFT = true;
+	bool includePolyFit = true;
 	bool includeRidgeRegressionModel = true;
 	bool includeLassoRegressionModel = true;
+	bool includeRandomForest = false;
 
 	double ** outM = new double *[col];
 	for (int i = 0; i < col; i++) {
@@ -242,6 +245,35 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 		writeDemandMatrix(filename + string("_LassoRegression"), totRow, col, outM, period, scale);
 		writeDemandMatrix(filename + string("_LassoRegression_riskAverse"), totRow, col, outM, period, scale, true, dataM);
 	}
+	if (includePolyFit) {
+		printf("Current ---------------- PolyFit!\n");
+		for (int curCol = 0; curCol < col; curCol++)
+		{
+			printf("Doing col %i\n", curCol);
+			for (int iter = 0; iter < period;iter++)
+				outM[curCol][iter] = dataM[curCol][(iter>=1) ? (iter - 1) : 0];
+			int batch = 5;
+			int deg = 2;
+			for (int iter = period; iter < totRow; iter++)
+            {
+                std::vector<double> x;
+                std::vector<double> y;
+                for (int i = 0; i < batch; i++) {
+                    x.push_back(i);
+                    y.push_back(dataM[curCol][iter - batch + i]);
+                }
+
+                std::vector<double> coeff;
+                coeff=polyfit(x,y,deg);
+
+                std::vector<double> guess {double(batch)};
+                std::vector<double> mg = polyval(coeff, guess);
+                outM[curCol][iter] = mg[0];
+            }
+		}
+		writeDemandMatrix(filename + string("_PolyFit"), totRow, col, outM, period, scale);
+		writeDemandMatrix(filename + string("_PolyFit_riskAverse"), totRow, col, outM, period, scale, true, dataM);
+	}
 
 	if (includeFFT)
 	{
@@ -256,16 +288,16 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 		kiss_fft_cpx cx_in[nfft], cx_out[nfft];
 		for (int curCol = 0; curCol < col; curCol++)
 		{
+			printf("Doing col %i\n", curCol);
 			for (int iter = 0; iter < period;iter++)
 				outM[curCol][iter] = dataM[curCol][(iter>=1) ? (iter - 1) : 0];
 			int batch = 20;
 			for (int iter = period; iter < totRow; iter++)
 				if ((iter-period) %batch==0)
 				{
-					printf("iter=%i\n", iter);
 					for (int i = 0; i < nfft; i++)
 					{
-						cx_in[i].r = dataM[curCol][iter - i];
+						cx_in[i].r = dataM[curCol][iter - nfft+i];
 						cx_in[i].i = 0;
 					}
 					kiss_fft(cfg, cx_in, cx_out);
@@ -304,6 +336,50 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 		writeDemandMatrix(filename + string("_FFT"), totRow, col, outM, period, scale);
 		writeDemandMatrix(filename + string("_FFT_riskAverse"), totRow, col, outM, period, scale, true, dataM);
 	}
+	if (includeRandomForest) {
+		printf("Current ---------------- Random Forest!\n");
+		const int nfeature = 50;
+		int train_len = 300;
+		Mat samples = Mat::zeros(train_len, nfeature, CV_32F);
+		Mat ans = Mat::zeros(train_len, 1, CV_32F);
+
+		for (int curCol = 0; curCol < col; curCol++)
+		{
+			for (int iter = 0; iter < period;iter++)
+				outM[curCol][iter] = dataM[curCol][(iter>=1) ? (iter - 1) : 0];
+			for (int iter = period; iter < totRow; iter++)
+			{
+				for (int i = iter - train_len; i < iter; i++) //i is the answer point
+				{
+					int pos = i - (iter - train_len);
+					for (int j = 1; j <= nfeature; j++)  // j is one of the features
+						samples.at<float>(pos, j - 1) = dataM[curCol][i - j];
+					ans.at<float> (pos,0)=dataM[curCol][i];
+				}
+				Ptr<TrainData> table = TrainData::create(samples, ROW_SAMPLE, ans);
+				Ptr<RTrees> rtrees = RTrees::create();
+				rtrees->setMaxDepth(4);
+				rtrees->setMinSampleCount(2);
+				rtrees->setRegressionAccuracy(0.f);
+				rtrees->setUseSurrogates(false);
+				rtrees->setMaxCategories(16);
+				rtrees->setPriors(Mat());
+				rtrees->setCalculateVarImportance(false);
+				rtrees->setActiveVarCount(1);
+				rtrees->setTermCriteria(TermCriteria(TermCriteria::MAX_ITER, 5, 0));
+				rtrees->train(table);
+
+				Mat testSample(1, nfeature, CV_32FC1);
+				for (int j = 1; j <= nfeature; j++)
+					testSample.at<float>(j) = outM[curCol][iter - j];
+				outM[curCol][iter] = rtrees->predict(testSample);
+			}
+		}
+		writeDemandMatrix(filename + string("_RandomForest"), totRow, col, outM, period, scale);
+		writeDemandMatrix(filename + string("_RandomForest_riskAverse"), totRow, col, outM, period, scale, true, dataM);
+
+	}
+	
 
 
 
@@ -334,7 +410,6 @@ void mygenerate(int pickwhich, string outputfile, int totRow, double scale, int 
 	assert(readFiles <= 23);
 
 	double ** dataM;
-	//int ret = 0;
 	int col = 144;
 
 	assert(totRow < readFiles * 2016);
