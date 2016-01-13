@@ -249,27 +249,28 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 		printf("Current ---------------- PolyFit!\n");
 		for (int curCol = 0; curCol < col; curCol++)
 		{
-			printf("Doing col %i\n", curCol);
 			for (int iter = 0; iter < period;iter++)
 				outM[curCol][iter] = dataM[curCol][(iter>=1) ? (iter - 1) : 0];
 			int batch = 5;
-			int deg = 2;
+			int deg = 3;
 			for (int iter = period; iter < totRow; iter++)
-            {
-                std::vector<double> x;
-                std::vector<double> y;
-                for (int i = 0; i < batch; i++) {
-                    x.push_back(i);
-                    y.push_back(dataM[curCol][iter - batch + i]);
-                }
+				if ((iter-period) %batch==0)
+				{
+					std::vector<double> x;
+					std::vector<double> y;
+					for (int i = 0; i < batch; i++) {
+						x.push_back(i);
+						y.push_back(dataM[curCol][iter - batch + i]);
+					}
 
-                std::vector<double> coeff;
-                coeff=polyfit(x,y,deg);
-
-                std::vector<double> guess {double(batch)};
-                std::vector<double> mg = polyval(coeff, guess);
-                outM[curCol][iter] = mg[0];
-            }
+					std::vector<double> coeff;
+					coeff=polyfit(x,y,deg);
+					for (int i = 0; i < batch; i++) {
+						std::vector<double> guess {double(batch+i)};
+						std::vector<double> mg = polyval(coeff, guess);
+						outM[curCol][iter + i] = mg[0];
+					}
+				}
 		}
 		writeDemandMatrix(filename + string("_PolyFit"), totRow, col, outM, period, scale);
 		writeDemandMatrix(filename + string("_PolyFit_riskAverse"), totRow, col, outM, period, scale, true, dataM);
@@ -288,50 +289,46 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 		kiss_fft_cpx cx_in[nfft], cx_out[nfft];
 		for (int curCol = 0; curCol < col; curCol++)
 		{
-			printf("Doing col %i\n", curCol);
 			for (int iter = 0; iter < period;iter++)
 				outM[curCol][iter] = dataM[curCol][(iter>=1) ? (iter - 1) : 0];
-			int batch = 20;
 			for (int iter = period; iter < totRow; iter++)
-				if ((iter-period) %batch==0)
+			{
+				for (int i = 0; i < nfft; i++)
 				{
-					for (int i = 0; i < nfft; i++)
-					{
-						cx_in[i].r = dataM[curCol][iter - nfft+i];
-						cx_in[i].i = 0;
-					}
-					kiss_fft(cfg, cx_in, cx_out);
-					for (int i = 0; i < nfft; i++)
-					{
-						cx_out[i].r /= nfft;
-						cx_out[i].i /= nfft;
-					}
-					int position[nfft];
-					for (int i = 0; i < nfft; i++)
-						position[i] = i;
-
-					for (int i = 0; i < nfft - 1; i++)
-						for (int j = i + 1; j < nfft; j++)
-						{
-							double n1 = cxnorm(cx_out[position[i]]);
-							double n2 = cxnorm(cx_out[position[j]]);
-							if (n1 < n2)
-							{
-								int tmp;
-								tmp = position[i];
-								position[i] = position[j];
-								position[j] = tmp;
-							}
-						}
-					for (int i = 10; i < nfft; i++)
-					{
-						cx_out[position[i]].r = 0;
-						cx_out[position[i]].i = 0;
-					}
-					kiss_fft(cfg2, cx_out, cx_in);
-					for (int i = 0; i < batch;i++)
-						outM[curCol][iter+i] = cx_in[i].r;
+					cx_in[i].r = dataM[curCol][iter - nfft+i];
+					cx_in[i].i = 0;
 				}
+				kiss_fft(cfg, cx_in, cx_out);
+				for (int i = 0; i < nfft; i++)
+				{
+					cx_out[i].r /= nfft;
+					cx_out[i].i /= nfft;
+				}
+				int position[nfft];
+				for (int i = 0; i < nfft; i++)
+					position[i] = i;
+
+				for (int i = 0; i < nfft - 1; i++)
+					for (int j = i + 1; j < nfft; j++)
+					{
+						double n1 = cxnorm(cx_out[position[i]]);
+						double n2 = cxnorm(cx_out[position[j]]);
+						if (n1 < n2)
+						{
+							int tmp;
+							tmp = position[i];
+							position[i] = position[j];
+							position[j] = tmp;
+						}
+					}
+				for (int i = 10; i < nfft; i++)
+				{
+					cx_out[position[i]].r = 0;
+					cx_out[position[i]].i = 0;
+				}
+				kiss_fft(cfg2, cx_out, cx_in);
+				outM[curCol][iter] = cx_in[0].r;
+			}
 		}
 		writeDemandMatrix(filename + string("_FFT"), totRow, col, outM, period, scale);
 		writeDemandMatrix(filename + string("_FFT_riskAverse"), totRow, col, outM, period, scale, true, dataM);
