@@ -13,6 +13,7 @@
 #endif
 using namespace cv;
 using namespace std;
+using namespace cv::ml;
 
 /*
 Random Forest: */
@@ -20,7 +21,6 @@ Random Forest: */
 void randomForestTrain(double ** X_dat, double * Y_dat, int d, int n, double avg, void * modelPara, void * additionalStuff)
 {
   
-	vector<int> trainedPointsMarkers;
 	Mat samples = Mat::zeros(n, d, CV_32F);
 	Mat ans = Mat::zeros(n, 1, CV_32F);
 	for (int i = 0; i < n; i++)
@@ -30,7 +30,6 @@ void randomForestTrain(double ** X_dat, double * Y_dat, int d, int n, double avg
 		ans.at<float>(i, 0) = Y_dat[i];
 	}
 
-	/*
 	Ptr<TrainData> table = TrainData::create(samples, ROW_SAMPLE, ans);
 	Ptr<RTrees>* rtrees= (Ptr<RTrees> *) modelPara;
 	(*rtrees)->setMaxDepth(4);
@@ -43,11 +42,9 @@ void randomForestTrain(double ** X_dat, double * Y_dat, int d, int n, double avg
 	(*rtrees)->setActiveVarCount(1);
 	(*rtrees)->setTermCriteria(TermCriteria(TermCriteria::MAX_ITER, 5, 0));
 	(*rtrees)->train(table);
-	*/
 }
 void randomForestPredict(double * x, double * predictY, int d, void * modelPara, void * additionalStuff)
 {
-  /*
   Ptr<RTrees> *rtrees= (Ptr<RTrees>* ) modelPara;
   
   Mat testSample(1, d, CV_32FC1);
@@ -55,5 +52,4 @@ void randomForestPredict(double * x, double * predictY, int d, void * modelPara,
     testSample.at<float>(j) = x[j];
   
   *predictY = (*rtrees)->predict(testSample);
-  */
 }
