@@ -10,7 +10,7 @@ let intercalate f s = function
   | h::t ->
     List.fold_left t ~f:(fun acc x -> acc ^ s ^ f x) ~init:(f h) 
 
-                          
+
 let dump_edges (t:topology) (es:path) : string = 
   intercalate 
     (fun e -> 
@@ -24,7 +24,7 @@ let dump_path_prob_set (t:topology) (pps:probability PathMap.t) : string =
     pps 
     ~f:(fun ~key:path ~data:prob -> Printf.bprintf buf "[%s] @ %f\n" (dump_edges t path) prob);
   Buffer.contents buf
-    
+
 let dump_scheme (t:topology) (s:scheme) : string = 
   let buf = Buffer.create 101 in
   SrcDstMap.iter s ~f:(fun ~key:(v1,v2) ~data:pps ->
@@ -33,7 +33,7 @@ let dump_scheme (t:topology) (s:scheme) : string =
                                       (Node.name (Net.Topology.vertex_to_label t v2))
                                       (dump_path_prob_set t pps));
   Buffer.contents buf
-                  
+
 let write_to_file filename text_to_write =
   try
     let cout = Out_channel.create filename in
@@ -111,7 +111,9 @@ let prune_scheme (t:topology) (s:scheme) (budget:int) : scheme =
   let new_scheme = SrcDstMap.fold s
     ~init:SrcDstMap.empty
     ~f:(fun ~key:(src,dst) ~data:paths acc ->
-      let pruned_paths = if PathMap.length paths <= budget then paths
+      if src = dst then acc
+      else
+        let pruned_paths = if PathMap.length paths <= budget then paths
               else
                 let pplist = PathMap.to_alist paths in
                 let sorted_pp = List.sort ~cmp:(fun x y -> Float.compare (snd y) (snd x)) pplist in
@@ -121,7 +123,7 @@ let prune_scheme (t:topology) (s:scheme) (budget:int) : scheme =
                   ~init:PathMap.empty
                   ~f:(fun acc (path,prob) -> PathMap.add acc ~key:path ~data:(prob /. total_prob))
                 in
-      SrcDstMap.add acc ~key:(src,dst) ~data:pruned_paths) in
+        SrcDstMap.add acc ~key:(src,dst) ~data:pruned_paths) in
   assert (probabilities_sum_to_one new_scheme);
   assert (all_pairs_connectivity (get_hosts t) new_scheme);
   new_scheme

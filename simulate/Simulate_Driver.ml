@@ -92,7 +92,7 @@ let initial_scheme algorithm topo : scheme =
 
 let initialize_scheme algorithm topo : unit =
   let start_scheme = initial_scheme algorithm topo in
-  Printf.printf "Initializing...\n";
+  Printf.printf "Initializing...\r";
   (* Printf.printf "%s\n%!" (dump_scheme topo start_scheme); *)
   match algorithm with
   | SemiMcfEcmp
@@ -177,7 +177,7 @@ let local_recovery (topo:topology) (curr_scheme:scheme) (failed_links:failure) :
 
 (* Global recovery: recompute routing scheme after removing failed links *)
 let global_recovery (failed_links:failure) (predict:demands) (algorithm:solver_type) (topo:topology) : scheme =
-  Printf.printf "Performing global recovery..\n%!";
+  Printf.printf "\t\t\t\tPerforming global recovery..\r%!";
   let topo = Marshal.from_string (Marshal.to_string topo [Marshal.Closures]) 0 in
   let topo' = EdgeSet.fold failed_links
     ~init:topo
@@ -194,12 +194,12 @@ let global_recovery (failed_links:failure) (predict:demands) (algorithm:solver_t
   let new_scheme = prune_scheme topo' (solve topo' predict) !Kulfi_Globals.budget in
   ignore (if (SrcDstMap.is_empty new_scheme) then failwith "new_scheme is empty in global driver" else ());
   (*Printf.printf "New scheme: %s\n-----\n%!" (dump_scheme topo' new_scheme);*)
-  Printf.printf "Global recovery.. done\n%!";
+  Printf.printf "\t\t\tGlobal recovery.. done\r%!";
   new_scheme
 
 (* Restore the state of solver based on original topology *)
 let restore_solver_state (algorithm:solver_type) (topo:topology) : unit =
-  Printf.printf "Restoring...\n%!";
+  Printf.printf "\t\t\t\t\t\tRestoring...\n%!";
   initialize_scheme algorithm topo
 
 (* Return src and dst for a given path *)
@@ -301,7 +301,8 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
 
   let steady_state_time = 10 in (* ideally, should be >= diameter of graph*)
-  let failure_time = 10 + steady_state_time in (* static values for testing *)
+  let failure_time = if EdgeSet.is_empty fail_edges then Int.max_value
+                     else 10 + steady_state_time in (* static values for testing *)
   let local_recovery_delay = 20 in
   let global_recovery_delay = 50 in
   let topo_modified = ref false in
@@ -478,9 +479,14 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
     ~f:(fun ~key:sd ~data:dlvd acc ->
       SrcDstMap.add ~key:sd ~data:(dlvd /. (Float.of_int num_iterations)) acc) in
   let latency = lat_tput_map_map in
-  let congestions = EdgeMap.fold link_utils
+
+  let edge_list = EdgeSet.elements (Topology.edges topo) in
+  let avg_congestions = List.fold_left edge_list
     ~init:EdgeMap.empty
-    ~f:(fun ~key:e ~data:util acc ->
+    ~f:(fun acc e ->
+      let util = match EdgeMap.find link_utils e with
+                | None -> 0.0
+                | Some x -> x in
       EdgeMap.add ~key:e ~data:(util /. (Float.of_int (num_iterations)) /. (capacity_of_edge topo e)) acc) in
   let fail_drop = fail_drop /. (Float.of_int num_iterations) in
   let cong_drop = cong_drop /. (Float.of_int num_iterations) in
@@ -489,7 +495,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
    * and restore the solvers to use original topology for next TM *)
   let _ = if !topo_modified then restore_solver_state algorithm topo else () in
 
-  tput, latency, congestions, fail_drop, cong_drop
+  tput, latency, avg_congestions, fail_drop, cong_drop
   (* end simulate_tm *)
 
 let is_int v =
@@ -682,7 +688,8 @@ let simulate
 		  let list_of_exp_congestions = List.map ~f:snd (EdgeMap.to_alist exp_congestions) in
 		  let sorted_exp_congestions = List.sort ~cmp:(Float.compare) list_of_exp_congestions in
       (* let failing_edges = get_test_failure_scenario topo (Float.of_int n /. Float.of_int iterations) in *)
-      let failing_edges = get_util_based_failure_scenario topo exp_congestions in
+      let failing_edges = if n < iterations/2 then EdgeSet.empty
+          else get_util_based_failure_scenario topo exp_congestions in
 		  let tput,latency,congestions,failure_drop,congestion_drop =
         (simulate_tm scheme' topo actual failing_edges predict algorithm) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in

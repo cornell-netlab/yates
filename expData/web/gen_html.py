@@ -39,7 +39,7 @@ function chksel(id)\n\
 '
 
 #topologies = ['cube5h1EvenDemand', 'cube5h1FarDemand', 'cube5h1NearDemand', 'cycle10EvenDemand', 'cycle10FarDemand', 'cycle10NearDemand', 'gnm20m60EvenDemand', 'gnm20m60FarDemand', 'gnm20m60NearDemand', 'grid5h0EvenDemand', 'grid5h0FarDemand', 'grid5h0NearDemand', 'grid5h1EvenDemand', 'grid5h1FarDemand', 'grid5h1NearDemand', 'PA30per3EvenDemand', 'PA30per3NearDemand']
-topologies = ['abilene']
+topologies = ['grid5h1EvenDemand']
 
 schemes = ['spf', 'ecmp', 'ksp', 'mcf', 'raeke', 'vlb', 'semimcfecmp', 'semimcfksp', 'semimcfmcf', 'semimcfraeke', 'semimcfvlb']
 
@@ -145,7 +145,7 @@ for topo in topologies:
       print '<div id="imgcong'+topo+'" style="display:none">\n\t\t<img src="'+topo+'/CongestionLossVsIterations.svg">\n <br>'+topo + '\n</div>'
 print '</div>'
 
-
+#############################
 
 print '<hr>'
 print 'LATENCY'
@@ -171,6 +171,36 @@ print '<div id="flat">'
 for topo in topologies:
       print '<div id="imglatency'+topo+'" style="display:none">\n\t\t<img src="'+topo+'/LatencyCDF.svg">\n <br>'+topo + '\n</div>'
 print '</div>'
+
+#############################
+
+print '<hr>'
+print 'NUMBER OF PATHS'
+print '<input type=checkbox onclick="chksel(\'numpaths\');"/>' + "Show All"
+print '<hr>'
+print '<div id="numpaths">'
+print '<table style="width:100%">'
+print '<tr>'
+print '<td>'
+print '</td>'
+for topo in topologies:
+    print '<td>'
+    print '<input type=checkbox id="chknumpaths'+ topo +'"onclick="toggledisplay(\'imgnumpaths' + topo +'\');" />'
+    print '<label for="chknumpaths' + topo + '">'+topo+'</label>'
+    print '</td>'
+print '</tr>'
+print '</table>'
+print '</div>'
+
+print '<hr>'
+print '<style>\n#flat {width:100%; margin:0 auto 0 auto; text-align:center;}\n#flat div \n{\ndisplay:inline-block;\n}\n</style>'
+print '<div id="flat">'
+for topo in topologies:
+      print '<div id="imgnumpaths'+topo+'" style="display:none">\n\t\t<img src="'+topo+'/NumPathsVsIterations.svg">\n <br>'+topo + '\n</div>'
+print '</div>'
+
+#############################
+
 
 print '<hr>'
 print 'EDGE CONGESTION (based on simulation)'
