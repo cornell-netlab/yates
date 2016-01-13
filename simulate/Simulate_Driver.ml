@@ -308,11 +308,15 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   let topo_modified = ref false in
   let iterations = range 0 (num_iterations + steady_state_time) in
   if local_debug then Printf.printf "%s\n%!" (dump_scheme topo start_scheme);
-
+  let str_to_edge_map = string_to_edge_map topo in
+  (* Because raeke's implementation mutates topology, "edges" in paths do not
+     * match edges in topology. So, we use the string representation of an edge
+     * to check for equality and use StringMap instead of EdgeMap for link
+     * utilizations and routing *)
   let _,delivered_map,lat_tput_map_map,link_utils,_,_,fail_drop,cong_drop =
   List.fold_left iterations
     (* ingress link traffic, sd-delivered, sd-latency-tput-product, traffic on each edge, scheme, failure, fail_drop, cong_drop *)
-    ~init:(EdgeMap.empty, SrcDstMap.empty, SrcDstMap.empty, StringMap.empty, start_scheme, EdgeSet.empty, 0.0, 0.0)
+    ~init:(StringMap.empty, SrcDstMap.empty, SrcDstMap.empty, StringMap.empty, start_scheme, EdgeSet.empty, 0.0, 0.0)
     ~f:(fun current_state iter ->
       (* begin iteration - time *)
       if true then Printf.printf "%s\t--- Iteration : %d ---\r%!" (solver_to_string algorithm) iter;
@@ -322,6 +326,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
         if iter = steady_state_time then (SrcDstMap.empty, SrcDstMap.empty, StringMap.empty, 0.0, 0.0)
         else (curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop) in
 
+      (* introduce failures *)
       let failed_links = if iter = failure_time then fail_edges
                             else curr_failed_links in
 
@@ -341,32 +346,33 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
       (* Add traffic at source of every path *)
       (* next_iter_traffic : map edge -> in_traffic in next iter *)
       let next_iter_traffic = PathMap.fold path_prob_map
-          ~init:EdgeMap.empty
+          ~init:StringMap.empty
           ~f:(fun ~key:path ~data:(prob,sd_demand) acc ->
               if path = [] then acc else
               let first_link = match List.hd path with
                                 | None -> failwith "Empty path"
                                 | Some x -> x in
-              let sched_traf_first_link = match EdgeMap.find acc first_link with
+              let str_first_link = string_of_edge topo first_link in
+              let sched_traf_first_link = match StringMap.find acc str_first_link with
                                           | None -> PathMap.empty
                                           | Some v -> v in
               let _ = match PathMap.find sched_traf_first_link path with
                       | None -> true
                       | Some x -> failwith "Scheduling duplicate flow at first link" in
               let traf_first_link = PathMap.add ~key:path ~data:(prob *. sd_demand) sched_traf_first_link in
-              EdgeMap.add ~key:first_link ~data:traf_first_link acc) in
+              StringMap.add ~key:str_first_link ~data:traf_first_link acc) in
       (* Done generating traffic at source *)
 
       (* For each link, forward fair share of flows to next links or deliver to destination *)
-      let next_iter_traffic, new_delivered_map, new_lat_tput_map_map, new_link_utils, new_fail_drop, new_cong_drop = EdgeMap.fold in_traffic
+      let next_iter_traffic, new_delivered_map, new_lat_tput_map_map, new_link_utils, new_fail_drop, new_cong_drop = StringMap.fold in_traffic
         ~init:(next_iter_traffic, curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop)
-        ~f:(fun ~key:e ~data:in_queue_edge link_iter_acc ->
+        ~f:(fun ~key:e_str ~data:in_queue_edge link_iter_acc ->
           (* total ingress traffic on link *)
           let demand_on_link = PathMap.fold in_queue_edge
             ~init:0.0
             ~f:(fun ~key:_ ~data:flow_dem link_dem -> link_dem +. flow_dem) in
-
-          if local_debug then Printf.printf "%s: %f / %f\n%!" (dump_edges topo [e]) (demand_on_link /. 1e9) ((curr_capacity_of_edge topo e failed_links) /. 1e9);
+          let e = Kulfi_Types.StringMap.find_exn str_to_edge_map e_str in
+          if local_debug then Printf.printf "%s: %f / %f\n%!" e_str (demand_on_link /. 1e9) ((curr_capacity_of_edge topo e failed_links) /. 1e9);
           let fs_in_queue_edge = if demand_on_link <= (curr_capacity_of_edge topo e failed_links)
             then in_queue_edge
             else
@@ -415,7 +421,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
           ~init:link_iter_acc
           ~f:(fun ~key:path ~data:flow_fair_share acc ->
             let (nit,dlvd_map,ltm_map,lutil_map,_,_) = acc in
-            let next_link_opt = list_next path e in
+            let next_link_opt = next_hop topo path e in
             match next_link_opt with
             | None ->
                 (* End of path, deliver traffic to dst *)
@@ -433,36 +439,36 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                                                 | None -> 0.0
                                                 | Some x -> x in
                 let new_sd_ltm = LatencyMap.add ~key:path_latency ~data:(prev_sd_tput_for_latency +. flow_fair_share) prev_sd_ltm in
-                (*let prev_lutil_link = match EdgeMap.find lutil_map e with*)
-                let prev_lutil_link = match StringMap.find lutil_map (string_of_edge topo e) with
+                let prev_lutil_link = match StringMap.find lutil_map e_str with
                               | None -> 0.0
                               | Some x -> x in
                 let new_dlvd = SrcDstMap.add ~key:(src,dst) ~data:(prev_sd_dlvd +. flow_fair_share) dlvd_map in
                 let new_ltm_map = SrcDstMap.add ~key:(src,dst) ~data:new_sd_ltm ltm_map in
-                let new_lutil_map = StringMap.add ~key:(string_of_edge topo e) ~data:(prev_lutil_link +. flow_fair_share) lutil_map in
+                let new_lutil_map = StringMap.add ~key:e_str ~data:(prev_lutil_link +. flow_fair_share) lutil_map in
                 (nit, new_dlvd, new_ltm_map, new_lutil_map, new_fail_drop, new_cong_drop)
             | Some next_link ->
                 (* Forward traffic to next link *)
-                let sched_traf_next_link = match EdgeMap.find nit next_link with
+                let next_link_str = string_of_edge topo next_link in
+                let sched_traf_next_link = match StringMap.find nit next_link_str with
                     | None -> PathMap.empty
                     | Some v -> v in
                 let _ = match PathMap.find sched_traf_next_link path with
                     | None -> true
                     | Some x -> Printf.printf "%s%!" (dump_edges topo path); failwith "Scheduling duplicate flow at next link" in
                 let traf_next_link = PathMap.add ~key:path ~data:flow_fair_share sched_traf_next_link in
-                let new_nit = EdgeMap.add ~key:next_link ~data:traf_next_link nit in
-                let prev_lutil_link = match StringMap.find lutil_map (string_of_edge topo e) with
+                let new_nit = StringMap.add ~key:next_link_str ~data:traf_next_link nit in
+                let prev_lutil_link = match StringMap.find lutil_map e_str with
                               | None -> 0.0
                               | Some x -> x in
-                let new_lutil_map = StringMap.add ~key:(string_of_edge topo e) ~data:(prev_lutil_link +. flow_fair_share) lutil_map in
+                let new_lutil_map = StringMap.add ~key:e_str ~data:(prev_lutil_link +. flow_fair_share) lutil_map in
                 (new_nit, dlvd_map, ltm_map, new_lutil_map, new_fail_drop, new_cong_drop))) in
       (* Done forwarding for each link*)
 
       (* Print state for debugging *)
       if local_debug then
-          EdgeMap.iter next_iter_traffic
-            ~f:(fun ~key:e ~data:paths_demand ->
-              Printf.printf "%s\n%!" (dump_edges topo [e]);
+          StringMap.iter next_iter_traffic
+            ~f:(fun ~key:e_str ~data:paths_demand ->
+              Printf.printf "%s\n%!" e_str;
               PathMap.iter paths_demand
               ~f:(fun ~key:path ~data:d -> Printf.printf "%s\t%f\n%!" (dump_edges topo path) d));
       if local_debug then SrcDstMap.iter new_delivered_map
@@ -491,7 +497,8 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
       EdgeMap.add ~key:e ~data:(util /. (Float.of_int (num_iterations)) /. (capacity_of_edge topo e)) acc) in
   let fail_drop = fail_drop /. (Float.of_int num_iterations) in
   let cong_drop = cong_drop /. (Float.of_int num_iterations) in
-  ignore(StringMap.iter link_utils ~f:(fun ~key:e ~data:_ -> Printf.printf "%s\n" e));
+  (*ignore(StringMap.iter link_utils ~f:(fun ~key:e ~data:_ -> Printf.printf "%s\n" e));*)
+
   (* if topology was modified, assume all failures are corrected
    * and restore the solvers to use original topology for next TM *)
   let _ = if !topo_modified then restore_solver_state algorithm topo else () in

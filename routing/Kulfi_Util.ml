@@ -24,7 +24,7 @@ let edge_to_string_map (t:topology) : string EdgeMap.t =
     EdgeMap.add acc ~key:e ~data:edge_str)
 
 
-let string_to_edge_map (t:topology) : edge StringMap.t =
+let string_to_edge_map (t:topology) : edge Kulfi_Types.StringMap.t =
   let edge_list = EdgeSet.elements (Topology.edges t) in
   List.fold_left edge_list
   ~init:StringMap.empty
@@ -72,6 +72,13 @@ let rec list_next l elem = match l with
   | hd::tl -> if hd = elem then List.hd tl
               else list_next tl elem
   | [] -> failwith "not found"
+
+let rec next_hop (t:topology) (p:path) (e:edge) = match p with
+  (* Assumes no duplicate elems in list *)
+  | hd::tl -> if (string_of_edge t hd) = (string_of_edge t e) then List.hd tl
+              else next_hop t tl e
+  | [] -> failwith "not found"
+
 
 (* sublist containing first n elements *)
 let rec list_first_n l n =
