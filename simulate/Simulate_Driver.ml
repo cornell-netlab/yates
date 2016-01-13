@@ -312,14 +312,14 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   let _,delivered_map,lat_tput_map_map,link_utils,_,_,fail_drop,cong_drop =
   List.fold_left iterations
     (* ingress link traffic, sd-delivered, sd-latency-tput-product, traffic on each edge, scheme, failure, fail_drop, cong_drop *)
-    ~init:(EdgeMap.empty, SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, start_scheme, EdgeSet.empty, 0.0, 0.0)
+    ~init:(EdgeMap.empty, SrcDstMap.empty, SrcDstMap.empty, StringMap.empty, start_scheme, EdgeSet.empty, 0.0, 0.0)
     ~f:(fun current_state iter ->
-      (* begin iteration *)
+      (* begin iteration - time *)
       if true then Printf.printf "%s\t--- Iteration : %d ---\r%!" (solver_to_string algorithm) iter;
       let (in_traffic, curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_scheme, curr_failed_links, curr_fail_drop, curr_cong_drop) = current_state in
       (* Reset stats when steady state is reached *)
       let curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop =
-        if iter = steady_state_time then (SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, 0.0, 0.0)
+        if iter = steady_state_time then (SrcDstMap.empty, SrcDstMap.empty, StringMap.empty, 0.0, 0.0)
         else (curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop) in
 
       let failed_links = if iter = failure_time then fail_edges
@@ -433,12 +433,13 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                                                 | None -> 0.0
                                                 | Some x -> x in
                 let new_sd_ltm = LatencyMap.add ~key:path_latency ~data:(prev_sd_tput_for_latency +. flow_fair_share) prev_sd_ltm in
-                let prev_lutil_link = match EdgeMap.find lutil_map e with
+                (*let prev_lutil_link = match EdgeMap.find lutil_map e with*)
+                let prev_lutil_link = match StringMap.find lutil_map (string_of_edge topo e) with
                               | None -> 0.0
                               | Some x -> x in
                 let new_dlvd = SrcDstMap.add ~key:(src,dst) ~data:(prev_sd_dlvd +. flow_fair_share) dlvd_map in
                 let new_ltm_map = SrcDstMap.add ~key:(src,dst) ~data:new_sd_ltm ltm_map in
-                let new_lutil_map = EdgeMap.add ~key:e ~data:(prev_lutil_link +. flow_fair_share) lutil_map in
+                let new_lutil_map = StringMap.add ~key:(string_of_edge topo e) ~data:(prev_lutil_link +. flow_fair_share) lutil_map in
                 (nit, new_dlvd, new_ltm_map, new_lutil_map, new_fail_drop, new_cong_drop)
             | Some next_link ->
                 (* Forward traffic to next link *)
@@ -450,10 +451,10 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                     | Some x -> Printf.printf "%s%!" (dump_edges topo path); failwith "Scheduling duplicate flow at next link" in
                 let traf_next_link = PathMap.add ~key:path ~data:flow_fair_share sched_traf_next_link in
                 let new_nit = EdgeMap.add ~key:next_link ~data:traf_next_link nit in
-                let prev_lutil_link = match EdgeMap.find lutil_map e with
+                let prev_lutil_link = match StringMap.find lutil_map (string_of_edge topo e) with
                               | None -> 0.0
                               | Some x -> x in
-                let new_lutil_map = EdgeMap.add ~key:e ~data:(prev_lutil_link +. flow_fair_share) lutil_map in
+                let new_lutil_map = StringMap.add ~key:(string_of_edge topo e) ~data:(prev_lutil_link +. flow_fair_share) lutil_map in
                 (new_nit, dlvd_map, ltm_map, new_lutil_map, new_fail_drop, new_cong_drop))) in
       (* Done forwarding for each link*)
 
@@ -484,13 +485,13 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   let avg_congestions = List.fold_left edge_list
     ~init:EdgeMap.empty
     ~f:(fun acc e ->
-      let util = match EdgeMap.find link_utils e with
+      let util = match StringMap.find link_utils (string_of_edge topo e) with
                 | None -> 0.0
                 | Some x -> x in
       EdgeMap.add ~key:e ~data:(util /. (Float.of_int (num_iterations)) /. (capacity_of_edge topo e)) acc) in
   let fail_drop = fail_drop /. (Float.of_int num_iterations) in
   let cong_drop = cong_drop /. (Float.of_int num_iterations) in
-
+  ignore(StringMap.iter link_utils ~f:(fun ~key:e ~data:_ -> Printf.printf "%s\n" e));
   (* if topology was modified, assume all failures are corrected
    * and restore the solvers to use original topology for next TM *)
   let _ = if !topo_modified then restore_solver_state algorithm topo else () in

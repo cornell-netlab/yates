@@ -45,6 +45,10 @@ module PathMap = Map.Make(PathOrd)
 
 module IntMap = Map.Make(Int)
 
+module StringMap = Map.Make(String)
+
+type edgestr_util_map = congestion StringMap.t
+
 type index_map = Topology.vertex IntMap.t
 
 module Latency = Float
@@ -78,7 +82,6 @@ end
                      
 module SrcDstMap = Map.Make(SrcDstOrd)
 
-module StringMap = Map.Make(String)
 
 type node_map = Node.t StringMap.t			   
 			   

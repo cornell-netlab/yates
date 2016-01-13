@@ -10,8 +10,28 @@ let intercalate f s = function
   | h::t ->
     List.fold_left t ~f:(fun acc x -> acc ^ s ^ f x) ~init:(f h) 
 
+let string_of_edge (t:topology) (e:edge) : string =
+  Printf.sprintf "(%s,%s)"
+                    (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_src e))))
+                    (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_dst e))))
 
-let dump_edges (t:topology) (es:path) : string = 
+let edge_to_string_map (t:topology) : string EdgeMap.t =
+  let edge_list = EdgeSet.elements (Topology.edges t) in
+  List.fold_left edge_list
+  ~init:EdgeMap.empty
+  ~f:(fun acc e ->
+    let edge_str = (string_of_edge t e) in
+    EdgeMap.add acc ~key:e ~data:edge_str)
+
+
+let string_to_edge_map (t:topology) : edge StringMap.t =
+  let edge_list = EdgeSet.elements (Topology.edges t) in
+  List.fold_left edge_list
+  ~init:StringMap.empty
+  ~f:(fun acc e -> StringMap.add acc ~key:(string_of_edge t e) ~data:e)
+
+(* dump a list of edges *)
+let dump_edges (t:topology) (es:path) : string =
   intercalate 
     (fun e -> 
      Printf.sprintf "(%s,%s)" 
