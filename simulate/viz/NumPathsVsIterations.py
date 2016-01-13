@@ -29,15 +29,13 @@ def main(dirn, fname, solvers):
     xs_arr = np.asarray(xs)
     xs_arr = xs_arr + random.random()
     ax.errorbar(xs_arr, ys, yerr=ydevs, label=solver, marker=mrkrs[index], linestyle=fmts[index])
-    print index
     index = index + 1
 
   ax.set_xlabel(X_LABEL);
   ax.set_ylabel(Y_LABEL);
   ax.legend(loc='best', fancybox=True)
 
-  pp.savefig(dirn+"/"+fname+"-".join(solvers)+".pdf")
-  pp.show()
+  pp.savefig(dirn+"/"+fname+"-".join(solvers)+".svg")
 
 if __name__ == "__main__":
   if len(sys.argv) < 2:
