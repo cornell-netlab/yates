@@ -34,14 +34,17 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 	writeDemandMatrix(filename, totRow, col, dataM, period, scale);
 	writeDemandMatrix(filename + string("+notaALG+wthBurnIn"), totRow, col, dataM, 0, scale);
 
-	for (int i = 0; i < col; i++)
-		for (int j = 0; j < totRow; j++)
-		{
-			if (rand() % 2 == 0)
-				outM[i][j] = dataM[i][j]  *(1+ noiselevel*double(getRandNum(10000)) / 10000);
-			else 
-				outM[i][j] = dataM[i][j]  *(1- noiselevel*double(getRandNum(10000)) / 10000);
-		}
+    if (noiselevel>1e-12){
+      for (int i = 0; i < col; i++)
+          for (int j = 0; j < totRow; j++)
+          {
+              if (rand() % 2 == 0)
+                  outM[i][j] = dataM[i][j]  *(1+ noiselevel*double(getRandNum(10000)) / 10000);
+              else 
+                  outM[i][j] = dataM[i][j]  *(1- noiselevel*double(getRandNum(10000)) / 10000);
+          }
+      writeDemandMatrix(filename + string("_noisy"), totRow, col, outM, period, scale);
+    }
 
 
 	//Possible choices:
