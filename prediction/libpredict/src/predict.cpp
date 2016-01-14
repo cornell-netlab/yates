@@ -13,7 +13,7 @@
 #include <iostream> 
 #include <cassert>
 #include "polyfit.h"
-#include "openCVFunctions.h"
+//#include "openCVFunctions.h"
 
 using namespace std;
 
@@ -336,6 +336,7 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 		writeDemandMatrix(filename + string("_FFT"), totRow, col, outM, period, scale);
 		writeDemandMatrix(filename + string("_FFT_riskAverse"), totRow, col, outM, period, scale, true, dataM);
 	}
+      /*
 	if (includeRandomForest) {
 		printf("Current ---------------- Random Forest!\n");
 		const int nfeature = 50;
@@ -377,8 +378,8 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 		}
 		writeDemandMatrix(filename + string("_RandomForest"), totRow, col, outM, period, scale);
 		writeDemandMatrix(filename + string("_RandomForest_riskAverse"), totRow, col, outM, period, scale, true, dataM);
-
 	}
+        */
 	
 
 
