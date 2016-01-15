@@ -94,7 +94,7 @@ let get_hosts (topo:topology) =
     Node.device label = Node.Host) in
   Topology.VertexSet.elements host_set
 
-let all_pairs_connectivity hosts scheme =
+let all_pairs_connectivity topo hosts scheme : bool =
   List.fold_left hosts
     ~init:true
     ~f:(fun acc u ->
@@ -104,8 +104,11 @@ let all_pairs_connectivity hosts scheme =
 	         if u = v then acc
            else
              match SrcDstMap.find scheme (u,v) with
-             | None -> false
+             | None -> Printf.printf "No route for pair (%s, %s)\n%!"
+             (Node.name (Net.Topology.vertex_to_label topo u))
+             (Node.name (Net.Topology.vertex_to_label topo v)); false
              | Some paths -> not (PathMap.is_empty paths)  && acc))
+
 
 let paths_are_nonempty (s:scheme) : bool =
     SrcDstMap.fold s
@@ -152,5 +155,5 @@ let prune_scheme (t:topology) (s:scheme) (budget:int) : scheme =
                 in
         SrcDstMap.add acc ~key:(src,dst) ~data:pruned_paths) in
   assert (probabilities_sum_to_one new_scheme);
-  assert (all_pairs_connectivity (get_hosts t) new_scheme);
+  assert (all_pairs_connectivity t (get_hosts t) new_scheme);
   new_scheme

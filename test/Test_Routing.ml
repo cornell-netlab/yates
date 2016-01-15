@@ -78,21 +78,21 @@ let test_ecmp () =
 let test_ksp () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme = Kulfi_Ksp.solve topo pairs in
-  all_pairs_connectivity hosts scheme &&
+  all_pairs_connectivity topo hosts scheme &&
   probabilities_sum_to_one scheme
 
 let test_mcf () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme =
     Kulfi_Mcf.solve topo pairs in
-  all_pairs_connectivity hosts scheme &&
+  all_pairs_connectivity topo hosts scheme &&
     probabilities_sum_to_one scheme
 
 let test_mwmcf () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme =
     Kulfi_Mcf.solve topo pairs in
-  all_pairs_connectivity hosts scheme &&
+  all_pairs_connectivity topo hosts scheme &&
     probabilities_sum_to_one scheme
 
 let test_spf () =
@@ -162,7 +162,7 @@ let test_raeke () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   Kulfi_Raeke.initialize SrcDstMap.empty;
   let scheme = Kulfi_Raeke.solve topo pairs in
-  all_pairs_connectivity hosts scheme &&
+  all_pairs_connectivity topo hosts scheme &&
     probabilities_sum_to_one scheme
 
 let test_semimcf_mcf () =
@@ -170,7 +170,7 @@ let test_semimcf_mcf () =
   let start_scheme = Kulfi_Mcf.solve topo pairs in
   Kulfi_SemiMcf.initialize start_scheme;
   let scheme = Kulfi_SemiMcf.solve topo pairs in
-  all_pairs_connectivity hosts scheme &&
+  all_pairs_connectivity topo hosts scheme &&
     probabilities_sum_to_one scheme
 
 let test_semimcf_ksp () =
@@ -178,7 +178,7 @@ let test_semimcf_ksp () =
   let start_scheme = Kulfi_Ksp.solve topo pairs in
   Kulfi_SemiMcf.initialize start_scheme;
   let scheme = Kulfi_SemiMcf.solve topo pairs in
-  all_pairs_connectivity hosts scheme &&
+  all_pairs_connectivity topo hosts scheme &&
     probabilities_sum_to_one scheme
 
 let test_semimcf_vlb () =
@@ -186,7 +186,7 @@ let test_semimcf_vlb () =
   let start_scheme = Kulfi_Vlb.solve topo pairs in
   Kulfi_SemiMcf.initialize start_scheme;
   let scheme = Kulfi_SemiMcf.solve topo pairs in
-  all_pairs_connectivity hosts scheme &&
+  all_pairs_connectivity topo hosts scheme &&
     probabilities_sum_to_one scheme
 
 let test_semimcf_raeke () =
@@ -195,7 +195,7 @@ let test_semimcf_raeke () =
   let start_scheme = Kulfi_Routing.Raeke.solve topo pairs in
   Kulfi_Routing.SemiMcf.initialize start_scheme;
   let scheme = Kulfi_Routing.SemiMcf.solve topo pairs in
-  all_pairs_connectivity hosts scheme &&
+  all_pairs_connectivity topo hosts scheme &&
     probabilities_sum_to_one scheme
 
 let test_ak_mcf () =
@@ -203,7 +203,7 @@ let test_ak_mcf () =
   let start_scheme = Kulfi_Mcf.solve topo pairs in
   Kulfi_Ak.initialize start_scheme;
   let scheme = Kulfi_Ak.solve topo pairs in
-  all_pairs_connectivity hosts scheme &&
+  all_pairs_connectivity topo hosts scheme &&
     probabilities_sum_to_one scheme
 
 let test_ak_ksp () =
@@ -211,7 +211,7 @@ let test_ak_ksp () =
   let start_scheme = Kulfi_Ksp.solve topo pairs in
   Kulfi_Ak.initialize start_scheme;
   let scheme = Kulfi_Ak.solve topo pairs in
-  all_pairs_connectivity hosts scheme &&
+  all_pairs_connectivity topo hosts scheme &&
     probabilities_sum_to_one scheme
 
 let test_ak_vlb () =
@@ -219,7 +219,7 @@ let test_ak_vlb () =
   let start_scheme = Kulfi_Vlb.solve topo pairs in
   Kulfi_Ak.initialize start_scheme;
   let scheme = Kulfi_Ak.solve topo pairs in
-  all_pairs_connectivity hosts scheme &&
+  all_pairs_connectivity topo hosts scheme &&
     probabilities_sum_to_one scheme
 
 let test_ak_raeke () =
@@ -228,14 +228,14 @@ let test_ak_raeke () =
   let start_scheme = Kulfi_Raeke.solve topo pairs in
   Kulfi_Ak.initialize start_scheme;
   let scheme = Kulfi_Ak.solve topo pairs in
-  all_pairs_connectivity hosts scheme &&
+  all_pairs_connectivity topo hosts scheme &&
     probabilities_sum_to_one scheme
 
 let test_budget_raeke () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   Kulfi_Raeke.initialize SrcDstMap.empty;
   let scheme = prune_scheme topo (Kulfi_Raeke.solve topo pairs) 1 in
-  all_pairs_connectivity hosts scheme &&
+  all_pairs_connectivity topo hosts scheme &&
     probabilities_sum_to_one scheme &&
     check_budget scheme 1
 
@@ -243,7 +243,7 @@ let test_budget_mcf () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme =
     prune_scheme topo (Kulfi_Mcf.solve topo pairs) 1 in
-  all_pairs_connectivity hosts scheme &&
+  all_pairs_connectivity topo hosts scheme &&
     probabilities_sum_to_one scheme &&
       check_budget scheme 1
 
@@ -251,7 +251,7 @@ let test_capped_mcf () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme =
     prune_scheme topo (Kulfi_Mcf_Capped.solve topo pairs) 1 in
-  all_pairs_connectivity hosts scheme &&
+  all_pairs_connectivity topo hosts scheme &&
     probabilities_sum_to_one scheme &&
     check_budget scheme 1
 
@@ -260,7 +260,7 @@ let test_budget_semimcf_vlb () =
   let start_scheme = Kulfi_Vlb.solve topo pairs in
   Kulfi_SemiMcf.initialize start_scheme;
   let scheme = prune_scheme topo (Kulfi_SemiMcf.solve topo pairs) 1 in
-  all_pairs_connectivity hosts scheme &&
+  all_pairs_connectivity topo hosts scheme &&
     probabilities_sum_to_one scheme &&
     check_budget scheme 1
 
