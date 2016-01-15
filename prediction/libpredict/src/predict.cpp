@@ -31,8 +31,9 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 	for (int i = 0; i < col; i++) {
 		outM[i] = new double[totRow];
 	}
-    std::string foldername=filename+"-matrix/";
+    std::string foldername=string("matrix/")+filename+"-matrix/";
     
+    mkdir("matrix", ACCESSPERMS);
     mkdir(foldername.c_str(), ACCESSPERMS);
 
 
