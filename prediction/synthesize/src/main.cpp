@@ -34,7 +34,7 @@ int main(int argc, char ** argv)
 			("scale_factor,f", value<double>(&scale_factor)->default_value(1.0), "scale_factor")
 			("period,d", value<int>(&period)->default_value(3000), "period")
 									("topo,t", value<std::string>(&topofile)->default_value(""), "topo file pos")
-									("adnoise,a", value<double>(&addn)->default_value(0.5), "add random noise to which level"); 
+									("adnoise,a", value<double>(&addn)->default_value(0), "add random noise to which level"); 
 
 		positional_options_description positionalOptions;
 		positionalOptions.add("num_rows", 1);

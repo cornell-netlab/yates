@@ -45,6 +45,7 @@ void getData(double** dataM, int last, int pickwhich)
 void writeDemandMatrix(std::string filename, int row, int col, double ** m, int period, double scale, bool risk, double ** dataM)
 {
 	//row * col floats
+  
 	FILE * fActual = fopen(filename.c_str(), "w");
 	for (int i = period; i < row; i++)
 	{ 
@@ -315,13 +316,15 @@ void generateSyntheticData(int row, int hosts, double ** m, std::string prefix, 
 			printf("%.6lf -- ", Tin[i][j]);
 	}*/
 	double maxDist = 0;
-	double ** graph;
+	double ** graph=NULL;
 	if (topofile.length() > 1)
 	{
 		FILE* topof=fopen(topofile.c_str(), "r");
 		int topo_n, topo_m;
         int tmp_rlt;
 		tmp_rlt=fscanf(topof, "%i%i", &topo_n, &topo_m);
+        if (tmp_rlt<0)
+          printf("error! in fscanf\n");
 		graph = new double *[topo_n];
 		for (int i = 0; i < topo_n; i++)
 			graph[i] = new double[topo_n];
@@ -336,6 +339,8 @@ void generateSyntheticData(int row, int hosts, double ** m, std::string prefix, 
 			int va, vb;
 			double edge_len;
 			double tmp_rlt=fscanf(topof, "%i%i%lf", &va, &vb, &edge_len);
+            if (tmp_rlt<0)
+              printf("error! in fscanf\n");
 			graph[va][vb] = edge_len;
 			graph[vb][va] = edge_len;
 		}

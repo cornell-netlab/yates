@@ -13,7 +13,8 @@
 #include <iostream> 
 #include <cassert>
 #include "polyfit.h"
-//#include "openCVFunctions.h"
+#include <sys/stat.h>
+#include <sys/types.h>
 
 using namespace std;
 
@@ -24,15 +25,19 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 	bool includePolyFit = true;
 	bool includeRidgeRegressionModel = true;
 	bool includeLassoRegressionModel = true;
-	bool includeRandomForest = false;
+	//bool includeRandomForest = false;
 
 	double ** outM = new double *[col];
 	for (int i = 0; i < col; i++) {
 		outM[i] = new double[totRow];
 	}
+    std::string foldername=filename+"-matrix/";
+    
+    mkdir(foldername.c_str(), ACCESSPERMS);
 
-	writeDemandMatrix(filename, totRow, col, dataM, period, scale);
-	writeDemandMatrix(filename + string("+notaALG+wthBurnIn"), totRow, col, dataM, 0, scale);
+
+	writeDemandMatrix(foldername+filename, totRow, col, dataM, period, scale);
+	writeDemandMatrix(foldername+filename + string("+BurnIn"), totRow, col, dataM, 0, scale);
 
     if (noiselevel>1e-12){
       for (int i = 0; i < col; i++)
@@ -43,7 +48,28 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
               else 
                   outM[i][j] = dataM[i][j]  *(1- noiselevel*double(getRandNum(10000)) / 10000);
           }
-      writeDemandMatrix(filename + string("_noisy"), totRow, col, outM, period, scale);
+      char noise_char[100];
+      sprintf(noise_char,"%.2lf",noiselevel);
+      writeDemandMatrix(foldername+filename + string("_error_")+string(noise_char), totRow, col, outM, period, scale);
+    } else
+    {
+      for (noiselevel=0.1;noiselevel<2.05;noiselevel+=0.1){
+        for (int i = 0; i < col; i++)
+            for (int j = 0; j < totRow; j++)
+            {
+                if (rand() % 2 == 0)
+                    outM[i][j] = dataM[i][j]  *(1+ noiselevel*double(getRandNum(10000)) / 10000);
+                else 
+                {
+                    outM[i][j] = dataM[i][j]  *(1- noiselevel*double(getRandNum(10000)) / 10000);
+                    if (outM[i][j]<0)
+                      outM[i][j]=0;
+                }
+            }
+        char noise_char[100];
+        sprintf(noise_char,"%.2lf",noiselevel);
+        writeDemandMatrix(foldername+filename + string("_error_")+string(noise_char), totRow, col, outM, period, scale);
+      }
     }
 
 
@@ -78,7 +104,7 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 			}
 			printf("Last one model error : %.6lf\n", loss/thissum);
 		}
-		writeDemandMatrix(filename + string("_lastOne"), totRow, col, outM, period, scale);
+		writeDemandMatrix(foldername+filename + string("_lastOne"), totRow, col, outM, period, scale);
 	}
 
 	double * linearRegressionW = new double[period + 1]; //include the constant parameter;
@@ -173,8 +199,8 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 					outM[curCol][j] = predictOneModel(linearRegressionPredict, dataM[curCol], nLinearRegressionFeatures, j, linearRegressionW, additionalStuff);
 			}
 		}
-		writeDemandMatrix(filename + string("_RidgeRegression"), totRow, col, outM, period, scale);
-		writeDemandMatrix(filename + string("_RidgeRegression_riskAverse"), totRow, col, outM, period, scale, true, dataM);
+		writeDemandMatrix(foldername+filename + string("_RidgeRegression"), totRow, col, outM, period, scale);
+		writeDemandMatrix(foldername+filename + string("_RidgeRegression_riskAverse"), totRow, col, outM, period, scale, true, dataM);
 	}
 	if (includeLassoRegressionModel)
 	{
@@ -245,8 +271,8 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 					outM[curCol][j] = predictOneModel(linearRegressionPredict, dataM[curCol], nLinearRegressionFeatures, j, linearRegressionW, additionalStuff);
 			}
 		}
-		writeDemandMatrix(filename + string("_LassoRegression"), totRow, col, outM, period, scale);
-		writeDemandMatrix(filename + string("_LassoRegression_riskAverse"), totRow, col, outM, period, scale, true, dataM);
+		writeDemandMatrix(foldername+filename + string("_LassoRegression"), totRow, col, outM, period, scale);
+		writeDemandMatrix(foldername+filename + string("_LassoRegression_riskAverse"), totRow, col, outM, period, scale, true, dataM);
 	}
 	if (includePolyFit) {
 		printf("Current ---------------- PolyFit!\n");
@@ -275,8 +301,8 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 					}
 				}
 		}
-		writeDemandMatrix(filename + string("_PolyFit"), totRow, col, outM, period, scale);
-		writeDemandMatrix(filename + string("_PolyFit_riskAverse"), totRow, col, outM, period, scale, true, dataM);
+		writeDemandMatrix(foldername+filename + string("_PolyFit"), totRow, col, outM, period, scale);
+		writeDemandMatrix(foldername+filename + string("_PolyFit_riskAverse"), totRow, col, outM, period, scale, true, dataM);
 	}
 
 	if (includeFFT)
@@ -333,8 +359,8 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 				outM[curCol][iter] = cx_in[0].r;
 			}
 		}
-		writeDemandMatrix(filename + string("_FFT"), totRow, col, outM, period, scale);
-		writeDemandMatrix(filename + string("_FFT_riskAverse"), totRow, col, outM, period, scale, true, dataM);
+		writeDemandMatrix(foldername+filename + string("_FFT"), totRow, col, outM, period, scale);
+		writeDemandMatrix(foldername+filename + string("_FFT_riskAverse"), totRow, col, outM, period, scale, true, dataM);
 	}
       /*
 	if (includeRandomForest) {
