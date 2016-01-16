@@ -54,7 +54,10 @@ void writeDemandMatrix(std::string filename, int row, int col, double ** m, int 
 			double cur = m[j][i];
 			if ((risk) && (cur < dataM[j][i - 1]))
 				cur = dataM[j][i - 1];
-			fprintf(fActual, "%lf ", cur*2.666666*scale);
+			if (cur==0) 
+                fprintf(fActual, "%lf ", 1000.0);
+            else
+                fprintf(fActual, "%lf ", cur*2.666666*scale);
 		}
 		fprintf(fActual, "\n");
 	}

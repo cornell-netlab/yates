@@ -16,8 +16,9 @@ do
     base=${tf##*/}
     prefix=${base%.dot}
     echo $base
-    n="$(head -1 $Graph_DIR/${prefix}.txt)"
+
+    n=`grep "host" $tf | wc -l`
     echo $n
-    ./synthesize/bin/synthesize -n ${prefix} -r 100 -m ${n} -t ${Graph_DIR}/${prefix}.txt
+    ./synthesize/bin/synthesize -n ${prefix} -r 100 -m ${n} -t ${Graph_DIR}/${prefix}.txt 
 done
 
