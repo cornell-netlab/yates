@@ -807,9 +807,11 @@ let simulate
 
 (* For synthetic demands based on Abilene, scale them to current topology by multiplying by X/mcf_congestion,
    where X is the max congestion we expect to get when run with the new demands *)
-let calculate_syn_scale (deloop:bool) (topology:string) =
+let calculate_syn_scale (topology:string) (demand_file:string) (host_file:string) =
   let topo = Parse.from_dotfile topology in
-  let hs = get_hosts topo in
+  let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
+  let actual = next_demand ~scale:1.0 actual_ic actual_host_map in
+  (*let hs = get_hosts topo in
   let demands =
     List.fold_left
       hs
@@ -821,13 +823,14 @@ let calculate_syn_scale (deloop:bool) (topology:string) =
 	    ~f:(fun acc v ->
                 let num_hosts = List.length hs in
 		let r = if u = v then 0.0 else 22986934.0 /. Float.of_int(num_hosts * num_hosts) in
-		SrcDstMap.add acc ~key:(u,v) ~data:r)) in
-  let s = Kulfi_Mcf.solve topo demands in
-  let expected_congestions = congestion_of_paths s topo demands in
+		SrcDstMap.add acc ~key:(u,v) ~data:r)) in*)
+  let s = Kulfi_Mcf.solve topo actual in
+  let expected_congestions = congestion_of_paths s topo actual in
   let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist expected_congestions) in
   let cmax = (get_max_congestion list_of_congestions) in
   let scale_factor = 0.4/.cmax in
   Printf.printf "%f\n\n" (scale_factor);
+  close_demands actual_ic;
   scale_factor
 
 
@@ -909,7 +912,7 @@ let command =
 	 ; if semimcfksp || all then Some SemiMcfKsp else None
 	 ; if semimcfvlb || all then Some SemiMcfVlb else None
 	 ; if semimcfraeke || all then Some SemiMcfRaeke else None ] in
-     let scale = if scalesyn then calculate_syn_scale deloop topology_file else 1.0 in
+     let scale = if scalesyn then calculate_syn_scale topology_file demand_file host_file else 1.0 in
      Kulfi_Globals.deloop := deloop;
      ignore(Kulfi_Globals.budget := match budget with | None -> Int.max_value | Some x -> x);
      simulate algorithms topology_file demand_file predict_file host_file iterations scale ()
