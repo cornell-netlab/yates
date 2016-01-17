@@ -158,6 +158,20 @@ let get_total_tput (sd_tput:throughput SrcDstMap.t) : throughput =
   ~init:0.0
   ~f:(fun ~key:_ ~data:delivered acc -> acc +. delivered)
 
+(* Aggregate latency-tput over all sd-pairs *)
+let get_aggregate_latency (sd_lat_tput_map_map:(throughput LatencyMap.t) SrcDstMap.t) (num_iter:int): (throughput LatencyMap.t) =
+  SrcDstMap.fold sd_lat_tput_map_map
+  ~init:LatencyMap.empty
+  ~f:(fun ~key:_ ~data:lat_tput_map acc ->
+    LatencyMap.fold lat_tput_map
+    ~init:acc
+    ~f:(fun ~key:latency ~data:tput acc ->
+      let prev_agg_tput = match LatencyMap.find acc latency with
+                      | None -> 0.0
+                      | Some x -> x in
+      let agg_tput = prev_agg_tput +. (tput /. (Float.of_int num_iter)) in
+      LatencyMap.add ~key:latency ~data:(agg_tput) acc))
+
 (* Modify routing scheme by normalizing path probabilites while avoiding failed links *)
 let local_recovery (topo:topology) (curr_scheme:scheme) (failed_links:failure) : scheme =
   Printf.printf "\t\t\t\t\t\t\t\t\t\tLocal\r";
@@ -332,6 +346,9 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
      * match edges in topology. So, we use the string representation of an edge
      * to check for equality and use StringMap instead of EdgeMap for link
      * utilizations and routing *)
+  let agg_dem = SrcDstMap.fold dem
+  ~init:0.
+  ~f:(fun ~key:_ ~data:d acc -> acc +. d) in
   let _,delivered_map,lat_tput_map_map,link_utils,_,_,fail_drop,cong_drop =
   List.fold_left iterations
     (* ingress link traffic, sd-delivered, sd-latency-tput-map-map, utilization on each edge, scheme, failure, fail_drop, cong_drop *)
@@ -493,8 +510,9 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   let tput = SrcDstMap.fold delivered_map
     ~init:SrcDstMap.empty
     ~f:(fun ~key:sd ~data:dlvd acc ->
-      SrcDstMap.add ~key:sd ~data:(dlvd /. (Float.of_int num_iterations)) acc) in
-  let latency = lat_tput_map_map in
+      SrcDstMap.add ~key:sd ~data:(dlvd /. (Float.of_int num_iterations) /. agg_dem) acc) in
+
+  let latency_dist = (get_aggregate_latency lat_tput_map_map num_iterations) in
 
   let edge_list = EdgeSet.elements (Topology.edges topo) in
   let avg_congestions = List.fold_left edge_list
@@ -504,16 +522,16 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                 | None -> 0.0
                 | Some x -> x in
       EdgeMap.add ~key:e ~data:(util /. (Float.of_int (num_iterations)) /. (capacity_of_edge topo e)) acc) in
-  let fail_drop = fail_drop /. (Float.of_int num_iterations) in
-  let cong_drop = cong_drop /. (Float.of_int num_iterations) in
+  let fail_drop = fail_drop /. (Float.of_int num_iterations) /. agg_dem in
+  let cong_drop = cong_drop /. (Float.of_int num_iterations) /. agg_dem in
   (*ignore(StringMap.iter link_utils ~f:(fun ~key:e ~data:_ -> Printf.printf "%s\n" e));*)
 
   (* if topology was modified, assume all failures are corrected
    * and restore the solvers to use original topology for next TM *)
   let _ = if !topo_modified then restore_solver_state algorithm topo else () in
-  let total_tput = get_total_tput tput in
-  (*Printf.printf "\nTotal traffic: %f + %f + %f\t= %f" total_tput fail_drop cong_drop (total_tput+.fail_drop+.cong_drop);*)
-  tput, latency, avg_congestions, fail_drop, cong_drop
+  (*let total_tput = get_total_tput tput in
+  Printf.printf "\nTotal traffic: %f + %f + %f\t= %f" total_tput fail_drop cong_drop (total_tput+.fail_drop+.cong_drop);*)
+  tput, latency_dist, avg_congestions, fail_drop, cong_drop, agg_dem
   (* end simulate_tm *)
 
 let is_int v =
@@ -574,31 +592,17 @@ let get_num_paths (s:scheme) : float =
 		s in
   Float.of_int count
 
-(* Aggregate latency-tput over all sd-pairs *)
-let get_aggregate_latency (sd_lat_tput_map_map:(throughput LatencyMap.t) SrcDstMap.t) : (throughput LatencyMap.t) =
-  SrcDstMap.fold sd_lat_tput_map_map
-  ~init:LatencyMap.empty
-  ~f:(fun ~key:_ ~data:lat_tput_map acc ->
-    LatencyMap.fold lat_tput_map
-    ~init:acc
-    ~f:(fun ~key:latency ~data:tput acc ->
-      let prev_agg_tput = match LatencyMap.find acc latency with
-                      | None -> 0.0
-                      | Some x -> x in
-      let agg_tput = prev_agg_tput +. tput in
-      LatencyMap.add ~key:latency ~data:agg_tput acc))
-
-(* Generate latency percentile based on throughput *)
-let get_latency_percentiles (lat_tput_map : throughput LatencyMap.t) : (float LatencyMap.t) =
-  let total_tput = LatencyMap.fold lat_tput_map
+  (* Generate latency percentile based on throughput *)
+let get_latency_percentiles (lat_tput_map : throughput LatencyMap.t) (agg_dem:float) : (float LatencyMap.t) =
+(*  let total_tput = LatencyMap.fold lat_tput_map
     ~init:0.0
-    ~f:(fun ~key:_ ~data:tput acc -> tput +. acc) in
+    ~f:(fun ~key:_ ~data:tput acc -> tput +. acc) in*)
   let latency_percentiles,_ = LatencyMap.fold lat_tput_map
     ~init:(LatencyMap.empty,0.0)
     ~f:(fun ~key:latency ~data:tput acc ->
       let lat_percentile_map,sum_tput = acc in
       let sum_tput' = sum_tput +. tput in
-      (LatencyMap.add ~key:latency ~data:(sum_tput' /. total_tput)
+      (LatencyMap.add ~key:latency ~data:(sum_tput' /. agg_dem)
       lat_percentile_map, sum_tput')) in
   latency_percentiles
 
@@ -703,7 +707,7 @@ let simulate
           else get_util_based_failure_scenario topo exp_congestions in
           (*else get_test_failure_scenario topo ((Float.of_int n) /.
            * (Float.of_int iterations)) in*)
-		  let tput,latency,congestions,failure_drop,congestion_drop =
+		  let tput,latency_dist,congestions,failure_drop,congestion_drop,agg_dem =
         (simulate_tm scheme' topo actual failing_edges predict algorithm) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in
 		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
@@ -717,8 +721,7 @@ let simulate
 		  let expcmax = (get_max_congestion list_of_exp_congestions) in
 		  let expcmean = (get_mean_congestion list_of_exp_congestions) in
       let total_tput = (get_total_tput tput) in
-      let aggregate_latency_dist = (get_aggregate_latency latency) in
-      let latency_percentiles = (get_latency_percentiles aggregate_latency_dist) in
+      let latency_percentiles = (get_latency_percentiles latency_dist agg_dem) in
 
 		  let percentile_values sort_cong =
 		    List.fold_left

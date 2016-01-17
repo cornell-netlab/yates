@@ -16,18 +16,26 @@ def display (all_latencies, directory):
     CommonConf.setupMPPDefaults()
     fmts = CommonConf.getLineFormats()
     mrkrs = CommonConf.getLineMarkers()
-    fig = pp.figure()
+    fig = pp.figure(figsize=(16,8))
     ax = fig.add_subplot(111)
     index = 0
+    mxl = 0
+    for solver, latencies in scheme_latency_dist.iteritems():
+        xl = sorted(latencies.keys())[-1]
+        if mxl < xl:
+            mxl = xl
+
     for solver, latencies in scheme_latency_dist.iteritems():
         xs = sorted(latencies.keys())
         ys = [latencies[lat][0] for lat in xs]
         ydevs = [latencies[lat][1] for lat in xs]
+        ax.plot((xs[-1], mxl), (ys[-1], ys[-1]), '-.')
         ax.errorbar(xs, ys, yerr=ydevs, label=solver, marker=mrkrs[index], linestyle=fmts[index])
         index = index + 1
     ax.set_xlabel(X_LABEL)
     ax.set_ylabel(Y_LABEL)
-    ax.legend(loc='best', fancybox=True)
+    ax.legend(bbox_to_anchor=(1., 1.), loc=2, borderaxespad=1., fancybox=True)
+    pp.subplots_adjust(left=0.1, right=0.8, top=0.9, bottom=0.1)
     pp.ylim(ymax=1.0)
     pp.savefig(directory+"/LatencyCDF.svg")
 
