@@ -170,7 +170,7 @@ let local_recovery (topo:topology) (curr_scheme:scheme) (failed_links:failure) :
     let renormalized_paths = PathMap.fold n_paths
       ~init:PathMap.empty
       ~f:(fun ~key:path ~data:prob acc ->
-        PathMap.add ~key:path ~data:(1.0 /. total_prob *. prob) acc) in
+        PathMap.add ~key:path ~data:(prob /. total_prob) acc) in
     SrcDstMap.add ~key:(src,dst) ~data:renormalized_paths acc) in
   (* Printf.printf "Local: %s\n-----\n" (dump_scheme topo new_scheme); *)
   new_scheme
@@ -306,9 +306,9 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
 
   let steady_state_time = 50 in (* ideally, should be >= diameter of graph*)
   let failure_time = if EdgeSet.is_empty fail_edges then Int.max_value
-                     else 10 + steady_state_time in (* static values for testing *)
-  let local_recovery_delay = 20 in
-  let global_recovery_delay = 50 in
+                     else !Kulfi_Globals.failure_time + steady_state_time in
+  let local_recovery_delay = !Kulfi_Globals.local_recovery_delay in
+  let global_recovery_delay = !Kulfi_Globals.global_recovery_delay in
   let topo_modified = ref false in
   let iterations = range 0 (num_iterations + steady_state_time) in
   if local_debug then Printf.printf "%s\n%!" (dump_scheme topo start_scheme);
@@ -323,7 +323,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
     ~init:(StringMap.empty, SrcDstMap.empty, SrcDstMap.empty, StringMap.empty, start_scheme, EdgeSet.empty, 0.0, 0.0)
     ~f:(fun current_state iter ->
       (* begin iteration - time *)
-      if true then Printf.printf "%s\t--- Iteration : %d ---\r%!" (solver_to_string algorithm) iter;
+      if true then Printf.printf "%s\t--- Iteration : %d ---\r%!" (solver_to_string algorithm) (iter - steady_state_time);
       let (in_traffic, curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_scheme, curr_failed_links, curr_fail_drop, curr_cong_drop) = current_state in
       (* Reset stats when steady state is reached *)
       let curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop =
@@ -826,6 +826,9 @@ let command =
     +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
     +> flag "-deloop" no_arg ~doc:" remove loops in paths"
     +> flag "-budget" (optional int) ~doc:" max paths between each pair of hosts"
+    +> flag "-fail-time" (optional int) ~doc:" simulation time to introduce failure at"
+    +> flag "-lr-delay" (optional int) ~doc:" delay between failure and local recovery"
+    +> flag "-gr-delay" (optional int) ~doc:" delay between failure and global recovery"
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
     +> anon ("predict-file" %: string)
@@ -852,6 +855,9 @@ let command =
    (scalesyn:bool)
    (deloop:bool)
    (budget:int option)
+   (fail_time:int option)
+   (lr_delay:int option)
+   (gr_delay:int option)
 	 (topology_file:string)
 	 (demand_file:string)
 	 (predict_file:string)
@@ -881,6 +887,9 @@ let command =
      let scale = if scalesyn then calculate_syn_scale topology_file demand_file host_file else 1.0 in
      Kulfi_Globals.deloop := deloop;
      ignore(Kulfi_Globals.budget := match budget with | None -> Int.max_value | Some x -> x);
+     ignore(Kulfi_Globals.failure_time := match fail_time with | None -> Int.max_value | Some x -> x);
+     ignore(Kulfi_Globals.local_recovery_delay := match lr_delay with | None -> Int.max_value | Some x -> x);
+     ignore(Kulfi_Globals.global_recovery_delay := match gr_delay with | None -> Int.max_value | Some x -> x);
      simulate algorithms topology_file demand_file predict_file host_file iterations scale ()
   )
 
