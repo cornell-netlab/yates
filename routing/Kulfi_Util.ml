@@ -157,3 +157,23 @@ let prune_scheme (t:topology) (s:scheme) (budget:int) : scheme =
   assert (probabilities_sum_to_one new_scheme);
   assert (all_pairs_connectivity t (get_hosts t) new_scheme);
   new_scheme
+
+(* Calculate fair share of flows *)
+let fair_share_at_edge (capacity:float) (in_flows: float PathMap.t) : (float PathMap.t) =
+  let path_dem_list = PathMap.to_alist in_flows in
+  let sorted_pdlist = List.sort ~cmp:(fun x y -> Float.compare (snd x) (snd y)) path_dem_list in
+  (*ignore (List.iter sorted_pdlist ~f:(fun (_,d) -> Printf.printf "%f\n%!" d;); Printf.printf "\n";);
+    assert false;*)
+  let (fair_share,_,_) = List.fold_left sorted_pdlist
+      ~init:(PathMap.empty, capacity, List.length sorted_pdlist)
+      ~f:(fun acc (p,d) ->
+        let (curr_share, spare_cap, n_rem_flows) = acc in
+        if d *. (Float.of_int n_rem_flows) <= spare_cap then
+          let new_share = PathMap.add curr_share ~key:p ~data:d in
+          (new_share, spare_cap -. d, n_rem_flows - 1)
+        else
+          let fs = (spare_cap /. (Float.of_int n_rem_flows)) in
+          let new_share = PathMap.add curr_share ~key:p ~data:fs in
+          (new_share, spare_cap -. fs, n_rem_flows - 1)) in
+  fair_share
+

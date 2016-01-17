@@ -264,6 +264,35 @@ let test_budget_semimcf_vlb () =
     probabilities_sum_to_one scheme &&
     check_budget scheme 1
 
+let test_fair_share () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme = Kulfi_Spf.solve topo pairs in
+  let v = ref 0.0 in
+  let paths = SrcDstMap.fold scheme
+    ~init:PathMap.empty
+    ~f:(fun ~key:_ ~data:ppmap acc ->
+      PathMap.fold ppmap
+        ~init:acc 
+        ~f:(fun ~key:p ~data:_ acc ->
+          match PathMap.find acc p with
+          | Some x -> acc
+          | None ->
+              v := !v +. 1.0;
+              PathMap.add acc ~key:p ~data:!v)) in
+  assert (PathMap.length paths = 7);
+  (*PathMap.iter paths ~f:(fun ~key:p ~data:v -> Printf.printf "%f " v);*)
+  let fs_paths = fair_share_at_edge 20.0 paths in 
+  (*PathMap.iter fs_paths ~f:(fun ~key:p ~data:v -> Printf.printf "%f " v);*)
+  let shares = List.sort ~cmp:Float.compare (List.map ~f:snd (PathMap.to_alist fs_paths)) in
+  (*List.iter shares ~f:(fun x -> Printf.printf "%f " x);*)
+  List.nth shares 0 = Some 1.0 &&
+  List.nth shares 1 = Some 2.0 &&
+  List.nth shares 2 = Some 3.0 &&
+  List.nth shares 3 = Some 3.5 &&
+  List.nth shares 4 = Some 3.5 &&
+  List.nth shares 5 = Some 3.5 &&
+  List.nth shares 6 = Some 3.5
+
 TEST "spf" = test_spf () = true
 
 TEST "ecmp" = test_ecmp () = true
@@ -308,5 +337,7 @@ TEST "budget_mcf" = test_budget_mcf () = true
 
 TEST "budget_semimcf_vlb" = test_budget_semimcf_vlb () = true
 
-							   (* TEST "capped_mcf" = test_capped_mcf () = true *)
+TEST "fair_share" = test_fair_share () = true
+
+(* TEST "capped_mcf" = test_capped_mcf () = true *)
 

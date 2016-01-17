@@ -18,6 +18,7 @@ _build
 _tags
 data/demands/abilene
 experiments/testbed/results
+expData
 fftout
 gurobi.log
 INSTALL.txt

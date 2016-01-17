@@ -248,7 +248,7 @@ let get_util_based_failure_scenario (topo:topology) (utils: congestion EdgeMap.t
   let e' = match Topology.inverse_edge topo e with
           | Some x -> x
           | None -> assert false in
-  Printf.printf "Failing %s" (string_of_edge topo e);
+  Printf.printf "Failing %s\n" (string_of_edge topo e);
   EdgeSet.add (EdgeSet.singleton e) e'
 
 (* Create some failure scenario *)
@@ -304,7 +304,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   let num_iterations = 100 in
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
 
-  let steady_state_time = 10 in (* ideally, should be >= diameter of graph*)
+  let steady_state_time = 50 in (* ideally, should be >= diameter of graph*)
   let failure_time = if EdgeSet.is_empty fail_edges then Int.max_value
                      else 10 + steady_state_time in (* static values for testing *)
   let local_recovery_delay = 20 in
@@ -368,48 +368,21 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
       (* Done generating traffic at source *)
 
       (* For each link, forward fair share of flows to next links or deliver to destination *)
-      let next_iter_traffic, new_delivered_map, new_lat_tput_map_map, new_link_utils, new_fail_drop, new_cong_drop = StringMap.fold in_traffic
+      let next_iter_traffic, new_delivered_map, new_lat_tput_map_map, new_link_utils, new_fail_drop, new_cong_drop =
+        StringMap.fold in_traffic
         ~init:(next_iter_traffic, curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop)
         ~f:(fun ~key:e_str ~data:in_queue_edge link_iter_acc ->
           (* total ingress traffic on link *)
-          let demand_on_link = PathMap.fold in_queue_edge
-            ~init:0.0
+          let demand_on_link = PathMap.fold in_queue_edge ~init:0.0
             ~f:(fun ~key:_ ~data:flow_dem link_dem -> link_dem +. flow_dem) in
+
           let e = Kulfi_Types.StringMap.find_exn str_to_edge_map e_str in
           if local_debug then Printf.printf "%s: %f / %f\n%!" e_str (demand_on_link /. 1e9) ((curr_capacity_of_edge topo e failed_links) /. 1e9);
-          let fs_in_queue_edge = if demand_on_link <= (curr_capacity_of_edge topo e failed_links)
-            then in_queue_edge
-            else
-            (* calculate each flow's fair share *)
-            let rec fair_share_at_edge (spare_cap:float) (sat_paths: path list) (path_share_map: float PathMap.t) =
-              if local_debug then Printf.printf "%f\n.%!" spare_cap;
-              let n_unsat_paths = (PathMap.length in_queue_edge) - (List.length sat_paths) in
-              if n_unsat_paths = 0 then path_share_map
-              else
-                let path_fairshare, new_sat_paths =
-                  PathMap.fold in_queue_edge
-                  ~init:(PathMap.empty, sat_paths)
-                  ~f:(fun ~key:path ~data:req_share share_acc ->
-                    let (acc_path_share_map, acc_sat_paths) = share_acc in
-                    let path_allocated_share = match PathMap.find path_share_map path with
-                                                | None -> 0.0
-                                                | Some x -> x in
-                    let new_path_share = if List.mem acc_sat_paths path
-                            then path_allocated_share
-                            else min req_share (path_allocated_share +. (spare_cap /. (Float.of_int n_unsat_paths))) in
-                    let acc_sat_paths = if (new_path_share < req_share -. 0.01) || (List.mem acc_sat_paths path)
-                                        then acc_sat_paths
-                                        else path::acc_sat_paths in
-                    (PathMap.add ~key:path ~data:new_path_share acc_path_share_map, acc_sat_paths)) in
-                  let residual_cap =
-                    PathMap.fold path_fairshare
-                    ~init:(curr_capacity_of_edge topo e failed_links)
-                    ~f:(fun ~key:path ~data:link_share resid_acc -> resid_acc -. link_share) in
-                    if residual_cap > 0.01
-                      then fair_share_at_edge residual_cap new_sat_paths path_fairshare
-                      else path_fairshare in
-            fair_share_at_edge (curr_capacity_of_edge topo e failed_links) [] PathMap.empty
-            (* done calculating fair share *) in
+
+          (* calculate each flow's fair share *)
+          let fs_in_queue_edge =
+            if demand_on_link <= (curr_capacity_of_edge topo e failed_links) then in_queue_edge
+            else fair_share_at_edge (curr_capacity_of_edge topo e failed_links) in_queue_edge in
 
           (* Update traffic dropped due to failure or congestion *)
           let forwarded_by_link = PathMap.fold fs_in_queue_edge
@@ -427,14 +400,17 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
             let (nit,dlvd_map,ltm_map,lutil_map,_,_) = acc in
             let next_link_opt = next_hop topo path e in
             match next_link_opt with
-            | None ->
-                (* End of path, deliver traffic to dst *)
+            | None -> (* End of path, deliver traffic to dst *)
                 let (src,dst) = match get_src_dst_for_path path with
                                 | None -> failwith "Empty path"
                                 | Some x -> x in
+                (* Update delivered traffic for (src,dst) *)
                 let prev_sd_dlvd = match SrcDstMap.find dlvd_map (src,dst) with
                                       | None -> 0.0
                                       | Some x -> x in
+                let new_dlvd = SrcDstMap.add ~key:(src,dst) ~data:(prev_sd_dlvd +. flow_fair_share) dlvd_map in
+
+                (* Update latency-tput distribution for (src,dst) *)
                 let prev_sd_ltm = match SrcDstMap.find ltm_map (src,dst) with
                                       | None -> LatencyMap.empty
                                       | Some x -> x in
@@ -443,15 +419,16 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                                                 | None -> 0.0
                                                 | Some x -> x in
                 let new_sd_ltm = LatencyMap.add ~key:path_latency ~data:(prev_sd_tput_for_latency +. flow_fair_share) prev_sd_ltm in
+                let new_ltm_map = SrcDstMap.add ~key:(src,dst) ~data:new_sd_ltm ltm_map in
+                
+                (* Update link utilization for edge *)
                 let prev_lutil_link = match StringMap.find lutil_map e_str with
                               | None -> 0.0
                               | Some x -> x in
-                let new_dlvd = SrcDstMap.add ~key:(src,dst) ~data:(prev_sd_dlvd +. flow_fair_share) dlvd_map in
-                let new_ltm_map = SrcDstMap.add ~key:(src,dst) ~data:new_sd_ltm ltm_map in
                 let new_lutil_map = StringMap.add ~key:e_str ~data:(prev_lutil_link +. flow_fair_share) lutil_map in
                 (nit, new_dlvd, new_ltm_map, new_lutil_map, new_fail_drop, new_cong_drop)
-            | Some next_link ->
-                (* Forward traffic to next link *)
+            | Some next_link -> (* Forward traffic to next hop *)
+                (* Update link ingress queue for next hop *)
                 let next_link_str = string_of_edge topo next_link in
                 let sched_traf_next_link = match StringMap.find nit next_link_str with
                     | None -> PathMap.empty
@@ -461,6 +438,8 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                     | Some x -> Printf.printf "%s%!" (dump_edges topo path); failwith "Scheduling duplicate flow at next link" in
                 let traf_next_link = PathMap.add ~key:path ~data:flow_fair_share sched_traf_next_link in
                 let new_nit = StringMap.add ~key:next_link_str ~data:traf_next_link nit in
+
+                (* Update link utilization for edge *)
                 let prev_lutil_link = match StringMap.find lutil_map e_str with
                               | None -> 0.0
                               | Some x -> x in
@@ -811,25 +790,12 @@ let calculate_syn_scale (topology:string) (demand_file:string) (host_file:string
   let topo = Parse.from_dotfile topology in
   let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
   let actual = next_demand ~scale:1.0 actual_ic actual_host_map in
-  (*let hs = get_hosts topo in
-  let demands =
-    List.fold_left
-      hs
-      ~init:SrcDstMap.empty
-      ~f:(fun acc u ->
-	  List.fold_left
-	    hs
-	    ~init:acc
-	    ~f:(fun acc v ->
-                let num_hosts = List.length hs in
-		let r = if u = v then 0.0 else 22986934.0 /. Float.of_int(num_hosts * num_hosts) in
-		SrcDstMap.add acc ~key:(u,v) ~data:r)) in*)
   let s = Kulfi_Mcf.solve topo actual in
   let expected_congestions = congestion_of_paths s topo actual in
   let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist expected_congestions) in
   let cmax = (get_max_congestion list_of_congestions) in
   let scale_factor = 0.4/.cmax in
-  Printf.printf "%f\n\n" (scale_factor);
+  Printf.printf "Scale factor: %f\n\n" (scale_factor);
   close_demands actual_ic;
   scale_factor
 
