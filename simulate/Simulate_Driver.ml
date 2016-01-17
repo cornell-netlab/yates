@@ -334,7 +334,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
 
   let steady_state_time = 50 in (* ideally, should be >= diameter of graph*)
-  let failure_time = if EdgeSet.is_empty fail_edges then Int.max_value
+  let failure_time = if EdgeSet.is_empty fail_edges then Int.max_value/100
                      else !Kulfi_Globals.failure_time + steady_state_time in
   let local_recovery_delay = !Kulfi_Globals.local_recovery_delay in
   let global_recovery_delay = !Kulfi_Globals.global_recovery_delay in
@@ -703,7 +703,7 @@ let simulate
 		  let list_of_exp_congestions = List.map ~f:snd (EdgeMap.to_alist exp_congestions) in
 		  let sorted_exp_congestions = List.sort ~cmp:(Float.compare) list_of_exp_congestions in
       (* let failing_edges = get_test_failure_scenario topo (float.of_int n /. float.of_int iterations) in *)
-      let failing_edges = if n < iterations/2 then EdgeSet.empty
+      let failing_edges = if n < 2 then EdgeSet.empty
           else get_util_based_failure_scenario topo exp_congestions in
           (*else get_test_failure_scenario topo ((Float.of_int n) /.
            * (Float.of_int iterations)) in*)
@@ -909,10 +909,10 @@ let command =
 	 ; if semimcfraeke || all then Some SemiMcfRaeke else None ] in
      let scale = if scalesyn then calculate_syn_scale topology_file demand_file host_file else 1.0 in
      Kulfi_Globals.deloop := deloop;
-     ignore(Kulfi_Globals.budget := match budget with | None -> Int.max_value | Some x -> x);
-     ignore(Kulfi_Globals.failure_time := match fail_time with | None -> Int.max_value | Some x -> x);
-     ignore(Kulfi_Globals.local_recovery_delay := match lr_delay with | None -> Int.max_value | Some x -> x);
-     ignore(Kulfi_Globals.global_recovery_delay := match gr_delay with | None -> Int.max_value | Some x -> x);
+     ignore(Kulfi_Globals.budget := match budget with | None -> Int.max_value/100 | Some x -> x);
+     ignore(Kulfi_Globals.failure_time := match fail_time with | None -> Int.max_value/100 | Some x -> x);
+     ignore(Kulfi_Globals.local_recovery_delay := match lr_delay with | None -> Int.max_value/100 | Some x -> x);
+     ignore(Kulfi_Globals.global_recovery_delay := match gr_delay with | None -> Int.max_value/100 | Some x -> x);
      simulate algorithms topology_file demand_file predict_file host_file iterations scale ()
   )
 
