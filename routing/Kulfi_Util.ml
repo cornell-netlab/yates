@@ -158,6 +158,9 @@ let prune_scheme (t:topology) (s:scheme) (budget:int) : scheme =
   assert (all_pairs_connectivity t (get_hosts t) new_scheme);
   new_scheme
 
+let is_nan x =
+  (not (x > 0.)) && (not (x <= 0.))
+
 (* Calculate fair share of flows *)
 let fair_share_at_edge (capacity:float) (in_flows: float PathMap.t) : (float PathMap.t) =
   let path_dem_list = PathMap.to_alist in_flows in
@@ -173,6 +176,7 @@ let fair_share_at_edge (capacity:float) (in_flows: float PathMap.t) : (float Pat
           (new_share, spare_cap -. d, n_rem_flows - 1)
         else
           let fs = (spare_cap /. (Float.of_int n_rem_flows)) in
+          if is_nan fs then assert false;
           let new_share = PathMap.add curr_share ~key:p ~data:fs in
           (new_share, spare_cap -. fs, n_rem_flows - 1)) in
   fair_share
