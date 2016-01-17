@@ -689,7 +689,7 @@ let simulate
 	      ~init:SrcDstMap.empty
 	      ~f:(fun scheme n ->
 
-      Printf.printf "\nAlgorithm: %s TM: %d\r%!" (solver_to_string algorithm) n;
+      Printf.printf "\nAlgo: %s TM: %d\r%!" (solver_to_string algorithm) n;
 		  (* get the next demand *)
 		  let actual = next_demand ~scale:scale actual_ic actual_host_map in
 		  let predict = next_demand ~scale:scale predict_ic predict_host_map in

@@ -16,7 +16,7 @@ def display (all_latencies, directory):
     CommonConf.setupMPPDefaults()
     fmts = CommonConf.getLineFormats()
     mrkrs = CommonConf.getLineMarkers()
-    fig = pp.figure(figsize=(16,8))
+    fig = pp.figure(figsize=(12,6))
     ax = fig.add_subplot(111)
     index = 0
     mxl = 0
