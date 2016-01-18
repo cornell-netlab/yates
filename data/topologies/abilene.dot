@@ -69,41 +69,41 @@ s12 -> s2 [src_port=38, dst_port=17, cost=0, capacity="1Gbps"];
 s12 -> s9 [src_port=39, dst_port=11, cost=0, capacity="1Gbps"];
 
 
-h1 -> s1 [src_port=1, dst_port=3, cost=0, capacity="1Gbps"];
-s1 -> h1 [src_port=3, dst_port=1, cost=0, capacity="1Gbps"];
+h1 -> s1 [src_port=1, dst_port=3, cost=0, capacity="10Gbps"];
+s1 -> h1 [src_port=3, dst_port=1, cost=0, capacity="10Gbps"];
 
-h2 -> s2 [src_port=1, dst_port=13, cost=0, capacity="1Gbps"];
-s2 -> h2 [src_port=13, dst_port=1, cost=0, capacity="1Gbps"];
+h2 -> s2 [src_port=1, dst_port=13, cost=0, capacity="10Gbps"];
+s2 -> h2 [src_port=13, dst_port=1, cost=0, capacity="10Gbps"];
 
-h3 -> s3 [src_port=1, dst_port=25, cost=0, capacity="1Gbps"];
-s3 -> h3 [src_port=25, dst_port=1, cost=0, capacity="1Gbps"];
+h3 -> s3 [src_port=1, dst_port=25, cost=0, capacity="10Gbps"];
+s3 -> h3 [src_port=25, dst_port=1, cost=0, capacity="10Gbps"];
 
-h4 -> s4 [src_port=1, dst_port=37, cost=0, capacity="1Gbps"];
-s4 -> h4 [src_port=37, dst_port=1, cost=0, capacity="1Gbps"];
+h4 -> s4 [src_port=1, dst_port=37, cost=0, capacity="10Gbps"];
+s4 -> h4 [src_port=37, dst_port=1, cost=0, capacity="10Gbps"];
 
-h5 -> s5 [src_port=1, dst_port=1, cost=0, capacity="1Gbps"];
-s5 -> h5 [src_port=1, dst_port=1, cost=0, capacity="1Gbps"];
+h5 -> s5 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+s5 -> h5 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
 
-h6 -> s6 [src_port=1, dst_port=13, cost=0, capacity="1Gbps"];
-s6 -> h6 [src_port=13, dst_port=1, cost=0, capacity="1Gbps"];
+h6 -> s6 [src_port=1, dst_port=13, cost=0, capacity="10Gbps"];
+s6 -> h6 [src_port=13, dst_port=1, cost=0, capacity="10Gbps"];
 
-h7 -> s7 [src_port=1, dst_port=25, cost=0, capacity="1Gbps"];
-s7 -> h7 [src_port=25, dst_port=1, cost=0, capacity="1Gbps"];
+h7 -> s7 [src_port=1, dst_port=25, cost=0, capacity="10Gbps"];
+s7 -> h7 [src_port=25, dst_port=1, cost=0, capacity="10Gbps"];
 
-h8 -> s8 [src_port=1, dst_port=37, cost=0, capacity="1Gbps"];
-s8 -> h8 [src_port=37, dst_port=1, cost=0, capacity="1Gbps"];
+h8 -> s8 [src_port=1, dst_port=37, cost=0, capacity="10Gbps"];
+s8 -> h8 [src_port=37, dst_port=1, cost=0, capacity="10Gbps"];
 
-h9 -> s9 [src_port=1, dst_port=1, cost=0, capacity="1Gbps"];
-s9 -> h9 [src_port=1, dst_port=1, cost=0, capacity="1Gbps"];
+h9 -> s9 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
+s9 -> h9 [src_port=1, dst_port=1, cost=0, capacity="10Gbps"];
 
-h10 -> s10 [src_port=1, dst_port=13, cost=0, capacity="1Gbps"];
-s10 -> h10 [src_port=13, dst_port=1, cost=0, capacity="1Gbps"];
+h10 -> s10 [src_port=1, dst_port=13, cost=0, capacity="10Gbps"];
+s10 -> h10 [src_port=13, dst_port=1, cost=0, capacity="10Gbps"];
 
-h11 -> s11 [src_port=1, dst_port=25, cost=0, capacity="1Gbps"];
-s11 -> h11 [src_port=25, dst_port=1, cost=0, capacity="1Gbps"];
+h11 -> s11 [src_port=1, dst_port=25, cost=0, capacity="10Gbps"];
+s11 -> h11 [src_port=25, dst_port=1, cost=0, capacity="10Gbps"];
 
-h12 -> s12 [src_port=1, dst_port=37, cost=0, capacity="1Gbps"];
-s12 -> h12 [src_port=37, dst_port=1, cost=0, capacity="1Gbps"];
+h12 -> s12 [src_port=1, dst_port=37, cost=0, capacity="10Gbps"];
+s12 -> h12 [src_port=37, dst_port=1, cost=0, capacity="10Gbps"];
 
 
 }

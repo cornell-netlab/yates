@@ -39,7 +39,7 @@ function chksel(id)\n\
 '
 
 #topologies = ['cube5h1EvenDemand', 'cube5h1FarDemand', 'cube5h1NearDemand', 'cycle10EvenDemand', 'cycle10FarDemand', 'cycle10NearDemand', 'gnm20m60EvenDemand', 'gnm20m60FarDemand', 'gnm20m60NearDemand', 'grid5h0EvenDemand', 'grid5h0FarDemand', 'grid5h0NearDemand', 'grid5h1EvenDemand', 'grid5h1FarDemand', 'grid5h1NearDemand', 'PA30per3EvenDemand', 'PA30per3NearDemand']
-topologies = ['grid5h1EvenDemand']
+topologies = ['abilene']
 
 schemes = ['spf', 'ecmp', 'ksp', 'mcf', 'raeke', 'vlb', 'semimcfecmp', 'semimcfksp', 'semimcfmcf', 'semimcfraeke', 'semimcfvlb']
 
