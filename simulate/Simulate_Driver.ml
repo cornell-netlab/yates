@@ -614,6 +614,7 @@ let simulate
 	     (host_file:string)
 	     (iterations:int)
        (scale:float)
+       (out_dir:string option)
              () : unit =
 
   (* Do some error checking on input *)
@@ -760,12 +761,16 @@ let simulate
 	close_demands predict_ic;
        );
 
-  (* Store results in a directory name = topology name in expData *)
-  let split_dot_file_list = String.split_on_chars topology_file ~on:['/';'.'] in
-  let suffix =List.nth split_dot_file_list (List.length split_dot_file_list -2) in
-  let realsuffix= match suffix with Some x -> x | _-> "" in
-  let dir = "./expData/" ^ realsuffix ^ "/" in
-
+  (* Store results in a directory name = topology name or provided name in expData *)
+  let output_dir = match out_dir with
+      | Some x -> x
+      | None ->
+        let split_dot_file_list = String.split_on_chars topology_file ~on:['/';'.'] in
+        let suffix =List.nth split_dot_file_list (List.length split_dot_file_list -2) in
+        match suffix with 
+          | Some x -> x
+          | _ -> "default" in
+  let dir = "./expData/" ^ output_dir ^ "/" in
   to_file dir "ChurnVsIterations.dat" churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
   to_file dir "NumPathsVsIterations.dat" num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
   to_file dir "TimeVsIterations.dat" time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;
@@ -852,6 +857,7 @@ let command =
     +> flag "-fail-time" (optional int) ~doc:" simulation time to introduce failure at"
     +> flag "-lr-delay" (optional int) ~doc:" delay between failure and local recovery"
     +> flag "-gr-delay" (optional int) ~doc:" delay between failure and global recovery"
+    +> flag "-out" (optional string) ~doc:" name of directory in expData to store results"
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
     +> anon ("predict-file" %: string)
@@ -881,6 +887,7 @@ let command =
    (fail_time:int option)
    (lr_delay:int option)
    (gr_delay:int option)
+   (out:string option)
 	 (topology_file:string)
 	 (demand_file:string)
 	 (predict_file:string)
@@ -913,7 +920,7 @@ let command =
      ignore(Kulfi_Globals.failure_time := match fail_time with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.local_recovery_delay := match lr_delay with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.global_recovery_delay := match gr_delay with | None -> Int.max_value/100 | Some x -> x);
-     simulate algorithms topology_file demand_file predict_file host_file iterations scale ()
+     simulate algorithms topology_file demand_file predict_file host_file iterations scale out ()
   )
 
 let main = Command.run command
