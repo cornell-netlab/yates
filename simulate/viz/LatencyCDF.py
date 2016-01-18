@@ -16,6 +16,7 @@ def display (all_latencies, directory):
     CommonConf.setupMPPDefaults()
     fmts = CommonConf.getLineFormats()
     mrkrs = CommonConf.getLineMarkers()
+    colors = CommonConf.getLineColors()
     fig = pp.figure(figsize=(12,6))
     ax = fig.add_subplot(111)
     index = 0
@@ -29,8 +30,10 @@ def display (all_latencies, directory):
         xs = sorted(latencies.keys())
         ys = [latencies[lat][0] for lat in xs]
         ydevs = [latencies[lat][1] for lat in xs]
-        ax.plot((xs[-1], mxl), (ys[-1], ys[-1]), '-.')
-        ax.errorbar(xs, ys, yerr=ydevs, label=solver, marker=mrkrs[index], linestyle=fmts[index])
+        ax.plot((xs[-1], mxl), (ys[-1], ys[-1]), linestyle=fmts[index],
+                color=colors[index])
+        ax.errorbar(xs, ys, yerr=ydevs, label=solver, marker=mrkrs[index],
+                linestyle=fmts[index], color=colors[index])
         index = index + 1
     ax.set_xlabel(X_LABEL)
     ax.set_ylabel(Y_LABEL)
@@ -73,11 +76,35 @@ def get_latency_percentile (all_latencies, scheme):
     scm_latency = all_latencies[scheme]
     latency_percentiles = dict()
     latency_mean_percentile = dict()
+    max_latency = 0
+    for latencies in scm_latency.values():
+        max_latency = max(max_latency, max(latencies.keys()))
     for iteration, latencies in scm_latency.iteritems():
-        for lat, percentile in latencies.iteritems():
+        lat = 0
+        prev_percentile = 0
+        while lat <= max_latency:
             percentiles = latency_percentiles.get(lat, [])
+            percentile = latencies.get(lat, prev_percentile)
             percentiles.append(percentile)
             latency_percentiles[lat] = percentiles
+            prev_percentile = percentile
+            lat += 1
+        #for lat, percentile in latencies.iteritems():
+       #     percentiles = latency_percentiles.get(lat, [])
+       #     percentiles.append(percentile)
+       #     latency_percentiles[lat] = percentiles
+       # max_latency_for_iter = max(latencies)
+       # l = max_latency_for_iter + 1
+       # while l <= max_latency:
+       #     percentiles = latency_percentiles.get(l, [])
+       #     percentiles.append(latencies[max_latency_for_iter])
+       #     latency_percentiles[l] = percentiles
+       #     l += 1
+    l = 1
+    while l <= max_latency:
+        print l
+        print latency_percentiles.get(l, [])
+        l += 1
     for lat,pers in latency_percentiles.iteritems():
         latency_mean_percentile[lat] = (np.mean(pers), np.std(pers))
     return latency_mean_percentile

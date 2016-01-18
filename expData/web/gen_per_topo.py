@@ -37,8 +37,6 @@ function chksel(id)\n\
  table { width : 100%; table-layout: fixed; }\n\
  </style>\n\
 '
-topologies = ['abilene']
-
 schemes = ['spf', 'ecmp', 'ksp', 'mcf', 'raeke', 'vlb', 'semimcfecmp', 'semimcfksp', 'semimcfmcf', 'semimcfraeke', 'semimcfvlb']
 
 names = {"cong_max" : "MAX CONGESTION",
@@ -49,6 +47,7 @@ names = {"cong_max" : "MAX CONGESTION",
         "tput_loss_fail" : "FAILURE LOSS",
         "tput_loss_cong" : "CONGESTION LOSS",
         "latency" : "LATENCY",
+        "churn" : "CHURN",
         "numpaths" : "NUMBER OF PATHS"}
 
 images = {"cong_max" : "MaxCongestionVsIterations",
@@ -59,6 +58,7 @@ images = {"cong_max" : "MaxCongestionVsIterations",
         "tput_loss_fail" : "FailureLossVsIterations",
         "tput_loss_cong" : "CongestionLossVsIterations",
         "latency" : "LatencyCDF",
+        "churn" : "ChurnVsIterations",
         "numpaths" : "NumPathsVsIterations"}
 
 for exp in sorted(names.keys()):

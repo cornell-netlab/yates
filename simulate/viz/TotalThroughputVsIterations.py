@@ -20,6 +20,7 @@ def main(dirn, fname, solvers):
   CommonConf.setupMPPDefaults()
   fmts = CommonConf.getLineFormats()
   mrkrs = CommonConf.getLineMarkers()
+  colors = CommonConf.getLineColors()
   fig = pp.figure(figsize=(12,6))
   ax = fig.add_subplot(111)
   # ax.set_xscale("log", basex=2)
@@ -28,7 +29,8 @@ def main(dirn, fname, solvers):
   for (solver, ys), (solver, ydevs) in zip(ysPerSolver.iteritems(),ydevsPerSolver.iteritems()) :
     xs_arr = np.asarray(xs)
     xs_arr = xs_arr + random.random()/2
-    ax.errorbar(xs_arr, ys, yerr=ydevs, label=solver, marker=mrkrs[index], linestyle=fmts[index], alpha=0.8)
+    ax.errorbar(xs_arr, ys, yerr=ydevs, label=solver, marker=mrkrs[index],
+        linestyle=fmts[index], alpha=0.8, color=colors[index])
     index = index + 1
 
   ax.set_xlabel(X_LABEL);
