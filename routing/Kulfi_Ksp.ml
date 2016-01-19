@@ -4,6 +4,7 @@ open Net
 open Net.Topology
 open Core.Std
 open Kulfi_Apsp
+open Kulfi_Globals
 
 let solve (topo:topology) (_:demands) : scheme =
   let host_set =
@@ -12,7 +13,7 @@ let solve (topo:topology) (_:demands) : scheme =
       ~f:(fun v ->
           let lbl = vertex_to_label topo v in
           Node.device lbl = Node.Host) in
-  let all_ksp = all_pair_k_shortest_path topo 3 host_set in
+  let all_ksp = all_pair_k_shortest_path topo (min !Kulfi_Globals.budget 100) host_set in
   SrcDstMap.fold
     all_ksp
     ~init:SrcDstMap.empty

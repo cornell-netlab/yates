@@ -19,5 +19,8 @@ def getLineMarkers():
     #           '<', '>']
     return ['s', 'o', '<', '>', '^', 'v', 'd', '.','*', 'p'] *10
 
+def getLineColors():
+    return ['b','g','r','c','m','y','k'] * 10
+
 def getLineFormats():
     return [':',':', '--', '--'] * 100
