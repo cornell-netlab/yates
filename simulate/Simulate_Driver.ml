@@ -256,8 +256,8 @@ let curr_capacity_of_edge (topo:topology) (link:edge) (fail:failure) : float =
 
 
 let get_util_based_failure_scenario (topo:topology) (utils: congestion EdgeMap.t) : failure =
-  let alpha = 1.0 in
-  let edge_utils = List.filter (EdgeMap.to_alist utils)
+  let alpha = 1.0 in (* fail prob is proportional to congestion ^ alpha *)
+  let edge_utils = List.filter (EdgeMap.to_alist utils) (* don't fail links connecting hosts *)
     ~f:(fun (e,_) ->
       let src,_ = Topology.edge_src e in
       let src_label = Topology.vertex_to_label topo src in
@@ -280,6 +280,28 @@ let get_util_based_failure_scenario (topo:topology) (utils: congestion EdgeMap.t
           | None -> assert false in
   EdgeSet.add (EdgeSet.singleton e) e'
 
+let get_scheme_max_util_link (topo:topology) (actual:demands) : failure =
+  let spf_scheme = Kulfi_Routing.Spf.solve topo SrcDstMap.empty in
+  let exp_utils = (congestion_of_paths spf_scheme topo actual) in
+  let edge_utils = List.filter (EdgeMap.to_alist exp_utils) (* don't fail links connecting hosts *)
+    ~f:(fun (e,_) ->
+      let src,_ = Topology.edge_src e in
+      let src_label = Topology.vertex_to_label topo src in
+      let dst,_ = Topology.edge_dst e in
+      let dst_label = Topology.vertex_to_label topo dst in
+      Node.device src_label <> Node.Host && Node.device dst_label <> Node.Host) in
+	let sorted_edge_utils = List.sort ~cmp:(fun x y -> Float.compare (snd y) (snd x)) edge_utils in
+  (*let _ = List.iter sorted_edge_utils ~f:(fun (e,c) -> Printf.printf "%s : %f\n%!" (string_of_edge topo e) c;) in*)
+  let (e,_) = match List.hd sorted_edge_utils with
+      | Some x -> x
+      | None -> failwith "empty utilization list" in
+  Printf.printf "Failing : %s\n%!" (string_of_edge topo e);
+  let e' = match Topology.inverse_edge topo e with
+          | Some x -> x
+          | None -> assert false in
+  EdgeSet.add (EdgeSet.singleton e) e'
+ 
+		  
 (* Create some failure scenario *)
 let rec get_test_failure_scenario (topo:topology) (iter_pos:float) : failure =
   let iter_pos = max 0.0 (min iter_pos 1.0) in
@@ -705,7 +727,8 @@ let simulate
 		  let sorted_exp_congestions = List.sort ~cmp:(Float.compare) list_of_exp_congestions in
       (* let failing_edges = get_test_failure_scenario topo (float.of_int n /. float.of_int iterations) in *)
       let failing_edges = if n < 2 then EdgeSet.empty
-          else get_util_based_failure_scenario topo exp_congestions in
+          else get_scheme_max_util_link topo actual in
+          (*else get_util_based_failure_scenario topo exp_congestions in*)
           (*else get_test_failure_scenario topo ((Float.of_int n) /.
            * (Float.of_int iterations)) in*)
 		  let tput,latency_dist,congestions,failure_drop,congestion_drop,agg_dem =
