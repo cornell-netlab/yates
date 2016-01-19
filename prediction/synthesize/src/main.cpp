@@ -22,6 +22,9 @@ int main(int argc, char ** argv)
 		double scale_factor = 0;
 		int period = 0;
 		double addn = 0;
+        double demand_jump_factor=0;
+        double demand_locality_factor=0;
+        int merge_len=1;
 		std::string topofile;
 
 		options_description desc("Options");
@@ -32,7 +35,10 @@ int main(int argc, char ** argv)
 			("num_rows,r", value<int>(&num_rows)->default_value(20), "consider the first num rows of  the Abilene data.")
 			("num_host,m", value<int>(&num_hosts)->default_value(3), "num of hosts")
 			("scale_factor,f", value<double>(&scale_factor)->default_value(1.0), "scale_factor")
-			("period,d", value<int>(&period)->default_value(3000), "period")
+			("period,d", value<int>(&period)->default_value(2000), "period")
+						("demand_jump_factor", value<double>(&demand_jump_factor)->default_value(1.0), "demand jump factor") 
+						("demand_locality_factor", value<double>(&demand_locality_factor)->default_value(1.0), "demand locality factor") 
+						("merge_len", value<int>(&merge_len)->default_value(1), "merge how many 5 minutes into one epoch, default = 5 minutes") 
 									("topo,t", value<std::string>(&topofile)->default_value(""), "topo file pos")
 									("adnoise,a", value<double>(&addn)->default_value(0), "add random noise to which level"); 
 
@@ -81,7 +87,10 @@ int main(int argc, char ** argv)
 			num_rows, scale_factor, 
 			vm["pattern"].as<std::string>(),
 			period, addn,
-			vm["topo"].as<std::string>()
+			vm["topo"].as<std::string>(),
+            demand_jump_factor,
+            demand_locality_factor,
+            merge_len
 			);
 		return 0;
 	}

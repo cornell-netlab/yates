@@ -18,7 +18,7 @@
 
 using namespace std;
 
-void predict_part(std::string filename, int totRow, int col, double ** dataM, int period, double scale, double noiselevel) {
+void predict_part(std::string filename, int totRow, int col, double ** dataM, int period, double scale, double noiselevel, double demand_jump_factor, double demand_locality_factor, int merge_len ) {
 
 	bool includeLastOneModel = true;
 	bool includeFFT = true;
@@ -32,13 +32,63 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 		outM[i] = new double[totRow];
 	}
     std::string foldername=string("matrix/")+filename+"-matrix/";
-    
     mkdir("matrix", ACCESSPERMS);
     mkdir(foldername.c_str(), ACCESSPERMS);
 
 
-	writeDemandMatrix(foldername+filename, totRow, col, dataM, period, scale);
+    printf("mergelen=%i\n",merge_len);
+    if (merge_len !=1)
+        filename=filename+string("_mergelen_")+std::to_string(merge_len);
+    else if (fabs(demand_jump_factor-1)>1e-8) {
+        filename=filename+string("_jump_")+std::to_string(demand_jump_factor);
+    } else if (fabs(demand_locality_factor-1)>1e-8) {
+        filename=filename+string("_local_")+std::to_string(demand_locality_factor);
+    }
+
+    writeDemandMatrix(foldername+filename, totRow, col, dataM, period, scale);
+
 	writeDemandMatrix(foldername+filename + string("+BurnIn"), totRow, col, dataM, 0, scale);
+    for (int i=0;i<col;i++)
+    {
+        outM[i][0]=0;
+        for (int j=0;j<totRow;j++)
+            if (outM[i][0]<dataM[i][j])
+                outM[i][0]=dataM[i][j];
+        for (int j=1;j<totRow;j++)
+            outM[i][j]=outM[i][0];
+    }
+    writeDemandMatrix(foldername+filename + string("_envelop"), totRow, col, outM, period, scale);
+
+
+    double totf=0;
+    for (int i=0;i<col;i++)
+        totf+= dataM[i][period];
+    printf("totf=%.2lf\n",totf);
+    for (int i=0;i<col;i++)
+        for (int j=0;j<totRow;j++)
+            outM[i][j]=dataM[i][j];
+    for (int i=1;i<=20;i++) // from 3% to 60% burst
+    {
+        //host 0 to host 1, iter 3
+        outM[1][3+period]+=totf*0.03;
+        char frac_char[100];
+        sprintf(frac_char,"%.2lf",0.03*i);
+        writeDemandMatrix(foldername+filename + string("_burst_pair_")+string(frac_char), totRow, col, outM, period, scale);
+    }
+
+    for (int i=0;i<col;i++)
+        for (int j=0;j<totRow;j++)
+            outM[i][j]=dataM[i][j];
+    int n=int(sqrt(col));
+    for (int i=1;i<=20;i++) // from 3% to 60% burst
+    {
+        //host 0 to host j, iter 3
+        for (int j=0;j<n;j++)
+            outM[j][3+period]+=totf*0.03/n;
+        char frac_char[100];
+        sprintf(frac_char,"%.2lf",0.03*i);
+        writeDemandMatrix(foldername+filename + string("_burst_star_")+string(frac_char), totRow, col, outM, period, scale);
+    }
 
     if (noiselevel>1e-12){
       for (int i = 0; i < col; i++)
@@ -54,7 +104,7 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
       writeDemandMatrix(foldername+filename + string("_error_")+string(noise_char), totRow, col, outM, period, scale);
     } else
     {
-      for (noiselevel=0.1;noiselevel<2.05;noiselevel+=0.1){
+      for (noiselevel=0;noiselevel<2.05;noiselevel+=0.1){
         for (int i = 0; i < col; i++)
             for (int j = 0; j < totRow; j++)
             {
@@ -100,8 +150,8 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 					outM[i][j] = dataM[i][(j >= 1) ? (j - 1) : 0];
 				else
 					outM[i][j] = dataM[i][j - 1];
-				loss += abso(outM[i][j] - dataM[i][j]);
-				thissum += dataM[i][j];
+				loss += abso(outM[i][j] - dataM[i][j])/totRow;
+				thissum += dataM[i][j]/totRow;
 			}
 			printf("Last one model error : %.6lf\n", loss/thissum);
 		}
@@ -449,7 +499,7 @@ void mygenerate(int pickwhich, string outputfile, int totRow, double scale, int 
 
 	getData(dataM, readFiles, pickwhich);
 
-	predict_part(outputfile, totRow, col, dataM, period, scale, noiselevel);
+	predict_part(outputfile, totRow, col, dataM, period, scale, noiselevel,1,1,1);
 
 	for (int i = 0; i < col; i++) {
 		delete (dataM[i]);
@@ -468,7 +518,8 @@ void mygenerate(int pickwhich, string outputfile, int totRow, double scale, int 
 //Please ensure 'patterns', 'pareto' are in the dir/ directory.
 //Will write the actual data to file.
 //Will write the predicted data to file_predictionAlgName.
-void mysynthetic(string outputfile, int n_host, int totRow, double scale, string datafiledir, int period, double noiselevel, string topofile)
+void mysynthetic(string outputfile, int n_host, int totRow, double scale, string datafiledir, int period, double noiselevel, string topofile, double demand_jump_factor, double demand_locality_factor,
+        int merge_len)
 {
 	srand(0);
 
@@ -479,9 +530,9 @@ void mysynthetic(string outputfile, int n_host, int totRow, double scale, string
 	for (int i = 0; i < col; i++)
 		dataM[i] = new double[totRow + 2016];
 
-	generateSyntheticData(totRow, n_host, dataM, datafiledir, topofile);
+	generateSyntheticData(totRow, n_host, dataM, datafiledir, topofile, demand_jump_factor, demand_locality_factor,merge_len);
 
-	predict_part(outputfile, totRow, col, dataM, period, scale, noiselevel);
+	predict_part(outputfile, totRow, col, dataM, period, scale, noiselevel,demand_jump_factor,demand_locality_factor,merge_len);
 
 	for (int i = 0; i < col; i++)
 		delete[] dataM[i];

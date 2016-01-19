@@ -30,7 +30,7 @@ int main(int argc, char ** argv)
 			("num_rows,r", value<int>(&num_rows)->default_value(20), "consider the first num rows of  the Abilene data.")
 				("pick_which,p", value<int>(&pick_which)->default_value(0), "Which Abilene data type? 0 means real data, 1 means gravity model.") 
 					("scale_factor,f", value<double>(&scale_factor)->default_value(1.0), "scale_factor") 
-						("period,d", value<int>(&period)->default_value(3000), "period") 
+						("period,d", value<int>(&period)->default_value(2000), "period") 
 							("adnoise,a", value<double>(&addn)->default_value(0), "add random noise to which level"); 
  
       positional_options_description positionalOptions; 

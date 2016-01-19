@@ -28,4 +28,4 @@ double cxnorm(kiss_fft_cpx a);
 
 double uniform_rand(double a, double b);
 
-void generateSyntheticData(int row, int hosts, double ** m, std::string prefix, std::string topofile);
+void generateSyntheticData(int row, int hosts, double ** m, std::string prefix, std::string topofile, double demand_jump_factor, double demand_locality_factor, int merge_len);

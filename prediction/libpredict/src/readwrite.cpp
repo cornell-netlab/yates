@@ -2,6 +2,7 @@
 #include <assert.h>
 #include "readwrite.h"
 #include "kiss_fft.h"
+#include <cmath>
 
 
 double abso(double a)
@@ -124,15 +125,15 @@ double probabilityDensity(double x, double mean, double sigma)
 double uniondist(double mean)
 {
 	if (getRandNum(100) < 50)
-		return mean*0.8 + mean*0.2*getRandNum(20) / 20;
+		return (mean*0.8 + mean*0.2*getRandNum(20) / 20);
 	else
-		return -mean*0.8 - mean*0.2*getRandNum(20) / 20;
+		return (-mean*0.8 - mean*0.2*getRandNum(20) / 20);
 }
 
-void generateW(double * x, double mean, int len)
+void generateW(double * x, double mean, int len, double demand_jump_factor)
 {
 	std::default_random_engine generator;
-	double sigma = sqrt(mean);
+	double sigma = sqrt(mean)*demand_jump_factor;
 	double sigmaJump = mean / 4;
 	std::normal_distribution<double> jumpdistribution(0, sigmaJump);
 
@@ -143,7 +144,7 @@ void generateW(double * x, double mean, int len)
 	{
 		x[i] = x[i - 1];
 		double nextX = x[i - 1];
-		if (getRandNum(100) <= 1)
+		if (getRandNum(100) <= demand_jump_factor)
 			nextX += uniondist(mean);
 		else 
 			nextX +=jumpdistribution(generator);
@@ -167,6 +168,8 @@ void generateW(double * x, double mean, int len)
 			x[i] = 0;
 			curP = probabilityDensity(0, mean, sigma);
 		}
+        if (isnan(x[i]))
+            printf("Nan...........\n");
 	}
 }
 
@@ -181,7 +184,7 @@ double uniform_rand(double a, double b)
 	return a + ((double)getRandNum(int(range))) / range * (b - a);
 }
 
-void generateSyntheticData(int row, int hosts, double ** m, std::string prefix, std::string topofile)
+void generateSyntheticData(int row, int hosts, double ** m, std::string prefix, std::string topofile, double demand_jump_factor, double demand_locality_factor, int merge_len)
 {
     char filedir[200];
     sprintf(filedir,"%s%s", prefix.c_str(),"patterns");
@@ -270,7 +273,6 @@ void generateSyntheticData(int row, int hosts, double ** m, std::string prefix, 
 		frlt=fscanf(fpareto, "%lf", &saveMean[i]);
 
 	//m[col][row];
-	int pickedTotPattern=0;
 	double ** Tin = new double*[hosts];
 	double ** Tout = new double*[hosts];
 
@@ -280,8 +282,8 @@ void generateSyntheticData(int row, int hosts, double ** m, std::string prefix, 
 	{
 		Tin[i] = new double[row];
 		Tout[i] = new double[row];
-		generateW(Tin[i], saveMean[getRandNum(nMean)], row);
-		generateW(Tout[i], saveMean[getRandNum(nMean)], row);
+		generateW(Tin[i], saveMean[getRandNum(nMean)], row,demand_jump_factor);
+		generateW(Tout[i], saveMean[getRandNum(nMean)], row,demand_jump_factor);
 	}
 		/*
 	for (int i = 0; i < hosts; i++)
@@ -305,6 +307,8 @@ void generateSyntheticData(int row, int hosts, double ** m, std::string prefix, 
 			tot_in += Tin[j][i];
 			tot_out += Tout[j][i];
 		}
+        if (tot_in==0)
+            tot_in=1;
 		for (int j = 0; j < hosts; j++)
 		{
 			Tin[j][i] /= tot_in;
@@ -361,20 +365,33 @@ void generateSyntheticData(int row, int hosts, double ** m, std::string prefix, 
 		fclose(topof);
 	}
 
+    int next=0;
+	int pickedTotPattern=0;
 	for (int i = 0; i < row; i++)
 	{
-		if (i % 2016 == 0)
-		{ 
-			//pickedTotPattern = getRandNum(nWeeks);
-			pickedTotPattern = (i/2016)%20;
-			//printf("picked patter week=-------%i-------\n", pickedTotPattern);
-		}
+        double s_merge=0;
+        for (int j=0;j<merge_len;j++)
+        {
+            s_merge+= totflow[pickedTotPattern][next];
+            next++;
+            if (next>=2016)
+            {
+                next=0;
+                pickedTotPattern=0;
+            }
+        }
+        s_merge/=merge_len;
 		for (int j = 0; j < hosts; j++)
-			for (int k = 0; k < hosts; k++)
+			for (int k = 0; k < hosts; k++){
 				if (maxDist == 0)
-					m[j*hosts + k][i] = totflow[pickedTotPattern][i % 2016] * Tin[j][i] * Tout[k][i];
+					m[j*hosts + k][i] = s_merge * Tin[j][i] * Tout[k][i];
 				else
-					m[j*hosts + k][i] = totflow[pickedTotPattern][i%2016] * Tin[j][i] * Tout[k][i]* exp(-graph[j][k]/maxDist/2);
+					m[j*hosts + k][i] = s_merge * Tin[j][i] * Tout[k][i]* exp(-demand_locality_factor*  graph[j][k]/maxDist/2);
+                if (isnan(m[j*hosts+k][i]))
+                    printf("%lf %lf %lf", s_merge, Tin[j][i], Tout[k][i]);
+                if (m[j*hosts+k][i]==0)
+                    m[j*hosts+k][i]=1000;
+            }
 	}
 	fclose(fPattern);
 	fclose(fpareto);
