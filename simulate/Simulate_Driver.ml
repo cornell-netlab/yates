@@ -56,25 +56,11 @@ let select_algorithm solver = match solver with
   | SemiMcfKsp
   | SemiMcfEcmp -> Kulfi_Routing.SemiMcf.solve
 
-let init_mcf_demands (topo:topology) : demands =
-  let hs = get_hosts topo in
-  List.fold_left
-    hs
-    ~init:SrcDstMap.empty
-    ~f:(fun acc u ->
-	List.fold_left
-	  hs
-	  ~init:acc
-	  ~f:(fun acc v ->
-	      let r = if u = v then 0.0 else 500000.0 in
-	      SrcDstMap.add acc ~key:(u,v) ~data:r))
-
-let initial_scheme algorithm topo : scheme =
+let initial_scheme algorithm topo predict : scheme =
   match algorithm with
   | SemiMcfMcf
   | AkMcf ->
-     let d = init_mcf_demands topo in
-     Kulfi_Routing.Mcf.solve topo d
+     Kulfi_Routing.Mcf.solve topo predict
   | SemiMcfVlb
   | AkVlb ->
      Kulfi_Routing.Vlb.solve topo SrcDstMap.empty
@@ -90,8 +76,8 @@ let initial_scheme algorithm topo : scheme =
      Kulfi_Routing.Ksp.solve topo SrcDstMap.empty
   | _ -> SrcDstMap.empty
 
-let initialize_scheme algorithm topo : unit =
-  let start_scheme = initial_scheme algorithm topo in
+let initialize_scheme algorithm topo predict: unit =
+  let start_scheme = initial_scheme algorithm topo predict in
   Printf.printf "[Init...] \r";
   (* Printf.printf "%s\n%!" (dump_scheme topo start_scheme); *)
   match algorithm with
@@ -165,9 +151,9 @@ let get_churn_string (topo:topology) (old_scheme:scheme) (new_scheme:scheme) : f
   let set2 = get_path_sets new_scheme in
   let union = StringSet.union set1 set2 in
   let inter = StringSet.inter set1 set2 in
-  let _ = StringSet.iter (StringSet.diff union inter) ~f:(fun s -> Printf.printf
+  (*let _ = StringSet.iter (StringSet.diff union inter) ~f:(fun s -> Printf.printf
   "%s\n%!"
-  s) in
+  s) in*)
   Float.of_int (StringSet.length (StringSet.diff union inter))
 
 (* Get a map from path to it's probability and src-dst demand *)
@@ -256,18 +242,13 @@ let global_recovery (failed_links:failure) (predict:demands) (algorithm:solver_t
   ignore(EdgeSet.iter (Topology.edges topo')
       ~f:(fun e -> assert (EdgeSet.mem (Topology.edges topo) e)));
 
-  initialize_scheme algorithm topo';
+  initialize_scheme algorithm topo' predict;
   let solve = select_algorithm algorithm in
   let new_scheme = prune_scheme topo' (solve topo' predict) !Kulfi_Globals.budget in
   ignore (if (SrcDstMap.is_empty new_scheme) then failwith "new_scheme is empty in global driver" else ());
   (*Printf.printf "New scheme: %s\n-----\n%!" (dump_scheme topo' new_scheme);*)
   Printf.printf "\t\t\t\t\t\t\t\t\t\t\tGLOBAL\r";
   new_scheme
-
-(* Restore the state of solver based on original topology *)
-let restore_solver_state (algorithm:solver_type) (topo:topology) : unit =
-  Printf.printf "[Rest...]%!";
-  initialize_scheme algorithm topo
 
 (* Return src and dst for a given path *)
 let get_src_dst_for_path (p:path) =
@@ -396,7 +377,6 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                      else !Kulfi_Globals.failure_time + steady_state_time in
   let local_recovery_delay = !Kulfi_Globals.local_recovery_delay in
   let global_recovery_delay = !Kulfi_Globals.global_recovery_delay in
-  let topo_modified = ref false in
   let recovery_churn = ref 0. in
   let iterations = range 0 (num_iterations + steady_state_time) in
   if local_debug then Printf.printf "%s\n%!" (dump_scheme topo start_scheme);
@@ -434,7 +414,6 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                         then local_recovery topo curr_scheme failed_links
                       else if iter = (global_recovery_delay + failure_time)
                         then begin
-                          topo_modified := true;
                           global_recovery failed_links predict algorithm topo
                           end
                       else curr_scheme in
@@ -591,9 +570,6 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   let cong_drop = cong_drop /. (Float.of_int num_iterations) /. agg_dem in
   (*ignore(StringMap.iter link_utils ~f:(fun ~key:e ~data:_ -> Printf.printf "%s\n" e));*)
 
-  (* if topology was modified, assume all failures are corrected
-   * and restore the solvers to use original topology for next TM *)
-  let _ = if !topo_modified then restore_solver_state algorithm topo else () in
   (*let total_tput = get_total_tput tput in
   Printf.printf "\nTotal traffic: %f + %f + %f\t= %f" total_tput fail_drop cong_drop (total_tput+.fail_drop+.cong_drop);*)
   tput, latency_dist, avg_congestions, fail_drop, cong_drop, agg_dem, !recovery_churn, final_scheme
@@ -730,7 +706,6 @@ let simulate
 	let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
   Printf.printf "\n";
 	(* we may need to initialize the scheme, and advance both traffic files *)
-	initialize_scheme algorithm topo;
 
 	ignore (
 	    List.fold_left
@@ -742,6 +717,9 @@ let simulate
 		  (* get the next demand *)
 		  let actual = next_demand ~scale:scale actual_ic actual_host_map in
 		  let predict = next_demand ~scale:scale predict_ic predict_host_map in
+
+      (* initialize algorithm *)
+      if n = 0 then initialize_scheme algorithm topo predict;
 
 		  (* solve *)
 		  start at;
