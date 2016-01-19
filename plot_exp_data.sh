@@ -21,3 +21,4 @@ python simulate/viz/LossVsIterations.py ${data_dir} Failure
 python simulate/viz/LossVsIterations.py ${data_dir} Congestion
 python simulate/viz/NumPathsVsIterations.py ${data_dir}
 python simulate/viz/ChurnVsIterations.py ${data_dir}
+python simulate/viz/TimeVsIterations.py ${data_dir}
