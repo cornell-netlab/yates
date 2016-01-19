@@ -11,7 +11,7 @@ import sys
 random.seed(5)
 
 EXPERIMENT_NAME = "ChurnVsIterations"
-X_LABEL         = "Iterations"
+X_LABEL         = "TM"
 Y_LABEL         = "Churn"
 
 def main(dirn, fname, solvers):

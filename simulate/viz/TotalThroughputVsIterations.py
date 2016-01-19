@@ -9,7 +9,7 @@ import random
 import sys
 
 EXPERIMENT_NAME = "TotalThroughputVsIterations"
-X_LABEL         = "Iterations"
+X_LABEL         = "TM"
 Y_LABEL         = "Total Throughput"
 
 random.seed(5)

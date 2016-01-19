@@ -9,7 +9,7 @@ import random
 import sys
 
 EXPERIMENT_NAME = "LossVsIterations"
-X_LABEL         = "Iterations"
+X_LABEL         = "TM"
 Y_LABEL         = "Loss"
 
 random.seed(5)

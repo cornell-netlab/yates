@@ -9,7 +9,7 @@ import random
 import sys
 random.seed(5)
 EXPERIMENT_NAME = "CongestionVsIterations"
-X_LABEL         = "Iterations"
+X_LABEL         = "TM"
 Y_LABEL         = "Congestion"
 
 def main(dirn, fname, solvers):

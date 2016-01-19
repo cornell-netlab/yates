@@ -11,7 +11,7 @@ import sys
 random.seed(5)
 
 EXPERIMENT_NAME = "TimeVsIterations"
-X_LABEL         = "Iterations"
+X_LABEL         = "TM"
 Y_LABEL         = "Time (sec.)"
 
 def main(dirn, fname, solvers):
@@ -38,8 +38,7 @@ def main(dirn, fname, solvers):
   ax.legend(bbox_to_anchor=(1., 1.), loc=2, borderaxespad=1., fancybox=True)
   pp.subplots_adjust(left=0.1, right=0.8, top=0.9, bottom=0.1)
 
-  pp.savefig(dirn+"/"+fname+"-".join(solvers)+".pdf")
-  pp.show()
+  pp.savefig(dirn+"/"+fname+"-".join(solvers)+".svg")
 
 if __name__ == "__main__":
   if len(sys.argv) < 2:
