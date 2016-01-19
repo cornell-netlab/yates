@@ -22,7 +22,6 @@ def main(dirn, fname, solvers):
   fig = pp.figure(figsize=(12,6))
   ax = fig.add_subplot(111)
   # ax.set_xscale("log", basex=2)
-
   index = 0
   for (solver, ys), (solver, ydevs) in zip(ysPerSolver.iteritems(),ydevsPerSolver.iteritems()) :
     xs_arr = np.asarray(xs)
@@ -35,7 +34,8 @@ def main(dirn, fname, solvers):
   ax.set_ylabel(Y_LABEL);
   ax.legend(bbox_to_anchor=(1., 1.), loc=2, borderaxespad=1., fancybox=True)
   pp.subplots_adjust(left=0.1, right=0.8, top=0.9, bottom=0.1)
-
+  ymin, ymax = pp.ylim()
+  pp.ylim(ymin-0.1,ymax+0.1)
   pp.savefig(dirn+"/"+fname+"-".join(solvers)+".svg")
 
 if __name__ == "__main__":
