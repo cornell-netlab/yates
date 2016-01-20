@@ -222,7 +222,7 @@ let get_aggregate_latency (sd_lat_tput_map_map:(throughput LatencyMap.t) SrcDstM
 let global_recovery (failed_links:failure) (predict:demands) (algorithm:solver_type) (topo:topology) : scheme =
   Printf.printf "\t\t\t\t\t\t\t\t\t\t\tGlobal\r";
   (*let topo = Marshal.from_string (Marshal.to_string topo [Marshal.Closures]) 0
-   * in*)
+  in*)
   let topo' = EdgeSet.fold failed_links
     ~init:topo
     ~f:(fun acc link -> Topology.remove_edge acc link) in

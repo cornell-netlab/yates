@@ -37,7 +37,7 @@ def main(dirn, fname):
   ax.set_ylabel(Y_LABEL);
   ax.legend(bbox_to_anchor=(1., 1.), loc=2, borderaxespad=1., fancybox=True)
   ymin, ymax = pp.ylim()
-  pp.ylim(ymin-0.1,ymax+0.1)
+  pp.ylim(-0.05,1.05)
 
   pp.subplots_adjust(left=0.1, right=0.8, top=0.9, bottom=0.1)
   pp.savefig(dirn+"/"+fname+".svg")

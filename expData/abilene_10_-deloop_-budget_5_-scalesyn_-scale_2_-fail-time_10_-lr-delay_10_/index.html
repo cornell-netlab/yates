@@ -35,6 +35,23 @@ function chksel(id)
  table { width : 100%; table-layout: fixed; }
  </style>
 
+CONGESTION CDF
+<input type=checkbox id="chkcong_cdf" onclick="toggledisplay('imgcong_cdf');" />
+<label for="chkcong_cdf"></label>
+<hr>
+<style>
+#flat {width:100%; margin:0 auto 0 auto; text-align:center;}
+#flat div 
+{
+display:inline-block;
+}
+</style>
+<div id="flat">
+<div id="imgcong_cdf" style="display:none">
+		<img src="CongestionCDF.svg">
+ <br>
+</div>
+</div>
 MEDIAN CONGESTION
 <input type=checkbox id="chkcong_k50" onclick="toggledisplay('imgcong_k50');" />
 <label for="chkcong_k50"></label>

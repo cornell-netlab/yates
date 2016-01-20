@@ -30,6 +30,7 @@ let capacity_constraints (pmap : path_uid_map) (emap : edge_uidlist_map)
     (fun edge acc ->
      (* The sum of all commodity flows in both direction must exceed
          the capacity by less than Z * capacity. *)
+
      match (EdgeMap.find emap edge) with
      | None -> acc
      | Some uid_list ->

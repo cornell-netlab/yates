@@ -88,9 +88,9 @@ def get_latency_percentile (all_latencies, scheme):
             percentiles.append(percentile)
             latency_percentiles[lat] = percentiles
             prev_percentile = percentile
-    for l in latency_values:
-        print l
-        print latency_percentiles.get(l, [])
+    #for l in latency_values:
+    #    print l
+    #    print latency_percentiles.get(l, [])
     for lat,pers in latency_percentiles.iteritems():
         latency_mean_percentile[lat] = (np.mean(pers), np.std(pers))
     return latency_mean_percentile
