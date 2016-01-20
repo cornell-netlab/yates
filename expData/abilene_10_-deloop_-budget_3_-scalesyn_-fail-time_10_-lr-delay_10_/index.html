@@ -35,23 +35,6 @@ function chksel(id)
  table { width : 100%; table-layout: fixed; }
  </style>
 
-CHURN
-<input type=checkbox id="chkchurn" onclick="toggledisplay('imgchurn');" />
-<label for="chkchurn"></label>
-<hr>
-<style>
-#flat {width:100%; margin:0 auto 0 auto; text-align:center;}
-#flat div 
-{
-display:inline-block;
-}
-</style>
-<div id="flat">
-<div id="imgchurn" style="display:none">
-		<img src="ChurnVsIterations.svg">
- <br>
-</div>
-</div>
 MEDIAN CONGESTION
 <input type=checkbox id="chkcong_k50" onclick="toggledisplay('imgcong_k50');" />
 <label for="chkcong_k50"></label>
@@ -154,6 +137,23 @@ display:inline-block;
  <br>
 </div>
 </div>
+RECOVERY CHURN
+<input type=checkbox id="chkrecchurn" onclick="toggledisplay('imgrecchurn');" />
+<label for="chkrecchurn"></label>
+<hr>
+<style>
+#flat {width:100%; margin:0 auto 0 auto; text-align:center;}
+#flat div 
+{
+display:inline-block;
+}
+</style>
+<div id="flat">
+<div id="imgrecchurn" style="display:none">
+		<img src="RecoveryChurnVsIterations.svg">
+ <br>
+</div>
+</div>
 SOLVER TIME
 <input type=checkbox id="chktime" onclick="toggledisplay('imgtime');" />
 <label for="chktime"></label>
@@ -168,6 +168,23 @@ display:inline-block;
 <div id="flat">
 <div id="imgtime" style="display:none">
 		<img src="TimeVsIterations.svg">
+ <br>
+</div>
+</div>
+TM CHURN
+<input type=checkbox id="chktmchurn" onclick="toggledisplay('imgtmchurn');" />
+<label for="chktmchurn"></label>
+<hr>
+<style>
+#flat {width:100%; margin:0 auto 0 auto; text-align:center;}
+#flat div 
+{
+display:inline-block;
+}
+</style>
+<div id="flat">
+<div id="imgtmchurn" style="display:none">
+		<img src="TMChurnVsIterations.svg">
  <br>
 </div>
 </div>
