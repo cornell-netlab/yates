@@ -20,5 +20,6 @@ python simulate/viz/LatencyCDF.py expData/${data_dir}/LatencyDistributionVsItera
 python simulate/viz/LossVsIterations.py ${data_dir} Failure
 python simulate/viz/LossVsIterations.py ${data_dir} Congestion
 python simulate/viz/NumPathsVsIterations.py ${data_dir}
-python simulate/viz/ChurnVsIterations.py ${data_dir}
+python simulate/viz/ChurnVsIterations.py ${data_dir} TM
+python simulate/viz/ChurnVsIterations.py ${data_dir} Recovery
 python simulate/viz/TimeVsIterations.py ${data_dir}

@@ -48,7 +48,8 @@ names = {"cong_max" : "MAX CONGESTION",
         "tput_loss_fail" : "FAILURE LOSS",
         "tput_loss_cong" : "CONGESTION LOSS",
         "latency" : "LATENCY",
-        "churn" : "CHURN",
+        "tmchurn" : "TM CHURN",
+        "recchurn" : "RECOVERY CHURN",
         "numpaths" : "NUMBER OF PATHS"}
 
 images = {"cong_max" : "MaxCongestionVsIterations",
@@ -60,7 +61,8 @@ images = {"cong_max" : "MaxCongestionVsIterations",
         "tput_loss_fail" : "FailureLossVsIterations",
         "tput_loss_cong" : "CongestionLossVsIterations",
         "latency" : "LatencyCDF",
-        "churn" : "ChurnVsIterations",
+        "tmchurn" : "TMChurnVsIterations",
+        "recchurn" : "RecoveryChurnVsIterations",
         "numpaths" : "NumPathsVsIterations"}
 
 for exp in sorted(names.keys()):

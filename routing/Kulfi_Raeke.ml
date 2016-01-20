@@ -75,3 +75,5 @@ let solve (t:topology) (d:demands) : scheme =
 let initialize (s:scheme) : unit =
   prev_scheme := s;
   ()
+
+let local_recovery = Kulfi_Types.normalization_recovery

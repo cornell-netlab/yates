@@ -27,3 +27,5 @@ let solve (topo:topology) (_:demands) : scheme =
       SrcDstMap.add acc ~key:(v1,v2) ~data:path_map)
 
 let initialize _ = ()
+
+let local_recovery = Kulfi_Types.normalization_recovery

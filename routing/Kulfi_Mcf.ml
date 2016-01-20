@@ -302,3 +302,5 @@ let solve (topo:topology) (pairs:demands) : scheme =
     recover_paths topo flows_table
 
 let initialize _ = ()
+
+let local_recovery = Kulfi_Types.normalization_recovery

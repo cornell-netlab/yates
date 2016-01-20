@@ -71,3 +71,4 @@ let solve (topo:topology) (_:demands) : scheme =
 
 
 let initialize _ = ()
+let local_recovery = Kulfi_Types.normalization_recovery

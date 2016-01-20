@@ -56,6 +56,26 @@ let select_algorithm solver = match solver with
   | SemiMcfKsp
   | SemiMcfEcmp -> Kulfi_Routing.SemiMcf.solve
 
+let select_local_recovery solver = match solver with
+  | Mcf -> Kulfi_Routing.Mcf.local_recovery
+  | MwMcf -> Kulfi_Routing.MwMcf.local_recovery
+  | Vlb -> Kulfi_Routing.Vlb.local_recovery
+  | Ecmp -> Kulfi_Routing.Ecmp.local_recovery
+  | Ksp -> Kulfi_Routing.Ksp.local_recovery
+  | Spf -> Kulfi_Routing.Spf.local_recovery
+  | Raeke -> Kulfi_Routing.Raeke.local_recovery
+  | AkMcf
+  | AkVlb
+  | AkRaeke
+  | AkKsp
+  | AkEcmp -> Kulfi_Routing.Ak.local_recovery
+  | SemiMcfMcf
+  | SemiMcfVlb
+  | SemiMcfRaeke
+  | SemiMcfKsp
+  | SemiMcfEcmp -> Kulfi_Routing.SemiMcf.local_recovery
+
+
 let initial_scheme algorithm topo predict : scheme =
   match algorithm with
   | SemiMcfMcf
@@ -77,20 +97,23 @@ let initial_scheme algorithm topo predict : scheme =
   | _ -> SrcDstMap.empty
 
 let initialize_scheme algorithm topo predict: unit =
-  let start_scheme = initial_scheme algorithm topo predict in
   Printf.printf "[Init...] \r";
+  let start_scheme = initial_scheme algorithm topo predict in
+  let pruned_scheme = if SrcDstMap.is_empty start_scheme
+  then start_scheme
+  else prune_scheme topo start_scheme !Kulfi_Globals.budget in
   (* Printf.printf "%s\n%!" (dump_scheme topo start_scheme); *)
   match algorithm with
   | SemiMcfEcmp
   | SemiMcfKsp
   | SemiMcfMcf
   | SemiMcfRaeke
-  | SemiMcfVlb -> Kulfi_Routing.SemiMcf.initialize start_scheme
+  | SemiMcfVlb -> Kulfi_Routing.SemiMcf.initialize pruned_scheme
   | AkEcmp
   | AkKsp
   | AkMcf
   | AkRaeke
-  | AkVlb -> Kulfi_Routing.Ak.initialize start_scheme
+  | AkVlb -> Kulfi_Routing.Ak.initialize pruned_scheme
   | Raeke -> Kulfi_Routing.Raeke.initialize SrcDstMap.empty
   | _ -> ()
 
@@ -195,43 +218,11 @@ let get_aggregate_latency (sd_lat_tput_map_map:(throughput LatencyMap.t) SrcDstM
       let agg_tput = prev_agg_tput +. (tput /. (Float.of_int num_iter)) in
       LatencyMap.add ~key:latency ~data:(agg_tput) acc))
 
-(* Modify routing scheme by normalizing path probabilites while avoiding failed links *)
-let local_recovery (topo:topology) (curr_scheme:scheme) (failed_links:failure) : scheme =
-  Printf.printf "\t\t\t\t\t\t\t\t\t\tLocal\r";
-  let new_scheme = SrcDstMap.fold curr_scheme
-  ~init:SrcDstMap.empty
-  ~f:(fun ~key:(src,dst) ~data:paths acc ->
-    let is_path_alive (p:path) : bool =
-      List.fold_left p
-      ~init:true
-      ~f:(fun valid edge ->
-        let edge_is_safe = not (EdgeSet.mem failed_links edge) in
-        valid && edge_is_safe) in
-    let n_paths = PathMap.filter ~f:(fun ~key:p ~data:_ -> is_path_alive p) paths in
-    let total_prob = PathMap.fold n_paths
-      ~init:0.0
-      ~f:(fun ~key:_ ~data:prob acc -> acc +. prob) in
-
-    (*if total_prob = 0.  then Printf.printf "\nNum edges = %d ; Num failed = %d ; Num remaining paths =
-      %d\n%!" (EdgeSet.length (Topology.edges topo)) (EdgeSet.length failed_links) (PathMap.length
-      n_paths);*)
-
-    let renormalized_paths = PathMap.fold n_paths
-      ~init:PathMap.empty
-      ~f:(fun ~key:path ~data:prob acc ->
-        let new_prob = if (total_prob = 0.) 
-                       then 1. /. (Float.of_int (PathMap.length n_paths))
-                       else prob /. total_prob in
-        PathMap.add ~key:path ~data:new_prob acc) in
-    SrcDstMap.add ~key:(src,dst) ~data:renormalized_paths acc) in
-  Printf.printf "\t\t\t\t\t\t\t\t\t\tLOCAL\r";
-  (* Printf.printf "Local: %s\n-----\n" (dump_scheme topo new_scheme); *)
-  new_scheme
-
 (* Global recovery: recompute routing scheme after removing failed links *)
 let global_recovery (failed_links:failure) (predict:demands) (algorithm:solver_type) (topo:topology) : scheme =
   Printf.printf "\t\t\t\t\t\t\t\t\t\t\tGlobal\r";
-  let topo = Marshal.from_string (Marshal.to_string topo [Marshal.Closures]) 0 in
+  (*let topo = Marshal.from_string (Marshal.to_string topo [Marshal.Closures]) 0
+   * in*)
   let topo' = EdgeSet.fold failed_links
     ~init:topo
     ~f:(fun acc link -> Topology.remove_edge acc link) in
@@ -401,6 +392,13 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
         if iter = steady_state_time then (SrcDstMap.empty, SrcDstMap.empty, StringMap.empty, 0.0, 0.0)
         else (curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop) in
 
+      (* debug 
+      let td = SrcDstMap.fold ~init:0. ~f:(fun ~key:_ ~data:x acc -> acc +. x)
+      curr_delivered_map
+      in
+      Printf.printf "%2d Total delivered %f\n%!" iter td;
+       debug *)
+
       (* introduce failures *)
       let failed_links = if iter = failure_time then
         begin
@@ -411,7 +409,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
 
       (* local and global recovery *)
       let new_scheme = if iter = (local_recovery_delay + failure_time)
-                        then local_recovery topo curr_scheme failed_links
+                        then (select_local_recovery algorithm) curr_scheme topo failed_links predict
                       else if iter = (global_recovery_delay + failure_time)
                         then begin
                           global_recovery failed_links predict algorithm topo
@@ -422,6 +420,9 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
       if iter = (global_recovery_delay + failure_time) then
         recovery_churn := (get_churn_string topo curr_scheme new_scheme);
 
+      (*if iter = (local_recovery_delay + failure_time) then
+        Printf.printf "LOCAL ---- New scheme : %s\n%!" (dump_scheme topo
+        new_scheme);*)
       (* probability of taking each path *)
       let path_prob_map = get_path_prob_demand_map new_scheme dem in
 
@@ -430,6 +431,16 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
       ~init:curr_fail_drop
       ~f:(fun ~key:(src,dst) ~data:paths acc ->
         if (PathMap.is_empty paths) then acc +. (SrcDstMap.find_exn dem (src,dst)) else acc) in
+
+      (* if no (s-d) key, then entire demand is dropped due to failure *)
+      let curr_fail_drop = SrcDstMap.fold dem
+      ~init:curr_fail_drop
+      ~f:(fun ~key:(src,dst) ~data:d acc ->
+        match SrcDstMap.find new_scheme (src,dst) with
+        | None -> acc +. d
+        | Some x -> acc) in
+
+
 
       (* Add traffic at source of every path *)
       (* next_iter_traffic : map edge -> in_traffic in next iter *)
@@ -558,13 +569,10 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
 
   let latency_dist = (get_aggregate_latency lat_tput_map_map num_iterations) in
 
-  let edge_list = EdgeSet.elements (Topology.edges topo) in
-  let avg_congestions = List.fold_left edge_list
+  let avg_congestions = StringMap.fold link_utils
     ~init:EdgeMap.empty
-    ~f:(fun acc e ->
-      let util = match StringMap.find link_utils (string_of_edge topo e) with
-                | None -> 0.0
-                | Some x -> x in
+    ~f:(fun ~key:e_str ~data:util acc ->
+      let e = StringMap.find_exn str_to_edge_map e_str in
       EdgeMap.add ~key:e ~data:(util /. (Float.of_int (num_iterations)) /. (capacity_of_edge topo e)) acc) in
   let fail_drop = fail_drop /. (Float.of_int num_iterations) /. agg_dem in
   let cong_drop = cong_drop /. (Float.of_int num_iterations) /. agg_dem in
@@ -662,7 +670,8 @@ let simulate
 
 
   let time_data = make_data "Iteratives Vs Time" in
-  let churn_data = make_data "Churn Vs Time" in
+  let tm_churn_data = make_data "TM Churn Vs Time" in
+  let rec_churn_data = make_data "Recovery Churn Vs Time" in
   let edge_congestion_data = make_data "Edge Congestion Vs Time" in
   let latency_percentiles_data = make_data "Latency distribution vs Time" in
   let edge_exp_congestion_data = make_data "Edge Expected Congestion Vs Time" in
@@ -743,7 +752,7 @@ let simulate
 
 		  (* record *)
 		  let tm = (get_time_in_seconds at) in
-      let ch = (get_churn_string topo scheme scheme') +. recovery_churn in
+      let tm_churn = (get_churn_string topo scheme scheme') in
 		  let np = (get_num_paths scheme') in
 		  let cmax = (get_max_congestion list_of_congestions) in
 		  let cmean = (get_mean_congestion list_of_congestions) in
@@ -761,7 +770,8 @@ let simulate
 
 		  let sname = (solver_to_string algorithm) in
 		  add_record time_data sname {iteration = n; time=tm; time_dev=0.0; };
-		  add_record churn_data sname {iteration = n; churn=ch; churn_dev=0.0; };
+		  add_record tm_churn_data sname {iteration = n; churn=tm_churn; churn_dev=0.0; };
+		  add_record rec_churn_data sname {iteration = n; churn=recovery_churn; churn_dev=0.0; };
 		  add_record num_paths_data sname {iteration = n; num_paths=np; num_paths_dev=0.0; };
 		  add_record max_congestion_data sname {iteration = n; congestion=cmax; congestion_dev=0.0; };
 		  add_record mean_congestion_data sname {iteration = n; congestion=cmean; congestion_dev=0.0; };
@@ -782,7 +792,7 @@ let simulate
 		    (percentile_values sorted_exp_congestions)
 		    ~f:(fun d v -> add_record d sname {iteration = n; congestion=v; congestion_dev=0.0;});
 
-		  final_scheme) );
+		  scheme') );
 
 	(* start at beginning of demands for next algorithm *)
 	close_demands actual_ic;
@@ -799,7 +809,8 @@ let simulate
           | Some x -> x
           | _ -> "default" in
   let dir = "./expData/" ^ output_dir ^ "/" in
-  to_file dir "ChurnVsIterations.dat" churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
+  to_file dir "TMChurnVsIterations.dat" tm_churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
+  to_file dir "RecoveryChurnVsIterations.dat" rec_churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
   to_file dir "NumPathsVsIterations.dat" num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
   to_file dir "TimeVsIterations.dat" time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;
   to_file dir "MaxCongestionVsIterations.dat" max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string;
@@ -832,7 +843,8 @@ let simulate
   to_file dir "LatencyDistributionVsIterations.dat" latency_percentiles_data "#solver\titer\tlatency-throughput" (iter_vs_latency_percentiles_to_string);
 
   Printf.printf "%s" (to_string time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string);
-  Printf.printf "%s" (to_string churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
+  Printf.printf "%s" (to_string tm_churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
+  Printf.printf "%s" (to_string rec_churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
   Printf.printf "%s" (to_string max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string);
   Printf.printf "%s" (to_string total_tput_data "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string);
   Printf.printf "%s" (to_string failure_drop_data "# solver\titer\tfailure-drop\tstddev" iter_vs_throughput_to_string);
