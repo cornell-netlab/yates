@@ -863,7 +863,6 @@ let calculate_syn_scale (topology:string) (demand_file:string) (host_file:string
   let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist expected_congestions) in
   let cmax = (get_max_congestion list_of_congestions) in
   let scale_factor = 0.4/.cmax in
-  Printf.printf "Scale factor: %f\n\n" (scale_factor);
   close_demands actual_ic;
   scale_factor
 
@@ -893,6 +892,7 @@ let command =
     +> flag "-all" no_arg ~doc:" run all schemes"
     +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
     +> flag "-deloop" no_arg ~doc:" remove loops in paths"
+    +> flag "-scale" (optional float) ~doc:" scale demands by this factor"
     +> flag "-budget" (optional int) ~doc:" max paths between each pair of hosts"
     +> flag "-fail-time" (optional int) ~doc:" simulation time to introduce failure at"
     +> flag "-lr-delay" (optional int) ~doc:" delay between failure and local recovery"
@@ -923,6 +923,7 @@ let command =
 	 (all:bool)
    (scalesyn:bool)
    (deloop:bool)
+   (scale:float option)
    (budget:int option)
    (fail_time:int option)
    (lr_delay:int option)
@@ -954,13 +955,15 @@ let command =
 	 ; if semimcfksp || all then Some SemiMcfKsp else None
 	 ; if semimcfvlb || all then Some SemiMcfVlb else None
 	 ; if semimcfraeke || all then Some SemiMcfRaeke else None ] in
-     let scale = if scalesyn then calculate_syn_scale topology_file demand_file host_file else 1.0 in
+     let syn_scale = if scalesyn then calculate_syn_scale topology_file demand_file host_file else 1.0 in
+     let tot_scale = match scale with | None -> syn_scale | Some x -> x *. syn_scale in
+     Printf.printf "Scale factor: %f\n\n" (tot_scale);
      Kulfi_Globals.deloop := deloop;
      ignore(Kulfi_Globals.budget := match budget with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.failure_time := match fail_time with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.local_recovery_delay := match lr_delay with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.global_recovery_delay := match gr_delay with | None -> Int.max_value/100 | Some x -> x);
-     simulate algorithms topology_file demand_file predict_file host_file iterations scale out ()
+     simulate algorithms topology_file demand_file predict_file host_file iterations tot_scale out ()
   )
 
 let main = Command.run command
