@@ -691,7 +691,7 @@ let simulate
       ~f:(fun acc p ->
 	  let i = Int.of_float (p *. 100.) in
 	  let s = Printf.sprintf "%d-th %s Vs Time" i metric in
-	  (make_data s)::acc ) in
+    acc@[(make_data s)] ) in
 
   let percentile_data = create_percentile_data "Congestion" in
   let exp_percentile_data = create_percentile_data "Expected Congestion" in
@@ -749,7 +749,6 @@ let simulate
         (simulate_tm scheme' topo actual failing_edges predict algorithm) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in
 		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
-
 		  (* record *)
 		  let tm = (get_time_in_seconds at) in
       let tm_churn = (get_churn_string topo scheme scheme') in
@@ -766,7 +765,7 @@ let simulate
 		      percentiles
 		      ~init:[]
 		      ~f:(fun acc p ->
-			  (kth_percentile sort_cong p)::acc ) in
+            acc@[(kth_percentile sort_cong p)]) in
 
 		  let sname = (solver_to_string algorithm) in
 		  add_record time_data sname {iteration = n; time=tm; time_dev=0.0; };
@@ -786,7 +785,7 @@ let simulate
 		  List.iter2_exn
 		    percentile_data
 		    (percentile_values sorted_congestions)
-		    ~f:(fun d v -> add_record d sname {iteration = n; congestion=v; congestion_dev=0.0;});
+        ~f:(fun d v -> add_record d sname {iteration = n; congestion=v; congestion_dev=0.0;});
 		  List.iter2_exn
 		    exp_percentile_data
 		    (percentile_values sorted_exp_congestions)
@@ -939,7 +938,7 @@ let command =
        List.filter_map
          ~f:(fun x -> x)
          [ if mcf || all then Some Mcf else None
-	 ; if mwmcf || all then Some MwMcf else None
+         ; if mwmcf then Some MwMcf else None
          ; if vlb || all then Some Vlb else None
          ; if ecmp || all then Some Ecmp else None
          ; if ksp || all then Some Ksp else None
