@@ -272,6 +272,8 @@ let local_recovery (_:scheme) (topo:topology) (failed_links:failure) (d:demands)
       ~init:[]
       ~f:(fun acc p -> if (is_path_alive p) then p::acc else acc) in
     SrcDstMap.add ~key:(src,dst) ~data:n_paths acc) in
+  (* If there is no path in base set for a u-v pair, then MCF produces an
+   * empty scheme. To avoid this, we set u-v demand = 0  *)
   let new_demands = SrcDstMap.fold new_base_path_set
   ~init:SrcDstMap.empty
   ~f:(fun ~key:(u,v) ~data:bpset acc ->
