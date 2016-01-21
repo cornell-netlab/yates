@@ -41,24 +41,30 @@ schemes = ['spf', 'ecmp', 'ksp', 'mcf', 'raeke', 'vlb', 'semimcfecmp', 'semimcfk
 
 names = {"cong_max" : "MAX CONGESTION",
         "cong_mean" : "MEAN CONGESTION",
+        "cong_cdf" : "CONGESTION CDF",
         "cong_k50" : "MEDIAN CONGESTION",
         "cong_k90" : "90th %ile CONGESTION",
+        "time" : "SOLVER TIME",
         "tput" : "THROUGHPUT",
         "tput_loss_fail" : "FAILURE LOSS",
         "tput_loss_cong" : "CONGESTION LOSS",
         "latency" : "LATENCY",
-        "churn" : "CHURN",
+        "tmchurn" : "TM CHURN",
+        "recchurn" : "RECOVERY CHURN",
         "numpaths" : "NUMBER OF PATHS"}
 
 images = {"cong_max" : "MaxCongestionVsIterations",
         "cong_mean" : "MeanCongestionVsIterations",
         "cong_k50" : "k50CongestionVsIterations",
         "cong_k90" : "k90CongestionVsIterations",
+        "cong_cdf" : "CongestionCDF",
+        "time" : "TimeVsIterations",
         "tput" : "TotalThroughputVsIterations",
         "tput_loss_fail" : "FailureLossVsIterations",
         "tput_loss_cong" : "CongestionLossVsIterations",
         "latency" : "LatencyCDF",
-        "churn" : "ChurnVsIterations",
+        "tmchurn" : "TMChurnVsIterations",
+        "recchurn" : "RecoveryChurnVsIterations",
         "numpaths" : "NumPathsVsIterations"}
 
 for exp in sorted(names.keys()):

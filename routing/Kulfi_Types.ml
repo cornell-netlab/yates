@@ -46,6 +46,7 @@ module PathMap = Map.Make(PathOrd)
 module IntMap = Map.Make(Int)
 
 module StringMap = Map.Make(String)
+module StringSet = Set.Make(String)
 
 type edgestr_util_map = congestion StringMap.t
 
@@ -305,5 +306,33 @@ let dump_scheme (t:topology) (s:scheme) : string =
                                       (Node.name (Net.Topology.vertex_to_label t v2))
                                       (dump_path_prob_set t pps));
   Buffer.contents buf
+
+(* Modify routing scheme by normalizing path probabilites while avoiding failed links *)
+let normalization_recovery (curr_scheme:scheme) (_:topology) (failed_links:failure) (_:demands) : scheme =
+  Printf.printf "\t\t\t\t\t\t\t\t\t\tLocal\r";
+  let new_scheme = SrcDstMap.fold curr_scheme
+  ~init:SrcDstMap.empty
+  ~f:(fun ~key:(src,dst) ~data:paths acc ->
+    let is_path_alive (p:path) : bool =
+      List.fold_left p
+      ~init:true
+      ~f:(fun valid edge ->
+        let edge_is_safe = not (EdgeSet.mem failed_links edge) in
+        valid && edge_is_safe) in
+    let n_paths = PathMap.filter ~f:(fun ~key:p ~data:_ -> is_path_alive p) paths in
+    let total_prob = PathMap.fold n_paths
+      ~init:0.0
+      ~f:(fun ~key:_ ~data:prob acc -> acc +. prob) in
+
+    let renormalized_paths = PathMap.fold n_paths
+      ~init:PathMap.empty
+      ~f:(fun ~key:path ~data:prob acc ->
+        let new_prob = if (total_prob = 0.) 
+                       then 1. /. (Float.of_int (PathMap.length n_paths))
+                       else prob /. total_prob in
+        PathMap.add ~key:path ~data:new_prob acc) in
+    SrcDstMap.add ~key:(src,dst) ~data:renormalized_paths acc) in
+  Printf.printf "\t\t\t\t\t\t\t\t\t\tLOCAL\r";
+  new_scheme
 
 

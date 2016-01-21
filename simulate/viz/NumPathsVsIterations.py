@@ -11,7 +11,7 @@ import sys
 random.seed(5)
 
 EXPERIMENT_NAME = "NumPathsVsIterations"
-X_LABEL         = "Iterations"
+X_LABEL         = "TM"
 Y_LABEL         = "Num Paths"
 
 def main(dirn, fname, solvers):

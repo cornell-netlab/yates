@@ -1,0 +1,13 @@
+# OASIS_START
+# DO NOT EDIT (digest: d2ad16b88fd998ac0d13e39d2cb92b09)
+version = "0.1"
+description = "Traffic engineering framework."
+requires =
+"async core camlp4 threads ocamlgraph threads sexplib.syntax sexplib frenetic"
+archive(byte) = "routing.cma"
+archive(byte, plugin) = "routing.cma"
+archive(native) = "routing.cmxa"
+archive(native, plugin) = "routing.cmxs"
+exists_if = "routing.cma"
+# OASIS_STOP
+

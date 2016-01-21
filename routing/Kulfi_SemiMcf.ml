@@ -5,7 +5,7 @@ open Net
 open Core.Std
 open Kulfi_LP_Lang
       
-let prev_scheme = ref SrcDstMap.empty
+let state_base_path_set = ref SrcDstMap.empty
 
 
 let var_name_uid id =
@@ -23,13 +23,14 @@ let var_name_rev topo edge d_pair =
 let objective = Var "Z"
 
 let capacity_constraints (pmap : path_uid_map) (emap : edge_uidlist_map) 
-                         (topo : topology) (d : demands) (s : scheme)
+                         (topo : topology) (d : demands) 
                          (init_acc : constrain list) : constrain list =
   (* For every edge, there is a capacity constraint *)
   Topology.fold_edges
     (fun edge acc ->
      (* The sum of all commodity flows in both direction must exceed
          the capacity by less than Z * capacity. *)
+
      match (EdgeMap.find emap edge) with
      | None -> acc
      | Some uid_list ->
@@ -43,7 +44,7 @@ let capacity_constraints (pmap : path_uid_map) (emap : edge_uidlist_map)
 				  (string_of_edge topo edge) in
 	(Leq (name, constr, 0.))::acc) topo init_acc
 
-let demand_constraints (pmap : path_uid_map) (emap : edge_uidlist_map) (topo : topology) (d : demands) (s : scheme)
+let demand_constraints (pmap : path_uid_map) (emap : edge_uidlist_map) (topo : topology) (d : demands) (base_path_set : (path List.t) SrcDstMap.t)
 		       (init_acc : constrain list) : constrain list =
   (* Every source-sink pair has a demand constraint *)
   SrcDstMap.fold
@@ -52,16 +53,16 @@ let demand_constraints (pmap : path_uid_map) (emap : edge_uidlist_map) (topo : t
       if (src = dst) then acc
 	    else
 	    (* We need to add up the rates for all paths in pmap(src,dst) *)
-	      match SrcDstMap.find s (src,dst) with
+	      match SrcDstMap.find base_path_set (src,dst) with
 	      | None -> if (demand <= 0.) then acc else (assert false)
-	      | Some flowdec ->
-	          let all_flows = PathMap.fold
+	      | Some path_list ->
+	          let all_flows =  List.fold_left
 			        ~init:[]
-			        ~f:(fun ~key:p ~data:prob acc ->
+			        ~f:(fun acc p ->
 				        let pvar = match PathMap.find pmap p with
 				          | None -> assert false
 				          | Some id -> Var(var_name_uid id) in
-				        pvar::acc ) flowdec in
+				        pvar::acc ) path_list in
 	          (* some code to generate a constraint *)
 	          let total_flow = Sum(all_flows) in
 	          let name = Printf.sprintf "dem-%s-%s" (name_of_vertex topo src)
@@ -69,9 +70,10 @@ let demand_constraints (pmap : path_uid_map) (emap : edge_uidlist_map) (topo : t
 	          (Geq (name, total_flow, demand /. demand_divisor))::acc) d
 
 
-let lp_of_maps (pmap:path_uid_map) (emap:edge_uidlist_map) (topo:topology) (d:demands) (s:scheme) : (arith_exp * constrain list) =
-  let cap_constrs = capacity_constraints pmap emap topo d s [] in
-  let cap_and_demand = demand_constraints pmap emap topo d s cap_constrs in
+let lp_of_maps (pmap:path_uid_map) (emap:edge_uidlist_map) (topo:topology)
+               (d:demands) (base_path_set : (path List.t) SrcDstMap.t) : (arith_exp * constrain list) =
+  let cap_constrs = capacity_constraints pmap emap topo d [] in
+  let cap_and_demand = demand_constraints pmap emap topo d base_path_set cap_constrs in
   assert (List.length cap_constrs > 0);
   assert (List.length cap_and_demand > 0);
   (objective, cap_and_demand)
@@ -88,8 +90,8 @@ let rec new_rand () : float =
    of paths used. *)
 (* let solver_paths topo pairs verbose = *)
 
-let solve_lp (pmap:int PathMap.t) (emap:int list EdgeMap.t) (topo:topology) (d:demands) (s:scheme) : (float * (int * float) list)=    
-    let lp = lp_of_maps pmap emap topo d s in    
+let solve_lp (pmap:int PathMap.t) (emap:int list EdgeMap.t) (topo:topology) (d:demands) (base_path_set : (path List.t) SrcDstMap.t) : (float * (int * float) list)=    
+    let lp = lp_of_maps pmap emap topo d base_path_set in    
     let rand = new_rand () in 
     let lp_filename = (Printf.sprintf "lp/semimcf_%f.lp" rand) in
     let lp_solname = (Printf.sprintf "lp/semimcf_%f.sol" rand) in
@@ -194,30 +196,14 @@ let normalize (unnormalized_scheme:scheme) (flow_sum:float SrcDstMap.t) : scheme
 
 let initialize (s:scheme) : unit =
   ignore (if (SrcDstMap.is_empty s) then failwith "SemiMcf must be initialized with a non-empty scheme" else ());
-  prev_scheme := s;
+  let b = SrcDstMap.fold s
+    ~init:SrcDstMap.empty
+    ~f:(fun ~key:(u,v) ~data:pp_map acc ->
+       SrcDstMap.add ~key:(u,v) ~data:(List.map ~f:fst (PathMap.to_alist pp_map)) acc) in
+  state_base_path_set := b;
   ()
 
-let solve (topo:topology) (d:demands) : scheme =
-  ignore (if (SrcDstMap.is_empty !prev_scheme) then failwith "Kulfi_SemiMcf: scheme in previous iteration was empty!" else ());
-  (* Printf.printf "invoking semimcf solve\n"; *)
-
-  (* Begin debug *)
-  (*
-  let _ = SrcDstMap.fold d
-  ~init:0
-  ~f:(fun ~key:(ds, dd) ~data:_ acc ->
-    SrcDstMap.fold !prev_scheme
-    ~init:acc
-    ~f:(fun ~key:(ss, sd) ~data:_ acc ->
-      if (ss = ds && sd = dd) then (Printf.printf "(%s,%s) = (%s,%s)\n%!"
-      (name_of_vertex topo ds) (name_of_vertex topo dd) (name_of_vertex topo ss)
-      (name_of_vertex topo sd); acc)
-      else (Printf.printf "(%s,%s) <> (%s,%s)\n%!"
-      (name_of_vertex topo ds) (name_of_vertex topo dd) (name_of_vertex topo ss)
-      (name_of_vertex topo sd); acc))) in
-  *)
-  (* End debug *)
-
+let restricted_mcf (topo:topology) (d:demands) (base_path_set : (path List.t) SrcDstMap.t) : scheme =
   let uuid = ref (-1) in
   let fresh_uid () =
     uuid := !uuid + 1;
@@ -226,18 +212,18 @@ let solve (topo:topology) (d:demands) : scheme =
 
   let (umap,pmap,emap) =
     SrcDstMap.fold
-      !prev_scheme (* fold over the scheme *)
+      base_path_set (* fold over the base path set *)
       ~init:(UidMap.empty, PathMap.empty, EdgeMap.empty)
       (* for every pair of hosts u,v *)
-      ~f:(fun ~key:(u,v) ~data:paths acc ->
+      ~f:(fun ~key:(u,v) ~data:path_list acc ->
         if (u = v) then acc
         else
           begin
-            PathMap.fold
-              paths
+            List.fold_left
+              path_list
               ~init:acc
               (* get the possible paths, and for every path *)
-              ~f:(fun ~key:path ~data:_ (umap,pmap,emap) ->
+              ~f:(fun (umap,pmap,emap) path ->
                   let id = fresh_uid () in
                   (*Printf.printf "\npath %d\t%d : " id (List.length path);*)
                   let umap' = UidMap.add ~key:id ~data:(u,v,path) umap in
@@ -260,11 +246,46 @@ let solve (topo:topology) (d:demands) : scheme =
 
   assert (not (EdgeMap.is_empty emap));
 
-  let (ratio, flows) =  solve_lp pmap emap topo d !prev_scheme in
+  let (ratio, flows) =  solve_lp pmap emap topo d base_path_set in
   let (unnormalized_scheme, flow_sum) = scheme_and_flows flows umap in
   let new_scheme = normalize unnormalized_scheme flow_sum in
-  prev_scheme := new_scheme;
+  if (SrcDstMap.is_empty new_scheme) then assert false;
   new_scheme
+
+
+let solve (topo:topology) (d:demands) : scheme =
+  ignore (if (SrcDstMap.is_empty !state_base_path_set) then failwith "Kulfi_SemiMcf: stateful base path set empty!" else ());
+  let base_path_set = !state_base_path_set in
+  restricted_mcf topo d base_path_set
+
+let local_recovery (_:scheme) (topo:topology) (failed_links:failure) (d:demands) : scheme =
+  Printf.printf "\t\t\t\t\t\t\t\t\t\tLocal\r";
+  let is_path_alive (p:path) : bool =
+      List.fold_left p
+      ~init:true
+      ~f:(fun valid edge ->
+        let edge_is_safe = not (EdgeSet.mem failed_links edge) in
+        valid && edge_is_safe) in
+  let new_base_path_set = SrcDstMap.fold !state_base_path_set 
+  ~init:SrcDstMap.empty
+  ~f:(fun ~key:(src,dst) ~data:path_list acc ->
+    let n_paths = List.fold_left path_list
+      ~init:[]
+      ~f:(fun acc p -> if (is_path_alive p) then p::acc else acc) in
+    SrcDstMap.add ~key:(src,dst) ~data:n_paths acc) in
+  (* If there is no path in base set for a u-v pair, then MCF produces an
+   * empty scheme. To avoid this, we set u-v demand = 0  *)
+  let new_demands = SrcDstMap.fold new_base_path_set
+  ~init:SrcDstMap.empty
+  ~f:(fun ~key:(u,v) ~data:bpset acc ->
+    let uv_dem = if (List.length bpset) = 0
+      then 0.
+      else SrcDstMap.find_exn d (u,v) in
+      SrcDstMap.add ~key:(u,v) ~data:uv_dem acc) in
+  let new_scheme = restricted_mcf topo new_demands new_base_path_set in
+  Printf.printf "\t\t\t\t\t\t\t\t\t\tLOCAL\r";
+  new_scheme
+        
 
 
   (*

@@ -3,7 +3,7 @@ set -x
 topology=$1
 data_dir=$2
 TOPO_DIR=data/topologies
-for scheme in spf ksp ecmp mcf mwmcf raeke semimcfecmp semimcfksp semimcfmcf semimcfraeke semimcfvlb vlb;
+for scheme in spf ksp ecmp mcf raeke semimcfecmp semimcfksp semimcfmcf semimcfraeke semimcfvlb vlb;
     do
         python simulate/viz/showEdgeCongestion.py $scheme ${TOPO_DIR}/${topology}.dot expData/${data_dir}/EdgeCongestionVsIterations.dat simulation
         python simulate/viz/showEdgeCongestion.py $scheme ${TOPO_DIR}/${topology}.dot expData/${data_dir}/EdgeExpCongestionVsIterations.dat expected
@@ -20,4 +20,7 @@ python simulate/viz/LatencyCDF.py expData/${data_dir}/LatencyDistributionVsItera
 python simulate/viz/LossVsIterations.py ${data_dir} Failure
 python simulate/viz/LossVsIterations.py ${data_dir} Congestion
 python simulate/viz/NumPathsVsIterations.py ${data_dir}
-python simulate/viz/ChurnVsIterations.py ${data_dir}
+python simulate/viz/ChurnVsIterations.py ${data_dir} TM
+python simulate/viz/ChurnVsIterations.py ${data_dir} Recovery
+python simulate/viz/TimeVsIterations.py ${data_dir}
+python simulate/viz/congestionCDF.py expData/${data_dir}/EdgeCongestionVsIterations.dat

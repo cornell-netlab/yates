@@ -13,3 +13,5 @@ let solve (topo:topology) (d:demands) : scheme =
     SrcDstMap.add acc ~key:(v1,v2) ~data:( PathMap.singleton p 1.0) )
 
 let initialize _ = ()
+
+let local_recovery = Kulfi_Types.normalization_recovery

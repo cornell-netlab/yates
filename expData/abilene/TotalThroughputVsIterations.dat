@@ -1,0 +1,7 @@
+# solver	iter	total-throughput	stddev
+semimcfraeke	0	1.000000	0.000000
+semimcfraeke	1	1.000000	0.000000
+semimcfraeke	2	0.807526	0.000000
+semimcfraeke	3	0.792141	0.000000
+semimcfraeke	4	0.807747	0.000000
+

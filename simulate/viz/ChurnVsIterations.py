@@ -11,11 +11,11 @@ import sys
 random.seed(5)
 
 EXPERIMENT_NAME = "ChurnVsIterations"
-X_LABEL         = "Iterations"
+X_LABEL         = "TM"
 Y_LABEL         = "Churn"
 
-def main(dirn, fname, solvers):
-  (xs, ysPerSolver, ydevsPerSolver) = CommonViz.parseData(dirn, fname, solvers)
+def main(dirn, fname):
+  (xs, ysPerSolver, ydevsPerSolver) = CommonViz.parseData(dirn, fname, set())
 
   CommonConf.setupMPPDefaults()
   fmts = CommonConf.getLineFormats()
@@ -37,12 +37,13 @@ def main(dirn, fname, solvers):
   ax.set_ylabel(Y_LABEL);
   ax.legend(bbox_to_anchor=(1., 1.), loc=2, borderaxespad=1., fancybox=True)
   pp.subplots_adjust(left=0.1, right=0.8, top=0.9, bottom=0.1)
-
-  pp.savefig(dirn+"/"+fname+"-".join(solvers)+".svg")
+  ymin, ymax = pp.ylim()
+  pp.ylim(ymin-0.1,ymax+0.1)
+  pp.savefig(dirn+"/"+fname+".svg")
 
 if __name__ == "__main__":
   if len(sys.argv) < 2:
-    print "Usage: " + sys.argv[0] + " RunId  [optional (list_of_schemes)]"
+    print "Usage: " + sys.argv[0] + " topology_name  <TM/Recovery>"
   else:
-    main("expData/"+sys.argv[1], EXPERIMENT_NAME, set(sys.argv[2:]))
+    main("expData/"+sys.argv[1], sys.argv[2]+EXPERIMENT_NAME)
 
