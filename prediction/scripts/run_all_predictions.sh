@@ -3,14 +3,12 @@
 EXP_DIR=$( cd "$( dirname "$0" )" && pwd )
 CURR_DIR=$( pwd )
 Graph_DIR=${CURR_DIR}/graphs
-HOST_DIR=${CURR_DIR}/../data/hosts/zoo
-TOPO_DIR=${CURR_DIR}/topo-zoo
+TOPO_DIR=${CURR_DIR}/../data/topologies
 echo $EXP_DIR
 echo $CURR_DIR
-echo $HOST_DIR
 echo $TOPO_DIR
 
-for tf in $TOPO_DIR/*
+for tf in $TOPO_DIR/*.dot
 do
     base=${tf##*/}
     prefix=${base%.dot}
@@ -23,7 +21,10 @@ do
         echo "big.. $n"
     else
         echo "small.. $n"
-        ./synthesize/bin/synthesize -n ${prefix} -r 200 -m ${n} -t ${Graph_DIR}/${prefix}.txt --merge_len 12 &
+        #./synthesize/bin/synthesize -n ${prefix} -r 200 -m ${n} -t ${Graph_DIR}/${prefix}.txt &
+        ./synthesize/bin/synthesize -n ${prefix} -r 200 -m ${n} -t ${Graph_DIR}/${prefix}.txt --merge_len 12 
+        #./synthesize/bin/synthesize -n ${prefix} -r 200 -m ${n} -t ${Graph_DIR}/${prefix}.txt &
+        #./synthesize/bin/synthesize -n ${prefix} -r 200 -m ${n} -t ${Graph_DIR}/${prefix}.txt &
     fi
 done
 
