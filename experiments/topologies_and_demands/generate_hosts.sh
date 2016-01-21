@@ -8,7 +8,7 @@ mkdir $HOST_DIR
 echo $EXP_DIR
 echo $CURR_DIR
 
-for tf in $TOPO_DIR/*
+for tf in $TOPO_DIR/*.dot
 do
     base=${tf##*/}
     prefix=${base%.dot}
