@@ -12,10 +12,12 @@ open AutoTimer
 open Kulfi_Globals
 open Kulfi_Util
 
+let demand_envelope = ref SrcDstMap.empty
+
 type solver_type =
   | Mcf | MwMcf | Vlb | Ecmp | Ksp | Spf | Raeke
   | AkMcf | AkVlb | AkRaeke | AkEcmp | AkKsp
-  | SemiMcfMcf | SemiMcfVlb | SemiMcfRaeke | SemiMcfEcmp | SemiMcfKsp
+  | SemiMcfMcf | SemiMcfMcfEnv | SemiMcfVlb | SemiMcfRaeke | SemiMcfEcmp | SemiMcfKsp
 
 let solver_to_string (s:solver_type) : string =
   match s with
@@ -32,6 +34,7 @@ let solver_to_string (s:solver_type) : string =
   | AkEcmp -> "akecmp"
   | AkKsp -> "akksp"
   | SemiMcfMcf -> "semimcfmcf"
+  | SemiMcfMcfEnv -> "semimcfmcfenv"
   | SemiMcfVlb -> "semimcfvlb"
   | SemiMcfRaeke -> "semimcfraeke"
   | SemiMcfEcmp -> "semimcfecmp"
@@ -51,6 +54,7 @@ let select_algorithm solver = match solver with
   | AkKsp
   | AkEcmp -> Kulfi_Routing.Ak.solve
   | SemiMcfMcf
+  | SemiMcfMcfEnv
   | SemiMcfVlb
   | SemiMcfRaeke
   | SemiMcfKsp
@@ -70,6 +74,7 @@ let select_local_recovery solver = match solver with
   | AkKsp
   | AkEcmp -> Kulfi_Routing.Ak.local_recovery
   | SemiMcfMcf
+  | SemiMcfMcfEnv
   | SemiMcfVlb
   | SemiMcfRaeke
   | SemiMcfKsp
@@ -78,6 +83,8 @@ let select_local_recovery solver = match solver with
 
 let initial_scheme algorithm topo predict : scheme =
   match algorithm with
+  | SemiMcfMcfEnv ->
+     Kulfi_Routing.Mcf.solve topo !demand_envelope
   | SemiMcfMcf
   | AkMcf ->
      Kulfi_Routing.Mcf.solve topo predict
@@ -107,6 +114,7 @@ let initialize_scheme algorithm topo predict: unit =
   | SemiMcfEcmp
   | SemiMcfKsp
   | SemiMcfMcf
+  | SemiMcfMcfEnv
   | SemiMcfRaeke
   | SemiMcfVlb -> Kulfi_Routing.SemiMcf.initialize pruned_scheme
   | AkEcmp
@@ -638,6 +646,28 @@ let get_latency_percentiles (lat_tput_map : throughput LatencyMap.t) (agg_dem:fl
       lat_percentile_map, sum_tput')) in
   latency_percentiles
 
+
+
+(* Calculate a demand matrix equal to sum (envelope) of all TMs *) 
+let calculate_demand_envelope (topo:topology) (predict_file:string) (host_file:string) =
+  let num_tm = List.length (In_channel.read_lines predict_file) in
+  let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
+  let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
+  let iterations = range 0 num_tm in
+  let envelope = List.fold_left iterations ~init:SrcDstMap.empty
+    ~f:(fun acc n ->
+      let predict = next_demand ~scale:1.0 predict_ic predict_host_map in
+      SrcDstMap.fold predict ~init:acc
+      ~f:(fun ~key:(s,d) ~data:pred acc ->
+        let env_sd = match SrcDstMap.find acc (s,d) with
+        | None -> 0.
+        | Some x -> x in
+        SrcDstMap.add ~key:(s,d) ~data:(env_sd +. pred) acc)) in
+  close_demands predict_ic;
+  envelope
+
+
+
 let simulate
     (spec_solvers:solver_type list)
 	     (topology_file:string)
@@ -659,6 +689,7 @@ let simulate
 
 
   let topo = Parse.from_dotfile topology_file in
+
   let host_set = VertexSet.filter (Topology.vertexes topo)
 				  ~f:(fun v ->
 				      let label = Topology.vertex_to_label topo v in
@@ -709,6 +740,10 @@ let simulate
 	 Raeke and ensure that it mutates a copy of the topology, not the actual
 	 topology *)
 	let topo = Parse.from_dotfile topology_file in
+
+  let _ = match algorithm with
+    | SemiMcfMcfEnv -> demand_envelope := (calculate_demand_envelope topo predict_file host_file);
+    | _ -> () in
 
 	let solve = select_algorithm algorithm in
 	let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
@@ -883,6 +918,7 @@ let command =
     +> flag "-akecmp" no_arg ~doc:" run ak+ecmp"
     +> flag "-akksp" no_arg ~doc:" run ak+ksp"
     +> flag "-semimcfmcf" no_arg ~doc:" run semi mcf+mcf"
+    +> flag "-semimcfmcfenv" no_arg ~doc:" run semi mcf+mcf init with envelope"
     +> flag "-semimcfvlb" no_arg ~doc:" run semi mcf+vlb"
     +> flag "-semimcfraeke" no_arg ~doc:" run semi mcf+raeke"
     +> flag "-semimcfecmp" no_arg ~doc:" run semi mcf+ecmp"
@@ -914,6 +950,7 @@ let command =
 	 (akecmp:bool)
 	 (akksp:bool)
 	 (semimcfmcf:bool)
+	 (semimcfmcfenv:bool)
 	 (semimcfvlb:bool)
 	 (semimcfraeke:bool)
 	 (semimcfecmp:bool)
@@ -948,8 +985,9 @@ let command =
 	 ; if akecmp then Some AkEcmp else None
 	 ; if akksp then Some AkKsp else None
 	 ; if akraeke then Some AkRaeke else None
-         ; if raeke || all then Some Raeke else None
-         ; if semimcfmcf || all then Some SemiMcfMcf else None
+   ; if raeke || all then Some Raeke else None
+   ; if semimcfmcf || all then Some SemiMcfMcf else None
+   ; if semimcfmcfenv then Some SemiMcfMcfEnv else None
 	 ; if semimcfecmp || all then Some SemiMcfEcmp else None
 	 ; if semimcfksp || all then Some SemiMcfKsp else None
 	 ; if semimcfvlb || all then Some SemiMcfVlb else None
