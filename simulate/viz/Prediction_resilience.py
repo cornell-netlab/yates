@@ -15,13 +15,13 @@ import matplotlib.pyplot as pp
 
 def plotfigure(metric_name,dotfile):
     curf="expData";
-    todofolder=[f for f in listdir(curf) if op.isdir(op.join(curf, f)) & (dotfile in f) & (f[-1]=='0')]
+    todofolder=[f for f in listdir(curf) if op.isdir(op.join(curf, f)) & ("prediction_"+dotfile in f) ]
     mydict={}
     curname=0;
     totiter=0
     xx=[]
     for folder in todofolder:
-        xx.append(100*float(folder[len(dotfile):]))
+        xx.append(100*float(folder[len("prediction_"+dotfile):]))
         curname += 1
         picked_file=[f for f in listdir(op.join(curf,folder)) if op.isfile(op.join(curf,folder, f)) & (metric_name+'.dat' in f) & (not 'swp' in f)]
         if (len(picked_file)>1):
