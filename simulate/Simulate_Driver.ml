@@ -98,9 +98,11 @@ let initial_scheme algorithm topo predict : scheme =
      Kulfi_Routing.Raeke.solve topo SrcDstMap.empty
   | SemiMcfEcmp
   | AkEcmp ->
+     let _ = Kulfi_Routing.Ecmp.initialize SrcDstMap.empty in
      Kulfi_Routing.Ecmp.solve topo SrcDstMap.empty
   | SemiMcfKsp
   | AkKsp ->
+     let _ = Kulfi_Routing.Ksp.initialize SrcDstMap.empty in
      Kulfi_Routing.Ksp.solve topo SrcDstMap.empty
   | _ -> SrcDstMap.empty
 
@@ -123,6 +125,8 @@ let initialize_scheme algorithm topo predict: unit =
   | AkMcf
   | AkRaeke
   | AkVlb -> Kulfi_Routing.Ak.initialize pruned_scheme
+  | Ecmp -> Kulfi_Routing.Ecmp.initialize SrcDstMap.empty
+  | Ksp -> Kulfi_Routing.Ksp.initialize SrcDstMap.empty
   | Raeke -> Kulfi_Routing.Raeke.initialize SrcDstMap.empty
   | Vlb -> Kulfi_Routing.Vlb.initialize SrcDstMap.empty
   | _ -> ()

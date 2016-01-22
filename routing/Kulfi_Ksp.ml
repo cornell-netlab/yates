@@ -6,7 +6,12 @@ open Core.Std
 open Kulfi_Apsp
 open Kulfi_Globals
 
+let prev_scheme = ref SrcDstMap.empty
+
 let solve (topo:topology) (_:demands) : scheme =
+  let new_scheme =
+  if not (SrcDstMap.is_empty !prev_scheme) then !prev_scheme
+  else
   let host_set =
     VertexSet.filter
       (vertexes topo)
@@ -24,8 +29,12 @@ let solve (topo:topology) (_:demands) : scheme =
           ~f:(fun acc path ->
               let prob = 1.0 /. Float.of_int (List.length paths) in
               PathMap.add acc ~key:path ~data:prob) in
-      SrcDstMap.add acc ~key:(v1,v2) ~data:path_map)
+      SrcDstMap.add acc ~key:(v1,v2) ~data:path_map) in
+  prev_scheme := new_scheme;
+  new_scheme
 
-let initialize _ = ()
+let initialize (s:scheme) : unit =
+  prev_scheme := s;
+  ()
 
 let local_recovery = Kulfi_Types.normalization_recovery

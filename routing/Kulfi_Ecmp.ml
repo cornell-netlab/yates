@@ -5,6 +5,8 @@ open Net.Topology
 open Core.Std
 open Kulfi_Apsp
 
+let prev_scheme = ref SrcDstMap.empty
+
 let rec getAllSp (v1:Topology.vertex) (v2:Topology.vertex) (topo:topology) (apsp: (bool * int * (Topology.vertex * float) List.t)
 SrcDstMap.t) (max_tot: int) : (Topology.edge List.t) List.t=
   if (v1=v2) then
@@ -33,6 +35,9 @@ SrcDstMap.t) (max_tot: int) : (Topology.edge List.t) List.t=
     p1
 
 let solve (topo:topology) (_:demands) : scheme =
+  let new_scheme =
+  if not (SrcDstMap.is_empty !prev_scheme) then !prev_scheme
+  else
   (*
    * Yang: my implementation is the following:
      * If there are less than max_tot=1000 different shortest paths between s and t,
@@ -49,8 +54,7 @@ let solve (topo:topology) (_:demands) : scheme =
           Node.device lbl = Node.Host) in
 
   let max_tot=20 in
-  let sp_table=
-    SrcDstMap.fold
+  SrcDstMap.fold
         mpapsp
         ~init: SrcDstMap.empty
         ~f:(fun ~key:(v1,v2) ~data:(_,n,probs) acc ->
@@ -67,8 +71,11 @@ let solve (topo:topology) (_:demands) : scheme =
         ) in
   (*Printf.printf "Done calculating paths %!";*)
   (*Printf.printf "%s" (dump_scheme topo sp_table);*)
-  sp_table
+  prev_scheme := new_scheme;
+  new_scheme
 
+let initialize (s:scheme) : unit =
+  prev_scheme := s;
+  ()
 
-let initialize _ = ()
 let local_recovery = Kulfi_Types.normalization_recovery

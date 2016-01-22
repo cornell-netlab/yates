@@ -11,6 +11,7 @@ let () = Random.self_init ()
 let prev_scheme = ref SrcDstMap.empty
 
 let solve (topo:topology) (d:demands) : scheme =
+  let new_scheme =
   if not (SrcDstMap.is_empty !prev_scheme) then !prev_scheme
   else
   let device v = let lbl = Topology.vertex_to_label topo v in (Node.device lbl) in
@@ -63,8 +64,7 @@ let solve (topo:topology) (d:demands) : scheme =
 	  add_or_increment_path acc path (1.0 /. num_switches)) in
 
   (* NB: folding over mpapsp just to get all src-dst pairs *)
-  let scheme =
-    SrcDstMap.fold
+  SrcDstMap.fold
       mpapsp
       ~init:SrcDstMap.empty
       ~f:(fun ~key:(v1,v2) ~data:_ acc ->
@@ -74,7 +74,8 @@ let solve (topo:topology) (d:demands) : scheme =
 	    | _ -> acc
       ) in
   (* Printf.printf "%s\n" (dump_scheme topo scheme); *)
-  scheme
+  prev_scheme := new_scheme;
+  new_scheme
 
 let initialize (s:scheme) : unit =
   prev_scheme := s;
