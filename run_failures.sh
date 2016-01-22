@@ -1,12 +1,13 @@
 #!/bin/bash
+set -x
 budget="-budget $1"
-num_tm=24
+num_tm=2
 failure="-fail-time 0"
 local_recovery="-lr-delay 1"
 global_recovery="-gr-delay 2"
 scale="-scale $2"
 
-topologies="abilene_hourly"
+topologies="AttMpls Sprint Geant2012"
 
 for topo in $topologies ; do
     echo $topo

@@ -1,9 +1,9 @@
 from __future__ import division
 import CommonConf
 from collections import OrderedDict
-import matplotlib.pyplot as pp
 import numpy as np
 import sys
+import matplotlib.pyplot as pp
 
 X_LABEL = "Congestion"
 Y_LABEL = "CDF (fraction of edges)"

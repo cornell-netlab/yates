@@ -25,6 +25,7 @@ int main(int argc, char ** argv)
         double demand_jump_factor=0;
         double demand_locality_factor=0;
         int merge_len=1;
+        int burst_host_1,burst_host_2;
 		std::string topofile;
 
 		options_description desc("Options");
@@ -39,6 +40,8 @@ int main(int argc, char ** argv)
 						("demand_jump_factor", value<double>(&demand_jump_factor)->default_value(1.0), "demand jump factor") 
 						("demand_locality_factor", value<double>(&demand_locality_factor)->default_value(1.0), "demand locality factor") 
 						("merge_len", value<int>(&merge_len)->default_value(1), "merge how many 5 minutes into one epoch, default = 5 minutes") 
+						("burst_h_1", value<int>(&burst_host_1)->default_value(0), "burst_host 1, starting from 0") 
+						("burst_h_2", value<int>(&burst_host_2)->default_value(1), "burst_host 2, starting from 0") 
 									("topo,t", value<std::string>(&topofile)->default_value(""), "topo file pos")
 									("adnoise,a", value<double>(&addn)->default_value(0), "add random noise to which level"); 
 
@@ -90,7 +93,8 @@ int main(int argc, char ** argv)
 			vm["topo"].as<std::string>(),
             demand_jump_factor,
             demand_locality_factor,
-            merge_len
+            merge_len, 
+            burst_host_1*num_hosts+burst_host_2
 			);
 		return 0;
 	}

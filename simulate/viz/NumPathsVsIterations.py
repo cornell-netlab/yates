@@ -4,9 +4,9 @@ import CommonViz
 import re
 from collections import OrderedDict
 import numpy as np
-import matplotlib.pyplot as pp
 import random
 import sys
+import matplotlib.pyplot as pp
 
 random.seed(5)
 
