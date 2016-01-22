@@ -22,10 +22,17 @@ def main(dirn, fname, solvers):
   fig = pp.figure(figsize=(12,6))
   ax = fig.add_subplot(111)
   # ax.set_xscale("log", basex=2)
+  xs.append(max(xs)+2)
   index = 0
   for (solver, ys), (solver, ydevs) in zip(ysPerSolver.iteritems(),ydevsPerSolver.iteritems()) :
     xs_arr = np.asarray(xs)
     xs_arr = xs_arr + random.random()/2
+    xs_arr[-1]+= random.random()*2
+    avg_y,std_y = np.mean(np.asarray(ys)), np.std(np.asarray(ys))
+    ys.append(avg_y)
+    ydevs.append(std_y)
+
+
     ax.errorbar(xs_arr, ys, yerr=ydevs, label=solver, marker=mrkrs[index],
         linestyle=fmts[index], alpha=0.8, color=colors[index])
     index = index + 1
