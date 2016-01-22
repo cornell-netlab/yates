@@ -8,7 +8,11 @@ open Kulfi_Apsp
 
 let () = Random.self_init ()
 
+let prev_scheme = ref SrcDstMap.empty
+
 let solve (topo:topology) (d:demands) : scheme =
+  if not (SrcDstMap.is_empty !prev_scheme) then !prev_scheme
+  else
   let device v = let lbl = Topology.vertex_to_label topo v in (Node.device lbl) in
   let mpapsp = all_pairs_multi_shortest_path topo in
   (* let _ = print_mpapsp mpapsp topo in *)
@@ -72,6 +76,8 @@ let solve (topo:topology) (d:demands) : scheme =
   (* Printf.printf "%s\n" (dump_scheme topo scheme); *)
   scheme
 
-let initialize _ = ()
+let initialize (s:scheme) : unit =
+  prev_scheme := s;
+  ()
 
 let local_recovery = Kulfi_Types.normalization_recovery

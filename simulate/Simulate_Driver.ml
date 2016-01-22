@@ -90,6 +90,7 @@ let initial_scheme algorithm topo predict : scheme =
      Kulfi_Routing.Mcf.solve topo predict
   | SemiMcfVlb
   | AkVlb ->
+     let _ = Kulfi_Routing.Vlb.initialize SrcDstMap.empty in
      Kulfi_Routing.Vlb.solve topo SrcDstMap.empty
   | SemiMcfRaeke
   | AkRaeke ->
@@ -123,6 +124,7 @@ let initialize_scheme algorithm topo predict: unit =
   | AkRaeke
   | AkVlb -> Kulfi_Routing.Ak.initialize pruned_scheme
   | Raeke -> Kulfi_Routing.Raeke.initialize SrcDstMap.empty
+  | Vlb -> Kulfi_Routing.Vlb.initialize SrcDstMap.empty
   | _ -> ()
 
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
@@ -458,7 +460,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
 
       (* measure churn in case of global recovery *)
       if iter = (global_recovery_delay + failure_time) then
-        recovery_churn := (get_churn_string topo curr_scheme new_scheme);
+        recovery_churn := (get_churn curr_scheme new_scheme);
 
       (*if iter = (local_recovery_delay + failure_time) then
         Printf.printf "LOCAL ---- New scheme : %s\n%!" (dump_scheme topo
@@ -822,7 +824,7 @@ let simulate
 		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
 		  (* record *)
 		  let tm = (get_time_in_seconds at) in
-      let tm_churn = (get_churn_string topo scheme scheme') in
+      let tm_churn = (get_churn scheme scheme') in
 		  let np = (get_num_paths scheme') in
 		  let cmax = (get_max_congestion list_of_congestions) in
 		  let cmean = (get_mean_congestion list_of_congestions) in
