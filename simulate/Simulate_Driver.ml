@@ -211,6 +211,23 @@ let get_path_prob_demand_map (s:scheme) (d:demands) : (probability * demand) Pat
               | Some x -> if path <> [] then failwith "Duplicate paths should not be present"
                           else acc))
 
+(* Get a map from path to it's probability and src-dst demand *)
+let get_path_prob_demand_arr (s:scheme) (d:demands) =
+  (* (Probability, net s-d demand) for each path *)
+  SrcDstMap.fold s
+  ~init:[]
+  ~f:(fun ~key:(src,dst) ~data:paths acc ->
+    let demand = match SrcDstMap.find d (src,dst) with
+                 | None -> 0.0
+                 | Some x -> x in
+    PathMap.fold
+    paths
+    ~init:acc
+    ~f:(fun ~key:path ~data:prob acc ->
+            let arr_path = Array.of_list path in
+    (arr_path, 0, (prob, demand))::acc))
+
+
 (* Sum througput over all src-dst pairs *)
 let get_total_tput (sd_tput:throughput SrcDstMap.t) : throughput =
   SrcDstMap.fold
@@ -267,9 +284,24 @@ let get_src_dst_for_path (p:path) =
     let dst,_ = Net.Topology.edge_dst last_link in
     Some (src, dst)
 
+(* Return src and dst for a given path *)
+let get_src_dst_for_path_arr (p:edge Array.t) =
+  if Array.length p = 0 then None
+  else
+    let first_link = p.(0) in
+    let last_link = p.((Array.length p)-1) in
+    let src,_ = Net.Topology.edge_src first_link in
+    let dst,_ = Net.Topology.edge_dst last_link in
+    Some (src, dst)
+
+
 (* Latency for a path *)
 let get_path_latency (p:path) =
   Float.of_int (List.length p - 2) (*TODO: replace with actual latency values *)
+
+let get_path_latency_arr (p:edge Array.t) =
+  Float.of_int (Array.length p - 2) (*TODO: replace with actual latency values *)
+
 
 (* Capacity of a link in a given failure scenario *)
 let curr_capacity_of_edge (topo:topology) (link:edge) (fail:failure) : float =
@@ -470,7 +502,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
         Printf.printf "LOCAL ---- New scheme : %s\n%!" (dump_scheme topo
         new_scheme);*)
       (* probability of taking each path *)
-      let path_prob_map = get_path_prob_demand_map new_scheme dem in
+      let path_prob_arr = get_path_prob_demand_arr new_scheme dem in
 
       (* if no (s-d) path, then entire demand is dropped due to failure *)
       let curr_fail_drop = SrcDstMap.fold new_scheme
@@ -490,20 +522,15 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
 
       (* Add traffic at source of every path *)
       (* next_iter_traffic : map edge -> in_traffic in next iter *)
-      let next_iter_traffic = PathMap.fold path_prob_map
+      let next_iter_traffic = List.fold_left path_prob_arr
           ~init:EdgeMap.empty
-          ~f:(fun ~key:path ~data:(prob,sd_demand) acc ->
-              if path = [] then acc else
-              let first_link = match List.hd path with
-                                | None -> failwith "Empty path"
-                                | Some x -> x in
+          ~f:(fun acc (path_arr, dist, (prob,sd_demand)) ->
+              if Array.length path_arr = 0 then acc else
+              let first_link = path_arr.(0) in 
               let sched_traf_first_link = match EdgeMap.find acc first_link with
-                                          | None -> PathMap.empty
+                                          | None -> []
                                           | Some v -> v in
-              let _ = match PathMap.find sched_traf_first_link path with
-                      | None -> true
-                      | Some x -> failwith "Scheduling duplicate flow at first link" in
-              let traf_first_link = PathMap.add ~key:path ~data:(prob *. sd_demand) sched_traf_first_link in
+              let traf_first_link = (path_arr, 1, (prob *. sd_demand))::sched_traf_first_link in
               EdgeMap.add ~key:first_link ~data:traf_first_link acc) in
       (* Done generating traffic at source *)
 
@@ -513,21 +540,21 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
         ~init:(next_iter_traffic, curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop)
         ~f:(fun ~key:e ~data:in_queue_edge link_iter_acc ->
           (* total ingress traffic on link *)
-          let demand_on_link = PathMap.fold in_queue_edge ~init:0.0
-            ~f:(fun ~key:_ ~data:flow_dem link_dem -> if is_nan flow_dem then Printf.printf
-            "flow_dem is nan!!\n"; link_dem +. flow_dem) in
+          let demand_on_link = List.fold_left in_queue_edge ~init:0.0
+            ~f:(fun link_dem (_,_,flow_dem) -> 
+              if is_nan flow_dem then Printf.printf "flow_dem is nan!!\n"; link_dem +. flow_dem) in
 
           if local_debug then Printf.printf "%s: %f / %f\n%!" (string_of_edge topo e) (demand_on_link /. 1e9) ((curr_capacity_of_edge topo e failed_links) /. 1e9);
 
           (* calculate each flow's fair share *)
           let fs_in_queue_edge =
             if demand_on_link <= (curr_capacity_of_edge topo e failed_links) then in_queue_edge
-            else fair_share_at_edge (curr_capacity_of_edge topo e failed_links) in_queue_edge in
+            else fair_share_at_edge_arr (curr_capacity_of_edge topo e failed_links) in_queue_edge in
 
           (* Update traffic dropped due to failure or congestion *)
-          let forwarded_by_link = PathMap.fold fs_in_queue_edge
+          let forwarded_by_link = List.fold_left fs_in_queue_edge
             ~init:0.0
-            ~f:(fun ~key:_ ~data:flow_dem fwd_acc -> fwd_acc +. flow_dem) in
+            ~f:(fun fwd_acc (_,_,flow_dem) -> fwd_acc +. flow_dem) in
           let dropped = demand_on_link -. forwarded_by_link in
           let (_,_,_,_,curr_fail_drop,curr_cong_drop) = link_iter_acc in
           let new_fail_drop = if EdgeSet.mem failed_links e then curr_fail_drop +. dropped else curr_fail_drop in
@@ -535,14 +562,14 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
           if (is_nan new_cong_drop) && (is_nan dropped) then Printf.printf "dem = %f\tfwd = %f\n"
           demand_on_link forwarded_by_link;
           (* Forward/deliver traffic on this edge *)
-          PathMap.fold fs_in_queue_edge
+          List.fold_left fs_in_queue_edge
           ~init:link_iter_acc
-          ~f:(fun ~key:path ~data:flow_fair_share acc ->
+          ~f:(fun acc (path,dist,flow_fair_share) ->
             let (nit,dlvd_map,ltm_map,lutil_map,_,_) = acc in
-            let next_link_opt = next_hop topo path e in
+            let next_link_opt = next_hop_arr path dist in
             match next_link_opt with
             | None -> (* End of path, deliver traffic to dst *)
-                let (src,dst) = match get_src_dst_for_path path with
+                let (src,dst) = match get_src_dst_for_path_arr path with
                                 | None -> failwith "Empty path"
                                 | Some x -> x in
                 (* Update delivered traffic for (src,dst) *)
@@ -555,7 +582,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                 let prev_sd_ltm = match SrcDstMap.find ltm_map (src,dst) with
                                       | None -> LatencyMap.empty
                                       | Some x -> x in
-                let path_latency = get_path_latency path in
+                let path_latency = get_path_latency_arr path in
                 let prev_sd_tput_for_latency =  match LatencyMap.find prev_sd_ltm path_latency with
                                                 | None -> 0.0
                                                 | Some x -> x in
@@ -571,13 +598,10 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
             | Some next_link -> (* Forward traffic to next hop *)
                 (* Update link ingress queue for next hop *)
                 let sched_traf_next_link = match EdgeMap.find nit next_link with
-                    | None -> PathMap.empty
+                    | None -> []
                     | Some v -> v in
-                let _ = match PathMap.find sched_traf_next_link path with
-                    | None -> true
-                    | Some x -> Printf.printf "%s%!" (dump_edges topo path); failwith "Scheduling duplicate flow at next link" in
                 if is_nan flow_fair_share then assert false;
-                let traf_next_link = PathMap.add ~key:path ~data:flow_fair_share sched_traf_next_link in
+                let traf_next_link = (path,dist+1,flow_fair_share)::sched_traf_next_link in
                 let new_nit = EdgeMap.add ~key:next_link ~data:traf_next_link nit in
 
                 (* Update link utilization for edge *)
@@ -593,8 +617,8 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
           EdgeMap.iter next_iter_traffic
             ~f:(fun ~key:e ~data:paths_demand ->
               Printf.printf "%s\n%!" (string_of_edge topo e);
-              PathMap.iter paths_demand
-              ~f:(fun ~key:path ~data:d -> Printf.printf "%s\t%f\n%!" (dump_edges topo path) d));
+              List.iter paths_demand
+              ~f:(fun (path,_,d) -> Printf.printf "%s\t%f\n%!" (dump_edges topo (Array.to_list path)) d));
       if local_debug then SrcDstMap.iter new_delivered_map
             ~f:(fun ~key:(src,dst) ~data:delvd ->
               Printf.printf "%s %s\t%f\n%!" (Node.name (Net.Topology.vertex_to_label topo src))

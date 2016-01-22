@@ -1,3 +1,4 @@
+open Array
 open Core.Std
 open Frenetic_Network
 open Kulfi_Types
@@ -79,6 +80,9 @@ let rec next_hop (t:topology) (p:path) (e:edge) = match p with
               else next_hop t tl e
   | [] -> failwith "not found"
 
+let next_hop_arr (p:edge Array.t) (dist:int) : edge option =
+  if Array.length p <= dist then None
+  else Some (p.(dist))
 
 (* sublist containing first n elements *)
 let rec list_first_n l n =
@@ -179,5 +183,27 @@ let fair_share_at_edge (capacity:float) (in_flows: float PathMap.t) : (float Pat
           if is_nan fs then assert false;
           let new_share = PathMap.add curr_share ~key:p ~data:fs in
           (new_share, spare_cap -. fs, n_rem_flows - 1)) in
+  fair_share
+
+  
+(* Calculate fair share of flows *)
+let fair_share_at_edge_arr (capacity:float) (in_flows: (edge Array.t * int * float) List.t) : ((edge Array.t * int * float) List.t) =
+  let path_dem_list = Array.of_list in_flows in
+  let _ = Array.sort ~cmp:(fun (_,_,x) (_,_,y) -> Float.compare x y) path_dem_list in
+  (*ignore (List.iter sorted_pdlist ~f:(fun (_,d) -> Printf.printf "%f\n%!" d;); Printf.printf "\n";);
+    assert false;*)
+  let (fair_share,_,_) = Array.foldi
+      path_dem_list
+      ~init:([], capacity, Array.length path_dem_list)
+      ~f:(fun _ acc (p,dist,d) ->
+        let (curr_share, spare_cap, n_rem_flows) = acc in
+        if d *. (Float.of_int n_rem_flows) <= spare_cap then
+          let new_share =  (p,dist,d)::curr_share in
+          (new_share, spare_cap -. d, n_rem_flows - 1)
+        else
+          let fs = (spare_cap /. (Float.of_int n_rem_flows)) in
+          if is_nan fs then assert false;
+          let new_share =  (p,dist,fs)::curr_share in
+          (new_share, spare_cap -. fs, n_rem_flows - 1))  in
   fair_share
 
