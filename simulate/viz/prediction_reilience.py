@@ -1,5 +1,6 @@
 import CommonConf
 import CommonViz
+from collections import OrderedDict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,6 +11,7 @@ from matplotlib.lines import Line2D
 import matplotlib.backends.backend_pdf
 import math
 import random
+import sys
 
 
 def plotfigure(metric_name,dotfile):
@@ -18,7 +20,9 @@ def plotfigure(metric_name,dotfile):
     mydict={}
     curname=0;
     totiter=0
+    xx=[]
     for folder in todofolder:
+        xx.append(100*float(folder[len(dotfile):].replace("x",".")))
         curname += 1
         picked_file=[f for f in listdir(op.join(curf,folder)) if op.isfile(op.join(curf,folder, f)) & (metric_name+'.dat' in f) & (not 'swp' in f)]
         if (len(picked_file)>1):
@@ -40,11 +44,13 @@ def plotfigure(metric_name,dotfile):
     mean_list={}
     var_list={}
     for alg in mydict:
-        mean_list[alg]=[]
-        var_list[alg]=[]
+        mean_list[alg]=OrderedDict()
+        var_list[alg]=OrderedDict()
+        i=0
         for all_num in mydict[alg]:
-            mean_list[alg].append(numpy.mean(numpy.array(all_num), axis=0))
-            var_list[alg].append(numpy.std(numpy.array(all_num), axis=0))
+            mean_list[alg][xx[i]]=numpy.mean(numpy.array(all_num), axis=0)
+            var_list [alg][xx[i]]=numpy.std(numpy.array(all_num), axis=0)
+            i+=1
 
     totiter+= 1
     fig=plt.figure(figsize=(18,9))
@@ -56,8 +62,18 @@ def plotfigure(metric_name,dotfile):
     pdf = matplotlib.backends.backend_pdf.PdfPages(dotfile+metric_name+".pdf")
 
     for alg in sorted(mydict):
-        xs=np.asarray([i*10 for i in range(0,len(mean_list[alg]))])+random.random()*5
-        plt.errorbar(xs,mean_list[alg],var_list[alg],label=alg, linestyle=linest[dotted], marker=m[dotted],color=colors[dotted])
+        print(alg,':')
+        for key in sorted(mean_list[alg]):
+            print(key,mean_list[alg][key])
+        ml=[]
+        kl=[]
+        vl=[]
+        for key in sorted(mean_list[alg]):
+            kl.append(key)
+            ml.append(mean_list[alg][key])
+            vl.append(var_list[alg][key])
+        xs=np.asarray(kl)+random.random()*5
+        plt.errorbar(xs,ml,vl,label=alg, linestyle=linest[dotted], marker=m[dotted],color=colors[dotted])
         dotted+=1
     x1,x2,y1,y2 = plt.axis()
     plt.axis((x1,x2+0.1,y1,y2+0.05))
@@ -71,6 +87,6 @@ def plotfigure(metric_name,dotfile):
 
     pdf.close()
 
-plotfigure('MaxCongestionVsIterations','grid5h1EvenDemand')
-plotfigure('TotalThroughputVsIterations','grid5h1EvenDemand')
+#plotfigure('MaxCongestionVsIterations',sys.argv[1])
+plotfigure('TotalThroughputVsIterations',sys.argv[1])
 
