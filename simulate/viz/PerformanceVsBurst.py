@@ -14,9 +14,9 @@ import matplotlib.pyplot as pp
 
 flash_time=3
 
-def plotfigure(metric_name,dotfile):
+def plotfigure(metric_name,dotfile,mode):
     curf="expData";
-    todofolder=[f for f in listdir(curf) if op.isdir(op.join(curf, f)) & (dotfile in f) ]
+    todofolder=[f for f in listdir(curf) if op.isdir(op.join(curf, f)) & ("burst_"+mode+"_"+dotfile in f) ]
     mydict={}
     curname=0;
     totiter=0
@@ -85,6 +85,6 @@ def plotfigure(metric_name,dotfile):
     pp.savefig("expData/burst_"+dotfile+"_"+metric_name+".svg")
     pp.close(fig)
 
-plotfigure('MaxCongestionVsIterations',sys.argv[1])
-plotfigure('TotalThroughputVsIterations',sys.argv[1])
+plotfigure('MaxCongestionVsIterations',sys.argv[1], sys.argv[2])
+plotfigure('TotalThroughputVsIterations',sys.argv[1], sys.argv[2])
 
