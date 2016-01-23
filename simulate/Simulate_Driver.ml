@@ -813,8 +813,8 @@ let set_topo_weights topo =
 
 
 (* Calculate a demand matrix equal to max (envelope) of all TMs *) 
-let calculate_demand_envelope (topo:topology) (predict_file:string) (host_file:string) =
-  let num_tm = List.length (In_channel.read_lines predict_file) in
+let calculate_demand_envelope (topo:topology) (predict_file:string) (host_file:string) (iters:int) =
+  let num_tm = min iters (List.length (In_channel.read_lines predict_file)) in
   let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
   let iterations = range 0 num_tm in
@@ -908,7 +908,7 @@ let simulate
 
   let _ = match algorithm with
     | SemiMcfMcfFTEnv
-    | SemiMcfMcfEnv -> demand_envelope := (calculate_demand_envelope topo predict_file host_file);
+    | SemiMcfMcfEnv -> demand_envelope := (calculate_demand_envelope topo predict_file host_file iterations);
     | _ -> () in
 
 	let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
