@@ -55,6 +55,16 @@ let dump_scheme (t:topology) (s:scheme) : string =
                                       (dump_path_prob_set t pps));
   Buffer.contents buf
 
+let dump_demands (t:topology) (d:demands) : string =
+  let buf = Buffer.create 101 in
+  SrcDstMap.iter d
+  ~f:(fun ~key:(src,dst) ~data:dem -> 
+    Printf.bprintf buf "(%s,%s) : %f\n" 
+                     (Node.name (Net.Topology.vertex_to_label t src))
+                     (Node.name (Net.Topology.vertex_to_label t dst))
+  dem;);
+  Buffer.contents buf
+
 let write_to_file filename text_to_write =
   try
     let cout = Out_channel.create filename in
@@ -90,55 +100,6 @@ let rec list_first_n l n =
   else match l with
   | hd::tl -> hd::(list_first_n tl (n-1))
   | [] -> failwith "not enough elements"
-
-let get_hosts (topo:topology) =
-  let host_set = VertexSet.filter (Topology.vertexes topo)
-  ~f:(fun v ->
-    let label = Topology.vertex_to_label topo v in
-    Node.device label = Node.Host) in
-  Topology.VertexSet.elements host_set
-
-let all_pairs_connectivity topo hosts scheme : bool =
-  List.fold_left hosts
-    ~init:true
-    ~f:(fun acc u ->
-      List.fold_left hosts
-        ~init:acc
-        ~f:(fun acc v ->
-	         if u = v then acc
-           else
-             match SrcDstMap.find scheme (u,v) with
-             | None -> Printf.printf "No route for pair (%s, %s)\n%!"
-             (Node.name (Net.Topology.vertex_to_label topo u))
-             (Node.name (Net.Topology.vertex_to_label topo v)); false
-             | Some paths -> not (PathMap.is_empty paths)  && acc))
-
-
-let paths_are_nonempty (s:scheme) : bool =
-    SrcDstMap.fold s
-      ~init:true
-      (* for every pair of hosts u,v *)
-      ~f:(fun ~key:(u,v) ~data:paths acc ->
-        if u = v then true && acc
-        else
-          PathMap.fold paths
-          ~init:acc
-	        (* get the possible paths, and for every path *)
-          ~f:(fun ~key:path ~data:_ acc ->
-		         acc && (not (List.is_empty path))))
-
-let probabilities_sum_to_one (s:scheme) : bool =
-  SrcDstMap.fold s
-    ~init:true
-    ~f:(fun ~key:(u,v) ~data:f_decomp acc ->
-      if u = v then acc
-      else
-        let sum_rate =
-          PathMap.fold f_decomp
-          ~init:0.
-	        ~f:(fun ~key:path ~data:r acc -> acc +. r) in
-	      acc && (sum_rate > 0.9) && (sum_rate < 1.1) )
-
 
 (* prune a scheme by limiting number of s-d paths within a given budget *)
 let prune_scheme (t:topology) (s:scheme) (budget:int) : scheme =

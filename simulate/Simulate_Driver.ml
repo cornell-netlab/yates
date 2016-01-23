@@ -14,10 +14,78 @@ open Kulfi_Util
 
 let demand_envelope = ref SrcDstMap.empty
 
+let edge_connects_switches (e:edge) (topo:topology) : bool =
+  let src,_ = Topology.edge_src e in
+  let src_label = Topology.vertex_to_label topo src in
+  let dst,_ = Topology.edge_dst e in
+  let dst_label = Topology.vertex_to_label topo dst in
+  Node.device src_label = Node.Switch && Node.device dst_label = Node.Switch
+
+let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
+  (* consider each edge can fail and compute the corresponding scheme *)
+  let hosts = get_hosts topo in
+  let failure_scheme_map,_ = EdgeSet.fold (Topology.edges topo)
+    ~init:(EdgeMap.empty, EdgeSet.empty)
+    ~f:(fun (acc, handled_edges) e ->
+      if (EdgeSet.mem handled_edges e) then (acc, handled_edges)
+      else
+        let e' = match Topology.inverse_edge topo e with
+          | None -> failwith "No reverse edge found"
+          | Some x -> x in
+        let handled_edges' = EdgeSet.add handled_edges e in
+        let handled_edges' = EdgeSet.add handled_edges' e' in
+ 
+        let failure_scen = EdgeSet.add (EdgeSet.singleton e) e' in
+        if edge_connects_switches e topo then
+          let topo' = EdgeSet.fold failure_scen
+            ~init:topo
+            ~f:(fun acc link -> Topology.remove_edge acc link) in
+          (* consider only the failures which do not partition the network *)
+          let spf_scheme = Kulfi_Spf.solve topo' SrcDstMap.empty in
+          if all_pairs_connectivity topo' hosts spf_scheme then
+            begin
+            let sch = solver topo' envelope in
+            assert (not (SrcDstMap.is_empty sch));
+            (EdgeMap.add ~key:e ~data:sch acc, handled_edges')
+            end
+          else (acc, handled_edges')
+        else (acc, handled_edges')) in
+  (* merge all the schemes *)
+  assert (not (EdgeMap.is_empty failure_scheme_map));
+  let agg_scheme = EdgeMap.fold failure_scheme_map
+    ~init:SrcDstMap.empty
+    ~f:(fun ~key:e ~data:edge_scheme agg ->
+      (* merge edge_schme and agg *)
+      assert (not (SrcDstMap.is_empty edge_scheme));
+      SrcDstMap.fold edge_scheme
+        ~init:agg
+        ~f:(fun ~key:(s,d) ~data:f_pp_map res ->
+          let acc_pp_map = match SrcDstMap.find res (s,d) with
+            | None -> PathMap.empty
+            | Some x -> x in
+          if (PathMap.is_empty f_pp_map) then
+            begin
+              Printf.printf "%s: Scheme %s" (string_of_edge topo e) (dump_scheme topo edge_scheme);
+              assert false
+            end
+          else
+          let n_pp_map = PathMap.fold f_pp_map
+            ~init:acc_pp_map
+            ~f:(fun ~key:path ~data:f_prob acc_paths ->
+              let acc_prob = match PathMap.find acc_paths path with
+                | None -> 0.
+                | Some x -> x in
+              PathMap.add ~key:path ~data:(acc_prob +. f_prob) acc_paths) in
+          SrcDstMap.add ~key:(s,d) ~data:n_pp_map res)) in
+  (* normalize scheme *)
+  assert (not (SrcDstMap.is_empty agg_scheme));
+  normalize_scheme_opt agg_scheme
+
+
 type solver_type =
   | Mcf | MwMcf | Vlb | Ecmp | Ksp | Spf | Raeke
   | AkMcf | AkVlb | AkRaeke | AkEcmp | AkKsp
-  | SemiMcfMcf | SemiMcfMcfEnv | SemiMcfVlb | SemiMcfRaeke | SemiMcfEcmp | SemiMcfKsp
+  | SemiMcfMcf | SemiMcfMcfEnv | SemiMcfMcfFTEnv | SemiMcfVlb | SemiMcfRaeke | SemiMcfRaekeFT  | SemiMcfEcmp | SemiMcfKsp | SemiMcfKspFT
 
 let solver_to_string (s:solver_type) : string =
   match s with
@@ -35,10 +103,13 @@ let solver_to_string (s:solver_type) : string =
   | AkKsp -> "akksp"
   | SemiMcfMcf -> "semimcfmcf"
   | SemiMcfMcfEnv -> "semimcfmcfenv"
+  | SemiMcfMcfFTEnv -> "semimcfmcfftenv"
   | SemiMcfVlb -> "semimcfvlb"
   | SemiMcfRaeke -> "semimcfraeke"
+  | SemiMcfRaekeFT -> "semimcfraekeft"
   | SemiMcfEcmp -> "semimcfecmp"
   | SemiMcfKsp -> "semimcfksp"
+  | SemiMcfKspFT -> "semimcfkspft"
 
 let select_algorithm solver = match solver with
   | Mcf -> Kulfi_Routing.Mcf.solve
@@ -55,9 +126,12 @@ let select_algorithm solver = match solver with
   | AkEcmp -> Kulfi_Routing.Ak.solve
   | SemiMcfMcf
   | SemiMcfMcfEnv
+  | SemiMcfMcfFTEnv
   | SemiMcfVlb
   | SemiMcfRaeke
+  | SemiMcfRaekeFT
   | SemiMcfKsp
+  | SemiMcfKspFT
   | SemiMcfEcmp -> Kulfi_Routing.SemiMcf.solve
 
 let select_local_recovery solver = match solver with
@@ -75,9 +149,12 @@ let select_local_recovery solver = match solver with
   | AkEcmp -> Kulfi_Routing.Ak.local_recovery
   | SemiMcfMcf
   | SemiMcfMcfEnv
+  | SemiMcfMcfFTEnv
   | SemiMcfVlb
   | SemiMcfRaeke
+  | SemiMcfRaekeFT
   | SemiMcfKsp
+  | SemiMcfKspFT
   | SemiMcfEcmp -> Kulfi_Routing.SemiMcf.local_recovery
 
 
@@ -85,6 +162,8 @@ let initial_scheme algorithm topo predict : scheme =
   match algorithm with
   | SemiMcfMcfEnv ->
      Kulfi_Routing.Mcf.solve topo !demand_envelope
+  | SemiMcfMcfFTEnv ->
+     all_failures_envelope Kulfi_Routing.Mcf.solve topo !demand_envelope
   | SemiMcfMcf
   | AkMcf ->
      Kulfi_Routing.Mcf.solve topo predict
@@ -92,6 +171,9 @@ let initial_scheme algorithm topo predict : scheme =
   | AkVlb ->
      let _ = Kulfi_Routing.Vlb.initialize SrcDstMap.empty in
      Kulfi_Routing.Vlb.solve topo SrcDstMap.empty
+  | SemiMcfRaekeFT ->
+     let _ = Kulfi_Routing.Raeke.initialize SrcDstMap.empty in
+     all_failures_envelope Kulfi_Routing.Raeke.solve topo SrcDstMap.empty 
   | SemiMcfRaeke
   | AkRaeke ->
      let _ = Kulfi_Routing.Raeke.initialize SrcDstMap.empty in
@@ -100,6 +182,9 @@ let initial_scheme algorithm topo predict : scheme =
   | AkEcmp ->
      let _ = Kulfi_Routing.Ecmp.initialize SrcDstMap.empty in
      Kulfi_Routing.Ecmp.solve topo SrcDstMap.empty
+  | SemiMcfKspFT ->
+     let _ = Kulfi_Routing.Ksp.initialize SrcDstMap.empty in
+     all_failures_envelope Kulfi_Routing.Ksp.solve topo SrcDstMap.empty 
   | SemiMcfKsp
   | AkKsp ->
      let _ = Kulfi_Routing.Ksp.initialize SrcDstMap.empty in
@@ -110,15 +195,18 @@ let initialize_scheme algorithm topo predict: unit =
   Printf.printf "[Init...] \r";
   let start_scheme = initial_scheme algorithm topo predict in
   let pruned_scheme = if SrcDstMap.is_empty start_scheme
-  then start_scheme
-  else prune_scheme topo start_scheme !Kulfi_Globals.budget in
-  (* Printf.printf "%s\n%!" (dump_scheme topo start_scheme); *)
+    then start_scheme
+    else prune_scheme topo start_scheme !Kulfi_Globals.budget in
+  Printf.printf "%s\n%!" (dump_scheme topo start_scheme);
   match algorithm with
   | SemiMcfEcmp
   | SemiMcfKsp
+  | SemiMcfKspFT
   | SemiMcfMcf
   | SemiMcfMcfEnv
+  | SemiMcfMcfFTEnv
   | SemiMcfRaeke
+  | SemiMcfRaekeFT
   | SemiMcfVlb -> Kulfi_Routing.SemiMcf.initialize pruned_scheme
   | AkEcmp
   | AkKsp
@@ -130,6 +218,7 @@ let initialize_scheme algorithm topo predict: unit =
   | Raeke -> Kulfi_Routing.Raeke.initialize SrcDstMap.empty
   | Vlb -> Kulfi_Routing.Vlb.initialize SrcDstMap.empty
   | _ -> ()
+
 
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
   let sent_on_each_edge =
@@ -308,13 +397,6 @@ let curr_capacity_of_edge (topo:topology) (link:edge) (fail:failure) : float =
   if EdgeSet.mem fail link
     then 0.0
     else capacity_of_edge topo link
-
-let edge_connects_switches (e:edge) (topo:topology) : bool =
-  let src,_ = Topology.edge_src e in
-  let src_label = Topology.vertex_to_label topo src in
-  let dst,_ = Topology.edge_dst e in
-  let dst_label = Topology.vertex_to_label topo dst in
-  Node.device src_label = Node.Switch && Node.device dst_label = Node.Switch
 
 let get_util_based_failure_scenario (topo:topology) (utils: congestion EdgeMap.t) : failure =
   let alpha = 1.0 in (* fail prob is proportional to congestion ^ alpha *)
@@ -806,6 +888,7 @@ let simulate
 	let topo = Parse.from_dotfile topology_file in
 
   let _ = match algorithm with
+    | SemiMcfMcfFTEnv
     | SemiMcfMcfEnv -> demand_envelope := (calculate_demand_envelope topo predict_file host_file);
     | _ -> () in
 
@@ -985,10 +1068,13 @@ let command =
     +> flag "-akksp" no_arg ~doc:" run ak+ksp"
     +> flag "-semimcfmcf" no_arg ~doc:" run semi mcf+mcf"
     +> flag "-semimcfmcfenv" no_arg ~doc:" run semi mcf+mcf init with envelope"
+    +> flag "-semimcfmcfftenv" no_arg ~doc:" run semi mcf+mcf init with envelope considering all fail scenarios"
     +> flag "-semimcfvlb" no_arg ~doc:" run semi mcf+vlb"
     +> flag "-semimcfraeke" no_arg ~doc:" run semi mcf+raeke"
+    +> flag "-semimcfraekeft" no_arg ~doc:" run semi mcf+raeke considering all failure scenario"
     +> flag "-semimcfecmp" no_arg ~doc:" run semi mcf+ecmp"
     +> flag "-semimcfksp" no_arg ~doc:" run semi mcf+ksp"
+    +> flag "-semimcfkspft" no_arg ~doc:" run semi mcf+ksp considering all failure scenario"
     +> flag "-raeke" no_arg ~doc:" run raeke"
     +> flag "-all" no_arg ~doc:" run all schemes"
     +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
@@ -1017,10 +1103,13 @@ let command =
 	 (akksp:bool)
 	 (semimcfmcf:bool)
 	 (semimcfmcfenv:bool)
+	 (semimcfmcfftenv:bool)
 	 (semimcfvlb:bool)
 	 (semimcfraeke:bool)
+	 (semimcfraekeft:bool)
 	 (semimcfecmp:bool)
 	 (semimcfksp:bool)
+	 (semimcfkspft:bool)
 	 (raeke:bool)
 	 (all:bool)
    (scalesyn:bool)
@@ -1054,10 +1143,13 @@ let command =
    ; if raeke || all then Some Raeke else None
    ; if semimcfmcf then Some SemiMcfMcf else None
    ; if semimcfmcfenv || all then Some SemiMcfMcfEnv else None
+   ; if semimcfmcfftenv || all then Some SemiMcfMcfFTEnv else None
 	 ; if semimcfecmp || all then Some SemiMcfEcmp else None
 	 ; if semimcfksp || all then Some SemiMcfKsp else None
+	 ; if semimcfkspft || all then Some SemiMcfKspFT else None
 	 ; if semimcfvlb || all then Some SemiMcfVlb else None
-	 ; if semimcfraeke || all then Some SemiMcfRaeke else None ] in
+	 ; if semimcfraeke || all then Some SemiMcfRaeke else None
+	 ; if semimcfraekeft || all then Some SemiMcfRaekeFT else None ] in
      let syn_scale = if scalesyn then calculate_syn_scale topology_file demand_file host_file else 1.0 in
      let tot_scale = match scale with | None -> syn_scale | Some x -> x *. syn_scale in
      Printf.printf "Scale factor: %f\n\n" (tot_scale);

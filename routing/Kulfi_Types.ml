@@ -266,7 +266,6 @@ let print_configuration (topo:topology) (conf:configuration) (time:int) : unit =
 	Out_channel.close route_file;
 	)
 
-
 let normalize_scheme (s : scheme) (fs: float SrcDstMap.t) : scheme =
   (* s = a routing scheme, fs = the sum of flow values in each flow_decomp *)
   SrcDstMap.fold ~init:(SrcDstMap.empty)
@@ -290,6 +289,13 @@ let normalize_scheme (s : scheme) (fs: float SrcDstMap.t) : scheme =
 	     PathMap.add ~key:path ~data:normalized_rate acc)
 	     f_decomp in
        SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc) s
+
+let normalize_scheme_opt (s:scheme) : scheme =
+  let zero_sum = SrcDstMap.fold s
+    ~init:SrcDstMap.empty
+    ~f:(fun ~key:sd ~data:_ acc ->
+      SrcDstMap.add ~key:sd ~data:0. acc) in
+    normalize_scheme s zero_sum
 
 let dump_path_prob_set (t:topology) (pps:probability PathMap.t) : string =
   let buf = Buffer.create 101 in
@@ -334,5 +340,54 @@ let normalization_recovery (curr_scheme:scheme) (_:topology) (failed_links:failu
     SrcDstMap.add ~key:(src,dst) ~data:renormalized_paths acc) in
   Printf.printf "\t\t\t\t\t\t\t\t\t\tLOCAL\r";
   new_scheme
+
+
+let get_hosts (topo:topology) =
+  let host_set = VertexSet.filter (Topology.vertexes topo)
+  ~f:(fun v ->
+    let label = Topology.vertex_to_label topo v in
+    Node.device label = Node.Host) in
+  Topology.VertexSet.elements host_set
+
+let all_pairs_connectivity topo hosts scheme : bool =
+  List.fold_left hosts
+    ~init:true
+    ~f:(fun acc u ->
+      List.fold_left hosts
+        ~init:acc
+        ~f:(fun acc v ->
+	         if u = v then acc
+           else
+             match SrcDstMap.find scheme (u,v) with
+             | None -> Printf.printf "No route for pair (%s, %s)\n%!"
+             (Node.name (Net.Topology.vertex_to_label topo u))
+             (Node.name (Net.Topology.vertex_to_label topo v)); false
+             | Some paths -> not (PathMap.is_empty paths)  && acc))
+
+
+let paths_are_nonempty (s:scheme) : bool =
+    SrcDstMap.fold s
+      ~init:true
+      (* for every pair of hosts u,v *)
+      ~f:(fun ~key:(u,v) ~data:paths acc ->
+        if u = v then true && acc
+        else
+          PathMap.fold paths
+          ~init:acc
+	        (* get the possible paths, and for every path *)
+          ~f:(fun ~key:path ~data:_ acc ->
+		         acc && (not (List.is_empty path))))
+
+let probabilities_sum_to_one (s:scheme) : bool =
+  SrcDstMap.fold s
+    ~init:true
+    ~f:(fun ~key:(u,v) ~data:f_decomp acc ->
+      if u = v then acc
+      else
+        let sum_rate =
+          PathMap.fold f_decomp
+          ~init:0.
+	        ~f:(fun ~key:path ~data:r acc -> acc +. r) in
+	      acc && (sum_rate > 0.9) && (sum_rate < 1.1) )
 
 

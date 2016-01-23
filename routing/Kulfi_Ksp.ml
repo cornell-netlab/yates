@@ -23,6 +23,8 @@ let solve (topo:topology) (_:demands) : scheme =
     all_ksp
     ~init:SrcDstMap.empty
     ~f:(fun ~key:(v1,v2) ~data:paths acc ->
+      if (v1 = v2) then acc
+      else
       let path_map = List.fold_left
           paths
           ~init:PathMap.empty
