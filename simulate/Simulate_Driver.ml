@@ -791,14 +791,26 @@ let get_latency_percentiles (lat_tput_map : throughput LatencyMap.t) (agg_dem:fl
       lat_percentile_map, sum_tput')) in
   latency_percentiles
 
-let reset_weight topo edge =
+let set_weight topo edge w =
     let label = Topology.edge_to_label topo edge in
-    Link.set_weight label 1.;
+    Link.set_weight label w;
     topo
 
-let reset_topo_weights topo =
-  let topo = EdgeSet.fold ~init:topo ~f:(fun acc e -> reset_weight acc e) (Topology.edges topo) in
-  topo
+let reset_topo_weights edge_weights topo =
+  EdgeSet.fold (Topology.edges topo)
+    ~init:topo
+    ~f:(fun acc e ->
+      let w = StringMap.find_exn edge_weights (string_of_edge topo e) in
+      set_weight acc e w) 
+
+let set_topo_weights topo =
+  EdgeSet.fold (Topology.edges topo) ~init:StringMap.empty
+    ~f:(fun acc e -> 
+      let w = (0.5 +. Random.float 1.) in
+      let topo = set_weight topo e w in
+      StringMap.add ~key:(string_of_edge topo e) ~data:w acc)
+
+
 
 (* Calculate a demand matrix equal to sum (envelope) of all TMs *) 
 let calculate_demand_envelope (topo:topology) (predict_file:string) (host_file:string) =
@@ -841,7 +853,7 @@ let simulate
 
 
   let topo = Parse.from_dotfile topology_file in
-
+  let edge_weights = set_topo_weights topo in
   let host_set = VertexSet.filter (Topology.vertexes topo)
 				  ~f:(fun v ->
 				      let label = Topology.vertex_to_label topo v in
@@ -892,6 +904,7 @@ let simulate
 	 Raeke and ensure that it mutates a copy of the topology, not the actual
 	 topology *)
 	let topo = Parse.from_dotfile topology_file in
+  ignore(reset_topo_weights edge_weights topo;);
 
   let _ = match algorithm with
     | SemiMcfMcfFTEnv
@@ -921,7 +934,7 @@ let simulate
 		  start at;
 		  let scheme' = solve_within_budget algorithm topo predict in
 		  stop at;
-      ignore(reset_topo_weights topo;);
+      ignore(reset_topo_weights edge_weights topo;);
 
 		  let exp_congestions = (congestion_of_paths scheme' topo actual) in
 		  let list_of_exp_congestions = List.map ~f:snd (EdgeMap.to_alist exp_congestions) in

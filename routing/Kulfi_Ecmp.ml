@@ -40,8 +40,8 @@ let solve (topo:topology) (_:demands) : scheme =
   else
   (* (pk): run ksp with budget;
    * find shortest path;
-   * select paths with weight <= 1.5 times shortest *)
-  let host_set  = get_hosts_set topo in
+   * select paths with weight <= 1.2 times shortest *)
+  let host_set = get_hosts_set topo in
   let all_ksp = all_pair_k_shortest_path topo (min !Kulfi_Globals.budget 100) host_set in
   let thresh = 1.2 in
   SrcDstMap.fold all_ksp
@@ -55,8 +55,11 @@ let solve (topo:topology) (_:demands) : scheme =
           let shortest_path_weight = get_path_weight topo (match List.hd sorted_paths with
               | None -> assert false
               | Some x -> x) in
+          (*Printf.printf "Shortest path weight: %f\n" shortest_path_weight;*)
           let selected_paths = List.filter sorted_paths
             ~f:(fun p -> (get_path_weight topo p) <= (thresh *. shortest_path_weight)) in
+          (*List.iter selected_paths ~f:(fun p ->
+            Printf.printf "%f : %s\n%!" (get_path_weight topo p) (dump_edges topo p);); *)
           let prob = 1. /. Float.of_int (List.length selected_paths) in
           let path_dist = List.fold_left selected_paths ~init: PathMap.empty
                     ~f:(fun acc p -> PathMap.add ~key:p ~data:prob acc) in
