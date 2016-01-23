@@ -203,7 +203,7 @@ let initialize_scheme algorithm topo predict: unit =
   let pruned_scheme = if SrcDstMap.is_empty start_scheme
     then start_scheme
     else prune_scheme topo start_scheme !Kulfi_Globals.budget in
-  Printf.printf "%s\n%!" (dump_scheme topo start_scheme);
+  (*Printf.printf "%s\n%!" (dump_scheme topo start_scheme);*)
   match algorithm with
   | SemiMcfEcmp
   | SemiMcfKsp
@@ -812,7 +812,7 @@ let set_topo_weights topo =
 
 
 
-(* Calculate a demand matrix equal to sum (envelope) of all TMs *) 
+(* Calculate a demand matrix equal to max (envelope) of all TMs *) 
 let calculate_demand_envelope (topo:topology) (predict_file:string) (host_file:string) =
   let num_tm = List.length (In_channel.read_lines predict_file) in
   let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
@@ -826,7 +826,7 @@ let calculate_demand_envelope (topo:topology) (predict_file:string) (host_file:s
         let env_sd = match SrcDstMap.find acc (s,d) with
         | None -> 0.
         | Some x -> x in
-        SrcDstMap.add ~key:(s,d) ~data:(env_sd +. pred) acc)) in
+        SrcDstMap.add ~key:(s,d) ~data:(max env_sd pred) acc)) in
   close_demands predict_ic;
   envelope
 
