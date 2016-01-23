@@ -26,8 +26,16 @@ def display (all_latencies, directory):
         if mxl < xl:
             mxl = xl
 
+    gap=20
     for solver, latencies in scheme_latency_dist.iteritems():
-        xs = sorted(latencies.keys())
+        xs = []
+        xsall = sorted(latencies.keys())
+        for i in range(0,len(xsall)):
+          if (i%gap==0):
+            xs.append(xsall[i])
+        if (len(xsall)-1)%gap!=0:
+          xs.append(xsall[-1])
+
         ys = [latencies[lat][0] for lat in xs]
         ydevs = [latencies[lat][1] for lat in xs]
         ax.plot((xs[-1], mxl), (ys[-1], ys[-1]), linestyle=':',
