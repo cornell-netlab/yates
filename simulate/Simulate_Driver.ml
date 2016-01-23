@@ -21,6 +21,8 @@ let edge_connects_switches (e:edge) (topo:topology) : bool =
   let dst_label = Topology.vertex_to_label topo dst in
   Node.device src_label = Node.Switch && Node.device dst_label = Node.Switch
 
+
+(* create a scheme by running solver over all failures and aggregating the schemes *)
 let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
   (* consider each edge can fail and compute the corresponding scheme *)
   let hosts = get_hosts topo in
@@ -86,6 +88,7 @@ type solver_type =
   | Mcf | MwMcf | Vlb | Ecmp | Ksp | Spf | Raeke
   | AkMcf | AkVlb | AkRaeke | AkEcmp | AkKsp
   | SemiMcfMcf | SemiMcfMcfEnv | SemiMcfMcfFTEnv | SemiMcfVlb | SemiMcfRaeke | SemiMcfRaekeFT  | SemiMcfEcmp | SemiMcfKsp | SemiMcfKspFT
+  | OptimalMcf
 
 let solver_to_string (s:solver_type) : string =
   match s with
@@ -110,9 +113,11 @@ let solver_to_string (s:solver_type) : string =
   | SemiMcfEcmp -> "semimcfecmp"
   | SemiMcfKsp -> "semimcfksp"
   | SemiMcfKspFT -> "semimcfkspft"
+  | OptimalMcf -> "optimalmcf"
 
 let select_algorithm solver = match solver with
   | Mcf -> Kulfi_Routing.Mcf.solve
+  | OptimalMcf -> Kulfi_Routing.Mcf.solve
   | MwMcf -> Kulfi_Routing.MwMcf.solve
   | Vlb -> Kulfi_Routing.Vlb.solve
   | Ecmp -> Kulfi_Routing.Ecmp.solve
@@ -136,6 +141,7 @@ let select_algorithm solver = match solver with
 
 let select_local_recovery solver = match solver with
   | Mcf -> Kulfi_Routing.Mcf.local_recovery
+  | OptimalMcf -> failwith "No local recovery for optimal mcf" 
   | MwMcf -> Kulfi_Routing.MwMcf.local_recovery
   | Vlb -> Kulfi_Routing.Vlb.local_recovery
   | Ecmp -> Kulfi_Routing.Ecmp.local_recovery
@@ -219,6 +225,13 @@ let initialize_scheme algorithm topo predict: unit =
   | Vlb -> Kulfi_Routing.Vlb.initialize SrcDstMap.empty
   | _ -> ()
 
+let solve_within_budget algorithm topo demand =
+  let solve = select_algorithm algorithm in
+  let budget' = match algorithm with
+    | OptimalMcf -> Int.max_value / 100
+    | _ -> !Kulfi_Globals.budget in
+	let scheme = prune_scheme topo (solve topo demand) budget' in
+  scheme
 
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
   let sent_on_each_edge =
@@ -354,8 +367,7 @@ let global_recovery (failed_links:failure) (predict:demands) (algorithm:solver_t
       ~f:(fun e -> assert (EdgeSet.mem (Topology.edges topo) e)));
 
   initialize_scheme algorithm topo' predict;
-  let solve = select_algorithm algorithm in
-  let new_scheme = prune_scheme topo' (solve topo' predict) !Kulfi_Globals.budget in
+  let new_scheme = solve_within_budget algorithm topo' predict in 
   ignore (if (SrcDstMap.is_empty new_scheme) then failwith "new_scheme is empty in global driver" else ());
   (*Printf.printf "New scheme: %s\n-----\n%!" (dump_scheme topo' new_scheme);*)
   Printf.printf "\t\t\t\t\t\t\t\t\t\t\tGLOBAL\r";
@@ -568,13 +580,15 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
         else curr_failed_links in
 
       (* local and global recovery *)
-      let new_scheme = if iter = (local_recovery_delay + failure_time)
-                        then (select_local_recovery algorithm) curr_scheme topo failed_links predict
-                      else if iter = (global_recovery_delay + failure_time)
-                        then begin
-                          global_recovery failed_links predict algorithm topo
-                          end
-                      else curr_scheme in
+      let new_scheme = 
+        match algorithm with
+          | OptimalMcf ->
+              if iter = failure_time then global_recovery failed_links predict algorithm topo
+              else curr_scheme
+          | _ -> 
+              if iter = (local_recovery_delay + failure_time) then (select_local_recovery algorithm) curr_scheme topo failed_links predict
+              else if iter = (global_recovery_delay + failure_time) then global_recovery failed_links predict algorithm topo
+              else curr_scheme in
 
       (* measure churn in case of global recovery *)
       if iter = (global_recovery_delay + failure_time) then
@@ -892,7 +906,6 @@ let simulate
     | SemiMcfMcfEnv -> demand_envelope := (calculate_demand_envelope topo predict_file host_file);
     | _ -> () in
 
-	let solve = select_algorithm algorithm in
 	let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
 	let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
   Printf.printf "\n";
@@ -914,7 +927,7 @@ let simulate
 
 		  (* solve *)
 		  start at;
-		  let scheme' = prune_scheme topo (solve topo predict) !Kulfi_Globals.budget in
+		  let scheme' = solve_within_budget algorithm topo predict in
 		  stop at;
       ignore(reset_topo_weights topo;);
 
@@ -1076,6 +1089,7 @@ let command =
     +> flag "-semimcfksp" no_arg ~doc:" run semi mcf+ksp"
     +> flag "-semimcfkspft" no_arg ~doc:" run semi mcf+ksp considering all failure scenario"
     +> flag "-raeke" no_arg ~doc:" run raeke"
+    +> flag "-optimalmcf" no_arg ~doc:" run optimal mcf"
     +> flag "-all" no_arg ~doc:" run all schemes"
     +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
     +> flag "-deloop" no_arg ~doc:" remove loops in paths"
@@ -1111,6 +1125,7 @@ let command =
 	 (semimcfksp:bool)
 	 (semimcfkspft:bool)
 	 (raeke:bool)
+	 (optimalmcf:bool)
 	 (all:bool)
    (scalesyn:bool)
    (deloop:bool)
@@ -1130,6 +1145,7 @@ let command =
        List.filter_map
          ~f:(fun x -> x)
          [ if mcf || all then Some Mcf else None
+         ; if optimalmcf || all then Some OptimalMcf else None
          ; if mwmcf then Some MwMcf else None
          ; if vlb || all then Some Vlb else None
          ; if ecmp || all then Some Ecmp else None
