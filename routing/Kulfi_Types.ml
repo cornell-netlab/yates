@@ -342,11 +342,14 @@ let normalization_recovery (curr_scheme:scheme) (_:topology) (failed_links:failu
   new_scheme
 
 
-let get_hosts (topo:topology) =
-  let host_set = VertexSet.filter (Topology.vertexes topo)
+let get_hosts_set (topo:topology) =
+  VertexSet.filter (Topology.vertexes topo)
   ~f:(fun v ->
     let label = Topology.vertex_to_label topo v in
-    Node.device label = Node.Host) in
+    Node.device label = Node.Host)
+
+let get_hosts (topo:topology) =
+  let host_set = get_hosts_set topo in
   Topology.VertexSet.elements host_set
 
 let all_pairs_connectivity topo hosts scheme : bool =
@@ -390,4 +393,13 @@ let probabilities_sum_to_one (s:scheme) : bool =
 	        ~f:(fun ~key:path ~data:r acc -> acc +. r) in
 	      acc && (sum_rate > 0.9) && (sum_rate < 1.1) )
 
+
+(* Latency for a path *)
+let get_path_weight (topo:topology) (p:path) : float =
+  List.fold_left p ~init:0.
+    ~f:(fun acc e -> acc +. Link.weight (Topology.edge_to_label topo e))
+
+let get_path_weight_arr (topo:topology) (p:edge Array.t) =
+  Array.foldi p ~init:0.
+    ~f:(fun _ acc e -> acc +. Link.weight (Topology.edge_to_label topo e))
 

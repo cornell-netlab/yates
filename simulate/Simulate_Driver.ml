@@ -396,14 +396,6 @@ let get_src_dst_for_path_arr (p:edge Array.t) =
     Some (src, dst)
 
 
-(* Latency for a path *)
-let get_path_latency (p:path) =
-  Float.of_int (List.length p - 2) (*TODO: replace with actual latency values *)
-
-let get_path_latency_arr (p:edge Array.t) =
-  Float.of_int (Array.length p - 2) (*TODO: replace with actual latency values *)
-
-
 (* Capacity of a link in a given failure scenario *)
 let curr_capacity_of_edge (topo:topology) (link:edge) (fail:failure) : float =
   if EdgeSet.mem fail link
@@ -678,7 +670,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                 let prev_sd_ltm = match SrcDstMap.find ltm_map (src,dst) with
                                       | None -> LatencyMap.empty
                                       | Some x -> x in
-                let path_latency = get_path_latency_arr path in
+                let path_latency = get_path_weight_arr topo path in
                 let prev_sd_tput_for_latency =  match LatencyMap.find prev_sd_ltm path_latency with
                                                 | None -> 0.0
                                                 | Some x -> x in

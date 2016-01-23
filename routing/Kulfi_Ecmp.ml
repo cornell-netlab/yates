@@ -38,6 +38,37 @@ let solve (topo:topology) (_:demands) : scheme =
   let new_scheme =
   if not (SrcDstMap.is_empty !prev_scheme) then !prev_scheme
   else
+  (* (pk): run ksp with budget;
+   * find shortest path;
+   * select paths with weight <= 1.5 times shortest *)
+  let host_set  = get_hosts_set topo in
+  let all_ksp = all_pair_k_shortest_path topo (min !Kulfi_Globals.budget 100) host_set in
+  let thresh = 1.2 in
+  SrcDstMap.fold all_ksp
+    ~init: SrcDstMap.empty
+    ~f:(fun ~key:(u,v) ~data:paths acc ->
+      if (u = v) then acc
+      else
+        if List.is_empty paths then acc
+        else
+          let sorted_paths = List.sort ~cmp:(fun x y -> Pervasives.compare (get_path_weight topo x) (get_path_weight topo y)) paths in
+          let shortest_path_weight = get_path_weight topo (match List.hd sorted_paths with
+              | None -> assert false
+              | Some x -> x) in
+          let selected_paths = List.filter sorted_paths
+            ~f:(fun p -> (get_path_weight topo p) <= (thresh *. shortest_path_weight)) in
+          let prob = 1. /. Float.of_int (List.length selected_paths) in
+          let path_dist = List.fold_left selected_paths ~init: PathMap.empty
+                    ~f:(fun acc p -> PathMap.add ~key:p ~data:prob acc) in
+          SrcDstMap.add ~key:(u,v) ~data:path_dist acc) in
+  prev_scheme := new_scheme;
+  new_scheme
+
+
+let solve_mpapsp (topo:topology) (_:demands) : scheme =
+  let new_scheme =
+  if not (SrcDstMap.is_empty !prev_scheme) then !prev_scheme
+  else
   (*
    * Yang: my implementation is the following:
      * If there are less than max_tot=1000 different shortest paths between s and t,
