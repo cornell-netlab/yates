@@ -20,10 +20,10 @@ def getLineMarkers():
     #          r'$\checkmark$',
     #           '<', '>']
     #return ['s', 'o', '<', '^', 'v', 'd', '.', '*', 'p'] *10
-    return ['s', 'o', '<', '^', 'v', 'd', '.', 'p', 's', 'o', '*', '<', '^', 'v', 'd', '.', '*', 'p'] *10
+    return ['s', 'o', '<', '^', 'v', 'd', '.', 's', 'o', '*', '<', '^', 'v', 'd', '.', '*', 'p'] *10
 
 def getLineColors():
-    return ['b','g','r','m','y','k', 'b', 'm', 'r', 'c', 'g', 'y', 'k'] * 10
+    return ['b','g','r','m','y','k', 'm', 'r', 'c', 'g', 'y', 'k'] * 10
 
 def getLineFormats():
     return [':','-.', '--'] * 100
