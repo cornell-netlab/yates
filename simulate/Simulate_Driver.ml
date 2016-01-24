@@ -225,13 +225,16 @@ let initialize_scheme algorithm topo predict: unit =
   | Vlb -> Kulfi_Routing.Vlb.initialize SrcDstMap.empty
   | _ -> ()
 
-let solve_within_budget algorithm topo demand =
+let solve_within_budget algorithm topo demand : (scheme * float) =
+  let at = make_auto_timer () in
+  start at;
   let solve = select_algorithm algorithm in
   let budget' = match algorithm with
     | OptimalMcf -> Int.max_value / 100
     | _ -> !Kulfi_Globals.budget in
 	let scheme = prune_scheme topo (solve topo demand) budget' in
-  scheme
+  stop at;
+  scheme, (get_time_in_seconds at)
 
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
   let sent_on_each_edge =
@@ -352,7 +355,7 @@ let get_aggregate_latency (sd_lat_tput_map_map:(throughput LatencyMap.t) SrcDstM
       LatencyMap.add ~key:latency ~data:(agg_tput) acc))
 
 (* Global recovery: recompute routing scheme after removing failed links *)
-let global_recovery (failed_links:failure) (predict:demands) (algorithm:solver_type) (topo:topology) : scheme =
+let global_recovery (failed_links:failure) (predict:demands) (algorithm:solver_type) (topo:topology) : (scheme * float) =
   Printf.printf "\t\t\t\t\t\t\t\t\t\t\tGlobal\r";
   (*let topo = Marshal.from_string (Marshal.to_string topo [Marshal.Closures]) 0
   in*)
@@ -367,11 +370,11 @@ let global_recovery (failed_links:failure) (predict:demands) (algorithm:solver_t
       ~f:(fun e -> assert (EdgeSet.mem (Topology.edges topo) e)));
 
   initialize_scheme algorithm topo' predict;
-  let new_scheme = solve_within_budget algorithm topo' predict in 
+  let new_scheme,solver_time = solve_within_budget algorithm topo' predict in 
   ignore (if (SrcDstMap.is_empty new_scheme) then failwith "new_scheme is empty in global driver" else ());
   (*Printf.printf "New scheme: %s\n-----\n%!" (dump_scheme topo' new_scheme);*)
   Printf.printf "\t\t\t\t\t\t\t\t\t\t\tGLOBAL\r";
-  new_scheme
+  new_scheme, solver_time
 
 (* Return src and dst for a given path *)
 let get_src_dst_for_path (p:path) =
@@ -534,6 +537,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   let local_recovery_delay = !Kulfi_Globals.local_recovery_delay in
   let global_recovery_delay = !Kulfi_Globals.global_recovery_delay in
   let recovery_churn = ref 0. in
+  let solver_time = ref 0. in
   let iterations = range 0 (num_iterations + steady_state_time) in
   if local_debug then Printf.printf "%s\n%!" (dump_scheme topo start_scheme);
   (* Because raeke's implementation mutates topology, "edges" in paths do not
@@ -572,16 +576,16 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
         else curr_failed_links in
 
       (* local and global recovery *)
-      let new_scheme = 
+      let new_scheme, rec_solve_time = 
         match algorithm with
           | OptimalMcf ->
               if iter = failure_time then global_recovery failed_links predict algorithm topo
-              else curr_scheme
+              else curr_scheme, 0.
           | _ -> 
-              if iter = (local_recovery_delay + failure_time) then (select_local_recovery algorithm) curr_scheme topo failed_links predict
+              if iter = (local_recovery_delay + failure_time) then ((select_local_recovery algorithm) curr_scheme topo failed_links predict), 0.
               else if iter = (global_recovery_delay + failure_time) then global_recovery failed_links predict algorithm topo
-              else curr_scheme in
-
+              else curr_scheme, 0. in
+      solver_time := !solver_time +. rec_solve_time;
       (* measure churn in case of global recovery *)
       if iter = (global_recovery_delay + failure_time) then
         recovery_churn := (get_churn curr_scheme new_scheme);
@@ -733,7 +737,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
 
   (*let total_tput = get_total_tput tput in
   Printf.printf "\nTotal traffic: %f + %f + %f\t= %f" total_tput fail_drop cong_drop (total_tput+.fail_drop+.cong_drop);*)
-  tput, latency_dist, avg_congestions, fail_drop, cong_drop, agg_dem, !recovery_churn, final_scheme
+  tput, latency_dist, avg_congestions, fail_drop, cong_drop, agg_dem, !recovery_churn, final_scheme, !solver_time
   (* end simulate_tm *)
 
 let is_int v =
@@ -861,7 +865,6 @@ let simulate
 
   Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set);
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
-  let at = make_auto_timer () in
 
 
   let time_data = make_data "Iteratives Vs Time" in
@@ -931,9 +934,7 @@ let simulate
       if n = 0 then initialize_scheme algorithm topo predict;
 
 		  (* solve *)
-		  start at;
-		  let scheme' = solve_within_budget algorithm topo predict in
-		  stop at;
+		  let scheme',solver_time = solve_within_budget algorithm topo predict in
       ignore(reset_topo_weights edge_weights topo;);
 
 		  let exp_congestions = (congestion_of_paths scheme' topo actual) in
@@ -947,12 +948,12 @@ let simulate
             (Float.of_int iterations)) in
      
 		  let
-      tput,latency_dist,congestions,failure_drop,congestion_drop,agg_dem,recovery_churn,final_scheme =
+      tput,latency_dist,congestions,failure_drop,congestion_drop,agg_dem,recovery_churn,final_scheme, rec_solver_time =
         (simulate_tm scheme' topo actual failing_edges predict algorithm) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in
 		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
 		  (* record *)
-		  let tm = (get_time_in_seconds at) in
+		  let tm = solver_time +. rec_solver_time in
       let tm_churn = (get_churn scheme scheme') in
 		  let np = (get_num_paths scheme') in
 		  let cmax = (get_max_congestion list_of_congestions) in
