@@ -19,10 +19,11 @@ def getLineMarkers():
     #          r'$\clubsuit$',
     #          r'$\checkmark$',
     #           '<', '>']
-    return ['s', 'o', '<', '^', 'v', 'd', '.', '*', 'p'] *10
+    #return ['s', 'o', '<', '^', 'v', 'd', '.', '*', 'p'] *10
+    return ['s', 'o', '<', '^', 'v', 'd', '.', 'p', 's', 'o', '*', '<', '^', 'v', 'd', '.', '*', 'p'] *10
 
 def getLineColors():
-    return ['b','g','r','m','y','k', 'b', 'g', 'r', 'c', 'm', 'y', 'k'] * 10
+    return ['b','g','r','m','y','k', 'b', 'm', 'r', 'c', 'g', 'y', 'k'] * 10
 
 def getLineFormats():
     return [':','-.', '--'] * 100

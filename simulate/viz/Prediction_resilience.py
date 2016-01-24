@@ -11,6 +11,7 @@ import math
 import random
 import sys
 import matplotlib.pyplot as pp
+import numpy
 
 
 def plotfigure(metric_name,dotfile):
@@ -39,7 +40,6 @@ def plotfigure(metric_name,dotfile):
             if (int(words[1])>totiter):
                 totiter=int(words[1])
             mydict[words[0]][curname-1].append(float(words[2]))
-    import numpy
     mean_list={}
     var_list={}
     for alg in mydict:

@@ -30,7 +30,7 @@ def main(dirn, fname, solvers):
   for (solver, ys), (solver, ydevs) in zip(ysPerSolver.iteritems(),ydevsPerSolver.iteritems()) :
     xs_arr = np.asarray(xs)
     xs_arr = xs_arr + random.random()/2
-    xs_arr[-1]+= random.random()*2
+    xs_arr[-1]+= random.random()*4
     avg_y,std_y = np.mean(np.asarray(ys)), np.std(np.asarray(ys))
     ys.append(avg_y)
     ydevs.append(std_y)

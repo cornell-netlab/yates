@@ -11,6 +11,7 @@ import sys
 import CommonViz
 from collections import OrderedDict
 import matplotlib.pyplot as pp
+import numpy
 
 flash_time=3
 
@@ -41,7 +42,6 @@ def plotfigure(metric_name,dotfile,mode):
             if (int(words[1])>totiter):
                 totiter=int(words[1])
             mydict[words[0]][curname-1].append(float(words[2]))
-    import numpy
     mean_list={}
     var_list={}
     for alg in mydict:
