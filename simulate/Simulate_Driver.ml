@@ -1167,10 +1167,10 @@ let command =
    ; if semimcfmcfftenv || all then Some SemiMcfMcfFTEnv else None
 	 ; if semimcfecmp || all then Some SemiMcfEcmp else None
 	 ; if semimcfksp || all then Some SemiMcfKsp else None
-	 ; if semimcfkspft || all then Some SemiMcfKspFT else None
+	 ; if semimcfkspft then Some SemiMcfKspFT else None
 	 ; if semimcfvlb || all then Some SemiMcfVlb else None
 	 ; if semimcfraeke || all then Some SemiMcfRaeke else None
-	 ; if semimcfraekeft || all then Some SemiMcfRaekeFT else None ] in
+	 ; if semimcfraekeft then Some SemiMcfRaekeFT else None ] in
      let syn_scale = if scalesyn then calculate_syn_scale topology_file demand_file host_file else 1.0 in
      let tot_scale = match scale with | None -> syn_scale | Some x -> x *. syn_scale in
      Printf.printf "Scale factor: %f\n\n" (tot_scale);
