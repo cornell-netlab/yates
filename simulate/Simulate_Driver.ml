@@ -451,10 +451,50 @@ let get_scheme_max_util_link (topo:topology) (actual:demands) : failure =
           | Some x -> x
           | None -> assert false in
   EdgeSet.add (EdgeSet.singleton e) e'
- 
+
+(* check all-pairs connectivity after failure *)
+let check_connectivity_after_failure (topo:topology) (fail:failure) : bool =
+  let topo' = EdgeSet.fold fail
+    ~init:topo
+    ~f:(fun acc link -> Topology.remove_edge acc link) in
+  let hosts = get_hosts topo' in
+  let spf_scheme = Kulfi_Routing.Spf.solve topo' SrcDstMap.empty in
+  all_pairs_connectivity topo' hosts spf_scheme
+
+
+(* get a random failure of n edges*)
+let rec get_random_failure (topo:topology) (num_fail:int) : failure =
+  let rec add_new_elem (selected : EdgeSet.t) (all_edges : edge List.t) =
+    let rand = Random.int (List.length all_edges) in
+    let rand_edge = match List.nth all_edges rand with
+        | None -> assert false
+        | Some x -> x in
+    if EdgeSet.mem selected rand_edge then add_new_elem selected all_edges
+    else 
+      let rev_edge = match Topology.inverse_edge topo rand_edge with
+        | Some x -> x
+        | None -> assert false in
+      let selected = EdgeSet.add selected rand_edge in
+      EdgeSet.add selected rev_edge in
+
+  let all_edges = EdgeSet.elements (Topology.edges topo) in
+  let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
+  let fail_set = List.fold_left (range 0 num_fail)
+    ~init:EdgeSet.empty
+    ~f:(fun acc i ->
+      add_new_elem acc all_edges) in
+  if check_connectivity_after_failure topo fail_set then fail_set
+  else get_random_failure topo num_fail
+
 		  
 (* Create some failure scenario *)
-let rec get_test_failure_scenario (topo:topology) (actual:demands) (iter_pos:float) : failure =
+let rec get_test_failure_scenario (topo:topology) (actual:demands) (iter_pos:float) (num_fail:int): failure =
+  if (Float.of_int (Topology.num_edges topo))/.2. -.
+  (Float.of_int(Topology.num_vertexes topo)) < (Float.of_int (num_fail)) then failwith "Not good enough topo for num_fail failiures"
+  else
+  if num_fail > 1 then get_random_failure topo num_fail
+  else
+
   let iter_pos = min 1. iter_pos in
   let spf_scheme = Kulfi_Routing.Spf.solve topo SrcDstMap.empty in
 (*  SrcDstMap.iter ~f:(fun ~key:(s,d) ~data:path ->
@@ -477,14 +517,9 @@ let rec get_test_failure_scenario (topo:topology) (actual:demands) (iter_pos:flo
           | Some x -> x
           | None -> assert false in
   let f = EdgeSet.add (EdgeSet.singleton e) e' in
-  let topo' = EdgeSet.fold f
-    ~init:topo
-    ~f:(fun acc link -> Topology.remove_edge acc link) in
-  let hosts = get_hosts topo' in
-  let spf_scheme = Kulfi_Routing.Spf.solve topo' SrcDstMap.empty in
-  if all_pairs_connectivity topo' hosts spf_scheme then f
+  if check_connectivity_after_failure topo f then f
   else if iter_pos >= 1. then EdgeSet.empty
-  else get_test_failure_scenario topo actual (iter_pos +. (1. /. Float.of_int (List.length sorted_edge_utils)))
+  else get_test_failure_scenario topo actual (iter_pos +. (1. /. Float.of_int (List.length sorted_edge_utils))) num_fail
 
 
 (*
@@ -844,6 +879,7 @@ let simulate
 	     (host_file:string)
 	     (iterations:int)
        (scale:float)
+       (number_failures:int)
        (out_dir:string option)
              () : unit =
 
@@ -945,8 +981,8 @@ let simulate
           (*else get_util_based_failure_scenario topo exp_congestions in*)
           (*else get_spf_util_based_failure topo actual exp_congestions in*)
           else get_test_failure_scenario topo actual ((Float.of_int (n-2)) /.
-            (Float.of_int iterations)) in
-     
+            (Float.of_int iterations)) number_failures in
+      Printf.printf "Selected edge: %s\n%!" (dump_edges topo (EdgeSet.elements failing_edges));
 		  let
       tput,latency_dist,congestions,failure_drop,congestion_drop,agg_dem,recovery_churn,final_scheme, rec_solver_time =
         (simulate_tm scheme' topo actual failing_edges predict algorithm) in
@@ -1104,6 +1140,7 @@ let command =
     +> flag "-fail-time" (optional int) ~doc:" simulation time to introduce failure at"
     +> flag "-lr-delay" (optional int) ~doc:" delay between failure and local recovery"
     +> flag "-gr-delay" (optional int) ~doc:" delay between failure and global recovery"
+    +> flag "-num-fail" (optional int) ~doc:" number of links to fail"
     +> flag "-out" (optional string) ~doc:" name of directory in expData to store results"
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
@@ -1140,6 +1177,7 @@ let command =
    (fail_time:int option)
    (lr_delay:int option)
    (gr_delay:int option)
+   (num_fail:int option)
    (out:string option)
 	 (topology_file:string)
 	 (demand_file:string)
@@ -1174,13 +1212,14 @@ let command =
 	 ; if semimcfraekeft then Some SemiMcfRaekeFT else None ] in
      let syn_scale = if scalesyn then calculate_syn_scale topology_file demand_file host_file else 1.0 in
      let tot_scale = match scale with | None -> syn_scale | Some x -> x *. syn_scale in
+     let num_fail = match num_fail with | Some x -> x | None -> 1 in
      Printf.printf "Scale factor: %f\n\n" (tot_scale);
      Kulfi_Globals.deloop := deloop;
      ignore(Kulfi_Globals.budget := match budget with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.failure_time := match fail_time with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.local_recovery_delay := match lr_delay with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.global_recovery_delay := match gr_delay with | None -> Int.max_value/100 | Some x -> x);
-     simulate algorithms topology_file demand_file predict_file host_file iterations tot_scale out ()
+     simulate algorithms topology_file demand_file predict_file host_file iterations tot_scale num_fail out ()
   )
 
 let main = Command.run command
