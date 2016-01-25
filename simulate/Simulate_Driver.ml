@@ -581,7 +581,7 @@ let check_flash (topo:topology) (actual: demands) (predict: demands) : bool =
           let p = SrcDstMap.find_exn predict (src,sink) in
           let a = SrcDstMap.find_exn actual (src,sink) in
           (pred_acc+.p, act_acc+.a)) in
-      if (act /. pred >= 2.) then true
+      if (act /. pred > 1.) then true
       else acc)
 
 
