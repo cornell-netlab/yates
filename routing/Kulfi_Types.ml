@@ -342,7 +342,7 @@ let normalization_recovery (curr_scheme:scheme) (_:topology) (failed_links:failu
   new_scheme
 
 
-let get_hosts_set (topo:topology) =
+let get_hosts_set (topo:topology) : VertexSet.t =
   VertexSet.filter (Topology.vertexes topo)
   ~f:(fun v ->
     let label = Topology.vertex_to_label topo v in
