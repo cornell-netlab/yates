@@ -490,8 +490,8 @@ let rec get_test_failure_scenario (topo:topology) (actual:demands) (iter_pos:flo
   if (Float.of_int (Topology.num_edges topo))/.2. -.
   (Float.of_int(Topology.num_vertexes topo)) < (Float.of_int (num_fail)) then failwith "Not good enough topo for num_fail failures"
   else
-  if num_fail > 1 then get_random_failure topo num_fail
-  else
+  if num_fail = 0 then EdgeSet.empty else
+  if num_fail > 1 then get_random_failure topo num_fail else
 
   let iter_pos = min 1. iter_pos in
   let spf_scheme = Kulfi_Routing.Spf.solve topo SrcDstMap.empty in
