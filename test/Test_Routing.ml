@@ -137,6 +137,7 @@ let test_apsp () =
 
 let test_vlb2 () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Vlb.initialize SrcDstMap.empty;
   let scheme = Kulfi_Vlb.solve topo pairs in
   List.fold_left
     hosts
@@ -175,6 +176,7 @@ let test_semimcf_mcf () =
 
 let test_semimcf_ksp () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Ksp.initialize SrcDstMap.empty;
   let start_scheme = Kulfi_Ksp.solve topo pairs in
   Kulfi_SemiMcf.initialize start_scheme;
   let scheme = Kulfi_SemiMcf.solve topo pairs in
@@ -183,6 +185,7 @@ let test_semimcf_ksp () =
 
 let test_semimcf_vlb () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Vlb.initialize SrcDstMap.empty;
   let start_scheme = Kulfi_Vlb.solve topo pairs in
   Kulfi_SemiMcf.initialize start_scheme;
   let scheme = Kulfi_SemiMcf.solve topo pairs in
@@ -208,6 +211,7 @@ let test_ak_mcf () =
 
 let test_ak_ksp () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Ksp.initialize SrcDstMap.empty;
   let start_scheme = Kulfi_Ksp.solve topo pairs in
   Kulfi_Ak.initialize start_scheme;
   let scheme = Kulfi_Ak.solve topo pairs in
@@ -216,6 +220,7 @@ let test_ak_ksp () =
 
 let test_ak_vlb () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Vlb.initialize SrcDstMap.empty;
   let start_scheme = Kulfi_Vlb.solve topo pairs in
   Kulfi_Ak.initialize start_scheme;
   let scheme = Kulfi_Ak.solve topo pairs in
@@ -257,6 +262,7 @@ let test_capped_mcf () =
 
 let test_budget_semimcf_vlb () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Vlb.initialize SrcDstMap.empty;
   let start_scheme = Kulfi_Vlb.solve topo pairs in
   Kulfi_SemiMcf.initialize start_scheme;
   let scheme = prune_scheme topo (Kulfi_SemiMcf.solve topo pairs) 1 in
