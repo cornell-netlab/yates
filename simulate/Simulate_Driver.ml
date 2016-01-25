@@ -357,8 +357,6 @@ let get_aggregate_latency (sd_lat_tput_map_map:(throughput LatencyMap.t) SrcDstM
 (* Global recovery: recompute routing scheme after removing failed links *)
 let global_recovery (failed_links:failure) (predict:demands) (algorithm:solver_type) (topo:topology) : (scheme * float) =
   Printf.printf "\t\t\t\t\t\t\t\t\t\t\tGlobal\r";
-  (*let topo = Marshal.from_string (Marshal.to_string topo [Marshal.Closures]) 0
-  in*)
   let topo' = EdgeSet.fold failed_links
     ~init:topo
     ~f:(fun acc link -> Topology.remove_edge acc link) in
@@ -550,6 +548,29 @@ let count_paths_through_edge (s:scheme) : (int EdgeMap.t) =
                 | None -> 0
                 | Some x -> x in
         EdgeMap.add ~key:edge ~data:(c+1) acc)))
+
+let get_failure_scenarios (topo:topology) (demand_file:string) (host_file:string) (iters:int) (number_failures:int) (scale:float) : (EdgeSet.t List.t) =
+  let num_tm = min iters (List.length (In_channel.read_lines demand_file)) in
+  let (demand_host_map, demand_ic) = open_demands demand_file host_file topo in
+  let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
+  let iterations = range 0 num_tm in
+  let failure_scenarios = List.rev(List.fold_left iterations 
+    ~init:[EdgeSet.empty; EdgeSet.empty]
+    ~f:(fun acc n ->
+		  let actual = next_demand ~scale:scale demand_ic demand_host_map in
+      let failing_edges =
+      (* get_scheme_max_util_link topo actual in*)
+      (* get_util_based_failure_scenario topo exp_congestions in*)
+      (* get_spf_util_based_failure topo actual exp_congestions in*)
+      get_test_failure_scenario topo actual ((Float.of_int (n-2)) /. (Float.of_int num_tm)) number_failures in
+      Printf.printf "Selected failure: %s\n%!" (dump_edges topo (EdgeSet.elements failing_edges));
+      failing_edges::acc)) in
+  close_demands demand_ic;
+  failure_scenarios
+
+
+
+
 
 (* Simulate routing for one TM *)
 let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:failure) (predict:demands) algorithm =
@@ -933,7 +954,8 @@ let simulate
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
   let is = range 0 iterations in
 
-
+  let failure_scenarios = get_failure_scenarios topo demand_file host_file iterations number_failures scale in
+ 
   List.iter
     spec_solvers
     ~f:(fun algorithm ->
@@ -941,8 +963,8 @@ let simulate
 	(* TODO(rjs): Raeke mutates the topology. As a fast fix, I'll just create
 	 a new copy of topology for every algorithm. A better fix would be to understand
 	 Raeke and ensure that it mutates a copy of the topology, not the actual
-	 topology *)
-	let topo = Parse.from_dotfile topology_file in
+	 topology
+   (praveenk): Raeke changes edge weights. Let's just reset them. *)
   ignore(reset_topo_weights edge_weights topo;);
 
   let _ = match algorithm with
@@ -972,17 +994,12 @@ let simulate
 		  (* solve *)
 		  let scheme',solver_time = solve_within_budget algorithm topo predict in
       ignore(reset_topo_weights edge_weights topo;);
-
+      let failing_edges = match List.nth failure_scenarios n with 
+        | Some x -> x
+        | None -> assert false in
 		  let exp_congestions = (congestion_of_paths scheme' topo actual) in
 		  let list_of_exp_congestions = List.map ~f:snd (EdgeMap.to_alist exp_congestions) in
 		  let sorted_exp_congestions = List.sort ~cmp:(Float.compare) list_of_exp_congestions in
-      let failing_edges = if n < 2 then EdgeSet.empty
-          (*else get_scheme_max_util_link topo actual in*)
-          (*else get_util_based_failure_scenario topo exp_congestions in*)
-          (*else get_spf_util_based_failure topo actual exp_congestions in*)
-          else get_test_failure_scenario topo actual ((Float.of_int (n-2)) /.
-            (Float.of_int iterations)) number_failures in
-      Printf.printf "Selected edge: %s\n%!" (dump_edges topo (EdgeSet.elements failing_edges));
 		  let
       tput,latency_dist,congestions,failure_drop,congestion_drop,agg_dem,recovery_churn,final_scheme, rec_solver_time =
         (simulate_tm scheme' topo actual failing_edges predict algorithm) in
