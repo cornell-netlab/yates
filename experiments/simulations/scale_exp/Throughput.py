@@ -89,7 +89,7 @@ def main(dirn, fname, Y_LABEL):
   pp.ylim(-0.05,1.05)
 
   pp.subplots_adjust(left=0.1, right=0.8, top=0.9, bottom=0.1)
-  pp.savefig(dirn+"/"+fname+".svg")
+  pp.savefig(dirn+"/scale_"+fname+".svg")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
