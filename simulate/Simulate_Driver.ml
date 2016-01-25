@@ -569,7 +569,20 @@ let get_failure_scenarios (topo:topology) (demand_file:string) (host_file:string
   failure_scenarios
 
 
-
+let check_flash (topo:topology) (actual: demands) (predict: demands) : bool =
+  Printf.printf "\t\t\t\t\tChecking flash\r%!";
+  let hosts = get_hosts_set topo in
+  VertexSet.fold hosts 
+    ~init:false
+    ~f:(fun acc sink ->
+      let pred,act = VertexSet.fold hosts ~init:(0.,0.)
+        ~f:(fun (pred_acc,act_acc) src ->
+          if src = sink then (pred_acc,act_acc) else
+          let p = SrcDstMap.find_exn predict (src,sink) in
+          let a = SrcDstMap.find_exn actual (src,sink) in
+          (pred_acc+.p, act_acc+.a)) in
+      if (act /. pred >= 2.) then true
+      else acc)
 
 
 (* Simulate routing for one TM *)
@@ -592,6 +605,8 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                      else !Kulfi_Globals.failure_time + steady_state_time in
   let local_recovery_delay = !Kulfi_Globals.local_recovery_delay in
   let global_recovery_delay = !Kulfi_Globals.global_recovery_delay in
+  let flash_detection_delay = !Kulfi_Globals.flash_detection_delay in
+  let flash_start_time = steady_state_time + 0 in
   let recovery_churn = ref 0. in
   let solver_time = ref 0. in
   let iterations = range 0 (num_iterations + steady_state_time) in
@@ -642,13 +657,27 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
               else if iter = (global_recovery_delay + failure_time) then global_recovery failed_links predict algorithm topo
               else curr_scheme, 0. in
       solver_time := !solver_time +. rec_solve_time;
+
+
+      (* flash detection and recovery *)
+      let new_scheme, rec_solve_time = 
+        if (iter = flash_start_time + flash_detection_delay) then
+          if check_flash topo dem predict then
+            begin
+            Printf.printf "\t\t\t\t\tDETECTED Flash\r%!";
+            match algorithm with
+              | OptimalMcf -> global_recovery failed_links dem algorithm topo
+              | _ -> (select_local_recovery algorithm) curr_scheme topo failed_links dem, 0.
+            end
+          else curr_scheme, 0.
+        else curr_scheme, 0. in
+      solver_time := !solver_time +. rec_solve_time;
+
+
       (* measure churn in case of global recovery *)
       if iter = (global_recovery_delay + failure_time) then
         recovery_churn := (get_churn curr_scheme new_scheme);
 
-      (*if iter = (local_recovery_delay + failure_time) then
-        Printf.printf "LOCAL ---- New scheme : %s\n%!" (dump_scheme topo
-        new_scheme);*)
       (* probability of taking each path *)
       let path_prob_arr = get_path_prob_demand_arr new_scheme dem in
 
@@ -891,6 +920,25 @@ let calculate_demand_envelope (topo:topology) (predict_file:string) (host_file:s
   envelope
 
 
+let add_flash_traffic (topo:topology) (dem:demands) (fraction:float) : demands =
+  let hosts = get_hosts_set topo in
+  let agg_dem = SrcDstMap.fold dem
+  ~init:0.
+  ~f:(fun ~key:_ ~data:d acc -> acc +. d) in
+  let sink = match List.nth (List.sort ~cmp:(fun u v -> String.compare
+    (Node.name (Net.Topology.vertex_to_label topo u))
+    (Node.name (Net.Topology.vertex_to_label topo v))) (VertexSet.elements hosts)) ((VertexSet.length hosts)/2) with
+    | None -> assert false
+    | Some x -> x in
+  Printf.printf "Sink: %s \n%!" (Node.name (Net.Topology.vertex_to_label topo sink));
+  let additional_traf = (agg_dem *. fraction) /. (Float.of_int ((VertexSet.length hosts) - 2)) in
+  VertexSet.fold hosts ~init:dem
+    ~f:(fun acc src ->
+      if (src = sink) then acc
+      else
+        let orig_dem = SrcDstMap.find_exn dem (src,sink) in
+        SrcDstMap.add ~key:(src,sink) ~data:(orig_dem +. additional_traf) acc)
+
 
 let simulate
     (spec_solvers:solver_type list)
@@ -901,6 +949,8 @@ let simulate
 	     (iterations:int)
        (scale:float)
        (number_failures:int)
+       (flash_tm:int)
+       (flash_burst_amount:float)
        (out_dir:string option)
              () : unit =
 
@@ -987,6 +1037,7 @@ let simulate
 		  (* get the next demand *)
 		  let actual = next_demand ~scale:scale actual_ic actual_host_map in
 		  let predict = next_demand ~scale:scale predict_ic predict_host_map in
+      let actual = if n = flash_tm then add_flash_traffic topo actual flash_burst_amount else actual in
 
       (* initialize algorithm *)
       if n = 0 then initialize_scheme algorithm topo predict;
@@ -1157,6 +1208,9 @@ let command =
     +> flag "-fail-time" (optional int) ~doc:" simulation time to introduce failure at"
     +> flag "-lr-delay" (optional int) ~doc:" delay between failure and local recovery"
     +> flag "-gr-delay" (optional int) ~doc:" delay between failure and global recovery"
+    +> flag "-flash-det-delay" (optional int) ~doc:" delay between flash and detection"
+    +> flag "-flash-tm" (optional int) ~doc:" index of TM to experience flash"
+    +> flag "-flash-ba" (optional float) ~doc:" fraction of total traffic to add as flash"
     +> flag "-num-fail" (optional int) ~doc:" number of links to fail"
     +> flag "-out" (optional string) ~doc:" name of directory in expData to store results"
     +> anon ("topology-file" %: string)
@@ -1194,6 +1248,9 @@ let command =
    (fail_time:int option)
    (lr_delay:int option)
    (gr_delay:int option)
+   (flash_det_delay:int option)
+   (flash_tm:int option)
+   (flash_ba:float option)
    (num_fail:int option)
    (out:string option)
 	 (topology_file:string)
@@ -1230,13 +1287,16 @@ let command =
      let syn_scale = if scalesyn then calculate_syn_scale topology_file demand_file host_file else 1.0 in
      let tot_scale = match scale with | None -> syn_scale | Some x -> x *. syn_scale in
      let num_fail = match num_fail with | Some x -> x | None -> 1 in
+     let flash_tm = match flash_tm with | Some x -> x | None -> Int.max_value/100 in
+     let flash_ba = match flash_ba with | Some x -> x | None -> 0. in
      Printf.printf "Scale factor: %f\n\n" (tot_scale);
      Kulfi_Globals.deloop := deloop;
      ignore(Kulfi_Globals.budget := match budget with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.failure_time := match fail_time with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.local_recovery_delay := match lr_delay with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.global_recovery_delay := match gr_delay with | None -> Int.max_value/100 | Some x -> x);
-     simulate algorithms topology_file demand_file predict_file host_file iterations tot_scale num_fail out ()
+     ignore(Kulfi_Globals.flash_detection_delay := match flash_det_delay with | None -> Int.max_value/100 | Some x -> x);
+     simulate algorithms topology_file demand_file predict_file host_file iterations tot_scale num_fail flash_tm flash_ba out ()
   )
 
 let main = Command.run command
