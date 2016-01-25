@@ -232,9 +232,9 @@ let solve_within_budget algorithm topo demand : (scheme * float) =
   let budget' = match algorithm with
     | OptimalMcf -> Int.max_value / 100
     | _ -> !Kulfi_Globals.budget in
-	let scheme = prune_scheme topo (solve topo demand) budget' in
+	let sch = prune_scheme topo (solve topo demand) budget' in
   stop at;
-  scheme, (get_time_in_seconds at)
+  sch, (get_time_in_seconds at)
 
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
   let sent_on_each_edge =
@@ -563,7 +563,7 @@ let get_failure_scenarios (topo:topology) (demand_file:string) (host_file:string
       (* get_util_based_failure_scenario topo exp_congestions in*)
       (* get_spf_util_based_failure topo actual exp_congestions in*)
       get_test_failure_scenario topo actual ((Float.of_int (n-2)) /. (Float.of_int num_tm)) number_failures in
-      Printf.printf "Selected failure: %s\n%!" (dump_edges topo (EdgeSet.elements failing_edges));
+      (*Printf.printf "Selected failure: %s\n%!" (dump_edges topo (EdgeSet.elements failing_edges));*)
       failing_edges::acc)) in
   close_demands demand_ic;
   failure_scenarios
@@ -624,19 +624,15 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
     ~init:(EdgeMap.empty, SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, start_scheme, EdgeSet.empty, 0.0, 0.0)
     ~f:(fun current_state iter ->
       (* begin iteration - time *)
-      if true then Printf.printf "\t\t\t [Time : %3d]\r%!" (iter - steady_state_time);
+      Printf.printf "\t\t\t [Time : %3d]\r%!" (iter - steady_state_time);
       let (in_traffic, curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_scheme, curr_failed_links, curr_fail_drop, curr_cong_drop) = current_state in
+
       (* Reset stats when steady state is reached *)
       let curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop =
-        if iter = steady_state_time then (SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, 0.0, 0.0)
-        else (curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop) in
-
-      (* debug 
-      let td = SrcDstMap.fold ~init:0. ~f:(fun ~key:_ ~data:x acc -> acc +. x)
-      curr_delivered_map
-      in
-      Printf.printf "%2d Total delivered %f\n%!" iter td;
-       debug *)
+        if iter = steady_state_time then
+          (SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, 0.0, 0.0)
+        else
+          (curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop) in
 
       (* introduce failures *)
       let failed_links = if iter = failure_time then
@@ -647,36 +643,46 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
         else curr_failed_links in
 
       (* local and global recovery *)
-      let new_scheme, rec_solve_time = 
+      let new_scheme = 
         match algorithm with
           | OptimalMcf ->
-              if iter = failure_time then global_recovery failed_links predict algorithm topo
-              else curr_scheme, 0.
+              if iter = failure_time then 
+                begin
+                  let sch,rec_solve_time = global_recovery failed_links predict algorithm topo in
+                  recovery_churn := !recovery_churn +. (get_churn curr_scheme sch);
+                  solver_time := !solver_time +. rec_solve_time;
+                  sch
+                end
+              else curr_scheme
           | _ -> 
-              if iter = (local_recovery_delay + failure_time) then ((select_local_recovery algorithm) curr_scheme topo failed_links predict), 0.
-              else if iter = (global_recovery_delay + failure_time) then global_recovery failed_links predict algorithm topo
-              else curr_scheme, 0. in
-      solver_time := !solver_time +. rec_solve_time;
-
+              if iter = (local_recovery_delay + failure_time) then ((select_local_recovery algorithm) curr_scheme topo failed_links predict)
+              else if iter = (global_recovery_delay + failure_time) then
+                begin
+                  let sch,rec_solve_time = global_recovery failed_links predict algorithm topo in
+                  recovery_churn := !recovery_churn +. (get_churn curr_scheme sch);
+                  solver_time := !solver_time +. rec_solve_time;
+                  sch
+                end 
+              else curr_scheme in
 
       (* flash detection and recovery *)
-      let new_scheme, rec_solve_time = 
+      let new_scheme = 
         if (iter = flash_start_time + flash_detection_delay) then
           if check_flash topo dem predict then
             begin
             Printf.printf "\t\t\t\t\tDETECTED Flash\r%!";
             match algorithm with
-              | OptimalMcf -> global_recovery failed_links dem algorithm topo
-              | _ -> (select_local_recovery algorithm) curr_scheme topo failed_links dem, 0.
+              | OptimalMcf ->
+                begin
+                  let sch,rec_solve_time = global_recovery failed_links dem algorithm topo in
+                  recovery_churn := !recovery_churn +. (get_churn new_scheme sch);
+                  solver_time := !solver_time +. rec_solve_time;
+                  sch
+                end
+              | _ -> (select_local_recovery algorithm) new_scheme topo failed_links dem
             end
-          else curr_scheme, 0.
-        else curr_scheme, 0. in
-      solver_time := !solver_time +. rec_solve_time;
-
-
-      (* measure churn in case of global recovery *)
-      if iter = (global_recovery_delay + failure_time) then
-        recovery_churn := (get_churn curr_scheme new_scheme);
+          else new_scheme
+        else new_scheme in
 
       (* probability of taking each path *)
       let path_prob_arr = get_path_prob_demand_arr new_scheme dem in
@@ -694,8 +700,6 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
         match SrcDstMap.find new_scheme (src,dst) with
         | None -> acc +. d
         | Some x -> acc) in
-
-
 
       (* Add traffic at source of every path *)
       (* next_iter_traffic : map edge -> in_traffic in next iter *)
