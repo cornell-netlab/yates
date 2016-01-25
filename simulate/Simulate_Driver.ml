@@ -488,7 +488,7 @@ let rec get_random_failure (topo:topology) (num_fail:int) : failure =
 (* Create some failure scenario *)
 let rec get_test_failure_scenario (topo:topology) (actual:demands) (iter_pos:float) (num_fail:int): failure =
   if (Float.of_int (Topology.num_edges topo))/.2. -.
-  (Float.of_int(Topology.num_vertexes topo)) < (Float.of_int (num_fail)) then failwith "Not good enough topo for num_fail failiures"
+  (Float.of_int(Topology.num_vertexes topo)) < (Float.of_int (num_fail)) then failwith "Not good enough topo for num_fail failures"
   else
   if num_fail > 1 then get_random_failure topo num_fail
   else
@@ -553,7 +553,7 @@ let get_failure_scenarios (topo:topology) (demand_file:string) (host_file:string
   let num_tm = min iters (List.length (In_channel.read_lines demand_file)) in
   let (demand_host_map, demand_ic) = open_demands demand_file host_file topo in
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
-  let iterations = range 0 num_tm in
+  let iterations = range 2 num_tm in
   let failure_scenarios = List.rev(List.fold_left iterations 
     ~init:[EdgeSet.empty; EdgeSet.empty]
     ~f:(fun acc n ->
