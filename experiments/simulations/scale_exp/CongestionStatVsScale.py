@@ -13,7 +13,7 @@ import os.path as op
 
 EXPERIMENT_NAME = "EdgeExpCongestionVsIterations"
 X_LABEL         = "Scale"
-Y_LABEL         = "Fraction of saturated edges"
+Y_LABEL         = "Avg link util"
 
 random.seed()
 def getscale(st):
@@ -61,7 +61,7 @@ def parse_congestion_file (filename):
                     scheme=tokens[0]
                     all_congestions[scheme]=[]
     for alg in all_congestions:
-        all_congestions[alg]=get_avg_util(all_congestions[alg])
+        all_congestions[alg]=get_max_cong(all_congestions[alg])
     for k,v in all_congestions.iteritems():
         print k, v
     return all_congestions
@@ -132,7 +132,7 @@ def main(dirn, fname):
   pp.ylim(-0.05,ymax+.05)
 
   pp.subplots_adjust(left=0.1, right=0.8, top=0.9, bottom=0.1)
-  pp.savefig(dirn+"/"+fname+".svg")
+  pp.savefig(dirn+"/scale_"+fname+".svg")
 
 if __name__ == "__main__":
     main("/home/abilene/expData/", EXPERIMENT_NAME)
