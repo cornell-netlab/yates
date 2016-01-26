@@ -1271,7 +1271,6 @@ let command =
     +> flag "-fail-time" (optional int) ~doc:" simulation time to introduce failure at"
     +> flag "-lr-delay" (optional int) ~doc:" delay between failure and local recovery"
     +> flag "-gr-delay" (optional int) ~doc:" delay between failure and global recovery"
-    +> flag "-flash-det-delay" (optional int) ~doc:" delay between flash and detection"
     +> flag "-is-flash" no_arg ~doc:" simulate flash or not"
     +> flag "-flash-ba" (optional float) ~doc:" fraction of total traffic to add as flash"
     +> flag "-fail-num" (optional int) ~doc:" number of links to fail"
@@ -1311,7 +1310,6 @@ let command =
    (fail_time:int option)
    (lr_delay:int option)
    (gr_delay:int option)
-   (flash_det_delay:int option)
    (is_flash:bool)
    (flash_ba:float option)
    (fail_num:int option)
@@ -1357,7 +1355,6 @@ let command =
      ignore(Kulfi_Globals.failure_time := match fail_time with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.local_recovery_delay := match lr_delay with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.global_recovery_delay := match gr_delay with | None -> Int.max_value/100 | Some x -> x);
-     ignore(Kulfi_Globals.flash_detection_delay := match flash_det_delay with | None -> Int.max_value/100 | Some x -> x);
      simulate algorithms topology_file demand_file predict_file host_file iterations tot_scale fail_num is_flash flash_ba out ()
   )
 
