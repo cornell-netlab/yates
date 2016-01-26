@@ -622,13 +622,17 @@ let update_flash_demand topo sink dem flash_t per_src_flash_factor total_t: dema
     end
     
 (* find the destination for flash crowd *)
-let pick_flash_sink (topo:topology) =
-  let hosts = get_hosts_set topo in
-  match List.nth (List.sort ~cmp:(fun u v -> String.compare
-    (Node.name (Net.Topology.vertex_to_label topo u))
-    (Node.name (Net.Topology.vertex_to_label topo v))) (VertexSet.elements hosts)) ((VertexSet.length hosts)/2) with
-    | None -> assert false
-    | Some x -> x
+let pick_flash_sinks (topo:topology) (iters:int) =
+  let hosts = get_hosts topo in
+  let num_hosts = (List.length hosts) in
+  let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
+  List.fold_left (range 0 iters) ~init:[]
+  ~f:(fun acc n ->
+    let selected = match List.nth hosts (n % num_hosts) with
+      | None -> assert false
+      | Some x -> x in
+    selected::acc)
+
 
 
 let sum_demands (d:demands) : float =
@@ -636,7 +640,7 @@ let sum_demands (d:demands) : float =
     ~f:(fun ~key:_ ~data:x acc -> acc +. x)
 
 (* Simulate routing for one TM *)
-let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:failure) (predict:demands) (algorithm:solver_type) (is_flash_tm:bool) (flash_ba:float) =
+let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:failure) (predict:demands) (algorithm:solver_type) (is_flash:bool) (flash_ba:float) (flash_sink) =
   (*
    * At each time-step:
      * For each path:
@@ -668,9 +672,8 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
 
   (* flash *)
   agg_dem := sum_demands dem;
-  let flash_sink = pick_flash_sink topo in
   let per_src_flash_factor = flash_ba *. !agg_dem /. (total_flow_to_sink flash_sink topo dem) in
-
+  if is_flash then Printf.printf "\t\t\t\t\tSink: %s\r" (string_of_vertex topo flash_sink);
   let _,delivered_map,lat_tput_map_map,link_utils,final_scheme,_,fail_drop,cong_drop,_,_=
   List.fold_left iterations
     (* ingress link traffic, sd-delivered, sd-latency-tput-map-map, utilization on each edge, scheme, failure, fail_drop, cong_drop *)
@@ -700,7 +703,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
 
       (* update tms and scheme for flash *)
       let actual_t, predict_t, new_scheme =
-        if is_flash_tm && (iter >= steady_state_time) && (iter < steady_state_time + num_iterations) then
+        if is_flash && (iter >= steady_state_time) && (iter < steady_state_time + num_iterations) then
           begin
           let flash_t = iter - steady_state_time in
             if flash_t % flash_step_time = 0 then
@@ -999,22 +1002,6 @@ let calculate_demand_envelope (topo:topology) (predict_file:string) (host_file:s
   close_demands predict_ic;
   envelope
 
-let add_flash_traffic (topo:topology) (dem:demands) (fraction:float) : demands =
-  let hosts = get_hosts_set topo in
-  let agg_dem = SrcDstMap.fold dem
-  ~init:0.
-  ~f:(fun ~key:_ ~data:d acc -> acc +. d) in
-  let sink = pick_flash_sink topo in
-  Printf.printf "Sink: %s \n%!" (Node.name (Net.Topology.vertex_to_label topo sink));
-  let additional_traf = (agg_dem *. fraction) /. (Float.of_int ((VertexSet.length hosts) - 2)) in
-  VertexSet.fold hosts ~init:dem
-    ~f:(fun acc src ->
-      if (src = sink) then acc
-      else
-        let orig_dem = SrcDstMap.find_exn dem (src,sink) in
-        SrcDstMap.add ~key:(src,sink) ~data:(orig_dem +. additional_traf) acc)
-
-
 let simulate
     (spec_solvers:solver_type list)
 	     (topology_file:string)
@@ -1024,7 +1011,7 @@ let simulate
 	     (iterations:int)
        (scale:float)
        (number_failures:int)
-       (flash_tm:int)
+       (is_flash:bool)
        (flash_burst_amount:float)
        (out_dir:string option)
              () : unit =
@@ -1079,7 +1066,7 @@ let simulate
   let is = range 0 iterations in
 
   let failure_scenarios = get_failure_scenarios topo demand_file host_file iterations number_failures scale in
- 
+  let flash_sinks = pick_flash_sinks topo iterations in
   List.iter
     spec_solvers
     ~f:(fun algorithm ->
@@ -1125,9 +1112,11 @@ let simulate
           | Some x -> x
           | None -> assert false in
 	
-      let is_flash_tm = (n = flash_tm) in
+      let flash_sink = match List.nth flash_sinks n with
+        | Some x -> x
+        | None -> assert false in
 		  let tput,latency_dist,congestions,failure_drop,congestion_drop,agg_dem,recovery_churn,final_scheme, rec_solver_time =
-        (simulate_tm scheme' topo actual failing_edges predict algorithm is_flash_tm flash_burst_amount) in
+        (simulate_tm scheme' topo actual failing_edges predict algorithm is_flash flash_burst_amount flash_sink) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in
 		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
 		  (* record *)
@@ -1283,7 +1272,7 @@ let command =
     +> flag "-lr-delay" (optional int) ~doc:" delay between failure and local recovery"
     +> flag "-gr-delay" (optional int) ~doc:" delay between failure and global recovery"
     +> flag "-flash-det-delay" (optional int) ~doc:" delay between flash and detection"
-    +> flag "-flash-tm" (optional int) ~doc:" index of TM to experience flash"
+    +> flag "-is-flash" no_arg ~doc:" simulate flash or not"
     +> flag "-flash-ba" (optional float) ~doc:" fraction of total traffic to add as flash"
     +> flag "-fail-num" (optional int) ~doc:" number of links to fail"
     +> flag "-out" (optional string) ~doc:" name of directory in expData to store results"
@@ -1323,7 +1312,7 @@ let command =
    (lr_delay:int option)
    (gr_delay:int option)
    (flash_det_delay:int option)
-   (flash_tm:int option)
+   (is_flash:bool)
    (flash_ba:float option)
    (fail_num:int option)
    (out:string option)
@@ -1361,7 +1350,6 @@ let command =
      let syn_scale = if scalesyn then calculate_syn_scale topology_file demand_file host_file else 1.0 in
      let tot_scale = match scale with | None -> syn_scale | Some x -> x *. syn_scale in
      let fail_num = match fail_num with | Some x -> x | None -> 1 in
-     let flash_tm = match flash_tm with | Some x -> x | None -> Int.max_value/100 in
      let flash_ba = match flash_ba with | Some x -> x | None -> 0. in
      Printf.printf "Scale factor: %f\n\n" (tot_scale);
      Kulfi_Globals.deloop := deloop;
@@ -1370,7 +1358,7 @@ let command =
      ignore(Kulfi_Globals.local_recovery_delay := match lr_delay with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.global_recovery_delay := match gr_delay with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.flash_detection_delay := match flash_det_delay with | None -> Int.max_value/100 | Some x -> x);
-     simulate algorithms topology_file demand_file predict_file host_file iterations tot_scale fail_num flash_tm flash_ba out ()
+     simulate algorithms topology_file demand_file predict_file host_file iterations tot_scale fail_num is_flash flash_ba out ()
   )
 
 let main = Command.run command
