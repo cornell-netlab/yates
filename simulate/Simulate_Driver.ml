@@ -1325,7 +1325,7 @@ let command =
    (flash_det_delay:int option)
    (flash_tm:int option)
    (flash_ba:float option)
-   (num_fail:int option)
+   (fail_num:int option)
    (out:string option)
 	 (topology_file:string)
 	 (demand_file:string)
@@ -1360,7 +1360,7 @@ let command =
 	 ; if semimcfraekeft then Some SemiMcfRaekeFT else None ] in
      let syn_scale = if scalesyn then calculate_syn_scale topology_file demand_file host_file else 1.0 in
      let tot_scale = match scale with | None -> syn_scale | Some x -> x *. syn_scale in
-     let num_fail = match num_fail with | Some x -> x | None -> 1 in
+     let fail_num = match fail_num with | Some x -> x | None -> 1 in
      let flash_tm = match flash_tm with | Some x -> x | None -> Int.max_value/100 in
      let flash_ba = match flash_ba with | Some x -> x | None -> 0. in
      Printf.printf "Scale factor: %f\n\n" (tot_scale);
@@ -1370,7 +1370,7 @@ let command =
      ignore(Kulfi_Globals.local_recovery_delay := match lr_delay with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.global_recovery_delay := match gr_delay with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.flash_detection_delay := match flash_det_delay with | None -> Int.max_value/100 | Some x -> x);
-     simulate algorithms topology_file demand_file predict_file host_file iterations tot_scale num_fail flash_tm flash_ba out ()
+     simulate algorithms topology_file demand_file predict_file host_file iterations tot_scale fail_num flash_tm flash_ba out ()
   )
 
 let main = Command.run command
