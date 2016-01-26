@@ -24,6 +24,6 @@ h2 -> s2 [src_port=12, dst_port=13, cost=0, capacity="5Gbps"];
 s2 -> h2 [src_port=13, dst_port=12, cost=0, capacity="5Gbps"];
 
 h3 -> s3 [src_port=14, dst_port=15, cost=0, capacity="5Gbps"];
-s3 -> h3 [src_port=15, dst_port=16, cost=0, capacity="5Gbps"];
+s3 -> h3 [src_port=15, dst_port=14, cost=0, capacity="5Gbps"];
 
 }
