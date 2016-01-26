@@ -406,53 +406,6 @@ let curr_capacity_of_edge (topo:topology) (link:edge) (fail:failure) : float =
     then 0.0
     else capacity_of_edge topo link
 
-let get_util_based_failure_scenario (topo:topology) (utils: congestion EdgeMap.t) : failure =
-  let alpha = 1.0 in (* fail prob is proportional to congestion ^ alpha *)
-  let edge_utils = List.filter (EdgeMap.to_alist utils) (* don't fail links connecting hosts *)
-    ~f:(fun (e,_) -> edge_connects_switches e topo) in
-  let failure_weights = List.map ~f:(fun (e,c) -> (e, c ** alpha)) edge_utils in
-  let total_weight = List.fold_left failure_weights ~init:0.0 ~f:(fun acc (_,w) -> acc +. w) in
-  let rand = Random.float total_weight in
-  let first_el = match List.hd failure_weights with
-              | None -> failwith "empty list of utilizations"
-              | Some x -> x in
-  let (e,_),_ = List.fold_left failure_weights
-    ~init:(first_el, rand)
-    ~f:(fun (selected,sum) (e,w) ->
-      if sum <= 0.0 then (selected,sum)
-      else ((e,w), sum -. w)) in
-  let e' = match Topology.inverse_edge topo e with
-          | Some x -> x
-          | None -> assert false in
-  EdgeSet.add (EdgeSet.singleton e) e'
-
-let get_spf_util_based_failure (topo:topology) (actual:demands) : failure =
-  let spf_scheme = Kulfi_Routing.Spf.solve topo SrcDstMap.empty in
-  let exp_utils = (congestion_of_paths spf_scheme topo actual) in
-  let f = get_util_based_failure_scenario topo exp_utils in
-  let topo' = EdgeSet.fold f
-    ~init:topo
-    ~f:(fun acc link -> Topology.remove_edge acc link) in
-  let hosts = get_hosts topo' in
-  let spf_scheme = Kulfi_Routing.Spf.solve topo' SrcDstMap.empty in
-  if all_pairs_connectivity topo' hosts spf_scheme then f
-  else EdgeSet.empty
-
-let get_scheme_max_util_link (topo:topology) (actual:demands) : failure =
-  let spf_scheme = Kulfi_Routing.Spf.solve topo SrcDstMap.empty in
-  let exp_utils = (congestion_of_paths spf_scheme topo actual) in
-  let edge_utils = List.filter (EdgeMap.to_alist exp_utils) (* don't fail links connecting hosts *)
-    ~f:(fun (e,_) -> edge_connects_switches e topo) in
-	let sorted_edge_utils = List.sort ~cmp:(fun x y -> Float.compare (snd y) (snd x)) edge_utils in
-  (*let _ = List.iter sorted_edge_utils ~f:(fun (e,c) -> Printf.printf "%s : %f\n%!" (string_of_edge topo e) c;) in*)
-  let (e,_) = match List.hd sorted_edge_utils with
-      | Some x -> x
-      | None -> failwith "empty utilization list" in
-  let e' = match Topology.inverse_edge topo e with
-          | Some x -> x
-          | None -> assert false in
-  EdgeSet.add (EdgeSet.singleton e) e'
-
 (* check all-pairs connectivity after failure *)
 let check_connectivity_after_failure (topo:topology) (fail:failure) : bool =
   let topo' = EdgeSet.fold fail
@@ -463,6 +416,58 @@ let check_connectivity_after_failure (topo:topology) (fail:failure) : bool =
   all_pairs_connectivity topo' hosts spf_scheme
 
 
+let rec get_util_based_failure_scenario (topo:topology) (utils: congestion EdgeMap.t) (alpha:float) : failure =
+  (* failure prob is proportional to congestion ^ alpha *)
+  let edge_utils = List.filter (EdgeMap.to_alist utils) (* don't fail links connecting hosts *)
+    ~f:(fun (e,_) -> edge_connects_switches e topo) in
+  let failure_weights = List.map ~f:(fun (e,c) -> (e, c ** alpha)) edge_utils in
+  let total_weight = List.fold_left failure_weights ~init:0.0 ~f:(fun acc (_,w) -> acc +. w) in
+  if total_weight = 0. then EdgeSet.empty
+  else
+    let rand = Random.float total_weight in
+    let first_el = match List.hd failure_weights with
+                | None -> failwith "empty list of utilizations"
+                | Some x -> x in
+    let (e,_),_ = List.fold_left failure_weights
+      ~init:(first_el, rand)
+      ~f:(fun (selected,sum) (e,w) ->
+        if sum <= 0.0 then (selected,sum)
+        else ((e,w), sum -. w)) in
+    let e' = match Topology.inverse_edge topo e with
+            | Some x -> x
+            | None -> assert false in
+    let fail = EdgeSet.add (EdgeSet.singleton e) e' in
+    if check_connectivity_after_failure topo fail then fail
+    else get_util_based_failure_scenario topo utils alpha
+
+  
+let rec get_scheme_max_util_failure (topo:topology) (utils: congestion EdgeMap.t) : failure =
+  let edge_utils = List.filter (EdgeMap.to_alist utils) (* don't fail links connecting hosts *)
+    ~f:(fun (e,_) -> edge_connects_switches e topo) in
+	let sorted_edge_utils = List.sort ~cmp:(fun x y -> Float.compare (snd y) (snd x)) edge_utils in
+  (*let _ = List.iter sorted_edge_utils ~f:(fun (e,c) -> Printf.printf "%s : %f\n%!" (string_of_edge topo e) c;) in*)
+  let (e,_) = match List.hd sorted_edge_utils with
+      | Some x -> x
+      | None -> failwith "empty utilization list" in
+  let e' = match Topology.inverse_edge topo e with
+          | Some x -> x
+          | None -> assert false in
+  let fail = EdgeSet.add (EdgeSet.singleton e) e' in
+  if check_connectivity_after_failure topo fail then fail
+  else
+    let rest_utils = EdgeMap.remove utils e in
+    get_scheme_max_util_failure topo rest_utils 
+
+let get_spf_util_based_failure (topo:topology) (actual:demands) (alpha:float) : failure =
+  let spf_scheme = Kulfi_Routing.Spf.solve topo SrcDstMap.empty in
+  let exp_utils = (congestion_of_paths spf_scheme topo actual) in
+  get_util_based_failure_scenario topo exp_utils alpha
+ 
+let get_spf_max_util_link (topo:topology) (actual:demands) : failure =
+  let spf_scheme = Kulfi_Routing.Spf.solve topo SrcDstMap.empty in
+  let exp_utils = (congestion_of_paths spf_scheme topo actual) in
+  get_scheme_max_util_failure topo exp_utils
+   
 (* get a random failure of n edges*)
 let rec get_random_failure (topo:topology) (num_fail:int) : failure =
   let rec add_new_elem (selected : EdgeSet.t) (all_edges : edge List.t) =
@@ -490,9 +495,9 @@ let rec get_random_failure (topo:topology) (num_fail:int) : failure =
 		  
 (* Create some failure scenario *)
 let rec get_test_failure_scenario (topo:topology) (actual:demands) (iter_pos:float) (num_fail:int): failure =
-(*  if (Float.of_int (Topology.num_edges topo))/.2. -.
+  if (Float.of_int (Topology.num_edges topo))/.2. -.
   (Float.of_int(Topology.num_vertexes topo)) < (Float.of_int (num_fail)) then failwith "Not good enough topo for num_fail failures"
-  else*)
+  else
   if num_fail = 0 then EdgeSet.empty else
   if num_fail > 1 then get_random_failure topo num_fail else
 
@@ -894,8 +899,9 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   let fail_drop = fail_drop /. (Float.of_int num_iterations) /. !agg_dem in
   let cong_drop = cong_drop /. (Float.of_int num_iterations) /. !agg_dem in
 
+  (*
   let total_tput = get_total_tput tput in
-  Printf.printf "\nTotal traffic: %f + %f + %f\t= %f" total_tput fail_drop cong_drop (total_tput+.fail_drop+.cong_drop);
+  Printf.printf "\nTotal traffic: %f + %f + %f\t= %f" total_tput fail_drop cong_drop (total_tput+.fail_drop+.cong_drop);*)
   tput, latency_dist, avg_congestions, fail_drop, cong_drop, !agg_dem, !recovery_churn, final_scheme, !solver_time
   (* end simulate_tm *)
 
@@ -1031,7 +1037,6 @@ let simulate
   ignore (if (demand_lines_length < iterations) then failwith "Iterations greater than demand file length" else());
   ignore (if (predict_lines_length < iterations) then failwith "Iterations greater than predict file length" else());
 
-
   let topo = Parse.from_dotfile topology_file in
   let edge_weights = set_topo_weights topo in
   let host_set = VertexSet.filter (Topology.vertexes topo)
@@ -1113,15 +1118,15 @@ let simulate
 		  (* solve *)
 		  let scheme',solver_time = solve_within_budget algorithm topo predict actual in
       ignore(reset_topo_weights edge_weights topo;);
-      let failing_edges = match List.nth failure_scenarios n with 
-        | Some x -> x
-        | None -> assert false in
-		  let exp_congestions = (congestion_of_paths scheme' topo actual) in
+  	  let exp_congestions = (congestion_of_paths scheme' topo actual) in
 		  let list_of_exp_congestions = List.map ~f:snd (EdgeMap.to_alist exp_congestions) in
 		  let sorted_exp_congestions = List.sort ~cmp:(Float.compare) list_of_exp_congestions in
+      let failing_edges =  match List.nth failure_scenarios n with 
+          | Some x -> x
+          | None -> assert false in
+	
       let is_flash_tm = (n = flash_tm) in
-		  let
-      tput,latency_dist,congestions,failure_drop,congestion_drop,agg_dem,recovery_churn,final_scheme, rec_solver_time =
+		  let tput,latency_dist,congestions,failure_drop,congestion_drop,agg_dem,recovery_churn,final_scheme, rec_solver_time =
         (simulate_tm scheme' topo actual failing_edges predict algorithm is_flash_tm flash_burst_amount) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in
 		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
@@ -1280,7 +1285,7 @@ let command =
     +> flag "-flash-det-delay" (optional int) ~doc:" delay between flash and detection"
     +> flag "-flash-tm" (optional int) ~doc:" index of TM to experience flash"
     +> flag "-flash-ba" (optional float) ~doc:" fraction of total traffic to add as flash"
-    +> flag "-num-fail" (optional int) ~doc:" number of links to fail"
+    +> flag "-fail-num" (optional int) ~doc:" number of links to fail"
     +> flag "-out" (optional string) ~doc:" name of directory in expData to store results"
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
