@@ -11,10 +11,14 @@ let intercalate f s = function
   | h::t ->
     List.fold_left t ~f:(fun acc x -> acc ^ s ^ f x) ~init:(f h) 
 
+let string_of_vertex (t:topology) v : string =
+  Printf.sprintf "%s"
+                    (Node.name (Net.Topology.vertex_to_label t v))
+
 let string_of_edge (t:topology) (e:edge) : string =
   Printf.sprintf "(%s,%s)"
-                    (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_src e))))
-                    (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_dst e))))
+                    (string_of_vertex t (fst (Net.Topology.edge_src e)))
+                    (string_of_vertex  t (fst (Net.Topology.edge_dst e)))
 
 let edge_to_string_map (t:topology) : string EdgeMap.t =
   let edge_list = EdgeSet.elements (Topology.edges t) in

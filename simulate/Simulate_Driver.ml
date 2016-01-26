@@ -32,7 +32,7 @@ let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
       if (EdgeSet.mem handled_edges e) then (acc, handled_edges)
       else
         let e' = match Topology.inverse_edge topo e with
-          | None -> failwith "No reverse edge found"
+          | None -> Printf.printf "%s\n%!" (string_of_edge topo e); failwith "No reverse edge found"
           | Some x -> x in
         let handled_edges' = EdgeSet.add handled_edges e in
         let handled_edges' = EdgeSet.add handled_edges' e' in
@@ -236,6 +236,7 @@ let solve_within_budget algorithm topo predict actual: (scheme * float) =
     | OptimalMcf -> prune_scheme topo (solve topo actual) budget' 
     | _ -> prune_scheme topo (solve topo predict) budget' in
   stop at;
+  assert (probabilities_sum_to_one sch);
   sch, (get_time_in_seconds at)
 
 let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
@@ -489,9 +490,9 @@ let rec get_random_failure (topo:topology) (num_fail:int) : failure =
 		  
 (* Create some failure scenario *)
 let rec get_test_failure_scenario (topo:topology) (actual:demands) (iter_pos:float) (num_fail:int): failure =
-  if (Float.of_int (Topology.num_edges topo))/.2. -.
+(*  if (Float.of_int (Topology.num_edges topo))/.2. -.
   (Float.of_int(Topology.num_vertexes topo)) < (Float.of_int (num_fail)) then failwith "Not good enough topo for num_fail failures"
-  else
+  else*)
   if num_fail = 0 then EdgeSet.empty else
   if num_fail > 1 then get_random_failure topo num_fail else
 
@@ -644,8 +645,9 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   let num_iterations = 100 in
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
 
-  let steady_state_time = 50 in (* ideally, should be >= diameter of graph*)
-  let failure_time = if EdgeSet.is_empty fail_edges then Int.max_value/100
+  let steady_state_time = 0 in
+  let wait_out_time = 50 in (* ideally, should be >= diameter of graph*)
+  let failure_time = if (EdgeSet.is_empty fail_edges) || (!Kulfi_Globals.failure_time > num_iterations)  then Int.max_value/100
                      else !Kulfi_Globals.failure_time + steady_state_time in
   let local_recovery_delay = !Kulfi_Globals.local_recovery_delay in
   let global_recovery_delay = !Kulfi_Globals.global_recovery_delay in
@@ -656,11 +658,11 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   let flash_step_time = 20 in
   let flash_pred_delay = 10 in
 
-  let iterations = range 0 (num_iterations + steady_state_time) in
+  let iterations = range 0 (num_iterations + steady_state_time + wait_out_time) in
   if local_debug then Printf.printf "%s\n%!" (dump_scheme topo start_scheme);
-  agg_dem := sum_demands dem;
 
   (* flash *)
+  agg_dem := sum_demands dem;
   let flash_sink = pick_flash_sink topo in
   let per_src_flash_factor = flash_ba *. !agg_dem /. (total_flow_to_sink flash_sink topo dem) in
 
@@ -691,30 +693,30 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
         end
         else curr_failed_links in
 
+      (* update tms and scheme for flash *)
       let actual_t, predict_t, new_scheme =
-      if is_flash_tm && (iter >= steady_state_time) then
-        (* flash *)
-        begin
-        let flash_t = iter - steady_state_time in
-          if flash_t % flash_step_time = 0 then
-            begin (* update actual & pred demand  and scheme *)
-              let act' = update_flash_demand topo flash_sink dem flash_t per_src_flash_factor (Float.of_int num_iterations) in
-              let pred' = update_flash_demand topo flash_sink dem (flash_t-flash_pred_delay) per_src_flash_factor (Float.of_int num_iterations) in
-              let sch' = match algorithm with
-                | OptimalMcf ->
-                  begin
-                    let sch,rec_solve_time = global_recovery failed_links pred' act' algorithm topo in
-                    recovery_churn := !recovery_churn +. (get_churn curr_scheme sch);
-                    solver_time := !solver_time +. rec_solve_time;
-                    sch
-                  end
-                | _ -> (select_local_recovery algorithm) curr_scheme topo failed_links pred' in
-              act',pred',sch'
-              end
-          else
-            actual_t, predict_t, curr_scheme
-        end
-      else
+        if is_flash_tm && (iter >= steady_state_time) && (iter < steady_state_time + num_iterations) then
+          begin
+          let flash_t = iter - steady_state_time in
+            if flash_t % flash_step_time = 0 then
+              begin (* update actual & pred demand  and scheme *)
+                let act' = update_flash_demand topo flash_sink dem flash_t per_src_flash_factor (Float.of_int num_iterations) in
+                let pred' = update_flash_demand topo flash_sink dem (flash_t-flash_pred_delay) per_src_flash_factor (Float.of_int num_iterations) in
+                let sch' = match algorithm with
+                  | OptimalMcf ->
+                    begin
+                      let sch,rec_solve_time = global_recovery failed_links pred' act' algorithm topo in
+                      recovery_churn := !recovery_churn +. (get_churn curr_scheme sch);
+                      solver_time := !solver_time +. rec_solve_time;
+                      sch
+                    end
+                  | _ -> (select_local_recovery algorithm) curr_scheme topo failed_links pred' in
+                act',pred',sch'
+                end
+            else
+              actual_t, predict_t, curr_scheme
+          end
+        else
         actual_t, predict_t, curr_scheme in
 
       (*debug*)
@@ -725,8 +727,10 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
           let f_act_d = SrcDstMap.find_exn actual_t (src,flash_sink) in
           let p_act_d = SrcDstMap.find_exn predict_t (src,flash_sink) in
           Printf.printf "%f\t%f\n" (f_act_d /. act_d) (p_act_d /. act_d) ;);*)
+
       (* failures: local and global recovery *)
       let new_scheme = 
+        if iter < steady_state_time + num_iterations then
         match algorithm with
           | OptimalMcf ->
               if iter = failure_time then 
@@ -746,28 +750,17 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                   solver_time := !solver_time +. rec_solve_time;
                   sch
                 end 
-              else new_scheme in
+              else new_scheme
+        else SrcDstMap.empty in
+
+      let actual_t = if iter < (steady_state_time + num_iterations) then actual_t else SrcDstMap.empty in
 
 
+  (* Add traffic at source of every path *)
+      if iter < (num_iterations + steady_state_time) then agg_dem := !agg_dem +. (sum_demands actual_t);
       (* probability of taking each path *)
-      agg_dem := !agg_dem +. (sum_demands actual_t);
       let path_prob_arr = get_path_prob_demand_arr new_scheme actual_t in
 
-      (* if no (s-d) path, then entire demand is dropped due to failure *)
-      let curr_fail_drop = SrcDstMap.fold new_scheme
-      ~init:curr_fail_drop
-      ~f:(fun ~key:(src,dst) ~data:paths acc ->
-        if (PathMap.is_empty paths) then acc +. (SrcDstMap.find_exn actual_t (src,dst)) else acc) in
-
-      (* if no (s-d) key, then entire demand is dropped due to failure *)
-      let curr_fail_drop = SrcDstMap.fold actual_t
-      ~init:curr_fail_drop
-      ~f:(fun ~key:(src,dst) ~data:d acc ->
-        match SrcDstMap.find new_scheme (src,dst) with
-        | None -> acc +. d
-        | Some x -> acc) in
-
-      (* Add traffic at source of every path *)
       (* next_iter_traffic : map edge -> in_traffic in next iter *)
       let next_iter_traffic = List.fold_left path_prob_arr
           ~init:EdgeMap.empty
@@ -779,7 +772,16 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                                           | Some v -> v in
               let traf_first_link = (path_arr, 1, (prob *. sd_demand))::sched_traf_first_link in
               EdgeMap.add ~key:first_link ~data:traf_first_link acc) in
-      (* Done generating traffic at source *)
+
+      (* if no (s-d) path, then entire demand is dropped due to failure *)
+      (* if no (s-d) key, then entire demand is dropped due to failure *)
+      let curr_fail_drop = SrcDstMap.fold actual_t
+      ~init:curr_fail_drop
+      ~f:(fun ~key:(src,dst) ~data:d acc ->
+        match SrcDstMap.find new_scheme (src,dst) with
+        | None -> acc +. d
+        | Some x -> if PathMap.is_empty x then acc +. d else acc) in
+  (* Done generating traffic at source *)
 
       (* For each link, forward fair share of flows to next links or deliver to destination *)
       let next_iter_traffic, new_delivered_map, new_lat_tput_map_map, new_link_utils, new_fail_drop, new_cong_drop =
@@ -804,8 +806,9 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
             ~f:(fun fwd_acc (_,_,flow_dem) -> fwd_acc +. flow_dem) in
           let dropped = demand_on_link -. forwarded_by_link in
           let (_,_,_,_,curr_fail_drop,curr_cong_drop) = link_iter_acc in
-          let new_fail_drop = if EdgeSet.mem failed_links e then curr_fail_drop +. dropped else curr_fail_drop in
-          let new_cong_drop = if EdgeSet.mem failed_links e then curr_cong_drop else curr_cong_drop +. dropped in
+          let new_fail_drop,new_cong_drop = 
+            if EdgeSet.mem failed_links e then curr_fail_drop +. dropped, curr_cong_drop
+            else curr_fail_drop, curr_cong_drop +. dropped in
           if (is_nan new_cong_drop) && (is_nan dropped) then Printf.printf "dem = %f\tfwd = %f\n"
           demand_on_link forwarded_by_link;
           (* Forward/deliver traffic on this edge *)

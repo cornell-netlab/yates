@@ -391,7 +391,7 @@ let probabilities_sum_to_one (s:scheme) : bool =
           PathMap.fold f_decomp
           ~init:0.
 	        ~f:(fun ~key:path ~data:r acc -> acc +. r) in
-	      acc && (sum_rate > 0.9) && (sum_rate < 1.1) )
+	      acc && (sum_rate > 1.-.1e-4) && (sum_rate < 1.+.1e-4) )
 
 
 (* Latency for a path *)
