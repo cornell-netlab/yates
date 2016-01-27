@@ -849,10 +849,12 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                 let new_ltm_map = SrcDstMap.add ~key:(src,dst) ~data:new_sd_ltm ltm_map in
                 
                 (* Update link utilization for edge *)
-                let prev_lutil_link = match EdgeMap.find lutil_map e with
-                              | None -> 0.0
+                let prev_lutil_link,pst,pet = match EdgeMap.find lutil_map e with
+                              | None -> (0.0, Int.max_value/100, 0)
                               | Some x -> x in
-                let new_lutil_map = EdgeMap.add ~key:e ~data:(prev_lutil_link +. flow_fair_share) lutil_map in
+                let nst, net = if flow_fair_share > 0. then (min pst iter, max pet iter) else (pst, pet) in
+                let new_lutil_map = if (iter < num_iterations + steady_state_time) then EdgeMap.add ~key:e ~data:(prev_lutil_link +. flow_fair_share, nst, net) lutil_map
+                  else lutil_map in
                 (nit, new_dlvd, new_ltm_map, new_lutil_map, new_fail_drop, new_cong_drop)
             | Some next_link -> (* Forward traffic to next hop *)
                 (* Update link ingress queue for next hop *)
@@ -864,10 +866,12 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                 let new_nit = EdgeMap.add ~key:next_link ~data:traf_next_link nit in
 
                 (* Update link utilization for edge *)
-                let prev_lutil_link = match EdgeMap.find lutil_map e with
-                              | None -> 0.0
+                let prev_lutil_link,pst,pet = match EdgeMap.find lutil_map e with
+                              | None -> (0.0, Int.max_value/100, 0)
                               | Some x -> x in
-                let new_lutil_map = EdgeMap.add ~key:e ~data:(prev_lutil_link +. flow_fair_share) lutil_map in
+                let nst, net = if flow_fair_share > 0. then (min pst iter, max pet iter) else (pst, pet) in
+                let new_lutil_map = if (iter < num_iterations + steady_state_time) then EdgeMap.add ~key:e ~data:(prev_lutil_link +. flow_fair_share, nst, net) lutil_map
+                  else lutil_map in
                 (new_nit, dlvd_map, ltm_map, new_lutil_map, new_fail_drop, new_cong_drop))) in
       (* Done forwarding for each link*)
 
@@ -898,8 +902,8 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
 
   let avg_congestions = EdgeMap.fold link_utils
     ~init:EdgeMap.empty
-    ~f:(fun ~key:e ~data:util acc ->
-      EdgeMap.add ~key:e ~data:(util /. (Float.of_int (num_iterations)) /. (capacity_of_edge topo e)) acc) in
+    ~f:(fun ~key:e ~data:(util, st, et) acc ->
+      EdgeMap.add ~key:e ~data:(util /. (Float.of_int (et - st + 1)) /. (capacity_of_edge topo e)) acc) in
   let fail_drop = fail_drop /. (Float.of_int num_iterations) /. !agg_dem in
   let cong_drop = cong_drop /. (Float.of_int num_iterations) /. !agg_dem in
 
