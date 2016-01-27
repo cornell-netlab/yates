@@ -718,7 +718,8 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                       solver_time := !solver_time +. rec_solve_time;
                       sch
                     end
-                  | _ -> (select_local_recovery algorithm) curr_scheme topo failed_links pred' in
+                  | _ -> if !Kulfi_Globals.flash_recover then (select_local_recovery algorithm) curr_scheme topo failed_links pred'
+                         else curr_scheme in
                 act',pred',sch'
                 end
             else
@@ -1266,6 +1267,7 @@ let command =
     +> flag "-all" no_arg ~doc:" run all schemes"
     +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
     +> flag "-deloop" no_arg ~doc:" remove loops in paths"
+    +> flag "-flash-recover" no_arg ~doc:" perform local recovery for flash"
     +> flag "-scale" (optional float) ~doc:" scale demands by this factor"
     +> flag "-budget" (optional int) ~doc:" max paths between each pair of hosts"
     +> flag "-fail-time" (optional int) ~doc:" simulation time to introduce failure at"
@@ -1305,6 +1307,7 @@ let command =
 	 (all:bool)
    (scalesyn:bool)
    (deloop:bool)
+   (flash_recover:bool)
    (scale:float option)
    (budget:int option)
    (fail_time:int option)
@@ -1351,6 +1354,7 @@ let command =
      let flash_ba = match flash_ba with | Some x -> x | None -> 0. in
      Printf.printf "Scale factor: %f\n\n" (tot_scale);
      Kulfi_Globals.deloop := deloop;
+     Kulfi_Globals.flash_recover := flash_recover;
      ignore(Kulfi_Globals.budget := match budget with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.failure_time := match fail_time with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.local_recovery_delay := match lr_delay with | None -> Int.max_value/100 | Some x -> x);
