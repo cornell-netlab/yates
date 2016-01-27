@@ -651,7 +651,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
        * or deliver to end host if last link in a path
   * *)
   let local_debug = false in
-  let num_iterations = 100 in
+  let num_iterations = 1000 in
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
 
   let steady_state_time = 0 in
@@ -664,7 +664,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   let recovery_churn = ref 0. in
   let solver_time = ref 0. in
   (*flash*)
-  let flash_step_time = 20 in
+  let flash_step_time = num_iterations/5 in
   let flash_pred_delay = 10 in
 
   let iterations = range 0 (num_iterations + steady_state_time + wait_out_time) in
@@ -818,8 +818,8 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
           let new_fail_drop,new_cong_drop = 
             if EdgeSet.mem failed_links e then curr_fail_drop +. dropped, curr_cong_drop
             else curr_fail_drop, curr_cong_drop +. dropped in
-          if (is_nan new_cong_drop) && (is_nan dropped) then Printf.printf "dem = %f\tfwd = %f\n"
-          demand_on_link forwarded_by_link;
+          if (is_nan new_cong_drop) && (is_nan dropped) then Printf.printf "dem = %f\tfwd = %f\n" demand_on_link forwarded_by_link;
+          (*if dropped > 0. then Printf.printf "%d : %f\n%!" iter dropped;*)
           (* Forward/deliver traffic on this edge *)
           List.fold_left fs_in_queue_edge
           ~init:link_iter_acc
