@@ -178,9 +178,20 @@ let add_or_increment_path (fd : flow_decomp) (p : path) (r : probability) : flow
 let cap_divisor = 1000000.
 let demand_divisor = 1000000.
                        
+
+let edge_connects_switches (e:edge) (topo:topology) : bool =
+  let src,_ = Topology.edge_src e in
+  let src_label = Topology.vertex_to_label topo src in
+  let dst,_ = Topology.edge_dst e in
+  let dst_label = Topology.vertex_to_label topo dst in
+  Node.device src_label = Node.Switch && Node.device dst_label = Node.Switch
+
+
 let capacity_of_edge topo edge =
   let label = Topology.edge_to_label topo edge in
-  (Int64.to_float (Link.capacity label))
+  let cap = (Int64.to_float (Link.capacity label)) in
+  if edge_connects_switches edge topo then cap
+  else 100. *. cap
 
 let configuration_of_scheme (topo:topology) (scm:scheme) (tag_hash: (edge,int) Hashtbl.t) : configuration =
   SrcDstMap.fold

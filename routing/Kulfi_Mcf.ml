@@ -175,7 +175,7 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
           let (s,t) = d_pair in
           let s_v = Topology.vertex_of_label orig_topo s in
           let t_v = Topology.vertex_of_label orig_topo t in
-          let paths = strip_paths (s, t) edges in
+          let paths = if s <> t then strip_paths (s, t) edges else [] in
           let (p,sum_rate) = 
 	    List.fold_left 
 	      paths 

@@ -14,14 +14,6 @@ open Kulfi_Util
 
 let demand_envelope = ref SrcDstMap.empty
 
-let edge_connects_switches (e:edge) (topo:topology) : bool =
-  let src,_ = Topology.edge_src e in
-  let src_label = Topology.vertex_to_label topo src in
-  let dst,_ = Topology.edge_dst e in
-  let dst_label = Topology.vertex_to_label topo dst in
-  Node.device src_label = Node.Switch && Node.device dst_label = Node.Switch
-
-
 (* create a scheme by running solver over all failures and aggregating the schemes *)
 let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
   (* consider each edge can fail and compute the corresponding scheme *)
@@ -62,12 +54,13 @@ let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
       SrcDstMap.fold edge_scheme
         ~init:agg
         ~f:(fun ~key:(s,d) ~data:f_pp_map res ->
+          if s = d then res else
           let acc_pp_map = match SrcDstMap.find res (s,d) with
             | None -> PathMap.empty
             | Some x -> x in
           if (PathMap.is_empty f_pp_map) then
             begin
-              Printf.printf "%s: Scheme %s" (string_of_edge topo e) (dump_scheme topo edge_scheme);
+              Printf.printf "sd: (%s, %s) Edge: %s: Scheme %s" (string_of_vertex topo s) (string_of_vertex topo d) (string_of_edge topo e) (dump_scheme topo edge_scheme);
               assert false
             end
           else
@@ -639,6 +632,11 @@ let sum_demands (d:demands) : float =
   SrcDstMap.fold d ~init:0.
     ~f:(fun ~key:_ ~data:x acc -> acc +. x)
 
+let sum_sink_demands (d:demands) sink : float =
+  SrcDstMap.fold d ~init:0.
+    ~f:(fun ~key:(src,dst) ~data:x acc -> if dst = sink then acc +. x else acc)
+
+
 (* Simulate routing for one TM *)
 let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:failure) (predict:demands) (algorithm:solver_type) (is_flash:bool) (flash_ba:float) (flash_sink) =
   (*
@@ -661,6 +659,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   let local_recovery_delay = !Kulfi_Globals.local_recovery_delay in
   let global_recovery_delay = !Kulfi_Globals.global_recovery_delay in
   let agg_dem = ref 0. in
+  let agg_sink_dem = ref 0. in
   let recovery_churn = ref 0. in
   let solver_time = ref 0. in
   (*flash*)
@@ -672,7 +671,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
 
   (* flash *)
   agg_dem := sum_demands dem;
-  let per_src_flash_factor = flash_ba *. !agg_dem /. (total_flow_to_sink flash_sink topo dem) in
+  let per_src_flash_factor = flash_ba *. !agg_dem /. (total_flow_to_sink flash_sink topo dem) /. (Float.of_int (List.length (get_hosts topo))) in
   if is_flash then Printf.printf "\t\t\t\t\tSink: %s\r" (string_of_vertex topo flash_sink);
   let _,delivered_map,lat_tput_map_map,link_utils,final_scheme,_,fail_drop,cong_drop,_,_=
   List.fold_left iterations
@@ -688,6 +687,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
         if iter = steady_state_time then
           begin
             agg_dem := 0.;
+            agg_sink_dem := 0.;
             (SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, 0.0, 0.0)
           end
         else
@@ -767,6 +767,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
 
   (* Add traffic at source of every path *)
       if iter < (num_iterations + steady_state_time) then agg_dem := !agg_dem +. (sum_demands actual_t);
+      if iter < (num_iterations + steady_state_time) then agg_sink_dem := !agg_sink_dem +. (sum_sink_demands actual_t flash_sink);
       (* probability of taking each path *)
       let path_prob_arr = get_path_prob_demand_arr new_scheme actual_t in
 
@@ -892,6 +893,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
       (* end iteration *) in
 
   agg_dem := !agg_dem /. (Float.of_int num_iterations);
+  agg_sink_dem := !agg_sink_dem /. (Float.of_int num_iterations);
   (* Generate stats *)
   let tput = SrcDstMap.fold delivered_map
     ~init:SrcDstMap.empty
@@ -906,11 +908,15 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
       EdgeMap.add ~key:e ~data:(util /. (Float.of_int (et - st + 1)) /. (capacity_of_edge topo e)) acc) in
   let fail_drop = fail_drop /. (Float.of_int num_iterations) /. !agg_dem in
   let cong_drop = cong_drop /. (Float.of_int num_iterations) /. !agg_dem in
-
+  let sink_tput = if is_flash then SrcDstMap.fold delivered_map
+    ~init:0.0
+    ~f:(fun ~key:(src,dst) ~data:dlvd acc ->
+      if dst = flash_sink then acc +. dlvd /. (Float.of_int num_iterations) /. !agg_sink_dem else acc)
+      else 0.0 in
   (*
   let total_tput = get_total_tput tput in
   Printf.printf "\nTotal traffic: %f + %f + %f\t= %f" total_tput fail_drop cong_drop (total_tput+.fail_drop+.cong_drop);*)
-  tput, latency_dist, avg_congestions, fail_drop, cong_drop, !agg_dem, !recovery_churn, final_scheme, !solver_time
+  tput, latency_dist, avg_congestions, fail_drop, cong_drop, !agg_dem, !recovery_churn, final_scheme, !solver_time, sink_tput
   (* end simulate_tm *)
 
 let is_int v =
@@ -1052,6 +1058,7 @@ let simulate
   let max_exp_congestion_data = make_data "Max Expected Congestion Vs Time" in
   let mean_exp_congestion_data = make_data "Mean Expected Congestion Vs Time" in
   let total_tput_data = make_data "Total Throughput vs Time" in
+  let total_sink_tput_data = make_data "Total Sink Throughput vs Time" in
   let failure_drop_data = make_data "Drop due to failure vs Time" in
   let congestion_drop_data = make_data "Drop due to congestion vs Time" in
   let percentiles = [0.1; 0.2; 0.3; 0.4; 0.5; 0.6; 0.7; 0.8; 0.9; 0.95] in
@@ -1120,7 +1127,8 @@ let simulate
       let flash_sink = match List.nth flash_sinks n with
         | Some x -> x
         | None -> assert false in
-		  let tput,latency_dist,congestions,failure_drop,congestion_drop,agg_dem,recovery_churn,final_scheme, rec_solver_time =
+
+		  let tput,latency_dist,congestions,failure_drop,congestion_drop,agg_dem,recovery_churn,final_scheme, rec_solver_time, sink_tput =
         (simulate_tm scheme' topo actual failing_edges predict algorithm is_flash flash_burst_amount flash_sink) in
 		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in
 		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
@@ -1155,6 +1163,7 @@ let simulate
 		  add_record edge_exp_congestion_data sname {iteration = n; edge_congestions=exp_congestions; };
 		  add_record latency_percentiles_data sname {iteration = n; latency_percentiles=latency_percentiles; };
 		  add_record total_tput_data sname {iteration = n; throughput=total_tput; throughput_dev=0.0; };
+		  add_record total_sink_tput_data sname {iteration = n; throughput=sink_tput; throughput_dev=0.0; };
 		  add_record failure_drop_data sname {iteration = n; throughput=failure_drop; throughput_dev=0.0; };
 		  add_record congestion_drop_data sname {iteration = n; throughput=congestion_drop; throughput_dev=0.0; };
 		  List.iter2_exn
@@ -1192,6 +1201,7 @@ let simulate
   to_file dir "MaxExpCongestionVsIterations.dat" max_exp_congestion_data "# solver\titer\tmax-exp-congestion\tstddev" iter_vs_congestion_to_string;
   to_file dir "MeanExpCongestionVsIterations.dat" mean_exp_congestion_data "# solver\titer\tmean-exp-congestion\tstddev" iter_vs_congestion_to_string;
   to_file dir "TotalThroughputVsIterations.dat" total_tput_data "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string;
+  to_file dir "TotalSinkThroughputVsIterations.dat" total_sink_tput_data "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string;
   to_file dir "FailureLossVsIterations.dat" failure_drop_data "# solver\titer\tfailure-drop\tstddev" iter_vs_throughput_to_string;
   to_file dir "CongestionLossVsIterations.dat" congestion_drop_data "# solver\titer\tcongestion-drop\tstddev" iter_vs_throughput_to_string;
 
