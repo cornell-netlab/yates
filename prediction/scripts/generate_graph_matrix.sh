@@ -5,7 +5,6 @@ CURR_DIR=$( pwd )
 Graph_DIR=graphs
 HOST_DIR=${CURR_DIR}/../data/hosts
 TOPO_DIR=${CURR_DIR}/../data/topologies
-mkdir $HOST_DIR
 echo $EXP_DIR
 echo $CURR_DIR
 echo $HOST_DIR

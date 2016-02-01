@@ -20,11 +20,18 @@ using namespace std;
 
 void predict_part(std::string filename, int totRow, int col, double ** dataM, int period, double scale, double noiselevel, double demand_jump_factor, double demand_locality_factor, int merge_len, int burst_location ) {
 
+	bool includeLastOneModel = false;
+	bool includeFFT = false;
+	bool includePolyFit = false;
+	bool includeRidgeRegressionModel = false;
+	bool includeLassoRegressionModel = false;
+    /*
 	bool includeLastOneModel = true;
 	bool includeFFT = true;
 	bool includePolyFit = true;
 	bool includeRidgeRegressionModel = true;
 	bool includeLassoRegressionModel = true;
+    */
 	//bool includeRandomForest = false;
 
 	double ** outM = new double *[col];
@@ -106,7 +113,7 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
       writeDemandMatrix(foldername+filename + string("_error_")+string(noise_char), totRow, col, outM, period, scale);
     } else
     {
-      for (noiselevel=0;noiselevel<=5.0;noiselevel+=0.5){
+      for (double noiselevel=0;noiselevel<=5.0;noiselevel+=0.5){
         for (int i = 0; i < col; i++)
             for (int j = 0; j < totRow; j++)
             {
@@ -124,6 +131,26 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
         writeDemandMatrix(foldername+filename + string("_error_")+string(noise_char), totRow, col, outM, period, scale);
       }
     }
+
+  double* w_dif=new double[n];
+  for (double noiselevel=0;noiselevel<=0.9;noiselevel+=0.1){
+    for (int j = 0; j < totRow; j++){
+          for (int i=0;i<n;i++)
+              if (rand()%2==0)
+                  w_dif[i]=1.0-noiselevel;
+              else
+                  w_dif[i]=1.0+noiselevel;
+
+
+
+        for (int h1 = 0; h1 < n; h1++)
+            for (int h2=0;h2<n;h2++)
+                outM[h1*n+h2][j] = dataM[h1*n+h2][j]  * w_dif[h1]*w_dif[h2];
+    }
+    char noise_char[100];
+    sprintf(noise_char,"%.2lf",noiselevel);
+    writeDemandMatrix(foldername+filename + string("_corr_noise_")+string(noise_char), totRow, col, outM, period, scale);
+  }
 
 
 	//Possible choices:

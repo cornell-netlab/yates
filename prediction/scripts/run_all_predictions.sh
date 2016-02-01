@@ -8,8 +8,9 @@ echo $EXP_DIR
 echo $CURR_DIR
 echo $TOPO_DIR
 
-for tf in $TOPO_DIR/abilene_hourly.dot
+for tf2 in abilene_hourly AttMpls Sprint Geant2012 Globalcenter BtNorthAmerica Janetbackbone Ntt Uunet
 do
+    tf=${TOPO_DIR}/${tf2}.dot
     base=${tf##*/}
     prefix=${base%.dot}
     echo $base
@@ -22,7 +23,7 @@ do
     else
         echo "small.. $n"
         #./synthesize/bin/synthesize -n ${prefix} -r 200 -m ${n} -t ${Graph_DIR}/${prefix}.txt  &
-        ./synthesize/bin/synthesize -n ${prefix} -r 200 -m ${n} -t ${Graph_DIR}/${prefix}.txt --merge_len 12 --burst_h_1 6 --burst_h_2 9&
+        ./synthesize/bin/synthesize -n ${prefix} -r 200 -m ${n} -t ${Graph_DIR}/${prefix}.txt --merge_len 12 &
         #./synthesize/bin/synthesize -n ${prefix} -r 200 -m ${n} -t ${Graph_DIR}/${prefix}.txt --demand_jump_factor 5 &
         #./synthesize/bin/synthesize -n ${prefix} -r 200 -m ${n} -t ${Graph_DIR}/${prefix}.txt --demand_jump_factor 10 &
         #./synthesize/bin/synthesize -n ${prefix} -r 200 -m ${n} -t ${Graph_DIR}/${prefix}.txt --demand_jump_factor 20 &
