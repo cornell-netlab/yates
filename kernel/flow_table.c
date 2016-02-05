@@ -2,14 +2,6 @@
 
 static DEFINE_SPINLOCK(ft_mutex);
 
-void ft_lock(unsigned long flags){
-    spin_lock_irqsave(&ft_mutex, flags);
-}
-
-void ft_unlock(unsigned long flags){
-    spin_unlock_irqrestore(&ft_mutex, flags);
-}
-
 u64 flow_idle_time (ulong last_used_jiffies){
     u64 idle_time;
     idle_time = jiffies_to_msecs(jiffies - last_used_jiffies);
@@ -106,7 +98,7 @@ void flow_table_set( flow_table_t *ft, struct flow_keys match,
     pr_debug("FT: setting flow entry %d ... num_flows: %d -> %d\n", index, 
             atomic_read(&ft->num_flows), atomic_read(&ft->num_flows)+1);
 
-    ft_lock(flags);
+    spin_lock_irqsave(&ft_mutex, flags);
     curr = rcu_dereference_bh(ft->table[index]);
 
     while(curr != NULL && !flow_key_equal(match, curr->match)) {
@@ -163,7 +155,7 @@ void flow_table_set( flow_table_t *ft, struct flow_keys match,
         }
        atomic_inc(&ft->num_flows);
     }
-    ft_unlock(flags);
+    spin_unlock_irqrestore(&ft_mutex, flags);
 
 }
 
@@ -186,7 +178,7 @@ void flow_table_rem(flow_table_t *ft, struct flow_keys match) {
 
     if(curr != NULL && flow_key_equal(match, curr->match)) {
         // entry exists
-        ft_lock(flags);
+        spin_lock_irqsave(&ft_mutex, flags);
         if(curr == ft->table[index]){
             // if at the beginning of bucket
             rcu_assign_pointer(ft->table[index], curr->next);
@@ -194,7 +186,7 @@ void flow_table_rem(flow_table_t *ft, struct flow_keys match) {
             // otherwise
             rcu_assign_pointer(last->next, curr->next);
         }
-        ft_unlock(flags);
+        spin_unlock_irqrestore(&ft_mutex, flags);
         // free both stk and entry
         free_match_stk_entry(curr);
         atomic_dec(&ft->num_flows);
@@ -236,9 +228,9 @@ struct stack flow_table_get( flow_table_t *ft, struct flow_keys match, routing_t
         // if idle timed-out, remove flow entry and return no_stack
         new_stk = stack_dup(get_random_stack_for_dst(dst_ip, routing_table));
         old_stk = curr->stk;
-        ft_lock(flags);
+        spin_lock_irqsave(&ft_mutex, flags);
         curr->stk = new_stk;
-        ft_unlock(flags);
+        spin_unlock_irqrestore(&ft_mutex, flags);
         stack_free(old_stk);
     }
 
