@@ -13,15 +13,17 @@ INCLUDES  = \
 ifeq ($(UNAME), Darwin)
 
 INCLUDES  += \
+ -isystem /opt/local/libcpp-software/include \
  -I /usr/local/include/opencv2 \
  -I /usr/local/include
 
 LDFLAGS   = \
  -L /usr/local/lib \
+ -L /opt/local/libcpp-software/lib \
  -L $(THISDIR)/../libpredict/bin \
- -lboost_filesystem \
- -lboost_program_options \
- -lboost_system \
+ -lboost_filesystem-mt \
+ -lboost_program_options-mt \
+ -lboost_system-mt \
  -lpredict
 
 endif

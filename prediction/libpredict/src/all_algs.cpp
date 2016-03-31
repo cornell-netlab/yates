@@ -233,8 +233,8 @@ void trainModel(trainModelFunctionType trainMethod,
 	trainMethod(X_dat, Y_dat, numOfFeature + 1, dataLen, avg, modelPara, additionalStuff);
 	for (int i = 0; i < dataLen; i++)
 		delete X_dat[i];
-	delete X_dat;
-	delete Y_dat;
+	delete [] X_dat;
+	delete [] Y_dat;
 }
 
 double predictOneModel(predictNextFunctionType predictMethod, double * serve, int numOfFeature, int length, void * modelPara, void * addtionalStuff)

@@ -494,8 +494,8 @@ void predict_part(std::string filename, int totRow, int col, double ** dataM, in
 	for (int i = 0; i < col; i++) {
 		delete (outM[i]);
 	}
-	delete outM;
-	delete belongto;
+	delete [] outM;
+	delete [] belongto;
 }
 
 
