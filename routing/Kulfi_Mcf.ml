@@ -5,6 +5,7 @@ open Net
 open Core.Std
 open Kulfi_LP_Lang
 open Kulfi_Spf
+open Kulfi_Globals
        
 let () = Random.self_init ()
 
@@ -230,9 +231,10 @@ let solve (topo:topology) (pairs:demands) : scheme =
   let lp_filename = (Printf.sprintf "lp/mcf_%f.lp" rand) in
   let lp_solname = (Printf.sprintf "lp/mcf_%f.sol" rand) in
   serialize_lp lp lp_filename;
-  
+
+  let method_str:string = (Int.to_string !gurobi_method) in
   let gurobi_in = Unix.open_process_in
-		    ("gurobi_cl OptimalityTol=1e-9 ResultFile=" ^ lp_solname ^ " " ^ lp_filename) in
+		    ("gurobi_cl Method=" ^ method_str ^ " OptimalityTol=1e-9 ResultFile=" ^ lp_solname ^ " " ^ lp_filename) in
   let time_str = "Solved in [0-9]+ iterations and \\([0-9.e+-]+\\) seconds" in
   let time_regex = Str.regexp time_str in
   let rec read_output gurobi solve_time =

@@ -1294,6 +1294,7 @@ let command =
     +> flag "-flash-ba" (optional float) ~doc:" fraction of total traffic to add as flash"
     +> flag "-fail-num" (optional int) ~doc:" number of links to fail"
     +> flag "-out" (optional string) ~doc:" name of directory in expData to store results"
+    +> flag "-gurobi-method" (optional int) ~doc:" solver method used for Gurobi. -1=automatic, 0=primal simplex, 1=dual simplex, 2=barrier, 3=concurrent, 4=deterministic concurrent."
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
     +> anon ("predict-file" %: string)
@@ -1334,6 +1335,7 @@ let command =
    (flash_ba:float option)
    (fail_num:int option)
    (out:string option)
+   (grb_method:int option)
 	 (topology_file:string)
 	 (demand_file:string)
 	 (predict_file:string)
@@ -1372,7 +1374,8 @@ let command =
      Printf.printf "Scale factor: %f\n\n" (tot_scale);
      Kulfi_Globals.deloop := deloop;
      Kulfi_Globals.flash_recover := flash_recover;
-     ignore(Kulfi_Globals.budget := match budget with | None -> Int.max_value/100 | Some x -> x);
+     ignore(Kulfi_Globals.gurobi_method := match grb_method with | None -> Int.max_value/100 | Some x -> x);
+     ignore(Kulfi_Globals.budget := match budget with | None -> Int.minus_one | Some x -> x);
      ignore(Kulfi_Globals.failure_time := match fail_time with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.local_recovery_delay := match lr_delay with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.global_recovery_delay := match gr_delay with | None -> Int.max_value/100 | Some x -> x);
