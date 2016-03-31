@@ -1374,8 +1374,8 @@ let command =
      Printf.printf "Scale factor: %f\n\n" (tot_scale);
      Kulfi_Globals.deloop := deloop;
      Kulfi_Globals.flash_recover := flash_recover;
-     ignore(Kulfi_Globals.gurobi_method := match grb_method with | None -> Int.max_value/100 | Some x -> x);
-     ignore(Kulfi_Globals.budget := match budget with | None -> Int.minus_one | Some x -> x);
+     ignore(Kulfi_Globals.gurobi_method := match grb_method with | None -> Int.minus_one | Some x -> x);
+     ignore(Kulfi_Globals.budget := match budget with | None ->  Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.failure_time := match fail_time with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.local_recovery_delay := match lr_delay with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.global_recovery_delay := match gr_delay with | None -> Int.max_value/100 | Some x -> x);

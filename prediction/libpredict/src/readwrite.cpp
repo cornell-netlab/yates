@@ -327,6 +327,7 @@ void generateSyntheticData(int row, int hosts, double ** m, std::string prefix, 
 	if (topofile.length() > 1)
 	{
 		FILE* topof=fopen(topofile.c_str(), "r");
+		assert(topof != NULL);
 		int topo_n, topo_m;
         int tmp_rlt;
 		tmp_rlt=fscanf(topof, "%i%i", &topo_n, &topo_m);

@@ -232,9 +232,9 @@ let solve (topo:topology) (pairs:demands) : scheme =
   let lp_solname = (Printf.sprintf "lp/mcf_%f.sol" rand) in
   serialize_lp lp lp_filename;
 
-  let method_str:string = (Int.to_string !gurobi_method) in
+  let method_str = (Int.to_string !gurobi_method) in
   let gurobi_in = Unix.open_process_in
-		    ("gurobi_cl Method=" ^ method_str ^ " OptimalityTol=1e-9 ResultFile=" ^ lp_solname ^ " " ^ lp_filename) in
+		    ("gurobi_cl Method=" ^ method_str ^ " OptimalityTol=1e-9 ResultFile=" ^ lp_solname ^ " " ^ lp_filename) in 
   let time_str = "Solved in [0-9]+ iterations and \\([0-9.e+-]+\\) seconds" in
   let time_regex = Str.regexp time_str in
   let rec read_output gurobi solve_time =
