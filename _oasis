@@ -6,18 +6,18 @@ Authors:     Kulfi team
 License:     LGPL-3.0
 Plugins:     META (0.4), StdFiles (0.4), DevFiles (0.4)
 
-BuildTools: ocamlbuild    
+BuildTools: ocamlbuild
 
 Library routing
   Path: routing
-  Modules:   
+  Modules:
     Kulfi_Routing,
     Kulfi_Traffic,
     Kulfi_Util
   BuildDepends:
    ocamlgraph,
    threads,
-   sexplib.syntax,
+   ppx_jane,
    sexplib,
    frenetic
 
@@ -49,7 +49,6 @@ Library controller
    frenetic.async,
    ocamlgraph,
    routing,
-   sexplib.syntax,
    sexplib,
    threads,
    util

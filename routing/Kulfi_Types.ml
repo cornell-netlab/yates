@@ -4,40 +4,40 @@ open Core.Std
 
 module EdgeSet = Topology.EdgeSet
 module VertexSet = Topology.VertexSet
-       
+
 type topology = Net.Topology.t
 
-type edge = Net.Topology.edge with sexp
-                                     
-type path = edge list with sexp
-      
+type edge = Net.Topology.edge [@@ deriving sexp]
+
+type path = edge list [@@ deriving sexp]
+
 let intercalate f s = function
   | [] ->
     ""
   | h::t ->
-    List.fold_left t ~f:(fun acc x -> acc ^ s ^ f x) ~init:(f h) 
+      List.fold_left t ~f:(fun acc x -> acc ^ s ^ f x) ~init:(f h)
 
-let dump_edges (t:topology) (es:path) : string = 
-  intercalate 
-    (fun e -> 
-     Printf.sprintf "(%s,%s)" 
-                    (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_src e))))
-                    (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_dst e))))) ", "  es
+let dump_edges (t:topology) (es:path) : string =
+  intercalate
+    (fun e ->
+     Printf.sprintf "(%s,%s)"
+          (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_src e))))
+          (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_dst e))))) ", "  es
 
-type demand = float with sexp
+type demand = float [@@ deriving sexp]
 
-type probability = float with sexp
+type probability = float [@@ deriving sexp]
 
-type congestion = float with sexp
+type congestion = float [@@ deriving sexp]
 
-type latency = float with sexp
+type latency = float [@@ deriving sexp]
 
-type throughput = float with sexp
+type throughput = float [@@ deriving sexp]
 
-type failure = EdgeSet.t with sexp
+type failure = EdgeSet.t [@@ deriving sexp]
 
 module PathOrd = struct
-  type t = path with sexp
+  type t = path [@@ deriving sexp]
   let compare = Pervasives.compare
 end
 
@@ -64,47 +64,47 @@ module Tag = Int
 module TagsMap =
   Map.Make
     (struct
-      type t = Tag.t list with sexp
+      type t = Tag.t list [@@ deriving sexp]
       let compare = Pervasives.compare (* List.compare ~cmp:(Pervasives.compare) *)
     end)
 
 module VertexOrd = struct
-  type t = Topology.vertex with sexp
-  let compare = Pervasives.compare                                      
+  type t = Topology.vertex [@@ deriving sexp]
+  let compare = Pervasives.compare
 end
-		  
+
 module VertexMap = Map.Make(VertexOrd)
-		  
-(* TODO(rjs): Give a better name. VertexPair map? *)                        
+
+(* TODO(rjs): Give a better name. VertexPair map? *)
 module SrcDstOrd = struct
-  type t = Topology.vertex * Topology.vertex with sexp
-  let compare = Pervasives.compare                                      
+  type t = Topology.vertex * Topology.vertex [@@ deriving sexp]
+  let compare = Pervasives.compare
 end
-                     
+
 module SrcDstMap = Map.Make(SrcDstOrd)
 
 
-type node_map = Node.t StringMap.t			   
-			   
+type node_map = Node.t StringMap.t
+
 module EdgeOrd = struct
-  type t = edge with sexp
-  let compare = Pervasives.compare                                      
+  type t = edge [@@ deriving sexp]
+  let compare = Pervasives.compare
 end
 
-module EdgeMap = Map.Make(EdgeOrd)                     
+module EdgeMap = Map.Make(EdgeOrd)
 
-type uid = int with sexp			
+type uid = int [@@ deriving sexp]
 
 module UidOrd = struct
-  type t = uid with sexp
-  let compare = Pervasives.compare                    
+  type t = uid [@@ deriving sexp]
+  let compare = Pervasives.compare
 end
-		      
+
 module UidMap = Map.Make(UidOrd)
-		      
+
 type path_uid_map = uid PathMap.t
-			
-type uid_path_map = (Topology.vertex * Topology.vertex  * path) UidMap.t			
+
+type uid_path_map = (Topology.vertex * Topology.vertex  * path) UidMap.t
 
 type edge_uidlist_map = uid list EdgeMap.t
 
@@ -113,23 +113,23 @@ type edge_uidlist_map = uid list EdgeMap.t
 type flow = float EdgeMap.t
 
 (* A mc_flow, short for multi-commodity flow, is given by a collection
-   of source-destination pairs and a flow for each of them. *) 
+   of source-destination pairs and a flow for each of them. *)
 type mc_flow = flow SrcDstMap.t
 
 (* A flow_decomp is a flow decomposed into paths. *)
 type flow_decomp = probability PathMap.t
 
-(* Keeps track of paths to their congestion *)			       
-type overhead = congestion PathMap.t 
+(* Keeps track of paths to their congestion *)
+type overhead = congestion PathMap.t
 
 type demands = demand SrcDstMap.t
-                           
-(* A routing scheme specifies a flow_decomp for each source-destination pair. *)                        
+
+(* A routing scheme specifies a flow_decomp for each source-destination pair. *)
 type scheme = flow_decomp SrcDstMap.t
 
 type configuration = (probability TagsMap.t) SrcDstMap.t
-             
-(* A Routing Scheme is an object that describes a prob distribution over paths. 
+
+(* A Routing Scheme is an object that describes a prob distribution over paths.
    It supports an interface to lets one draw a random sample, and a way to compare
    to other routing schemes, for example, if we want to minimize differences  *)
 
@@ -152,24 +152,24 @@ let sample_dist (path_dist:flow_decomp) : path =
      let i = Random.int bound in
      match List.nth paths i with
      | None -> assert false
-     | Some p -> p  
+     | Some p -> p
   *)
 
 let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
 
 (* The following function is used in Kulfi_Vlb.ml and Kulfi_SemiMcf.ml,
-   and may possibly be useful elsewhere. Not sure that Kulfi_Types is 
+   and may possibly be useful elsewhere. Not sure that Kulfi_Types is
    where it belongs, but it's a convenient place. *)
 
 let add_or_increment_path (fd : flow_decomp) (p : path) (r : probability) : flow_decomp =
   let new_value = match PathMap.find fd p with
   | None -> r
-  | Some prior_value -> prior_value +. r 
+  | Some prior_value -> prior_value +. r
   in
   PathMap.add ~key:p ~data:new_value fd
-       
 
-(* The following stuff was moved from Kulfi_Mcf.ml to here 
+
+(* The following stuff was moved from Kulfi_Mcf.ml to here
    so that it could be used in Kulfi_Ak.ml. It doesn't really
    belong in Kulfi_Types.ml, we should move it somewhere else
    in a future re-factoring of the code. *)
@@ -177,7 +177,7 @@ let add_or_increment_path (fd : flow_decomp) (p : path) (r : probability) : flow
 (* convert to Mbps for input to Gurobi *)
 let cap_divisor = 1000000.
 let demand_divisor = 1000000.
-                       
+
 
 let edge_connects_switches (e:edge) (topo:topology) : bool =
   let src,_ = Topology.edge_src e in
@@ -208,7 +208,7 @@ let configuration_of_scheme (topo:topology) (scm:scheme) (tag_hash: (edge,int) H
                   match path with
                   | [] ->
                      assert false
-                  | _::path' -> 
+                  | _::path' ->
                      let tags =
                        List.filter ~f:(fun x -> x <> 99)
                        (List.map
@@ -220,32 +220,32 @@ let configuration_of_scheme (topo:topology) (scm:scheme) (tag_hash: (edge,int) H
                                 99
                              | Some t ->
                                 t)
-                        ) in 
+                        ) in
                      TagsMap.add acc ~key:tags ~data:prob) in
         SrcDstMap.add acc ~key:(src,dst) ~data:tags)
 
 let bprint_tags (buf:Buffer.t) (tag_dist:probability TagsMap.t) : unit =
-  TagsMap.iter
+  TagsMap.iteri
     tag_dist
     ~f:(fun ~key:tags ~data:prob ->
         Printf.bprintf buf "%d " (Float.to_int (1000.0 *. prob));
         Printf.bprintf buf "%d " (List.length tags);
         List.iter tags (Printf.bprintf buf "%d "))
-            
+
 let bprint_configuration (topo:topology) (bufs:(Topology.vertex,Buffer.t) Hashtbl.t) (conf:configuration) : unit =
-  let dstCount = 
-  SrcDstMap.fold 
+  let dstCount =
+  SrcDstMap.fold
     conf
     ~init:VertexMap.empty
     ~f:(fun ~key:(src, dst) ~data:tag_dist acc ->
-	let count = 
+	let count =
 	  match VertexMap.find acc src with
 	  | None -> 0
           | Some x -> x
         in
      VertexMap.add acc ~key:src ~data:(count+1);
      ) in
-  SrcDstMap.iter
+  SrcDstMap.iteri
     conf
     ~f:(fun ~key:(src,dst) ~data:tag_dist ->
         let buf =
@@ -254,12 +254,12 @@ let bprint_configuration (topo:topology) (bufs:(Topology.vertex,Buffer.t) Hashtb
           | None ->
              let buf = Buffer.create 101 in
              Hashtbl.add_exn bufs src buf;
-             let count = 
+             let count =
                match VertexMap.find dstCount src with
                | None -> 0
                | Some x -> x
              in
-             Printf.bprintf buf "%d " count;  
+             Printf.bprintf buf "%d " count;
              buf in
         Printf.bprintf buf "%lu " (Node.ip (Topology.vertex_to_label topo dst));
         Printf.bprintf buf "%d " (TagsMap.length tag_dist);
@@ -268,7 +268,7 @@ let bprint_configuration (topo:topology) (bufs:(Topology.vertex,Buffer.t) Hashtb
 let print_configuration (topo:topology) (conf:configuration) (time:int) : unit =
   let bufs = Hashtbl.Poly.create () in
   bprint_configuration topo bufs conf;
-  Hashtbl.Poly.iter
+  Hashtbl.Poly.iteri
     bufs
     ~f:(fun ~key:src ~data:buf ->
 	let route_filename = Printf.sprintf "routes/%s_%d" (Frenetic_Packet.string_of_ip (Node.ip (Topology.vertex_to_label topo src))) time in
@@ -282,20 +282,20 @@ let normalize_scheme (s : scheme) (fs: float SrcDstMap.t) : scheme =
   SrcDstMap.fold ~init:(SrcDstMap.empty)
     ~f:(fun ~key:(u,v) ~data:f_decomp acc  ->
       let sum_rate = match SrcDstMap.find fs (u,v) with
-	| None -> 
-	   ( PathMap.fold f_decomp 
+	| None ->
+	   ( PathMap.fold f_decomp
 	       ~init:0.
 	       ~f:(fun ~key:_ ~data:r acc -> acc +. r) )
 	| Some sr -> sr in
        ignore (if (sum_rate < 0.) then failwith "sum_rate leq 0. on flow" else ());
        let default_value = 1.0 /. (Float.of_int (PathMap.length f_decomp) ) in
-       let normalized_f_decomp = 
+       let normalized_f_decomp =
 	 PathMap.fold ~init:(PathMap.empty)
 	   ~f:(fun ~key:path ~data:rate acc ->
-	     let normalized_rate = 
+	     let normalized_rate =
 	       if sum_rate = 0. then
 		 default_value
-	       else 
+	       else
 		 rate /. sum_rate in
 	     PathMap.add ~key:path ~data:normalized_rate acc)
 	     f_decomp in
@@ -310,14 +310,14 @@ let normalize_scheme_opt (s:scheme) : scheme =
 
 let dump_path_prob_set (t:topology) (pps:probability PathMap.t) : string =
   let buf = Buffer.create 101 in
-  PathMap.iter 
-    pps 
+  PathMap.iteri
+    pps
     ~f:(fun ~key:path ~data:prob -> Printf.bprintf buf "[%s] @ %f\n" (dump_edges t path) prob);
   Buffer.contents buf
-       
-let dump_scheme (t:topology) (s:scheme) : string = 
+
+let dump_scheme (t:topology) (s:scheme) : string =
   let buf = Buffer.create 101 in
-  SrcDstMap.iter s ~f:(fun ~key:(v1,v2) ~data:pps ->
+  SrcDstMap.iteri s ~f:(fun ~key:(v1,v2) ~data:pps ->
                        Printf.bprintf buf "%s -> %s :\n  %s\n"
                                       (Node.name (Net.Topology.vertex_to_label t v1))
                                       (Node.name (Net.Topology.vertex_to_label t v2))
@@ -336,7 +336,7 @@ let normalization_recovery (curr_scheme:scheme) (_:topology) (failed_links:failu
       ~f:(fun valid edge ->
         let edge_is_safe = not (EdgeSet.mem failed_links edge) in
         valid && edge_is_safe) in
-    let n_paths = PathMap.filter ~f:(fun ~key:p ~data:_ -> is_path_alive p) paths in
+    let n_paths = PathMap.filteri ~f:(fun ~key:p ~data:_ -> is_path_alive p) paths in
     let total_prob = PathMap.fold n_paths
       ~init:0.0
       ~f:(fun ~key:_ ~data:prob acc -> acc +. prob) in
@@ -344,7 +344,7 @@ let normalization_recovery (curr_scheme:scheme) (_:topology) (failed_links:failu
     let renormalized_paths = PathMap.fold n_paths
       ~init:PathMap.empty
       ~f:(fun ~key:path ~data:prob acc ->
-        let new_prob = if (total_prob = 0.) 
+        let new_prob = if (total_prob = 0.)
                        then 1. /. (Float.of_int (PathMap.length n_paths))
                        else prob /. total_prob in
         PathMap.add ~key:path ~data:new_prob acc) in

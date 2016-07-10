@@ -4,7 +4,7 @@ open Frenetic_Network
 open Net
 open Net.Topology
 
-module PQueue = Core.Heap.Removable
+module PQueue = Core_kernel.Heap.Removable
 
 (* TODO(jnf,rjs): We don't really understand the details of this
 code. But we're trusting that Chris Yu wrote a correct implementation

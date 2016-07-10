@@ -5,12 +5,6 @@ open Kulfi_Types
 open Net
 open Net.Topology
 
-let intercalate f s = function
-  | [] ->
-    ""
-  | h::t ->
-    List.fold_left t ~f:(fun acc x -> acc ^ s ^ f x) ~init:(f h) 
-
 let string_of_vertex (t:topology) v : string =
   Printf.sprintf "%s"
                     (Node.name (Net.Topology.vertex_to_label t v))
@@ -35,24 +29,16 @@ let string_to_edge_map (t:topology) : edge Kulfi_Types.StringMap.t =
   ~init:StringMap.empty
   ~f:(fun acc e -> StringMap.add acc ~key:(string_of_edge t e) ~data:e)
 
-(* dump a list of edges *)
-let dump_edges (t:topology) (es:path) : string =
-  intercalate 
-    (fun e -> 
-     Printf.sprintf "(%s,%s)" 
-                    (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_src e))))
-                    (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_dst e))))) ", "  es
-
 let dump_path_prob_set (t:topology) (pps:probability PathMap.t) : string =
   let buf = Buffer.create 101 in
-  PathMap.iter 
-    pps 
+  PathMap.iteri
+    pps
     ~f:(fun ~key:path ~data:prob -> Printf.bprintf buf "[%s] @ %f\n" (dump_edges t path) prob);
   Buffer.contents buf
 
-let dump_scheme (t:topology) (s:scheme) : string = 
+let dump_scheme (t:topology) (s:scheme) : string =
   let buf = Buffer.create 101 in
-  SrcDstMap.iter s ~f:(fun ~key:(v1,v2) ~data:pps ->
+  SrcDstMap.iteri s ~f:(fun ~key:(v1,v2) ~data:pps ->
                        Printf.bprintf buf "%s -> %s :\n  %s\n"
                                       (Node.name (Net.Topology.vertex_to_label t v1))
                                       (Node.name (Net.Topology.vertex_to_label t v2))
@@ -61,9 +47,9 @@ let dump_scheme (t:topology) (s:scheme) : string =
 
 let dump_demands (t:topology) (d:demands) : string =
   let buf = Buffer.create 101 in
-  SrcDstMap.iter d
-  ~f:(fun ~key:(src,dst) ~data:dem -> 
-    Printf.bprintf buf "(%s,%s) : %f\n" 
+  SrcDstMap.iteri d
+  ~f:(fun ~key:(src,dst) ~data:dem ->
+    Printf.bprintf buf "(%s,%s) : %f\n"
                      (Node.name (Net.Topology.vertex_to_label t src))
                      (Node.name (Net.Topology.vertex_to_label t dst))
   dem;);
@@ -150,7 +136,7 @@ let fair_share_at_edge (capacity:float) (in_flows: float PathMap.t) : (float Pat
           (new_share, spare_cap -. fs, n_rem_flows - 1)) in
   fair_share
 
-  
+
 (* Calculate fair share of flows *)
 let fair_share_at_edge_arr (capacity:float) (in_flows: (edge Array.t * int * float) List.t) : ((edge Array.t * int * float) List.t) =
   let path_dem_list = Array.of_list in_flows in
