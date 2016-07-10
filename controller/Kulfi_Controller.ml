@@ -118,22 +118,22 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
                Core.Std.printf "%s\n" (string_of_stats sw (time,ps))
       end;
       return () in
+
     let dump fn =
       let buf = Buffer.create 101 in
-      Hashtbl.iteri
-	global_state.stats
-	~f:(fun ~key:(sw,pt) ~data:stats ->
-	    List.iter
-	      stats
-	      ~f:(fun (time,ps) ->
-		  Printf.bprintf buf "%s\n" (string_of_stats sw (time,ps))));
+      Hashtbl.iteri global_state.stats
+        ~f:(fun ~key:(sw,pt) ~data:stats ->
+          List.iter stats ~f:(fun (time,ps) ->
+            Printf.bprintf buf "%s\n" (string_of_stats sw (time,ps))));
       Kulfi_Util.write_to_file fn (Buffer.contents buf);
       return () in
+
     let eof () =
       dump (Printf.sprintf "kulfi-controller-%f.txt" (Unix.time ())) >>=
       fun () -> Pervasives.exit 0 in
     let split s =
       List.filter (String.split s ' ') ((<>) "") in
+
     begin
       Core.Std.printf "kulfi> %!";
       Reader.read_line (force Reader.stdin) >>=
@@ -219,25 +219,43 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
     | `Message(_,_,msg) ->
        return ()
 
-let initial_scheme init_str topo ic hm : scheme =
-  match init_str with
-  | None -> SrcDstMap.empty
-  | Some "mcf" ->
-     let d = next_demand ic hm in
-     Kulfi_Routing.Mcf.solve topo d
-  | Some "vlb" ->
-     let d = next_demand ic hm in
-     Kulfi_Routing.Vlb.solve topo d
-  | Some "raeke" ->
-     let d = next_demand ic hm in
-     Kulfi_Routing.Raeke.solve topo d
-  | Some "ecmp" ->
-     let d = next_demand ic hm in
-     Kulfi_Routing.Ecmp.solve topo d
-  | Some _ -> failwith  "Unrecognized initialization scheme"
+  let initial_scheme init_str topo ic hm : scheme =
+    match init_str with
+    | None -> SrcDstMap.empty
+    | Some "mcf" ->
+       let d = next_demand ic hm in
+       Kulfi_Routing.Mcf.solve topo d
+    | Some "vlb" ->
+       let d = next_demand ic hm in
+       Kulfi_Routing.Vlb.solve topo d
+    | Some "raeke" ->
+       let d = next_demand ic hm in
+       Kulfi_Routing.Raeke.solve topo d
+    | Some "ecmp" ->
+       let d = next_demand ic hm in
+       Kulfi_Routing.Ecmp.solve topo d
+    | Some _ -> failwith  "Unrecognized initialization scheme"
 
+  (* Print flow mods to be installed *)
+  let dump_flow_mods (sw_flow_map : (switchId, flowMod list) Hashtbl.t) =
+    Hashtbl.iteri sw_flow_map
+        ~f:(fun ~key:sw ~data:flows ->
+          Kulfi_Types.intercalate Frenetic_OpenFlow0x01.FlowMod.to_string "\n" flows
+          |> Core.Std.printf "%d : %s\n" (Int64.to_int_exn sw))
 
-  let start topo_fn predict_fn host_fn init_str () =
+  (* Start controller CLI loop and install flow rules *)
+  let start_controller sw_flows_map () =
+      Core.Std.eprintf "[Kulfi: starting controller]\n%!";
+      Controller.init 6633;
+      Core.Std.eprintf "[Kulfi: running...]\n%!";
+      don't_wait_for (cli ());
+      don't_wait_for (port_stats_loop ());
+      don't_wait_for (Pipe.iter Controller.events (handler sw_flows_map));
+      don't_wait_for (Pipe.iter msgs send);
+      ()
+
+  (* Source routing using a stack of tags (one per hop) for a path *)
+  let start_src topo_fn predict_fn host_fn init_str () =
     (* Parse topology *)
     let topo = Frenetic_Network.Net.Parse.from_dotfile topo_fn in
     (* Create fabric *)
@@ -249,22 +267,54 @@ let initial_scheme init_str topo ic hm : scheme =
     let _ = Solver.initialize scheme in
     let rec simulate i =
       try
-	let predict = next_demand predict_traffic_ic predict_host_map in
-	let scheme' = Solver.solve topo predict in
-	print_configuration topo (configuration_of_scheme topo scheme' tag_hash) i;
-	simulate (i+1)
+        let predict = next_demand predict_traffic_ic predict_host_map in
+        let scheme' = Solver.solve topo predict in
+        print_configuration topo (source_routing_configuration_of_scheme topo scheme' tag_hash) i;
+        simulate (i+1)
       with _ ->
-	() in
+        () in
     let open Deferred in
     (* Main code *)
     Core.Std.eprintf "[Kulfi: generating configurations]\n%!";
     simulate 0;
-    Core.Std.eprintf "[Kulfi: starting controller]\n%!";
-    Controller.init 6633;
-    Core.Std.eprintf "[Kulfi: running...]\n%!";
-    don't_wait_for (cli ());
-    don't_wait_for (port_stats_loop ());
-    don't_wait_for (Pipe.iter Controller.events (handler flow_hash));
-    don't_wait_for (Pipe.iter msgs send);
-    ()
+    (*dump_flow_mods flow_hash;*)
+    start_controller flow_hash ()
+
+
+  (* Route using single tag per path *)
+  let start_path topo_fn predict_fn host_fn init_str () =
+    (* Parse topology *)
+    let topo = Frenetic_Network.Net.Parse.from_dotfile topo_fn in
+    (* Open predicted demands *)
+    let (predict_host_map, predict_traffic_ic) = open_demands predict_fn host_fn topo in
+    (* Helper to generate host configurations *)
+    let scheme = initial_scheme init_str topo predict_traffic_ic predict_host_map in
+    let _ = Solver.initialize scheme in
+    let rec simulate i path_tag_map =
+      try
+        let predict = next_demand predict_traffic_ic predict_host_map in
+        let scheme' = Solver.solve topo predict in
+        let path_tag_map = Kulfi_Paths.add_paths_from_scheme scheme' path_tag_map in
+        print_configuration topo (path_routing_configuration_of_scheme topo scheme' path_tag_map) i;
+        simulate (i+1) path_tag_map
+      with _ ->
+        path_tag_map in
+    let open Deferred in
+    (* Main code *)
+    Core.Std.eprintf "[Kulfi: generating configurations]\n%!";
+    (* Generate schemes for each iteration and create a tag for every path *)
+    let path_tag_map = simulate 0 PathMap.empty in
+    (* translate path-tag map into flow mods for each switch *)
+    let sw_flows_map = Kulfi_Paths.create_sw_flows_map topo path_tag_map in
+    (*dump_flow_mods sw_flows_map;*)
+    start_controller sw_flows_map ()
+
+
+  (* select whether to do source routing or not and start controller *)
+  let start topo_fn predict_fn host_fn init_str src_routing () =
+    if src_routing then
+      start_src topo_fn predict_fn host_fn init_str ()
+    else
+      start_path topo_fn predict_fn host_fn init_str ()
+
 end

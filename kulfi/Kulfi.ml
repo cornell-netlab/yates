@@ -4,23 +4,24 @@ open Command
 open Kulfi_Types
 
 type solver_type = | Mcf | Vlb | Ecmp | Ksp | Spf | Raeke  | Ak | Smcf
-       
-let main algo topo_fn actual_fn predicted_fn hosts_fn init_str () =
-  match algo with 
-  | Mcf -> let module C = Kulfi_Controller.Make(Kulfi_Mcf) in C.start topo_fn actual_fn hosts_fn init_str ()
-  | Vlb -> let module C = Kulfi_Controller.Make(Kulfi_Vlb) in C.start topo_fn actual_fn hosts_fn init_str ()
-  | Ecmp -> let module C = Kulfi_Controller.Make(Kulfi_Ecmp) in C.start topo_fn actual_fn hosts_fn init_str ()  
-  | Ksp -> let module C = Kulfi_Controller.Make(Kulfi_Ksp) in C.start topo_fn actual_fn hosts_fn init_str ()  
-  | Spf -> let module C = Kulfi_Controller.Make(Kulfi_Spf) in C.start topo_fn actual_fn hosts_fn init_str ()
-  | Ak -> let module C = Kulfi_Controller.Make(Kulfi_Ak) in C.start topo_fn actual_fn hosts_fn init_str ()
-  | Smcf -> let module C = Kulfi_Controller.Make(Kulfi_SemiMcf) in C.start topo_fn actual_fn hosts_fn init_str ()
-  | Raeke -> let module C = Kulfi_Controller.Make(Kulfi_Raeke) in C.start topo_fn actual_fn hosts_fn init_str ()
-								    
+
+let main algo topo_fn actual_fn predicted_fn hosts_fn init_str src_routing () =
+  match algo with
+  | Mcf -> let module C = Kulfi_Controller.Make(Kulfi_Mcf) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
+  | Vlb -> let module C = Kulfi_Controller.Make(Kulfi_Vlb) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
+  | Ecmp -> let module C = Kulfi_Controller.Make(Kulfi_Ecmp) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
+  | Ksp -> let module C = Kulfi_Controller.Make(Kulfi_Ksp) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
+  | Spf -> let module C = Kulfi_Controller.Make(Kulfi_Spf) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
+  | Ak -> let module C = Kulfi_Controller.Make(Kulfi_Ak) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
+  | Smcf -> let module C = Kulfi_Controller.Make(Kulfi_SemiMcf) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
+  | Raeke -> let module C = Kulfi_Controller.Make(Kulfi_Raeke) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
+
 let kulfi_main_cmd =
   Command.basic
     ~summary:"Run the Kulfi SDN controller"
     Command.Spec.(
       empty
+      +> flag "-src" no_arg ~doc:" use source routing"
       +> flag "-ak" no_arg ~doc:" run ak"
       +> flag "-ecmp" no_arg ~doc:" run ecmp"
       +> flag "-ksp" no_arg ~doc:" run ksp"
@@ -37,20 +38,22 @@ let kulfi_main_cmd =
       +> anon ("predicted-file" %: string)
       +> anon ("host-file" %: string)
       )
-    (fun (ak:bool)
-	 (ecmp:bool)
-	 (ksp:bool)
-	 (mcf:bool)
-	 (spf:bool)
-	 (vlb:bool)
-	 (smcf:bool)
-	 (raeke:bool)
-	 (init_str:string option)
-   (budget:int option)
-	 (topo_fn:string)
-	 (actual_fn:string)
-	 (predicted_fn:string)
-	 (host_fn:string) () ->
+    (fun
+      (src:bool)
+      (ak:bool)
+      (ecmp:bool)
+      (ksp:bool)
+      (mcf:bool)
+      (spf:bool)
+      (vlb:bool)
+      (smcf:bool)
+      (raeke:bool)
+      (init_str:string option)
+      (budget:int option)
+      (topo_fn:string)
+      (actual_fn:string)
+      (predicted_fn:string)
+      (host_fn:string) () ->
      ignore(Kulfi_Globals.budget := match budget with | None -> Int.max_value | Some x -> x);
      let algorithm =
        if ak then Spf
@@ -62,8 +65,8 @@ let kulfi_main_cmd =
        else if smcf then Smcf
        else if raeke then Raeke
        else assert false in
-     main algorithm topo_fn actual_fn predicted_fn host_fn init_str () )
+     main algorithm topo_fn actual_fn predicted_fn host_fn init_str src () )
 
-let () = 
+let () =
   Command.run kulfi_main_cmd;
   never_returns(Scheduler.go ())
