@@ -193,36 +193,39 @@ let capacity_of_edge topo edge =
   if edge_connects_switches edge topo then cap
   else 100. *. cap
 
-let configuration_of_scheme (topo:topology) (scm:scheme) (tag_hash: (edge,int) Hashtbl.t) : configuration =
-  SrcDstMap.fold
-    scm
+let source_routing_configuration_of_scheme (topo:topology) (scm:scheme) (tag_hash: (edge,int) Hashtbl.t) : configuration =
+  SrcDstMap.fold scm
     ~init:SrcDstMap.empty
     ~f:(fun ~key:(src,dst) ~data:paths acc ->
         if src = dst then acc
         else
-          let tags =
-            PathMap.fold
-              paths
-              ~init:TagsMap.empty
-              ~f:(fun ~key:path ~data:prob acc ->
-                  match path with
-                  | [] ->
-                     assert false
-                  | _::path' ->
-                     let tags =
-                       List.filter ~f:(fun x -> x <> 99)
-                       (List.map
-                         path'
-                         ~f:(fun edge ->
-                             match Hashtbl.find tag_hash edge with
-                             | None ->
-                                Printf.printf "Couldn't find %s\n" (dump_edges topo [edge]);
-                                99
-                             | Some t ->
-                                t)
-                        ) in
-                     TagsMap.add acc ~key:tags ~data:prob) in
-        SrcDstMap.add acc ~key:(src,dst) ~data:tags)
+          let tags = PathMap.fold paths ~init:TagsMap.empty
+            ~f:(fun ~key:path ~data:prob acc ->
+              match path with
+                | [] -> assert false
+                | _::path' ->
+                  let tags = List.filter ~f:(fun x -> x <> 99)
+                    (List.map path' ~f:(fun edge ->
+                      match Hashtbl.find tag_hash edge with
+                        | None ->
+                          Printf.printf "Couldn't find %s\n" (dump_edges topo [edge]);
+                          99
+                        | Some t -> t)) in
+                  TagsMap.add acc ~key:tags ~data:prob) in
+          SrcDstMap.add acc ~key:(src,dst) ~data:tags)
+
+let path_routing_configuration_of_scheme (topo:topology) (scm:scheme) (path_tag_map: int PathMap.t) : configuration =
+  SrcDstMap.fold scm
+    ~init:SrcDstMap.empty
+    ~f:(fun ~key:(src,dst) ~data:path_prob_map acc ->
+        if src = dst then acc
+        else
+          let tag_prob_map = PathMap.fold path_prob_map ~init:TagsMap.empty
+            ~f:(fun ~key:path ~data:prob acc ->
+              let tag = PathMap.find_exn path_tag_map path in
+              TagsMap.add acc ~key:([tag]) ~data:prob) in
+          SrcDstMap.add acc ~key:(src,dst) ~data:tag_prob_map)
+
 
 let bprint_tags (buf:Buffer.t) (tag_dist:probability TagsMap.t) : unit =
   TagsMap.iteri
