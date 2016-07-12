@@ -13,8 +13,19 @@ open Kulfi_Globals
 open Kulfi_Util
 
 let demand_envelope = ref SrcDstMap.empty
+type network_iter_state = {
+  ingress_link_traffic  : ((edge Array.t * int * float) list) EdgeMap.t [@default EdgeMap.empty];
+  delivered             : float SrcDstMap.t                   [@default SrcDstMap.empty];
+  latency               : (float LatencyMap.t) SrcDstMap.t    [@default SrcDstMap.empty];
+  utilization           : (float list) EdgeMap.t              [@default EdgeMap.empty];
+  scheme                : scheme    [@default SrcDstMap.empty];
+  failures              : failure   [@default EdgeSet.empty];
+  failure_drop          : float     [@default 0.0];
+  congestion_drop       : float     [@default 0.0];
+  real_tm               : demands   [@default SrcDstMap.empty];
+  predict_tm            : demands   [@default SrcDstMap.empty];
+} [@@deriving make]
 
-(* create a scheme by running solver over all failures and aggregating the schemes *)
 let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
   (* consider each edge can fail and compute the corresponding scheme *)
   let hosts = get_hosts topo in
@@ -60,7 +71,9 @@ let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
             | Some x -> x in
           if (PathMap.is_empty f_pp_map) then
             begin
-              Printf.printf "sd: (%s, %s) Edge: %s: Scheme %s" (string_of_vertex topo s) (string_of_vertex topo d) (string_of_edge topo e) (dump_scheme topo edge_scheme);
+              Printf.printf "sd: (%s, %s) Edge: %s: Scheme %s"
+                (string_of_vertex topo s) (string_of_vertex topo d)
+                (string_of_edge topo e) (dump_scheme topo edge_scheme);
               assert false
             end
           else
@@ -225,17 +238,16 @@ let solve_within_budget algorithm topo predict actual: (scheme * float) =
   let budget' = match algorithm with
     | OptimalMcf -> Int.max_value / 100
     | _ -> !Kulfi_Globals.budget in
-	let sch = match algorithm with
+  let sch = match algorithm with
     | OptimalMcf -> prune_scheme topo (solve topo actual) budget'
     | _ -> prune_scheme topo (solve topo predict) budget' in
   stop at;
   assert (probabilities_sum_to_one sch);
   sch, (get_time_in_seconds at)
 
-let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) =
+let congestion_of_paths (t:topology) (d:demands) (s:scheme) : (float EdgeMap.t) =
   let sent_on_each_edge =
-    SrcDstMap.fold
-      s
+    SrcDstMap.fold s
       ~init:EdgeMap.empty
       ~f:(fun ~key:(src,dst) ~data:paths acc ->
           PathMap.fold paths
@@ -250,8 +262,7 @@ let congestion_of_paths (s:scheme) (t:topology) (d:demands) : (float EdgeMap.t) 
                         | Some x -> x in
                       match EdgeMap.find acc e with
                       | None -> EdgeMap.add ~key:e ~data:(demand *. prob) acc
-                      | Some x ->  EdgeMap.add ~key:e ~data:((demand *. prob) +. x) acc)))
-  in
+                      | Some x ->  EdgeMap.add ~key:e ~data:((demand *. prob) +. x) acc))) in
   EdgeMap.fold
     ~init:EdgeMap.empty
     ~f:(fun ~key:e ~data:amount_sent acc ->
@@ -262,12 +273,11 @@ let get_churn (old_scheme:scheme) (new_scheme:scheme) : float =
   let get_path_sets (s:scheme) : PathSet.t =
     SrcDstMap.fold
       ~init:PathSet.empty
-      ~f:(fun ~key:_
-	      ~data:d acc ->
-	  PathMap.fold
-	    ~init:acc
-	    ~f:(fun ~key:p ~data:_ acc ->
-		PathSet.add acc p ) d) s in
+      ~f:(fun ~key:_ ~data:d acc ->
+          PathMap.fold
+            ~init:acc
+            ~f:(fun ~key:p ~data:_ acc ->
+                PathSet.add acc p ) d) s in
   let set1 = get_path_sets old_scheme in
   let set2 = get_path_sets new_scheme in
   let union = PathSet.union set1 set2 in
@@ -279,12 +289,11 @@ let get_churn_string (topo:topology) (old_scheme:scheme) (new_scheme:scheme) : f
   let get_path_sets (s:scheme) : StringSet.t =
     SrcDstMap.fold
       ~init:StringSet.empty
-      ~f:(fun ~key:_
-	      ~data:d acc ->
-	  PathMap.fold
-	    ~init:acc
-	    ~f:(fun ~key:p ~data:_ acc ->
-		StringSet.add acc (dump_edges topo p)) d) s in
+      ~f:(fun ~key:_ ~data:d acc ->
+          PathMap.fold
+            ~init:acc
+            ~f:(fun ~key:p ~data:_ acc ->
+              StringSet.add acc (dump_edges topo p)) d) s in
   let set1 = get_path_sets old_scheme in
   let set2 = get_path_sets new_scheme in
   let union = StringSet.union set1 set2 in
@@ -298,57 +307,54 @@ let get_churn_string (topo:topology) (old_scheme:scheme) (new_scheme:scheme) : f
 let get_path_prob_demand_map (s:scheme) (d:demands) : (probability * demand) PathMap.t =
   (* (Probability, net s-d demand) for each path *)
   SrcDstMap.fold s
-  ~init:PathMap.empty
-  ~f:(fun ~key:(src,dst) ~data:paths acc ->
-    let demand = match SrcDstMap.find d (src,dst) with
+    ~init:PathMap.empty
+    ~f:(fun ~key:(src,dst) ~data:paths acc ->
+      let demand = match SrcDstMap.find d (src,dst) with
                  | None -> 0.0
                  | Some x -> x in
-    PathMap.fold
-    paths
-    ~init:acc
-    ~f:(fun ~key:path ~data:prob acc ->
-      match PathMap.find acc path with
-              | None ->  PathMap.add ~key:path ~data:(prob, demand) acc
-              | Some x -> if path <> [] then failwith "Duplicate paths should not be present"
-                          else acc))
+      PathMap.fold paths
+        ~init:acc
+        ~f:(fun ~key:path ~data:prob acc ->
+          match PathMap.find acc path with
+            | None ->  PathMap.add ~key:path ~data:(prob, demand) acc
+            | Some x -> if path <> [] then failwith "Duplicate paths should not be present"
+                        else acc))
 
 (* Get a map from path to it's probability and src-dst demand *)
 let get_path_prob_demand_arr (s:scheme) (d:demands) =
   (* (Probability, net s-d demand) for each path *)
   SrcDstMap.fold s
-  ~init:[]
-  ~f:(fun ~key:(src,dst) ~data:paths acc ->
-    let demand = match SrcDstMap.find d (src,dst) with
+    ~init:[]
+    ~f:(fun ~key:(src,dst) ~data:paths acc ->
+      let demand = match SrcDstMap.find d (src,dst) with
                  | None -> 0.0
                  | Some x -> x in
-    PathMap.fold
-    paths
-    ~init:acc
-    ~f:(fun ~key:path ~data:prob acc ->
-            let arr_path = Array.of_list path in
-    (arr_path, 0, (prob, demand))::acc))
+      PathMap.fold paths
+        ~init:acc
+        ~f:(fun ~key:path ~data:prob acc ->
+          let arr_path = Array.of_list path in
+          (arr_path, 0, (prob, demand))::acc))
 
 
 (* Sum througput over all src-dst pairs *)
 let get_total_tput (sd_tput:throughput SrcDstMap.t) : throughput =
-  SrcDstMap.fold
-  sd_tput
-  ~init:0.0
-  ~f:(fun ~key:_ ~data:delivered acc -> acc +. delivered)
+  SrcDstMap.fold sd_tput
+    ~init:0.0
+    ~f:(fun ~key:_ ~data:delivered acc -> acc +. delivered)
 
 (* Aggregate latency-tput over all sd-pairs *)
 let get_aggregate_latency (sd_lat_tput_map_map:(throughput LatencyMap.t) SrcDstMap.t) (num_iter:int): (throughput LatencyMap.t) =
   SrcDstMap.fold sd_lat_tput_map_map
-  ~init:LatencyMap.empty
-  ~f:(fun ~key:_ ~data:lat_tput_map acc ->
-    LatencyMap.fold lat_tput_map
-    ~init:acc
-    ~f:(fun ~key:latency ~data:tput acc ->
-      let prev_agg_tput = match LatencyMap.find acc latency with
-                      | None -> 0.0
-                      | Some x -> x in
-      let agg_tput = prev_agg_tput +. (tput /. (Float.of_int num_iter)) in
-      LatencyMap.add ~key:latency ~data:(agg_tput) acc))
+    ~init:LatencyMap.empty
+    ~f:(fun ~key:_ ~data:lat_tput_map acc ->
+      LatencyMap.fold lat_tput_map
+      ~init:acc
+      ~f:(fun ~key:latency ~data:tput acc ->
+        let prev_agg_tput = match LatencyMap.find acc latency with
+                        | None -> 0.0
+                        | Some x -> x in
+        let agg_tput = prev_agg_tput +. (tput /. (Float.of_int num_iter)) in
+        LatencyMap.add ~key:latency ~data:(agg_tput) acc))
 
 (* Global recovery: recompute routing scheme after removing failed links *)
 let global_recovery (failed_links:failure) (predict:demands) (actual:demands) (algorithm:solver_type) (topo:topology) : (scheme * float) =
@@ -375,8 +381,8 @@ let get_src_dst_for_path (p:path) =
   if p = [] then None
   else
     let first_link = match List.hd p with
-                        | None -> failwith "Empty path"
-                        | Some x -> x in
+                      | None -> failwith "Empty path"
+                      | Some x -> x in
     let last_link = list_last p in
     let src,_ = Net.Topology.edge_src first_link in
     let dst,_ = Net.Topology.edge_dst last_link in
@@ -395,9 +401,8 @@ let get_src_dst_for_path_arr (p:edge Array.t) =
 
 (* Capacity of a link in a given failure scenario *)
 let curr_capacity_of_edge (topo:topology) (link:edge) (fail:failure) : float =
-  if EdgeSet.mem fail link
-    then 0.0
-    else capacity_of_edge topo link
+  if EdgeSet.mem fail link then 0.0
+  else capacity_of_edge topo link
 
 (* check all-pairs connectivity after failure *)
 let check_connectivity_after_failure (topo:topology) (fail:failure) : bool =
@@ -409,7 +414,7 @@ let check_connectivity_after_failure (topo:topology) (fail:failure) : bool =
   all_pairs_connectivity topo' hosts spf_scheme
 
 
-let rec get_util_based_failure_scenario (topo:topology) (utils: congestion EdgeMap.t) (alpha:float) : failure =
+let rec get_util_based_failure_scenario (topo:topology) (alpha:float) (utils: congestion EdgeMap.t) : failure =
   (* failure prob is proportional to congestion ^ alpha *)
   let edge_utils = List.filter (EdgeMap.to_alist utils) (* don't fail links connecting hosts *)
     ~f:(fun (e,_) -> edge_connects_switches e topo) in
@@ -431,35 +436,45 @@ let rec get_util_based_failure_scenario (topo:topology) (utils: congestion EdgeM
             | None -> assert false in
     let fail = EdgeSet.add (EdgeSet.singleton e) e' in
     if check_connectivity_after_failure topo fail then fail
-    else get_util_based_failure_scenario topo utils alpha
+    else get_util_based_failure_scenario topo alpha utils
 
 
-let rec get_scheme_max_util_failure (topo:topology) (utils: congestion EdgeMap.t) : failure =
-  let edge_utils = List.filter (EdgeMap.to_alist utils) (* don't fail links connecting hosts *)
-    ~f:(fun (e,_) -> edge_connects_switches e topo) in
-	let sorted_edge_utils = List.sort ~cmp:(fun x y -> Float.compare (snd y) (snd x)) edge_utils in
-  (*let _ = List.iter sorted_edge_utils ~f:(fun (e,c) -> Printf.printf "%s : %f\n%!" (string_of_edge topo e) c;) in*)
-  let (e,_) = match List.hd sorted_edge_utils with
-      | Some x -> x
-      | None -> failwith "empty utilization list" in
-  let e' = match Topology.inverse_edge topo e with
+let rec get_max_util_failure (topo:topology) (num_fail:int) (utils: congestion EdgeMap.t): failure =
+  let reverse_edge e = match Topology.inverse_edge topo e with
           | Some x -> x
           | None -> assert false in
-  let fail = EdgeSet.add (EdgeSet.singleton e) e' in
-  if check_connectivity_after_failure topo fail then fail
+  (* don't fail links connecting hosts *)
+  let edge_utils = List.filter
+      (EdgeMap.to_alist utils)
+      ~f:(fun (e,_) -> edge_connects_switches e topo) in
+  let sorted_edge_utils = List.sort
+    ~cmp:(fun x y -> Float.compare (snd y) (snd x))
+    edge_utils in
+  let max_util_links,_ =
+    list_first_n sorted_edge_utils num_fail
+    |> split_alist in
+  let fail_links =
+    List.fold_left max_util_links
+      ~init:max_util_links
+      ~f:(fun acc e -> (reverse_edge e)::acc)
+    |> EdgeSet.of_list in
+  if check_connectivity_after_failure topo fail_links then fail_links
   else
-    let rest_utils = EdgeMap.remove utils e in
-    get_scheme_max_util_failure topo rest_utils
+    let tail_utils =
+      List.hd_exn sorted_edge_utils
+      |> fst
+      |> EdgeMap.remove utils in
+    get_max_util_failure topo num_fail tail_utils
 
 let get_spf_util_based_failure (topo:topology) (actual:demands) (alpha:float) : failure =
-  let spf_scheme = Kulfi_Routing.Spf.solve topo SrcDstMap.empty in
-  let exp_utils = (congestion_of_paths spf_scheme topo actual) in
-  get_util_based_failure_scenario topo exp_utils alpha
+  Kulfi_Routing.Spf.solve topo SrcDstMap.empty
+    |> congestion_of_paths topo actual
+    |> get_util_based_failure_scenario topo alpha
 
-let get_spf_max_util_link (topo:topology) (actual:demands) : failure =
-  let spf_scheme = Kulfi_Routing.Spf.solve topo SrcDstMap.empty in
-  let exp_utils = (congestion_of_paths spf_scheme topo actual) in
-  get_scheme_max_util_failure topo exp_utils
+let get_spf_max_util_link (topo:topology) (actual:demands) (num_fail:int) : failure =
+  Kulfi_Routing.Spf.solve topo SrcDstMap.empty
+    |> congestion_of_paths topo actual
+    |> get_max_util_failure topo num_fail
 
 (* get a random failure of n edges*)
 let rec get_random_failure (topo:topology) (num_fail:int) : failure =
@@ -502,10 +517,10 @@ let rec get_test_failure_scenario (topo:topology) (actual:demands) (iter_pos:flo
   (Node.name (Net.Topology.vertex_to_label topo d))
   (PathMap.fold path ~init:10000 ~f:(fun ~key:p ~data:_ acc -> List.length p))) spf_scheme;*)
 
-  let exp_utils = (congestion_of_paths spf_scheme topo actual) in
+  let exp_utils = (congestion_of_paths topo actual spf_scheme) in
   let edge_utils = List.filter (EdgeMap.to_alist exp_utils) (* don't fail links connecting hosts *)
     ~f:(fun (e,_) -> edge_connects_switches e topo) in
-	let sorted_edge_utils = List.sort ~cmp:(fun x y -> Float.compare (snd y) (snd x)) edge_utils in
+  let sorted_edge_utils = List.sort ~cmp:(fun x y -> Float.compare (snd y) (snd x)) edge_utils in
   (*let _ = List.iter sorted_edge_utils ~f:(fun (e,c) -> Printf.printf "%s : %f\n%!" (string_of_edge topo e) c;) in*)
   let f_sel_pos = ((Float.of_int (List.length sorted_edge_utils - 1))) *. iter_pos in
   let sel_pos = Int.of_float (Float.round_down f_sel_pos) in
@@ -550,20 +565,21 @@ let count_paths_through_edge (s:scheme) : (int EdgeMap.t) =
                 | Some x -> x in
         EdgeMap.add ~key:edge ~data:(c+1) acc)))
 
-let get_failure_scenarios (topo:topology) (demand_file:string) (host_file:string) (iters:int) (number_failures:int) (scale:float) : (EdgeSet.t List.t) =
+let get_failure_scenarios (topo:topology) (demand_file:string) (host_file:string) (iters:int) (num_failures:int) (scale:float) : (EdgeSet.t List.t) =
   let num_tm = min iters (List.length (In_channel.read_lines demand_file)) in
   let (demand_host_map, demand_ic) = open_demands demand_file host_file topo in
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
-  let iterations = range 2 num_tm in
+  let fail_start_iter = 2 in
+  let iterations = range fail_start_iter num_tm in
   let failure_scenarios = List.rev(List.fold_left iterations
     ~init:[EdgeSet.empty; EdgeSet.empty]
     ~f:(fun acc n ->
-		  let actual = next_demand ~scale:scale demand_ic demand_host_map in
+      let actual = next_demand ~scale:scale demand_ic demand_host_map in
       let failing_edges =
-      (* get_scheme_max_util_link topo actual in*)
-      (* get_util_based_failure_scenario topo exp_congestions in*)
-      (* get_spf_util_based_failure topo actual exp_congestions in*)
-      get_test_failure_scenario topo actual ((Float.of_int (n-2)) /. (Float.of_int num_tm)) number_failures in
+      (*get_spf_max_util_link topo actual num_failures in*)
+      (* get_util_based_failure_scenario topo num_failures iexp_congestions n*)
+      (*get_spf_util_based_failure topo actual exp_congestions num_failures in*)
+      get_test_failure_scenario topo actual ((Float.of_int (n - fail_start_iter)) /. (Float.of_int num_tm)) num_failures in (*NOTE TODO Change back to this *)
       (*Printf.printf "Selected failure: %s\n%!" (dump_edges topo (EdgeSet.elements failing_edges));*)
       failing_edges::acc)) in
   close_demands demand_ic;
@@ -622,6 +638,7 @@ let pick_flash_sinks (topo:topology) (iters:int) =
   List.fold_left (range 0 iters) ~init:[]
   ~f:(fun acc n ->
     let selected = match List.nth hosts (n % num_hosts) with
+    (*let selected = match List.nth hosts 4 with (*NOTE TODO: selecting h5. change back ^^^^^^*)*)
       | None -> assert false
       | Some x -> x in
     selected::acc)
@@ -673,33 +690,37 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   agg_dem := sum_demands dem;
   let per_src_flash_factor = flash_ba *. !agg_dem /. (total_flow_to_sink flash_sink topo dem) /. (Float.of_int (List.length (get_hosts topo))) in
   if is_flash then Printf.printf "\t\t\t\t\tSink: %s\r" (string_of_vertex topo flash_sink);
-  let _,delivered_map,lat_tput_map_map,link_utils,final_scheme,_,fail_drop,cong_drop,_,_=
+  let final_network_state =
   List.fold_left iterations
-    (* ingress link traffic, sd-delivered, sd-latency-tput-map-map, utilization on each edge, scheme, failure, fail_drop, cong_drop *)
-    ~init:(EdgeMap.empty, SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, start_scheme, EdgeSet.empty, 0.0, 0.0, dem, predict)
+    ~init:(make_network_iter_state ~scheme:start_scheme ~real_tm:dem ~predict_tm:predict ())
     ~f:(fun current_state iter ->
       (* begin iteration - time *)
       Printf.printf "\t\t\t [Time : %3d]\r%!" (iter - steady_state_time);
-      let (in_traffic, curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_scheme, curr_failed_links, curr_fail_drop, curr_cong_drop, actual_t, predict_t) = current_state in
 
       (* Reset stats when steady state is reached *)
-      let curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop =
+      let current_state =
         if iter = steady_state_time then
           begin
             agg_dem := 0.;
             agg_sink_dem := 0.;
-            (SrcDstMap.empty, SrcDstMap.empty, EdgeMap.empty, 0.0, 0.0)
+            { current_state with
+                delivered       = SrcDstMap.empty;
+                latency         = SrcDstMap.empty;
+                utilization     = EdgeMap.empty;
+                failure_drop    = 0.0;
+                congestion_drop = 0.0; }
           end
         else
-          (curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop) in
+          current_state in
 
       (* introduce failures *)
-      let failed_links = if iter = failure_time then
-        begin
-          ignore(Printf.printf "\t\t\t\t\tFail %s\r" (dump_edges topo (EdgeSet.elements fail_edges)););
-          fail_edges
-        end
-        else curr_failed_links in
+      let failed_links =
+        if iter = failure_time then
+          begin
+            Printf.printf "\t\t\t\t\tFail %s\r" (dump_edges topo (EdgeSet.elements fail_edges));
+            fail_edges
+          end
+        else current_state.failures in
 
       (* update tms and scheme for flash *)
       let actual_t, predict_t, new_scheme =
@@ -714,19 +735,19 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
                   | OptimalMcf ->
                     begin
                       let sch,rec_solve_time = global_recovery failed_links pred' act' algorithm topo in
-                      recovery_churn := !recovery_churn +. (get_churn curr_scheme sch);
+                      recovery_churn := !recovery_churn +. (get_churn current_state.scheme sch);
                       solver_time := !solver_time +. rec_solve_time;
                       sch
                     end
-                  | _ -> if !Kulfi_Globals.flash_recover then (select_local_recovery algorithm) curr_scheme topo failed_links pred'
-                         else curr_scheme in
+                  | _ -> if !Kulfi_Globals.flash_recover then (select_local_recovery algorithm) current_state.scheme topo failed_links pred'
+                         else current_state.scheme in
                 act',pred',sch'
                 end
             else
-              actual_t, predict_t, curr_scheme
+              current_state.real_tm, current_state.predict_tm, current_state.scheme
           end
         else
-        actual_t, predict_t, curr_scheme in
+        current_state.real_tm, current_state.predict_tm, current_state.scheme in
 
       (*debug*)
       (*VertexSet.iter (get_hosts_set topo)
@@ -785,8 +806,8 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
 
       (* if no (s-d) path, then entire demand is dropped due to failure *)
       (* if no (s-d) key, then entire demand is dropped due to failure *)
-      let curr_fail_drop = SrcDstMap.fold actual_t
-      ~init:curr_fail_drop
+      let cumul_fail_drop = SrcDstMap.fold actual_t
+      ~init:current_state.failure_drop
       ~f:(fun ~key:(src,dst) ~data:d acc ->
         match SrcDstMap.find new_scheme (src,dst) with
         | None -> acc +. d
@@ -795,8 +816,8 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
 
       (* For each link, forward fair share of flows to next links or deliver to destination *)
       let next_iter_traffic, new_delivered_map, new_lat_tput_map_map, new_link_utils, new_fail_drop, new_cong_drop =
-        EdgeMap.fold in_traffic
-        ~init:(next_iter_traffic, curr_delivered_map, curr_lat_tput_map_map, curr_link_utils, curr_fail_drop, curr_cong_drop)
+        EdgeMap.fold current_state.ingress_link_traffic
+        ~init:(next_iter_traffic, current_state.delivered, current_state.latency, current_state.utilization, cumul_fail_drop, current_state.congestion_drop)
         ~f:(fun ~key:e ~data:in_queue_edge link_iter_acc ->
           (* total ingress traffic on link *)
           let demand_on_link = List.fold_left in_queue_edge ~init:0.0
@@ -815,65 +836,61 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
             ~init:0.0
             ~f:(fun fwd_acc (_,_,flow_dem) -> fwd_acc +. flow_dem) in
           let dropped = demand_on_link -. forwarded_by_link in
-          let (_,_,_,_,curr_fail_drop,curr_cong_drop) = link_iter_acc in
+          let (_,_,_,curr_lutil_map,curr_fail_drop,curr_cong_drop) = link_iter_acc in
           let new_fail_drop,new_cong_drop =
             if EdgeSet.mem failed_links e then curr_fail_drop +. dropped, curr_cong_drop
             else curr_fail_drop, curr_cong_drop +. dropped in
           if (is_nan new_cong_drop) && (is_nan dropped) then Printf.printf "dem = %f\tfwd = %f\n" demand_on_link forwarded_by_link;
           (*if dropped > 0. then Printf.printf "%d : %f\n%!" iter dropped;*)
           (* Forward/deliver traffic on this edge *)
-          List.fold_left fs_in_queue_edge
-          ~init:link_iter_acc
-          ~f:(fun acc (path,dist,flow_fair_share) ->
-            let (nit,dlvd_map,ltm_map,lutil_map,_,_) = acc in
-            let next_link_opt = next_hop_arr path dist in
-            match next_link_opt with
-            | None -> (* End of path, deliver traffic to dst *)
-                let (src,dst) = match get_src_dst_for_path_arr path with
-                                | None -> failwith "Empty path"
-                                | Some x -> x in
-                (* Update delivered traffic for (src,dst) *)
-                let prev_sd_dlvd = match SrcDstMap.find dlvd_map (src,dst) with
-                                      | None -> 0.0
-                                      | Some x -> x in
-                let new_dlvd = SrcDstMap.add ~key:(src,dst) ~data:(prev_sd_dlvd +. flow_fair_share) dlvd_map in
+          let fl_init_nit,fl_init_dlvd_map,fl_init_ltm_map,_,_,_ = link_iter_acc in
+          let new_nit, dlvd_map, ltm_map =
+            List.fold_left fs_in_queue_edge
+            ~init:(fl_init_nit, fl_init_dlvd_map, fl_init_ltm_map)
+            ~f:(fun acc (path,dist,flow_fair_share) ->
+              let nit,dlvd_map,ltm_map = acc in
+              let next_link_opt = next_hop_arr path dist in
+              match next_link_opt with
+              | None -> (* End of path, deliver traffic to dst *)
+                  let (src,dst) = match get_src_dst_for_path_arr path with
+                                  | None -> failwith "Empty path"
+                                  | Some x -> x in
+                  (* Update delivered traffic for (src,dst) *)
+                  let prev_sd_dlvd = match SrcDstMap.find dlvd_map (src,dst) with
+                                        | None -> 0.0
+                                        | Some x -> x in
+                  let new_dlvd = SrcDstMap.add ~key:(src,dst) ~data:(prev_sd_dlvd +. flow_fair_share) dlvd_map in
 
-                (* Update latency-tput distribution for (src,dst) *)
-                let prev_sd_ltm = match SrcDstMap.find ltm_map (src,dst) with
-                                      | None -> LatencyMap.empty
-                                      | Some x -> x in
-                let path_latency = get_path_weight_arr topo path in
-                let prev_sd_tput_for_latency =  match LatencyMap.find prev_sd_ltm path_latency with
-                                                | None -> 0.0
-                                                | Some x -> x in
-                let new_sd_ltm = LatencyMap.add ~key:path_latency ~data:(prev_sd_tput_for_latency +. flow_fair_share) prev_sd_ltm in
-                let new_ltm_map = SrcDstMap.add ~key:(src,dst) ~data:new_sd_ltm ltm_map in
-
-                (* Update link utilization for edge *)
-                let prev_lutil_link,pst,pet = match EdgeMap.find lutil_map e with
-                              | None -> (0.0, Int.max_value/100, 0)
-                              | Some x -> x in
-                let nst, net = if flow_fair_share > 0. then (min pst iter, max pet iter) else (pst, pet) in
-                let new_lutil_map = if (iter < num_iterations + steady_state_time) then EdgeMap.add ~key:e ~data:(prev_lutil_link +. flow_fair_share, nst, net) lutil_map
-                  else lutil_map in
-                (nit, new_dlvd, new_ltm_map, new_lutil_map, new_fail_drop, new_cong_drop)
-            | Some next_link -> (* Forward traffic to next hop *)
-                (* Update link ingress queue for next hop *)
-                let sched_traf_next_link = match EdgeMap.find nit next_link with
-                    | None -> []
-                    | Some v -> v in
-                if is_nan flow_fair_share then assert false;
-                let traf_next_link = (path,dist+1,flow_fair_share)::sched_traf_next_link in
-                let new_nit = EdgeMap.add ~key:next_link ~data:traf_next_link nit in
-
-                (* Update link utilization for edge *)
-                let prev_lutil_link,pst,pet = match EdgeMap.find lutil_map e with
-                              | None -> (0.0, Int.max_value/100, 0)
-                              | Some x -> x in
-                let nst, net = if flow_fair_share > 0. then (min pst iter, max pet iter) else (pst, pet) in
-                let new_lutil_map = if (iter < num_iterations + steady_state_time) then EdgeMap.add ~key:e ~data:(prev_lutil_link +. flow_fair_share, nst, net) lutil_map
-                  else lutil_map in
-                (new_nit, dlvd_map, ltm_map, new_lutil_map, new_fail_drop, new_cong_drop))) in
+                  (* Update latency-tput distribution for (src,dst) *)
+                  let prev_sd_ltm = match SrcDstMap.find ltm_map (src,dst) with
+                                        | None -> LatencyMap.empty
+                                        | Some x -> x in
+                  let path_latency = get_path_weight_arr topo path in
+                  let prev_sd_tput_for_latency =  match LatencyMap.find prev_sd_ltm path_latency with
+                                                  | None -> 0.0
+                                                  | Some x -> x in
+                  let new_sd_ltm = LatencyMap.add ~key:path_latency ~data:(prev_sd_tput_for_latency +. flow_fair_share) prev_sd_ltm in
+                  let new_ltm_map = SrcDstMap.add ~key:(src,dst) ~data:new_sd_ltm ltm_map in
+                  (nit, new_dlvd, new_ltm_map)
+              | Some next_link -> (* Forward traffic to next hop *)
+                  (* Update link ingress queue for next hop *)
+                  let sched_traf_next_link = match EdgeMap.find nit next_link with
+                      | None -> []
+                      | Some v -> v in
+                  if is_nan flow_fair_share then assert false;
+                  let traf_next_link = (path,dist+1,flow_fair_share)::sched_traf_next_link in
+                  let new_nit = EdgeMap.add ~key:next_link ~data:traf_next_link nit in
+                  (new_nit, dlvd_map, ltm_map)) in
+          let new_lutil_map = if iter < num_iterations + steady_state_time then
+            begin
+              let curr_lutil_e = match (EdgeMap.find curr_lutil_map e) with
+                | None -> []
+                | Some x -> x in
+              EdgeMap.add ~key:e ~data:(forwarded_by_link::curr_lutil_e) curr_lutil_map
+            end
+          else
+            curr_lutil_map in
+          (new_nit, dlvd_map, ltm_map, new_lutil_map, new_fail_drop, new_cong_drop)) in
       (* Done forwarding for each link*)
 
       (* Print state for debugging *)
@@ -887,28 +904,40 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
             ~f:(fun ~key:(src,dst) ~data:delvd ->
               Printf.printf "%s %s\t%f\n%!" (Node.name (Net.Topology.vertex_to_label topo src))
             (Node.name (Net.Topology.vertex_to_label topo dst)) delvd);
+
       (* State carried over to next iter *)
-      let next_state = (next_iter_traffic, new_delivered_map, new_lat_tput_map_map, new_link_utils, new_scheme, failed_links, new_fail_drop, new_cong_drop, actual_t, predict_t) in
-      next_state)
+      { ingress_link_traffic  = next_iter_traffic;
+        delivered             = new_delivered_map;
+        latency               = new_lat_tput_map_map;
+        utilization           = new_link_utils;
+        scheme                = new_scheme;
+        failures              = failed_links;
+        failure_drop          = new_fail_drop;
+        congestion_drop       = new_cong_drop;
+        real_tm               = actual_t;
+        predict_tm            = predict_t; })
       (* end iteration *) in
 
   agg_dem := !agg_dem /. (Float.of_int num_iterations);
   agg_sink_dem := !agg_sink_dem /. (Float.of_int num_iterations);
   (* Generate stats *)
-  let tput = SrcDstMap.fold delivered_map
+  let tput = SrcDstMap.fold final_network_state.delivered
     ~init:SrcDstMap.empty
     ~f:(fun ~key:sd ~data:dlvd acc ->
       SrcDstMap.add ~key:sd ~data:(dlvd /. (Float.of_int num_iterations) /. !agg_dem) acc) in
 
-  let latency_dist = (get_aggregate_latency lat_tput_map_map num_iterations) in
+  let latency_dist = (get_aggregate_latency final_network_state.latency num_iterations) in
 
-  let avg_congestions = EdgeMap.fold link_utils
+  let congestions = EdgeMap.fold final_network_state.utilization
     ~init:EdgeMap.empty
-    ~f:(fun ~key:e ~data:(util, st, et) acc ->
-      EdgeMap.add ~key:e ~data:(util /. (Float.of_int (et - st + 1)) /. (capacity_of_edge topo e)) acc) in
-  let fail_drop = fail_drop /. (Float.of_int num_iterations) /. !agg_dem in
-  let cong_drop = cong_drop /. (Float.of_int num_iterations) /. !agg_dem in
-  let sink_tput = if is_flash then SrcDstMap.fold delivered_map
+    ~f:(fun ~key:e ~data:util_list acc ->
+      EdgeMap.add ~key:e
+        ~data:((average_list util_list) /. (capacity_of_edge topo e),
+               (max_list util_list)    /. (capacity_of_edge topo e))
+        acc) in
+  let fail_drop = final_network_state.failure_drop /. (Float.of_int num_iterations) /. !agg_dem in
+  let cong_drop = final_network_state.congestion_drop /. (Float.of_int num_iterations) /. !agg_dem in
+  let sink_tput = if is_flash then SrcDstMap.fold final_network_state.delivered
     ~init:0.0
     ~f:(fun ~key:(src,dst) ~data:dlvd acc ->
       if dst = flash_sink then acc +. dlvd /. (Float.of_int num_iterations) /. !agg_sink_dem else acc)
@@ -916,7 +945,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   (*
   let total_tput = get_total_tput tput in
   Printf.printf "\nTotal traffic: %f + %f + %f\t= %f" total_tput fail_drop cong_drop (total_tput+.fail_drop+.cong_drop);*)
-  tput, latency_dist, avg_congestions, fail_drop, cong_drop, !agg_dem, !recovery_churn, final_scheme, !solver_time, sink_tput
+  tput, latency_dist, congestions, fail_drop, cong_drop, !agg_dem, !recovery_churn, final_network_state.scheme, !solver_time, sink_tput
   (* end simulate_tm *)
 
 let is_int v =
@@ -953,11 +982,9 @@ let get_max_congestion (congestions:float list) : float =
   List.fold_left ~init:Float.nan ~f:(fun a acc -> Float.max_inan a acc) congestions
 
 let get_num_paths (s:scheme) : float =
-  let count = SrcDstMap.fold
-		~init:0
-		~f:(fun ~key:_ ~data:d acc ->
-		    acc + (PathMap.length d))
-		s in
+  let count = SrcDstMap.fold ~init:0
+    ~f:(fun ~key:_ ~data:d acc ->
+      acc + (PathMap.length d)) s in
   Float.of_int count
 
   (* Generate latency percentile based on throughput *)
@@ -1018,17 +1045,16 @@ let calculate_demand_envelope (topo:topology) (predict_file:string) (host_file:s
 
 let simulate
     (spec_solvers:solver_type list)
-	     (topology_file:string)
-	     (demand_file:string)
-	     (predict_file:string)
-	     (host_file:string)
-	     (iterations:int)
-       (scale:float)
-       (number_failures:int)
-       (is_flash:bool)
-       (flash_burst_amount:float)
-       (out_dir:string option)
-             () : unit =
+    (topology_file:string)
+    (demand_file:string)
+    (predict_file:string)
+    (host_file:string)
+    (iterations:int)
+    (scale:float)
+    (num_failures:int)
+    (is_flash:bool)
+    (flash_burst_amount:float)
+    (out_dir:string option) () : unit =
 
   (* Do some error checking on input *)
 
@@ -1041,13 +1067,12 @@ let simulate
   let topo = Parse.from_dotfile topology_file in
   let edge_weights = set_topo_weights topo in
   let host_set = VertexSet.filter (Topology.vertexes topo)
-				  ~f:(fun v ->
-				      let label = Topology.vertex_to_label topo v in
-				      Node.device label = Node.Host) in
+    ~f:(fun v ->
+      let label = Topology.vertex_to_label topo v in
+      Node.device label = Node.Host) in
 
   Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set);
   Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo);
-
 
   let time_data = make_data "Iteratives Vs Time" in
   let tm_churn_data = make_data "TM Churn Vs Time" in
@@ -1070,8 +1095,8 @@ let simulate
       percentiles
       ~init:[]
       ~f:(fun acc p ->
-	  let i = Int.of_float (p *. 100.) in
-	  let s = Printf.sprintf "%d-th %s Vs Time" i metric in
+        let i = Int.of_float (p *. 100.) in
+        let s = Printf.sprintf "%d-th %s Vs Time" i metric in
     acc@[(make_data s)] ) in
 
   let percentile_data = create_percentile_data "Congestion" in
@@ -1080,113 +1105,108 @@ let simulate
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
   let is = range 0 iterations in
 
-  let failure_scenarios = get_failure_scenarios topo demand_file host_file iterations number_failures scale in
+  let failure_scenarios = get_failure_scenarios topo demand_file host_file iterations num_failures scale in
   let flash_sinks = pick_flash_sinks topo iterations in
   List.iter
     spec_solvers
     ~f:(fun algorithm ->
 
-	(* TODO(rjs): Raeke mutates the topology. As a fast fix, I'll just create
-	 a new copy of topology for every algorithm. A better fix would be to understand
-	 Raeke and ensure that it mutates a copy of the topology, not the actual
-	 topology
-   (praveenk): Raeke changes edge weights. Let's just reset them. *)
-  ignore(reset_topo_weights edge_weights topo;);
-
-  let _ = match algorithm with
-    | SemiMcfMcfFTEnv
-    | SemiMcfMcfEnv -> demand_envelope := (calculate_demand_envelope topo predict_file host_file iterations);
-    | _ -> () in
-
-	let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
-	let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
-  Printf.printf "\n";
-	(* we may need to initialize the scheme, and advance both traffic files *)
-
-	ignore (
-	    List.fold_left
-	      is (* 0..iterations *)
-	      ~init:SrcDstMap.empty
-	      ~f:(fun scheme n ->
-
-      Printf.printf "\nAlgo: %s TM: %d\r%!" (solver_to_string algorithm) n;
-		  (* get the next demand *)
-		  let actual = next_demand ~scale:scale actual_ic actual_host_map in
-		  let predict = next_demand ~scale:scale predict_ic predict_host_map in
-
-      (* initialize algorithm *)
-      if n = 0 then initialize_scheme algorithm topo predict;
-
-		  (* solve *)
-		  let scheme',solver_time = solve_within_budget algorithm topo predict actual in
+      (*(praveenk): Raeke changes edge weights. Let's just reset them. *)
       ignore(reset_topo_weights edge_weights topo;);
-  	  let exp_congestions = (congestion_of_paths scheme' topo actual) in
-		  let list_of_exp_congestions = List.map ~f:snd (EdgeMap.to_alist exp_congestions) in
-		  let sorted_exp_congestions = List.sort ~cmp:(Float.compare) list_of_exp_congestions in
-      let failing_edges =  match List.nth failure_scenarios n with
-          | Some x -> x
-          | None -> assert false in
 
-      let flash_sink = match List.nth flash_sinks n with
-        | Some x -> x
-        | None -> assert false in
+      let _ = match algorithm with
+        | SemiMcfMcfFTEnv
+        | SemiMcfMcfEnv -> demand_envelope := (calculate_demand_envelope topo predict_file host_file iterations);
+        | _ -> () in
 
-		  let tput,latency_dist,congestions,failure_drop,congestion_drop,agg_dem,recovery_churn,final_scheme, rec_solver_time, sink_tput =
-        (simulate_tm scheme' topo actual failing_edges predict algorithm is_flash flash_burst_amount flash_sink) in
-		  let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist congestions) in
-		  let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_congestions in
-		  (* record *)
-		  let tm = solver_time +. rec_solver_time in
-      let tm_churn = (get_churn scheme scheme') in
-		  let np = (get_num_paths scheme') in
-		  let cmax = (get_max_congestion list_of_congestions) in
-		  let cmean = (get_mean_congestion list_of_congestions) in
-		  let expcmax = (get_max_congestion list_of_exp_congestions) in
-		  let expcmean = (get_mean_congestion list_of_exp_congestions) in
-      let total_tput = (get_total_tput tput) in
-      let latency_percentiles = (get_latency_percentiles latency_dist agg_dem) in
+      let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
+      let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
+      Printf.printf "\n";
+      (* we may need to initialize the scheme, and advance both traffic files *)
 
-		  let percentile_values sort_cong =
-		    List.fold_left
-		      percentiles
-		      ~init:[]
-		      ~f:(fun acc p ->
-            acc@[(kth_percentile sort_cong p)]) in
+      ignore (
+        List.fold_left
+          is (* 0..iterations *)
+          ~init:SrcDstMap.empty
+          ~f:(fun scheme n ->
+            Printf.printf "\nAlgo: %s TM: %d\r%!" (solver_to_string algorithm) n;
+            (* get the next demand *)
+            let actual = next_demand ~scale:scale actual_ic actual_host_map in
+            let predict = next_demand ~scale:scale predict_ic predict_host_map in
 
-		  let sname = (solver_to_string algorithm) in
-		  add_record time_data sname {iteration = n; time=tm; time_dev=0.0; };
-		  add_record tm_churn_data sname {iteration = n; churn=tm_churn; churn_dev=0.0; };
-		  add_record rec_churn_data sname {iteration = n; churn=recovery_churn; churn_dev=0.0; };
-		  add_record num_paths_data sname {iteration = n; num_paths=np; num_paths_dev=0.0; };
-		  add_record max_congestion_data sname {iteration = n; congestion=cmax; congestion_dev=0.0; };
-		  add_record mean_congestion_data sname {iteration = n; congestion=cmean; congestion_dev=0.0; };
-		  add_record max_exp_congestion_data sname {iteration = n; congestion=expcmax; congestion_dev=0.0; };
-		  add_record mean_exp_congestion_data sname {iteration = n; congestion=expcmean; congestion_dev=0.0; };
-		  add_record edge_congestion_data sname {iteration = n; edge_congestions=congestions; };
-		  add_record edge_exp_congestion_data sname {iteration = n; edge_congestions=exp_congestions; };
-		  add_record latency_percentiles_data sname {iteration = n; latency_percentiles=latency_percentiles; };
-		  add_record total_tput_data sname {iteration = n; throughput=total_tput; throughput_dev=0.0; };
-		  add_record total_sink_tput_data sname {iteration = n; throughput=sink_tput; throughput_dev=0.0; };
-		  add_record failure_drop_data sname {iteration = n; throughput=failure_drop; throughput_dev=0.0; };
-		  add_record congestion_drop_data sname {iteration = n; throughput=congestion_drop; throughput_dev=0.0; };
-		  List.iter2_exn
-		    percentile_data
-		    (percentile_values sorted_congestions)
-        ~f:(fun d v -> add_record d sname {iteration = n; congestion=v; congestion_dev=0.0;});
-		  List.iter2_exn
-		    exp_percentile_data
-		    (percentile_values sorted_exp_congestions)
-		    ~f:(fun d v -> add_record d sname {iteration = n; congestion=v; congestion_dev=0.0;});
+            (* initialize algorithm *)
+            if n = 0 then initialize_scheme algorithm topo predict;
 
-		  scheme') );
+            (* solve *)
+            let scheme',solver_time = solve_within_budget algorithm topo predict actual in
+            ignore(reset_topo_weights edge_weights topo;);
+            let exp_congestions = (congestion_of_paths topo actual scheme') in
+            let list_of_exp_congestions = List.map ~f:snd (EdgeMap.to_alist exp_congestions) in
+            let sorted_exp_congestions = List.sort ~cmp:(Float.compare) list_of_exp_congestions in
+            let failing_edges =  match List.nth failure_scenarios n with
+              | Some x -> x
+              | None -> assert false in
 
-	(* start at beginning of demands for next algorithm *)
-	close_demands actual_ic;
-	close_demands predict_ic;
-       );
+            let flash_sink = match List.nth flash_sinks n with
+              | Some x -> x
+              | None -> assert false in
 
-  (* Store results in a directory name = topology name or provided name in expData *)
-  let output_dir = match out_dir with
+            let tput,latency_dist,congestions,failure_drop,congestion_drop,agg_dem,recovery_churn,final_scheme, rec_solver_time, sink_tput =
+              (simulate_tm scheme' topo actual failing_edges predict algorithm is_flash flash_burst_amount flash_sink) in
+            let list_of_avg_congestions,list_of_max_congestions =
+              List.map ~f:snd (EdgeMap.to_alist congestions)
+              |> split_alist in
+            let max_congestions_map = EdgeMap.map ~f:snd congestions in
+            let sorted_congestions = List.sort ~cmp:(Float.compare) list_of_max_congestions in
+            (* record *)
+            let tm = solver_time +. rec_solver_time in
+            let tm_churn = (get_churn scheme scheme') in
+            let np = (get_num_paths scheme') in
+            let cmax = (get_max_congestion list_of_max_congestions) in
+            let cmean = (get_mean_congestion list_of_avg_congestions) in
+            let expcmax = (get_max_congestion list_of_exp_congestions) in
+            let expcmean = (get_mean_congestion list_of_exp_congestions) in
+            let total_tput = (get_total_tput tput) in
+            let latency_percentiles = (get_latency_percentiles latency_dist agg_dem) in
+
+            let percentile_values sort_cong =
+              List.fold_left percentiles
+                ~init:[]
+                ~f:(fun acc p ->
+                  acc@[(kth_percentile sort_cong p)]) in
+
+            let sname = (solver_to_string algorithm) in
+            add_record time_data sname {iteration = n; time=tm; time_dev=0.0; };
+            add_record tm_churn_data sname {iteration = n; churn=tm_churn; churn_dev=0.0; };
+            add_record rec_churn_data sname {iteration = n; churn=recovery_churn; churn_dev=0.0; };
+            add_record num_paths_data sname {iteration = n; num_paths=np; num_paths_dev=0.0; };
+            add_record max_congestion_data sname {iteration = n; congestion=cmax; congestion_dev=0.0; };
+            add_record mean_congestion_data sname {iteration = n; congestion=cmean; congestion_dev=0.0; };
+            add_record max_exp_congestion_data sname {iteration = n; congestion=expcmax; congestion_dev=0.0; };
+            add_record mean_exp_congestion_data sname {iteration = n; congestion=expcmean; congestion_dev=0.0; };
+            add_record edge_congestion_data sname {iteration = n; edge_congestions=max_congestions_map; };
+            add_record edge_exp_congestion_data sname {iteration = n; edge_congestions=exp_congestions; };
+            add_record latency_percentiles_data sname {iteration = n; latency_percentiles=latency_percentiles; };
+            add_record total_tput_data sname {iteration = n; throughput=total_tput; throughput_dev=0.0; };
+            add_record total_sink_tput_data sname {iteration = n; throughput=sink_tput; throughput_dev=0.0; };
+            add_record failure_drop_data sname {iteration = n; throughput=failure_drop; throughput_dev=0.0; };
+            add_record congestion_drop_data sname {iteration = n; throughput=congestion_drop; throughput_dev=0.0; };
+
+            List.iter2_exn
+              percentile_data (percentile_values sorted_congestions)
+              ~f:(fun d v -> add_record d sname {iteration = n; congestion=v; congestion_dev=0.0;});
+            List.iter2_exn
+              exp_percentile_data (percentile_values sorted_exp_congestions)
+              ~f:(fun d v -> add_record d sname {iteration = n; congestion=v; congestion_dev=0.0;});
+
+          scheme') );
+
+      (* start at beginning of demands for next algorithm *)
+      close_demands actual_ic;
+      close_demands predict_ic;);
+
+    (* Store results in a directory name = topology name or provided name in expData *)
+    let output_dir = match out_dir with
       | Some x -> x
       | None ->
         let split_dot_file_list = String.split_on_chars topology_file ~on:['/';'.'] in
@@ -1194,50 +1214,49 @@ let simulate
         match suffix with
           | Some x -> x
           | _ -> "default" in
-  let dir = "./expData/" ^ output_dir ^ "/" in
-  to_file dir "TMChurnVsIterations.dat" tm_churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
-  to_file dir "RecoveryChurnVsIterations.dat" rec_churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
-  to_file dir "NumPathsVsIterations.dat" num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
-  to_file dir "TimeVsIterations.dat" time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;
-  to_file dir "MaxCongestionVsIterations.dat" max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string;
-  to_file dir "MeanCongestionVsIterations.dat" mean_congestion_data "# solver\titer\tmean-congestion\tstddev" iter_vs_congestion_to_string;
-  to_file dir "MaxExpCongestionVsIterations.dat" max_exp_congestion_data "# solver\titer\tmax-exp-congestion\tstddev" iter_vs_congestion_to_string;
-  to_file dir "MeanExpCongestionVsIterations.dat" mean_exp_congestion_data "# solver\titer\tmean-exp-congestion\tstddev" iter_vs_congestion_to_string;
-  to_file dir "TotalThroughputVsIterations.dat" total_tput_data "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string;
-  to_file dir "TotalSinkThroughputVsIterations.dat" total_sink_tput_data "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string;
-  to_file dir "FailureLossVsIterations.dat" failure_drop_data "# solver\titer\tfailure-drop\tstddev" iter_vs_throughput_to_string;
-  to_file dir "CongestionLossVsIterations.dat" congestion_drop_data "# solver\titer\tcongestion-drop\tstddev" iter_vs_throughput_to_string;
+    let dir = "./expData/" ^ output_dir ^ "/" in
+    to_file dir "TMChurnVsIterations.dat" tm_churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
+    to_file dir "RecoveryChurnVsIterations.dat" rec_churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
+    to_file dir "NumPathsVsIterations.dat" num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
+    to_file dir "TimeVsIterations.dat" time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;
+    to_file dir "MaxCongestionVsIterations.dat" max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string;
+    to_file dir "MeanCongestionVsIterations.dat" mean_congestion_data "# solver\titer\tmean-congestion\tstddev" iter_vs_congestion_to_string;
+    to_file dir "MaxExpCongestionVsIterations.dat" max_exp_congestion_data "# solver\titer\tmax-exp-congestion\tstddev" iter_vs_congestion_to_string;
+    to_file dir "MeanExpCongestionVsIterations.dat" mean_exp_congestion_data "# solver\titer\tmean-exp-congestion\tstddev" iter_vs_congestion_to_string;
+    to_file dir "TotalThroughputVsIterations.dat" total_tput_data "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string;
+    to_file dir "TotalSinkThroughputVsIterations.dat" total_sink_tput_data "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string;
+    to_file dir "FailureLossVsIterations.dat" failure_drop_data "# solver\titer\tfailure-drop\tstddev" iter_vs_throughput_to_string;
+    to_file dir "CongestionLossVsIterations.dat" congestion_drop_data "# solver\titer\tcongestion-drop\tstddev" iter_vs_throughput_to_string;
 
-  List.iter2_exn
-    percentile_data
-    percentiles
-    ~f:(fun d p ->
-	let s1 = Printf.sprintf "k%dCongestionVsIterations.dat" (Int.of_float (p *. 100.)) in
-	let s2 = Printf.sprintf "# solver\titer\t.%f-congestion\tstddev" p in
-	to_file dir s1 d s2  iter_vs_congestion_to_string) ;
+    List.iter2_exn
+      percentile_data percentiles
+      ~f:(fun d p ->
+        let s1 = Printf.sprintf "k%dCongestionVsIterations.dat" (Int.of_float (p *. 100.)) in
+        let s2 = Printf.sprintf "# solver\titer\t.%f-congestion\tstddev" p in
+        to_file dir s1 d s2  iter_vs_congestion_to_string) ;
 
-  List.iter2_exn
-    exp_percentile_data
-    percentiles
-    ~f:(fun d p ->
-	let s1 = Printf.sprintf "k%dExpCongestionVsIterations.dat" (Int.of_float (p *. 100.)) in
-	let s2 = Printf.sprintf "# solver\titer\t.%f-exp-congestion\tstddev" p in
-	to_file dir s1 d s2  iter_vs_congestion_to_string) ;
+    List.iter2_exn
+      exp_percentile_data percentiles
+      ~f:(fun d p ->
+        let s1 = Printf.sprintf "k%dExpCongestionVsIterations.dat" (Int.of_float (p *. 100.)) in
+        let s2 = Printf.sprintf "# solver\titer\t.%f-exp-congestion\tstddev" p in
+        to_file dir s1 d s2  iter_vs_congestion_to_string) ;
 
-  to_file dir "EdgeCongestionVsIterations.dat" edge_congestion_data "# solver\titer\tedge-congestion" (iter_vs_edge_congestions_to_string topo);
-  to_file dir "EdgeExpCongestionVsIterations.dat" edge_exp_congestion_data "# solver\titer\tedge-exp-congestion" (iter_vs_edge_congestions_to_string topo);
+    to_file dir "EdgeCongestionVsIterations.dat" edge_congestion_data "# solver\titer\tedge-congestion" (iter_vs_edge_congestions_to_string topo);
+    to_file dir "EdgeExpCongestionVsIterations.dat" edge_exp_congestion_data "# solver\titer\tedge-exp-congestion" (iter_vs_edge_congestions_to_string topo);
 
-  to_file dir "LatencyDistributionVsIterations.dat" latency_percentiles_data "#solver\titer\tlatency-throughput" (iter_vs_latency_percentiles_to_string);
+    to_file dir "LatencyDistributionVsIterations.dat" latency_percentiles_data "#solver\titer\tlatency-throughput" (iter_vs_latency_percentiles_to_string);
 
-  (*Printf.printf "%s" (to_string time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string);
-  Printf.printf "%s" (to_string tm_churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
-  Printf.printf "%s" (to_string rec_churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
-  Printf.printf "%s" (to_string max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string);
-  Printf.printf "%s" (to_string total_tput_data "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string);
-  Printf.printf "%s" (to_string failure_drop_data "# solver\titer\tfailure-drop\tstddev" iter_vs_throughput_to_string);
-  Printf.printf "%s" (to_string congestion_drop_data "# solver\titer\tcongestion-drop\tstddev" iter_vs_throughput_to_string);
-  Printf.printf "%s" (to_string num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string)*)
-  Printf.printf "\nComplete.\n"
+    (*Printf.printf "%s" (to_string time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string);
+    Printf.printf "%s" (to_string tm_churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
+    Printf.printf "%s" (to_string rec_churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string);
+    Printf.printf "%s" (to_string max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string);
+    Printf.printf "%s" (to_string total_tput_data "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string);
+    Printf.printf "%s" (to_string failure_drop_data "# solver\titer\tfailure-drop\tstddev" iter_vs_throughput_to_string);
+    Printf.printf "%s" (to_string congestion_drop_data "# solver\titer\tcongestion-drop\tstddev" iter_vs_throughput_to_string);
+    Printf.printf "%s" (to_string num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string)*)
+    Printf.printf "\nComplete.\n"
+
 
 (* For synthetic demands based on Abilene, scale them to current topology by multiplying by X/mcf_congestion,
    where X is the max congestion we expect to get when run with the new demands *)
@@ -1246,7 +1265,7 @@ let calculate_syn_scale (topology:string) (demand_file:string) (host_file:string
   let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
   let actual = next_demand ~scale:1.0 actual_ic actual_host_map in
   let s = Kulfi_Mcf.solve topo actual in
-  let expected_congestions = congestion_of_paths s topo actual in
+  let expected_congestions = congestion_of_paths topo actual s in
   let list_of_congestions = List.map ~f:snd (EdgeMap.to_alist expected_congestions) in
   let cmax = (get_max_congestion list_of_congestions) in
   let scale_factor = 0.4/.cmax in
@@ -1300,87 +1319,85 @@ let command =
     +> anon ("predict-file" %: string)
     +> anon ("host-file" %: string)
     +> anon ("iterations" %: int)
-  ) (fun (mcf:bool)
-         (mwmcf:bool)
-	 (vlb:bool)
-	 (ecmp:bool)
-	 (ksp:bool)
-	 (spf:bool)
-	 (akmcf:bool)
-	 (akvlb:bool)
-	 (akraeke:bool)
-	 (akecmp:bool)
-	 (akksp:bool)
-	 (semimcfmcf:bool)
-	 (semimcfmcfenv:bool)
-	 (semimcfmcfftenv:bool)
-	 (semimcfvlb:bool)
-	 (semimcfraeke:bool)
-	 (semimcfraekeft:bool)
-	 (semimcfecmp:bool)
-	 (semimcfksp:bool)
-	 (semimcfkspft:bool)
-	 (raeke:bool)
-	 (optimalmcf:bool)
-	 (all:bool)
-   (scalesyn:bool)
-   (deloop:bool)
-   (flash_recover:bool)
-   (scale:float option)
-   (budget:int option)
-   (fail_time:int option)
-   (lr_delay:int option)
-   (gr_delay:int option)
-   (is_flash:bool)
-   (flash_ba:float option)
-   (fail_num:int option)
-   (out:string option)
-   (grb_method:int option)
-	 (topology_file:string)
-	 (demand_file:string)
-	 (predict_file:string)
-	 (host_file:string)
-	 (iterations:int)
-   () ->
-     let algorithms =
-       List.filter_map
-         ~f:(fun x -> x)
-         [ if mcf || all then Some Mcf else None
-         ; if optimalmcf || all then Some OptimalMcf else None
-         ; if mwmcf then Some MwMcf else None
-         ; if vlb || all then Some Vlb else None
-         ; if ecmp || all then Some Ecmp else None
-         ; if ksp || all then Some Ksp else None
-         ; if spf || all then Some Spf else None
-	 ; if akmcf then Some AkMcf else None
-	 ; if akvlb then Some AkVlb else None
-	 ; if akecmp then Some AkEcmp else None
-	 ; if akksp then Some AkKsp else None
-	 ; if akraeke then Some AkRaeke else None
-   ; if raeke || all then Some Raeke else None
-   ; if semimcfmcf then Some SemiMcfMcf else None
-   ; if semimcfmcfenv || all then Some SemiMcfMcfEnv else None
-   ; if semimcfmcfftenv || all then Some SemiMcfMcfFTEnv else None
-	 ; if semimcfecmp || all then Some SemiMcfEcmp else None
-	 ; if semimcfksp || all then Some SemiMcfKsp else None
-	 ; if semimcfkspft then Some SemiMcfKspFT else None
-	 ; if semimcfvlb || all then Some SemiMcfVlb else None
-	 ; if semimcfraeke || all then Some SemiMcfRaeke else None
-	 ; if semimcfraekeft then Some SemiMcfRaekeFT else None ] in
-     let syn_scale = if scalesyn then calculate_syn_scale topology_file demand_file host_file else 1.0 in
-     let tot_scale = match scale with | None -> syn_scale | Some x -> x *. syn_scale in
-     let fail_num = match fail_num with | Some x -> x | None -> 1 in
-     let flash_ba = match flash_ba with | Some x -> x | None -> 0. in
-     Printf.printf "Scale factor: %f\n\n" (tot_scale);
-     Kulfi_Globals.deloop := deloop;
-     Kulfi_Globals.flash_recover := flash_recover;
-     ignore(Kulfi_Globals.gurobi_method := match grb_method with | None -> Int.minus_one | Some x -> x);
-     ignore(Kulfi_Globals.budget := match budget with | None ->  Int.max_value/100 | Some x -> x);
-     ignore(Kulfi_Globals.failure_time := match fail_time with | None -> Int.max_value/100 | Some x -> x);
-     ignore(Kulfi_Globals.local_recovery_delay := match lr_delay with | None -> Int.max_value/100 | Some x -> x);
+  ) (fun
+    (mcf:bool)
+    (mwmcf:bool)
+    (vlb:bool)
+    (ecmp:bool)
+    (ksp:bool)
+    (spf:bool)
+    (akmcf:bool)
+    (akvlb:bool)
+    (akraeke:bool)
+    (akecmp:bool)
+    (akksp:bool)
+    (semimcfmcf:bool)
+    (semimcfmcfenv:bool)
+    (semimcfmcfftenv:bool)
+    (semimcfvlb:bool)
+    (semimcfraeke:bool)
+    (semimcfraekeft:bool)
+    (semimcfecmp:bool)
+    (semimcfksp:bool)
+    (semimcfkspft:bool)
+    (raeke:bool)
+    (optimalmcf:bool)
+    (all:bool)
+    (scalesyn:bool)
+    (deloop:bool)
+    (flash_recover:bool)
+    (scale:float option)
+    (budget:int option)
+    (fail_time:int option)
+    (lr_delay:int option)
+    (gr_delay:int option)
+    (is_flash:bool)
+    (flash_ba:float option)
+    (fail_num:int option)
+    (out:string option)
+    (grb_method:int option)
+    (topology_file:string)
+    (demand_file:string)
+    (predict_file:string)
+    (host_file:string)
+    (iterations:int) () ->
+      let algorithms =
+        List.filter_map ~f:(fun x -> x)
+         [ if mcf || all        then Some Mcf         else None
+         ; if optimalmcf || all then Some OptimalMcf  else None
+         ; if mwmcf             then Some MwMcf       else None
+         ; if vlb || all        then Some Vlb         else None
+         ; if ecmp || all       then Some Ecmp        else None
+         ; if ksp || all        then Some Ksp         else None
+         ; if spf || all        then Some Spf         else None
+         ; if akmcf             then Some AkMcf       else None
+         ; if akvlb             then Some AkVlb       else None
+         ; if akecmp            then Some AkEcmp      else None
+         ; if akksp             then Some AkKsp       else None
+         ; if akraeke           then Some AkRaeke     else None
+         ; if raeke || all      then Some Raeke       else None
+         ; if semimcfmcf        then Some SemiMcfMcf  else None
+         ; if semimcfmcfenv || all    then Some SemiMcfMcfEnv   else None
+         ; if semimcfmcfftenv || all  then Some SemiMcfMcfFTEnv else None
+         ; if semimcfecmp || all      then Some SemiMcfEcmp     else None
+         ; if semimcfksp || all       then Some SemiMcfKsp      else None
+         ; if semimcfkspft            then Some SemiMcfKspFT    else None
+         ; if semimcfvlb || all       then Some SemiMcfVlb      else None
+         ; if semimcfraeke || all     then Some SemiMcfRaeke    else None
+         ; if semimcfraekeft || all   then Some SemiMcfRaekeFT  else None ] in
+      let syn_scale = if scalesyn then calculate_syn_scale topology_file demand_file host_file else 1.0 in
+      let tot_scale = match scale with   | Some x -> x *. syn_scale | None -> syn_scale in
+      let fail_num = match fail_num with | Some x -> x | None -> 1 in
+      let flash_ba = match flash_ba with | Some x -> x | None -> 0. in
+      Printf.printf "Scale factor: %f\n\n" (tot_scale);
+      Kulfi_Globals.deloop := deloop;
+      Kulfi_Globals.flash_recover := flash_recover;
+     ignore(Kulfi_Globals.gurobi_method := match grb_method with  | None -> Int.minus_one       | Some x -> x);
+     ignore(Kulfi_Globals.budget        := match budget with      | None ->  Int.max_value/100  | Some x -> x);
+     ignore(Kulfi_Globals.failure_time  := match fail_time with   | None -> Int.max_value/100   | Some x -> x);
+     ignore(Kulfi_Globals.local_recovery_delay  := match lr_delay with | None -> Int.max_value/100 | Some x -> x);
      ignore(Kulfi_Globals.global_recovery_delay := match gr_delay with | None -> Int.max_value/100 | Some x -> x);
-     simulate algorithms topology_file demand_file predict_file host_file iterations tot_scale fail_num is_flash flash_ba out ()
-  )
+     simulate algorithms topology_file demand_file predict_file host_file iterations tot_scale fail_num is_flash flash_ba out ())
 
 let main = Command.run command
 

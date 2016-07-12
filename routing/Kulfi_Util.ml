@@ -80,6 +80,22 @@ let rec next_hop (t:topology) (p:path) (e:edge) = match p with
               else next_hop t tl e
   | [] -> failwith "not found"
 
+let split_alist (l:('a * 'b) list) : ('a list * 'b list) =
+  let k,v = List.fold l ~init:([],[])
+    ~f:(fun acc (k,v) ->
+      let ak,av = acc in
+      (k::ak, v::av)) in
+  (List.rev k, List.rev v)
+
+let average_list l =
+  (List.fold_left ~f:(+.) ~init:0. l) /. (float_of_int (List.length l))
+
+let rec max_list = function
+  | [] -> failwith "empty list"
+  | [h] -> h
+  | h::t -> max h (max_list t)
+
+
 let next_hop_arr (p:edge Array.t) (dist:int) : edge option =
   if Array.length p <= dist then None
   else Some (p.(dist))
