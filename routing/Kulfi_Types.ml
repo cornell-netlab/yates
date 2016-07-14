@@ -11,19 +11,6 @@ type edge = Net.Topology.edge [@@ deriving sexp]
 
 type path = edge list [@@ deriving sexp]
 
-let intercalate f s = function
-  | [] ->
-    ""
-  | h::t ->
-      List.fold_left t ~f:(fun acc x -> acc ^ s ^ f x) ~init:(f h)
-
-let dump_edges (t:topology) (es:path) : string =
-  intercalate
-    (fun e ->
-     Printf.sprintf "(%s,%s)"
-          (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_src e))))
-          (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_dst e))))) ", "  es
-
 type demand = float [@@ deriving sexp]
 
 type probability = float [@@ deriving sexp]
@@ -154,6 +141,19 @@ let sample_dist (path_dist:flow_decomp) : path =
      | None -> assert false
      | Some p -> p
   *)
+
+let intercalate f s = function
+  | [] ->
+    ""
+  | h::t ->
+      List.fold_left t ~f:(fun acc x -> acc ^ s ^ f x) ~init:(f h)
+
+let dump_edges (t:topology) (es:path) : string =
+  intercalate
+    (fun e ->
+     Printf.sprintf "(%s,%s)"
+          (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_src e))))
+          (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_dst e))))) ", "  es
 
 let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
 
@@ -310,22 +310,6 @@ let normalize_scheme_opt (s:scheme) : scheme =
     ~f:(fun ~key:sd ~data:_ acc ->
       SrcDstMap.add ~key:sd ~data:0. acc) in
     normalize_scheme s zero_sum
-
-let dump_path_prob_set (t:topology) (pps:probability PathMap.t) : string =
-  let buf = Buffer.create 101 in
-  PathMap.iteri
-    pps
-    ~f:(fun ~key:path ~data:prob -> Printf.bprintf buf "[%s] @ %f\n" (dump_edges t path) prob);
-  Buffer.contents buf
-
-let dump_scheme (t:topology) (s:scheme) : string =
-  let buf = Buffer.create 101 in
-  SrcDstMap.iteri s ~f:(fun ~key:(v1,v2) ~data:pps ->
-                       Printf.bprintf buf "%s -> %s :\n  %s\n"
-                                      (Node.name (Net.Topology.vertex_to_label t v1))
-                                      (Node.name (Net.Topology.vertex_to_label t v2))
-                                      (dump_path_prob_set t pps));
-  Buffer.contents buf
 
 (* Modify routing scheme by normalizing path probabilites while avoiding failed links *)
 let normalization_recovery (curr_scheme:scheme) (_:topology) (failed_links:failure) (_:demands) : scheme =

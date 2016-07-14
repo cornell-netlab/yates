@@ -1,10 +1,10 @@
-open Kulfi_Types
 open Frenetic_Network
 open Net
 open Net.Topology
 open Core.Std
 open Kulfi_Apsp
 open Kulfi_Globals
+open Kulfi_Types
 
 let prev_scheme = ref SrcDstMap.empty
 
