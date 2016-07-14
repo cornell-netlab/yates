@@ -84,6 +84,7 @@ Executable simulator
   BuildDepends:
     ocamlgraph,
     frenetic,
+    ppx_deriving.make,
     routing,
     util
 
