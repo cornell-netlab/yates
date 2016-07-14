@@ -1093,12 +1093,12 @@ let simulate
       ignore(reset_topo_weights edge_weights topo;);
 
       (* compute demand envelope if needed *)
-      match algorithm with
+      ignore(match algorithm with
         | SemiMcfMcfFTEnv
         | SemiMcfMcfEnv ->
             demand_envelope :=
               (calculate_demand_envelope topo predict_file host_file num_tms);
-        | _ -> ();
+        | _ -> (););
 
       let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
       let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
