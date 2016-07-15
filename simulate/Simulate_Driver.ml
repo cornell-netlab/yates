@@ -389,11 +389,14 @@ let curr_capacity_of_edge (topo:topology) (link:edge) (fail:failure) : float =
   if EdgeSet.mem fail link then 0.
   else capacity_of_edge topo link
 
+let update_topo_with_failure (t:topology) (f:failure) : topology =
+  EdgeSet.fold f
+    ~init:t
+    ~f:(fun acc link -> Topology.remove_edge acc link)
+
 (* check all-pairs connectivity after failure *)
 let check_connectivity_after_failure (topo:topology) (fail:failure) : bool =
-  let topo' = EdgeSet.fold fail
-    ~init:topo
-    ~f:(fun acc link -> Topology.remove_edge acc link) in
+  let topo' = update_topo_with_failure topo fail in
   let hosts = get_hosts topo' in
   Kulfi_Routing.Spf.solve topo' SrcDstMap.empty
   |> all_pairs_connectivity topo' hosts
@@ -455,10 +458,19 @@ let get_spf_util_based_failure (topo:topology) (actual:demands) (alpha:float) : 
     |> congestion_of_paths topo actual
     |> get_util_based_failure_scenario topo alpha
 
-let get_spf_max_util_link (topo:topology) (actual:demands) (num_fail:int) : failure =
-  Kulfi_Routing.Spf.solve topo SrcDstMap.empty
-    |> congestion_of_paths topo actual
-    |> get_max_util_failure topo num_fail
+
+let rec get_spf_max_util_link (topo:topology) (actual:demands) (num_fail:int) : failure =
+  if num_fail = 0 then EdgeSet.empty
+  else
+    let max_util_link =
+      Kulfi_Routing.Spf.solve topo SrcDstMap.empty
+      |> congestion_of_paths topo actual
+      |> get_max_util_failure topo 1 in
+    let topo' = update_topo_with_failure topo max_util_link in
+    let rest_fail = get_spf_max_util_link topo' actual (num_fail-1) in
+    EdgeSet.union max_util_link rest_fail
+
+
 
 (* get a random failure of n edges*)
 let rec get_random_failure (topo:topology) (num_fail:int) : failure =
