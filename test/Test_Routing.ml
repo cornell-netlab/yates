@@ -11,6 +11,7 @@ open Kulfi_Spf
 open Kulfi_Vlb
 open Kulfi_Types
 open Kulfi_Util
+open Simulate_Switch
 open Core.Std
 
 
@@ -46,7 +47,7 @@ let create_topology_and_demands () =
       ~init:SrcDstMap.empty
       ~f:(fun acc u ->
 	  List.fold_left
-	   hosts 
+	   hosts
 	    ~init:acc
 	    ~f:(fun acc v ->
 		let r = if u = v then 0.0 else 500000.0 in
@@ -278,7 +279,7 @@ let test_fair_share () =
     ~init:PathMap.empty
     ~f:(fun ~key:_ ~data:ppmap acc ->
       PathMap.fold ppmap
-        ~init:acc 
+        ~init:acc
         ~f:(fun ~key:p ~data:_ acc ->
           match PathMap.find acc p with
           | Some x -> acc
@@ -287,7 +288,7 @@ let test_fair_share () =
               PathMap.add acc ~key:p ~data:!v)) in
   assert (PathMap.length paths = 7);
   (*PathMap.iter paths ~f:(fun ~key:p ~data:v -> Printf.printf "%f " v);*)
-  let fs_paths = fair_share_at_edge 20.0 paths in 
+  let fs_paths = fair_share_at_edge 20.0 paths in
   (*PathMap.iter fs_paths ~f:(fun ~key:p ~data:v -> Printf.printf "%f " v);*)
   let shares = List.sort ~cmp:Float.compare (List.map ~f:snd (PathMap.to_alist fs_paths)) in
   (*List.iter shares ~f:(fun x -> Printf.printf "%f " x);*)

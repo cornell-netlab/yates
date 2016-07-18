@@ -53,6 +53,17 @@ Library controller
    threads,
    util
 
+Library simulate
+  Path: simulate
+  Modules:
+    Simulate_Switch
+  BuildDepends:
+    ocamlgraph,
+    frenetic,
+    ppx_deriving.make,
+    routing,
+    util
+
 Executable kulfi
   Install: False
   Build$: flag(is_native)
@@ -99,4 +110,5 @@ Executable unittest
    pa_ounit,
    pa_ounit.syntax,
    routing,
+   simulate,
    util
