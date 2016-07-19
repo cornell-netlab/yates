@@ -405,7 +405,7 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
        * or deliver to end host if last link in a path
   * *)
   let local_debug = false in
-  let num_iterations = 1000 in
+  let num_iterations = !Kulfi_Globals.tm_sim_iters in
   let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
   let steady_state_time = 0 in
   let wait_out_time = 50 in (* ideally, should be >= diameter of graph*)
@@ -1087,6 +1087,7 @@ let command =
     +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
     +> flag "-deloop" no_arg ~doc:" remove loops in paths"
     +> flag "-flash-recover" no_arg ~doc:" perform local recovery for flash"
+    +> flag "-simtime" (optional_with_default 500 int) ~doc:" time steps to simulate each TM"
     +> flag "-scale" (optional_with_default 1. float) ~doc:" scale demands by this factor"
     +> flag "-budget" (optional_with_default (Int.max_value/100) int) ~doc:" max paths between each pair of hosts"
     +> flag "-fail-time" (optional_with_default (Int.max_value/100) int) ~doc:" simulation time to introduce failure at"
@@ -1129,6 +1130,7 @@ let command =
     (scalesyn:bool)
     (deloop:bool)
     (flash_recover:bool)
+    (simtime:int)
     (scale:float)
     (budget:int)
     (fail_time:int)
@@ -1175,6 +1177,7 @@ let command =
       let tot_scale = scale *. syn_scale in
       Printf.printf "Scale factor: %f\n\n" tot_scale;
       Kulfi_Globals.deloop := deloop;
+      Kulfi_Globals.tm_sim_iters := simtime;
       Kulfi_Globals.flash_recover := flash_recover;
       Kulfi_Globals.gurobi_method := grb_method;
       Kulfi_Globals.budget        := budget;

@@ -34,7 +34,7 @@ SrcDstMap.t) (max_tot: int) : (Topology.edge List.t) List.t=
         ) in
     p1
 
-let solve (topo:topology) (_:demands) : scheme =
+let solve_thresh (topo:topology) (_:demands) : scheme =
   let new_scheme =
   if not (SrcDstMap.is_empty !prev_scheme) then !prev_scheme
   else
@@ -68,7 +68,7 @@ let solve (topo:topology) (_:demands) : scheme =
   new_scheme
 
 
-let solve_mpapsp (topo:topology) (_:demands) : scheme =
+let solve (topo:topology) (_:demands) : scheme =
   let new_scheme =
   if not (SrcDstMap.is_empty !prev_scheme) then !prev_scheme
   else
