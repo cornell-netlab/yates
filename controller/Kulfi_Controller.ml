@@ -9,7 +9,7 @@ open Message
 open Frenetic_Network
 open Net
 
-module Controller = Frenetic_OpenFlow0x01_Controller
+module Controller = Frenetic_OpenFlow0x01_Plugin.LowLevel
 
 (* Global Variables *)
 let port_stats_delay = 1.0
@@ -20,9 +20,9 @@ let verbose s =
   else
     ()
 
-let string_of_stats (sw:switchId) ((time:Int64.t), (ps:portStats)) : string =
+let string_of_stats (sw:switchId) ((time:Int64.t), (ps:Frenetic_OpenFlow.portStats)) : string =
   Printf.sprintf
-    "time=%Ld, switch=%Ld, port_no=%d, \
+    "time=%Ld, switch=%Ld, port_no=%Ld, \
      rx_packets=%Ld, tx_packets=%Ld, \
      rx_bytes=%Ld, tx_bytes=%Ld, \
      rx_dropped=%Ld, tx_dropped=%Ld, \
@@ -32,12 +32,12 @@ let string_of_stats (sw:switchId) ((time:Int64.t), (ps:portStats)) : string =
     time
     sw
     ps.port_no
-    ps.rx_packets ps.tx_packets
-    ps.rx_bytes ps.tx_bytes
-    ps.rx_dropped ps.tx_dropped
-    ps.rx_errors ps.tx_errors
-    ps.rx_frame_err ps.rx_over_err ps.rx_crc_err
-    ps.collisions
+    ps.port_rx_packets ps.port_tx_packets
+    ps.port_rx_bytes ps.port_tx_bytes
+    ps.port_rx_dropped ps.port_tx_dropped
+    ps.port_rx_errors ps.port_tx_errors
+    ps.port_rx_frame_err ps.port_rx_over_err ps.port_rx_crc_err
+    ps.port_collisions
 
 module Make(Solver:Kulfi_Routing.Algorithm) = struct
 
@@ -47,7 +47,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
 
   type state =
     { network : (switchId, switch_state) Hashtbl.t;
-      stats : (switchId * portId, (int64 * portStats) list) Hashtbl.t;
+      stats : (switchId * portId, (int64 * Frenetic_OpenFlow.portStats) list) Hashtbl.t;
       topo : topology;
       mutable congestion : demand list;
       mutable churn : int list }
@@ -177,8 +177,8 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
 
   let send (sw, x, msg) =
     Controller.send sw x msg >>= function
-    | `Eof -> return ()
-    | `Ok -> return ()
+    | RpcEof -> return ()
+    | RpcOk -> return ()
 
   let safe_add hash k v f =
     match Hashtbl.Poly.find hash k with
@@ -187,15 +187,15 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
 
   let handler flow_hash evt =
     match evt with
-    | `Connect (sw, feats) ->
+    | SwitchUp (sw, ports) ->
        begin
          Core.Std.printf "switch %Ld connected" sw;
          (* Save global state *)
          let sw_state =
-           { ports = List.map feats.SwitchFeatures.ports ~f:(fun pd -> pd.port_no);
+           { ports = List.map ports ~f:(Int32.to_int_exn);
              flows =
                (match Hashtbl.Poly.find flow_hash sw with
-                | None -> []
+                | None -> begin Core.Std.printf "no flows!\n"; [] end
                 | Some flows -> flows) } in
          safe_add global_state.network sw sw_state (fun x _ -> x);
          (* Propagate state to network *)
@@ -205,18 +205,16 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
            (List.map sw_state.flows
                      (fun flow -> send (sw, xid (), FlowModMsg flow)))
        end
-    | `Disconnect sw ->
+    | SwitchDown sw ->
        verbose (Printf.sprintf "switch %Ld disconnected" sw);
        Hashtbl.Poly.remove global_state.network sw;
        return ()
-    | `Message(sw,_,StatsReplyMsg (PortRep psl as rep)) ->
-       verbose (Printf.sprintf "stats from %Ld: %s" sw (reply_to_string rep));
+    | PortStats(sw, ps) ->
+       verbose (Printf.sprintf "stats %s" (string_of_stats sw (0L,ps)));
        let time = Kulfi_Time.time () in
-       List.iter
-         psl
-         ~f:(fun ps -> safe_add global_state.stats (sw,ps.port_no) [(time, ps)] (@));
+       safe_add global_state.stats (sw, Int64.to_int_exn ps.port_no) [(time, ps)] (@);
        return ()
-    | `Message(_,_,msg) ->
+    | _ ->
        return ()
 
   let initial_scheme init_str topo ic hm : scheme =
@@ -246,7 +244,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
   (* Start controller CLI loop and install flow rules *)
   let start_controller sw_flows_map () =
       Core.Std.eprintf "[Kulfi: starting controller]\n%!";
-      Controller.init 6633;
+      Controller.start 6633;
       Core.Std.eprintf "[Kulfi: running...]\n%!";
       don't_wait_for (cli ());
       don't_wait_for (port_stats_loop ());
@@ -294,16 +292,19 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
       try
         let predict = next_demand predict_traffic_ic predict_host_map in
         let scheme' = Solver.solve topo predict in
+        Core.Std.printf "%d\n%!" (SrcDstMap.length scheme');
         let path_tag_map = Kulfi_Paths.add_paths_from_scheme scheme' path_tag_map in
         print_configuration topo (path_routing_configuration_of_scheme topo scheme' path_tag_map) i;
         simulate (i+1) path_tag_map
-      with _ ->
+      with err ->
+        Core.Std.printf "exit %d %s\n%!" i (Exn.to_string err);
         path_tag_map in
     let open Deferred in
     (* Main code *)
     Core.Std.eprintf "[Kulfi: generating configurations]\n%!";
     (* Generate schemes for each iteration and create a tag for every path *)
     let path_tag_map = simulate 0 PathMap.empty in
+    Core.Std.eprintf "[Kulfi: %d]\n%!" (PathMap.length path_tag_map);
     (* translate path-tag map into flow mods for each switch *)
     let sw_flows_map = Kulfi_Paths.create_sw_flows_map topo path_tag_map in
     (*dump_flow_mods sw_flows_map;*)
