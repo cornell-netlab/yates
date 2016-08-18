@@ -6,8 +6,8 @@ open Core.Std
 open Kulfi_LP_Lang
 open Kulfi_Spf
 open Kulfi_Globals
-       
-let () = Random.self_init ()
+
+let () = Random.self_init ~allow_in_tests:true ()
 
 
 let objective = Var "Z"
@@ -20,12 +20,12 @@ let capacity_constraints (topo : Topology.t) (d_pairs : demands)
      (* The sum of all commodity flows in both direction must exceed
          the capacity by less than Z * capacity. *)
      (* Gather all of the terms for each commodity *)
-     let all_flows = SrcDstMap.fold 
+     let all_flows = SrcDstMap.fold
                        ~init:[]
-                       ~f:(fun ~key:(u,v) ~data:r acc2 ->                                                                   
+                       ~f:(fun ~key:(u,v) ~data:r acc2 ->
                            let forward_amt = var_name topo edge (u,v) in
 	                       (* let reverse_amt = var_name_rev topo edge pair in *)
-                           Var(forward_amt):: (* Var(reverse_amt):: *) acc2) d_pairs                       
+                           Var(forward_amt):: (* Var(reverse_amt):: *) acc2) d_pairs
       in
       (* Add them all up *)
       let total_flow = Sum (all_flows) in
@@ -82,7 +82,7 @@ let conservation_constraints (topo : Topology.t) (d_pairs : demands)
             let constr = Eq (name, net, 0.) in
             constr::acc2) topo acc) d_pairs
 
-	
+
 let lp_of_graph (topo : Topology.t) (demand_pairs : demands) =
   let cap_constrs = capacity_constraints topo demand_pairs [] in
   let cap_and_demand = demand_constraints topo demand_pairs cap_constrs in
@@ -169,17 +169,17 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
     let paths = find_paths topo_with_edges [] in
     paths in (* This line ends find_paths by returning paths. *)
     (* For every commodity, get their paths. *)
-    let (unnormalized_scheme, flow_sum) = Hashtbl.fold 
-      flow_table 
+    let (unnormalized_scheme, flow_sum) = Hashtbl.fold
+      flow_table
       ~init:(SrcDstMap.empty, SrcDstMap.empty)
       ~f:(fun ~key:d_pair ~data:edges (us,fs) ->
           let (s,t) = d_pair in
           let s_v = Topology.vertex_of_label orig_topo s in
           let t_v = Topology.vertex_of_label orig_topo t in
           let paths = if s <> t then strip_paths (s, t) edges else [] in
-          let (p,sum_rate) = 
-	    List.fold_left 
-	      paths 
+          let (p,sum_rate) =
+	    List.fold_left
+	      paths
 	      ~init:(PathMap.empty,0.)
 	      (* TODO(rjs,rdk): the weight is wrong. *)
               ~f:(fun (acc,sum_acc) (path,scalar) -> (PathMap.add acc path scalar, sum_acc +. scalar) ) in
@@ -190,19 +190,19 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
   SrcDstMap.fold ~init:(SrcDstMap.empty)
     ~f:(fun ~key:(u,v) ~data:f_decomp acc  ->
       match SrcDstMap.find flow_sum (u,v) with
-      | None -> assert false 
-      | Some sum_rate -> 
+      | None -> assert false
+      | Some sum_rate ->
 	 ignore (if (sum_rate < 0.) then failwith "sum_rate leq 0. on flow" else ());
 	 let default_value = 1.0 /. (Float.of_int (PathMap.length f_decomp) ) in
-	 let normalized_f_decomp = 
+	 let normalized_f_decomp =
 	   PathMap.fold ~init:(PathMap.empty)
 			~f:(fun ~key:path ~data:rate acc ->
-			    let normalized_rate = 
+			    let normalized_rate =
 			      if sum_rate = 0. then
 				default_value
-			      else 
+			      else
 				rate /. sum_rate in
-	
+
 	       PathMap.add ~key:path ~data:normalized_rate acc)
 	     f_decomp in
 	 SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc) unnormalized_scheme
@@ -213,19 +213,19 @@ let rec new_rand () : float =
   match Sys.file_exists try_fn with
       `Yes -> new_rand ()
        | _ -> rand
- 
+
 (* Run everything. Given a topology and a set of pairs with demands,
    returns the optimal congestion ratio, the paths used, and the number
    of paths used. *)
 (* let solver_paths topo pairs verbose = *)
 let solve (topo:topology) (pairs:demands) : scheme =
-  
+
   let name_table = Hashtbl.Poly.create () in
   Topology.iter_vertexes (fun vert ->
 			  let label = Topology.vertex_to_label topo vert in
 			  let name = Node.name label in
         Hashtbl.Poly.add_exn name_table name vert) topo;
-  
+
   let lp = lp_of_graph topo pairs in
   let rand = new_rand () in
   let lp_filename = (Printf.sprintf "lp/mcf_%f.lp" rand) in
@@ -234,7 +234,7 @@ let solve (topo:topology) (pairs:demands) : scheme =
 
   let method_str = (Int.to_string !gurobi_method) in
   let gurobi_in = Unix.open_process_in
-		    ("gurobi_cl Method=" ^ method_str ^ " OptimalityTol=1e-9 ResultFile=" ^ lp_solname ^ " " ^ lp_filename) in 
+		    ("gurobi_cl Method=" ^ method_str ^ " OptimalityTol=1e-9 ResultFile=" ^ lp_solname ^ " " ^ lp_filename) in
   let time_str = "Solved in [0-9]+ iterations and \\([0-9.e+-]+\\) seconds" in
   let time_regex = Str.regexp time_str in
   let rec read_output gurobi solve_time =

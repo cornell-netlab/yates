@@ -5,7 +5,7 @@ module Topology = Net.Topology
 module VertexSet = Topology.VertexSet
 module EdgeSet = Topology.EdgeSet
 
-let () = Random.self_init ()
+let () = Random.self_init ~allow_in_tests:true ()
 
 module type FRT_TYPE = sig
 
@@ -69,7 +69,7 @@ struct
   type rt = TreeRTNode of Topology.vertex * Topology.VertexSet.t
     * (rt list)
 
-  (* TODO(cy,jnf): this type is now redundant. Eliminate it? *) 
+  (* TODO(cy,jnf): this type is now redundant. Eliminate it? *)
   type rt_with_paths = RTNode of Topology.vertex * Topology.VertexSet.t
     * rt_with_paths list
 

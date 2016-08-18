@@ -786,7 +786,7 @@ let reset_topo_weights edge_weights topo =
       |> set_weight acc e)
 
 let set_topo_weights topo =
-  Random.init (Topology.num_vertexes topo);
+  (*Random.init (Topology.num_vertexes topo);*)
   let topo' = List.fold_left (EdgeSet.elements (Topology.edges topo))
     ~init:StringMap.empty
     ~f:(fun acc e ->
@@ -794,7 +794,7 @@ let set_topo_weights topo =
       (*let w = (0.5 +. Random.float 1.) in*)
       let topo = set_weight topo e w in
       StringMap.add ~key:(string_of_edge topo e) ~data:w acc) in
-  Random.self_init ();
+  (*Random.self_init ();*)
   topo'
 
 
