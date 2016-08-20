@@ -1,10 +1,11 @@
 open Frenetic_Network
 open Net
 open Core.Std
-       
 open Kulfi_Types
-       
-let () = Random.self_init ()
+
+let () = match !Kulfi_Globals.rand_seed with
+  | Some x -> Random.init x
+  | None -> Random.self_init ~allow_in_tests:true ()
 
 let pi = 4.0 *. atan 1.0
 

@@ -7,8 +7,9 @@ open Kulfi_LP_Lang
 open Kulfi_Spf
 open Kulfi_Globals
 
-let () = Random.self_init ~allow_in_tests:true ()
-
+let () = match !Kulfi_Globals.rand_seed with
+  | Some x -> Random.init x
+  | None -> Random.self_init ~allow_in_tests:true ()
 
 let objective = Var "Z"
 

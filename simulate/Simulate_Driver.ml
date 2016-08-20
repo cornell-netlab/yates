@@ -1097,6 +1097,7 @@ let command =
     +> flag "-flash-ba" (optional_with_default 0. float) ~doc:" fraction of total traffic to add as flash"
     +> flag "-fail-num" (optional_with_default 1 int) ~doc:" number of links to fail"
     +> flag "-out" (optional string) ~doc:" name of directory in expData to store results"
+    +> flag "-rseed" (optional int) ~doc:" seed to initialize PRNG"
     +> flag "-gurobi-method" (optional_with_default (-1) int) ~doc:" solver method used for Gurobi. -1=automatic, 0=primal simplex, 1=dual simplex, 2=barrier, 3=concurrent, 4=deterministic concurrent."
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
@@ -1140,6 +1141,7 @@ let command =
     (flash_ba:float)
     (fail_num:int)
     (out:string option)
+    (rseed:int option)
     (grb_method:int)
     (topology_file:string)
     (demand_file:string)
@@ -1177,11 +1179,12 @@ let command =
       let tot_scale = scale *. syn_scale in
       Printf.printf "Scale factor: %f\n\n" tot_scale;
       Kulfi_Globals.deloop := deloop;
-      Kulfi_Globals.tm_sim_iters := simtime;
+      Kulfi_Globals.tm_sim_iters  := simtime;
       Kulfi_Globals.flash_recover := flash_recover;
       Kulfi_Globals.gurobi_method := grb_method;
       Kulfi_Globals.budget        := budget;
       Kulfi_Globals.failure_time  := fail_time;
+      Kulfi_Globals.rand_seed     := rseed;
       Kulfi_Globals.local_recovery_delay  := lr_delay;
       Kulfi_Globals.global_recovery_delay := gr_delay;
      simulate algorithms topology_file demand_file predict_file host_file iterations tot_scale fail_num is_flash flash_ba out ())

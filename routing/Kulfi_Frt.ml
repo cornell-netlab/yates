@@ -5,7 +5,9 @@ module Topology = Net.Topology
 module VertexSet = Topology.VertexSet
 module EdgeSet = Topology.EdgeSet
 
-let () = Random.self_init ~allow_in_tests:true ()
+let () = match !Kulfi_Globals.rand_seed with
+  | Some x -> Random.init x
+  | None -> Random.self_init ~allow_in_tests:true ()
 
 module type FRT_TYPE = sig
 

@@ -6,7 +6,9 @@ open Net.Topology
 open Kulfi_Globals
 open Kulfi_Apsp
 
-let () = Random.self_init ~allow_in_tests:true ()
+let () = match !Kulfi_Globals.rand_seed with
+  | Some x -> Random.init x
+  | None -> Random.self_init ~allow_in_tests:true ()
 
 let prev_scheme = ref SrcDstMap.empty
 
