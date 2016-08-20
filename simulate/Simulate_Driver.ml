@@ -824,7 +824,7 @@ let simulate
     (demand_file:string)
     (predict_file:string)
     (host_file:string)
-    (num_tms:int)
+    (num_tms_opt:int option)
     (scale:float)
     (num_failures:int)
     (is_flash:bool)
@@ -835,6 +835,9 @@ let simulate
   let demand_lines_length = List.length (In_channel.read_lines demand_file) in
   let predict_lines_length = List.length (In_channel.read_lines predict_file) in
 
+  let num_tms = match num_tms_opt with
+    | Some x -> x
+    | None -> min demand_lines_length predict_lines_length in
   if (demand_lines_length < num_tms) then failwith "#TMs greater than demand file length";
   if (predict_lines_length < num_tms) then failwith "#TMs greater than predict file length";
 
@@ -1098,12 +1101,12 @@ let command =
     +> flag "-fail-num" (optional_with_default 1 int) ~doc:" number of links to fail"
     +> flag "-out" (optional string) ~doc:" name of directory in expData to store results"
     +> flag "-rseed" (optional int) ~doc:" seed to initialize PRNG"
+    +> flag "-num-tms" (optional int) ~doc:" number of TMs"
     +> flag "-gurobi-method" (optional_with_default (-1) int) ~doc:" solver method used for Gurobi. -1=automatic, 0=primal simplex, 1=dual simplex, 2=barrier, 3=concurrent, 4=deterministic concurrent."
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
     +> anon ("predict-file" %: string)
     +> anon ("host-file" %: string)
-    +> anon ("iterations" %: int)
   ) (fun
     (mcf:bool)
     (mwmcf:bool)
@@ -1142,12 +1145,12 @@ let command =
     (fail_num:int)
     (out:string option)
     (rseed:int option)
+    (num_tms:int option)
     (grb_method:int)
     (topology_file:string)
     (demand_file:string)
     (predict_file:string)
-    (host_file:string)
-    (iterations:int) () ->
+    (host_file:string) () ->
       let algorithms =
         List.filter_map ~f:(fun x -> x)
          [ if mcf || all        then Some Mcf         else None
@@ -1187,7 +1190,7 @@ let command =
       Kulfi_Globals.rand_seed     := rseed;
       Kulfi_Globals.local_recovery_delay  := lr_delay;
       Kulfi_Globals.global_recovery_delay := gr_delay;
-     simulate algorithms topology_file demand_file predict_file host_file iterations tot_scale fail_num is_flash flash_ba out ())
+     simulate algorithms topology_file demand_file predict_file host_file num_tms tot_scale fail_num is_flash flash_ba out ())
 
 let main = Command.run command
 
