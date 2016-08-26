@@ -6,7 +6,15 @@ open Kulfi_Types
 open Kulfi_Util
 open Simulation_Util
 
-(* failure prob of a link is proportional to its congestion ^ alpha *)
+(********************************************************************)
+(**************** Generate various failure scenarios ****************)
+(********************************************************************)
+
+let reverse_edge topo e = match Topology.inverse_edge topo e with
+          | Some x -> x
+          | None -> assert false
+
+(* helper: failure prob of a link is proportional to its congestion ^ alpha *)
 let rec get_util_based_failure_scenario (topo:topology) (alpha:float) (utils:congestion EdgeMap.t) : failure =
   (* don't fail links connecting hosts *)
   let failure_weights = utils
@@ -34,9 +42,6 @@ let rec get_util_based_failure_scenario (topo:topology) (alpha:float) (utils:con
 
 (* Given link congestions, select top n links that do not partition the network *)
 let rec get_max_util_failure (topo:topology) (num_fail:int) (utils: congestion EdgeMap.t): failure =
-  let reverse_edge e = match Topology.inverse_edge topo e with
-          | Some x -> x
-          | None -> assert false in
   (* don't fail links connecting hosts *)
   let sorted_edge_utils = utils
       |> EdgeMap.to_alist
@@ -51,7 +56,7 @@ let rec get_max_util_failure (topo:topology) (num_fail:int) (utils: congestion E
       if nf = 0 then acc
       else if EdgeSet.mem fail_set e then acc
       else
-        let fail_set_cand = EdgeSet.add (EdgeSet.add fail_set e) (reverse_edge e) in
+        let fail_set_cand = EdgeSet.add (EdgeSet.add fail_set e) (reverse_edge topo e) in
         if check_connectivity_after_failure topo fail_set_cand then (fail_set_cand, nf-1)
         else acc) in
   (*let _ = EdgeSet.iter max_util_links_set ~f:(fun e -> Printf.printf "%s \t%!" (string_of_edge topo e);) in*)
@@ -63,6 +68,7 @@ let get_spf_util_based_failure (topo:topology) (actual:demands) (alpha:float) : 
     |> get_util_based_failure_scenario topo alpha
 
 
+(* Return top utilized SPF links, whose failure doesn't partition the network *)
 let rec get_spf_max_util_link (topo:topology) (actual:demands) (num_fail:int) : failure =
   if num_fail = 0 then EdgeSet.empty
   else
@@ -90,7 +96,6 @@ let rec get_random_failure (topo:topology) (num_fail:int) : failure =
       EdgeSet.add selected rev_edge in
 
   let all_edges = EdgeSet.elements (Topology.edges topo) in
-  let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
   let fail_set = List.fold_left (range 0 num_fail)
     ~init:EdgeSet.empty
     ~f:(fun acc i ->
@@ -130,11 +135,9 @@ let rec get_test_failure_scenario (topo:topology) (actual:demands) (iter_pos:flo
 
 (* Pre-compute failure scenario for each TM - to be consistent across TE algorithms *)
 let get_failure_scenarios (topo:topology) (demand_file:string) (host_file:string) (iters:int) (num_failures:int) (scale:float) : (EdgeSet.t List.t) =
-  let num_tm = min iters (List.length (In_channel.read_lines demand_file)) in
   let (demand_host_map, demand_ic) = open_demands demand_file host_file topo in
-  let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
   let fail_start_iter = 0 in
-  let iterations = range fail_start_iter num_tm in
+  let iterations = range fail_start_iter iters in
   let failure_scenarios = List.rev(List.fold_left iterations
     ~init:[]
     ~f:(fun acc n ->
@@ -143,10 +146,38 @@ let get_failure_scenarios (topo:topology) (demand_file:string) (host_file:string
       get_spf_max_util_link topo actual num_failures in
       (* get_util_based_failure_scenario topo num_failures iexp_congestions n*)
       (*get_spf_util_based_failure topo actual exp_congestions num_failures in*)
-      (*get_test_failure_scenario topo actual ((Float.of_int (n - fail_start_iter)) /. (Float.of_int num_tm)) num_failures in*)
+      (*get_test_failure_scenario topo actual ((Float.of_int (n - fail_start_iter)) /. (Float.of_int iters)) num_failures in*)
       (*Printf.printf "Selected failure: %s\n%!" (dump_edges topo (EdgeSet.elements failing_edges));*)
       failing_edges::acc)) in
   close_demands demand_ic;
   failure_scenarios
 
+(* Compute all possible failure scenarios with num_failures link failing, while not partitioning the network *)
+let get_all_possible_failures (topo:topology) (num_failures:int) : (failure List.t) =
+  (* List of single link failures *)
+  let all_single_failures =
+    EdgeSet.fold (Topology.edges topo) ~init:[]
+      ~f:(fun acc e ->
+        if not (edge_connects_switches e topo) then acc
+        else
+          let rev_e = reverse_edge topo e in
+          let fl = EdgeSet.add (EdgeSet.singleton e) rev_e in
+          if List.mem ~equal:EdgeSet.equal acc fl then acc
+          else fl::acc)
+    |> List.filter ~f:(fun fl -> check_connectivity_after_failure topo fl) in
 
+  let failures = List.fold_left (range 1 num_failures) ~init:all_single_failures
+    ~f:(fun partial_acc i ->
+      List.fold_left partial_acc ~init:[]
+        ~f:(fun acc partial_fl ->
+          List.fold_left all_single_failures ~init:acc
+            ~f:(fun acc single_fl ->
+              if EdgeSet.subset single_fl partial_fl then acc
+              else
+                let new_failure = EdgeSet.union partial_fl single_fl in
+                if check_connectivity_after_failure topo new_failure then new_failure::acc
+                else acc))) in
+  (*List.iter failures ~f:(fun failing_edges ->
+    Printf.printf "Selected failure: %s\n%!" (dump_edges topo (EdgeSet.elements failing_edges)));
+  Printf.printf "Total scenarios : %d\n" (List.length failures);*)
+  failures

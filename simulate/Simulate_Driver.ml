@@ -376,7 +376,6 @@ let update_flash_demand topo sink dem flash_t per_src_flash_factor total_t: dema
 let pick_flash_sinks (topo:topology) (iters:int) =
   let hosts = get_hosts topo in
   let num_hosts = List.length hosts in
-  let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
   List.fold_left (range 0 iters) ~init:[]
   ~f:(fun acc n ->
     let selected = List.nth_exn hosts (n % num_hosts) in
@@ -393,8 +392,17 @@ let sum_sink_demands (d:demands) sink : float =
       if dst = sink then acc +. x
       else acc)
 
-(* Simulate routing for one TM *)
-let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:failure) (predict:demands) (algorithm:solver_type) (is_flash:bool) (flash_ba:float) (flash_sink) =
+(***********************************************************)
+(************** Simulate routing for one TM ****************)
+let simulate_tm (start_scheme:scheme)
+    (topo : topology)
+    (dem : demands)
+    (fail_edges : failure)
+    (predict : demands)
+    (algorithm : solver_type)
+    (is_flash : bool)
+    (flash_ba : float)
+    (flash_sink) =
   (*
    * At each time-step:
      * For each path:
@@ -406,9 +414,8 @@ let simulate_tm (start_scheme:scheme) (topo:topology) (dem:demands) (fail_edges:
   * *)
   let local_debug = false in
   let num_iterations = !Kulfi_Globals.tm_sim_iters in
-  let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
   let steady_state_time = 0 in
-  let wait_out_time = 50 in (* ideally, should be >= diameter of graph*)
+  let wait_out_time = 50 in (* wait for this time for the network to reach steady state *)
   let failure_time =
     if (EdgeSet.is_empty fail_edges) || (!Kulfi_Globals.failure_time > num_iterations)  then Int.max_value/100
     else !Kulfi_Globals.failure_time + steady_state_time in
@@ -803,7 +810,6 @@ let set_topo_weights topo =
 let calculate_demand_envelope (topo:topology) (predict_file:string) (host_file:string) (iters:int) =
   let num_tm = min iters (List.length (In_channel.read_lines predict_file)) in
   let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
-  let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
   let iterations = range 0 num_tm in
   let envelope = List.fold_left iterations ~init:SrcDstMap.empty
     ~f:(fun acc n ->
@@ -818,6 +824,7 @@ let calculate_demand_envelope (topo:topology) (predict_file:string) (host_file:s
   close_demands predict_ic;
   envelope
 
+(****************** Main Simulation Function ******************)
 let simulate
     (spec_solvers:solver_type list)
     (topology_file:string)
@@ -825,26 +832,18 @@ let simulate
     (predict_file:string)
     (host_file:string)
     (num_tms_opt:int option)
+    (robustness_test:bool)
     (scale:float)
     (num_failures:int)
     (is_flash:bool)
     (flash_burst_amount:float)
     (out_dir:string option) () : unit =
 
-  (* Do some error checking on input *)
-  let demand_lines_length = List.length (In_channel.read_lines demand_file) in
-  let predict_lines_length = List.length (In_channel.read_lines predict_file) in
-
-  let num_tms = match num_tms_opt with
-    | Some x -> x
-    | None -> min demand_lines_length predict_lines_length in
-  if (demand_lines_length < num_tms) then failwith "#TMs greater than demand file length";
-  if (predict_lines_length < num_tms) then failwith "#TMs greater than predict file length";
-
   let topo = Parse.from_dotfile topology_file in
   let edge_weights = set_topo_weights topo in
 
-  (* Create records to store statisitics *)
+  (************************************************************)
+  (********* Create records to store statisitics **************)
   let time_data = make_data "Iteratives Vs Time" in
   let tm_churn_data = make_data "TM Churn Vs Time" in
   let rec_churn_data = make_data "Recovery Churn Vs Time" in
@@ -872,16 +871,38 @@ let simulate
 
   let percentile_data = create_percentile_data "Congestion" in
   let exp_percentile_data = create_percentile_data "Expected Congestion" in
-  (* ------------ *)
+  (*******************************************************)
 
-  let rec range i j = if i >= j then [] else i :: (range (i+1) j) in
+
+  (************** Compute number of iterations ***********)
+  let demand_lines_length = List.length (In_channel.read_lines demand_file) in
+  let predict_lines_length = List.length (In_channel.read_lines predict_file) in
+
+  (* If number of iterations isn't specified, then set it to number of TMs in TM file,
+   * or compute possible scenarios for robustness test *)
+  let num_tms = match num_tms_opt with
+    | Some x ->
+        if robustness_test then failwith "Number of TMs is automatically decided for robustness test"
+        else x
+    | None ->
+        min demand_lines_length predict_lines_length in
 
   (* precompute network scenarios to introduce - to be consistent across schemes *)
   let failure_scenarios =
-    get_failure_scenarios topo demand_file host_file num_tms num_failures scale in
+    if robustness_test then
+      get_all_possible_failures topo num_failures
+    else
+      get_failure_scenarios topo demand_file host_file num_tms num_failures scale in
+
+  (* update number of iterations based on failure scenarios, if performing robustness test*)
+  let num_tms = if robustness_test then List.length failure_scenarios else num_tms in
+
+  (* Compute flash sink node for each iteration *)
   let flash_sinks = pick_flash_sinks topo num_tms in
 
-  (* Iteration over routing algorithms *)
+
+  (******************************************************************)
+  (******************** Iterate on routing algorithms ***************)
   List.iter
     spec_solvers
     ~f:(fun algorithm ->
@@ -901,7 +922,8 @@ let simulate
       Printf.printf "\n";
       (* we may need to initialize the scheme, and advance both traffic files *)
 
-      (* iterate over all traffic matrices and accumulate stats *)
+      (************************************************************************)
+      (*********** Iterate over all traffic matrices and accumulate stats *****)
       let _ =
         List.fold_left (range 0 num_tms) (* 0..num_tms *)
           ~init:SrcDstMap.empty
@@ -923,7 +945,7 @@ let simulate
             let flash_sink = List.nth_exn flash_sinks n in
             let tm_sim_stats =
               simulate_tm scheme topo actual failing_edges predict algorithm is_flash flash_burst_amount flash_sink in
-            (* simulation done  *)
+            (* simulation done *)
 
             (* Accumulate statistics *)
             let exp_congestions = congestion_of_paths topo actual scheme in
@@ -1043,7 +1065,9 @@ let simulate
         let header = Printf.sprintf "# solver\titer\t.%f-exp-congestion\tstddev" p in
         to_file dir file_name d header iter_vs_congestion_to_string) ;
     Printf.printf "\nComplete.\n"
+
   (************** End simulation ******************************************)
+  (************************************************************************)
 
 (* For synthetic demands, scale them by multiplying by X/mcf_congestion,
  * where X (= 0.4) is the max congestion we expect to get when run with the new demands *)
@@ -1089,19 +1113,20 @@ let command =
     +> flag "-all" no_arg ~doc:" run all schemes"
     +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
     +> flag "-deloop" no_arg ~doc:" remove loops in paths"
-    +> flag "-flash-recover" no_arg ~doc:" perform local recovery for flash"
-    +> flag "-simtime" (optional_with_default 500 int) ~doc:" time steps to simulate each TM"
-    +> flag "-scale" (optional_with_default 1. float) ~doc:" scale demands by this factor"
-    +> flag "-budget" (optional_with_default (Int.max_value/100) int) ~doc:" max paths between each pair of hosts"
+    +> flag "-robust" no_arg ~doc:" perform robustness test - fail all combinations of fail-num links"
+    +> flag "-fail-num" (optional_with_default 1 int) ~doc:" number of links to fail"
     +> flag "-fail-time" (optional_with_default (Int.max_value/100) int) ~doc:" simulation time to introduce failure at"
     +> flag "-lr-delay" (optional_with_default (Int.max_value/100) int) ~doc:" delay between failure and local recovery"
     +> flag "-gr-delay" (optional_with_default (Int.max_value/100) int) ~doc:" delay between failure and global recovery"
     +> flag "-is-flash" no_arg ~doc:" simulate flash or not"
     +> flag "-flash-ba" (optional_with_default 0. float) ~doc:" fraction of total traffic to add as flash"
-    +> flag "-fail-num" (optional_with_default 1 int) ~doc:" number of links to fail"
+    +> flag "-flash-recover" no_arg ~doc:" perform local recovery for flash"
+    +> flag "-simtime" (optional_with_default 500 int) ~doc:" time steps to simulate each TM"
+    +> flag "-budget" (optional_with_default (Int.max_value/100) int) ~doc:" max paths between each pair of hosts"
+    +> flag "-scale" (optional_with_default 1. float) ~doc:" scale demands by this factor"
     +> flag "-out" (optional string) ~doc:" name of directory in expData to store results"
     +> flag "-rseed" (optional int) ~doc:" seed to initialize PRNG"
-    +> flag "-num-tms" (optional int) ~doc:" number of TMs"
+    +> flag "-num-tms" (optional int) ~doc:" number of TMs (-robust overrides this)"
     +> flag "-gurobi-method" (optional_with_default (-1) int) ~doc:" solver method used for Gurobi. -1=automatic, 0=primal simplex, 1=dual simplex, 2=barrier, 3=concurrent, 4=deterministic concurrent."
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
@@ -1133,16 +1158,17 @@ let command =
     (all:bool)
     (scalesyn:bool)
     (deloop:bool)
-    (flash_recover:bool)
-    (simtime:int)
-    (scale:float)
-    (budget:int)
+    (robust:bool)
+    (fail_num:int)
     (fail_time:int)
     (lr_delay:int)
     (gr_delay:int)
     (is_flash:bool)
     (flash_ba:float)
-    (fail_num:int)
+    (flash_recover:bool)
+    (simtime:int)
+    (budget:int)
+    (scale:float)
     (out:string option)
     (rseed:int option)
     (num_tms:int option)
@@ -1190,7 +1216,9 @@ let command =
       Kulfi_Globals.rand_seed     := rseed;
       Kulfi_Globals.local_recovery_delay  := lr_delay;
       Kulfi_Globals.global_recovery_delay := gr_delay;
-     simulate algorithms topology_file demand_file predict_file host_file num_tms tot_scale fail_num is_flash flash_ba out ())
+      if robust then
+        Kulfi_Globals.failure_time  := 0;
+     simulate algorithms topology_file demand_file predict_file host_file num_tms robust tot_scale fail_num is_flash flash_ba out ())
 
 let main = Command.run command
 
