@@ -825,7 +825,7 @@ let calculate_demand_envelope (topo:topology) (predict_file:string) (host_file:s
   envelope
 
 (* Measure vulnerability of routing schemes to link failures *)
-let accumulate_vulnerability_stats topology_file topo algorithm scheme =
+let accumulate_vulnerability_stats topology_file topo algorithm scheme demand =
   let solver_name = (solver_to_string algorithm) in
   let split_dot_file_list = String.split_on_chars topology_file ~on:['/';'.'] in
   let suffix = List.nth split_dot_file_list (List.length split_dot_file_list -2) in
@@ -837,6 +837,9 @@ let accumulate_vulnerability_stats topology_file topo algorithm scheme =
   let vuln_score_count = SrcDstMap.fold scheme
       ~init:IntMap.empty
       ~f:(fun ~key:(s,d) ~data:path_prob_map acc ->
+        let dem = match SrcDstMap.find demand (s,d) with
+          | Some x -> x
+          | None -> 0. in
         let num_paths = PathMap.length path_prob_map in
         let count_edge_usage = PathMap.fold path_prob_map
         ~init:EdgeMap.empty
@@ -850,15 +853,15 @@ let accumulate_vulnerability_stats topology_file topo algorithm scheme =
         EdgeMap.fold count_edge_usage ~init:acc ~f:(fun ~key:e ~data:vuln_score acc ->
           let count = match IntMap.find acc vuln_score with
             | Some x -> x
-            | None -> 0 in
-          IntMap.add ~key:vuln_score ~data:(count+1) acc)) in
+            | None -> 0. in
+          IntMap.add ~key:vuln_score ~data:(count+.dem) acc)) in
 
   let buf = Buffer.create 101 in
   Printf.bprintf buf "\n\n%s\n" solver_name;
-  let tot_count = IntMap.fold vuln_score_count ~init:0 ~f:(fun ~key:_ ~data:d acc -> acc + d) in
+  let tot_count = IntMap.fold vuln_score_count ~init:0. ~f:(fun ~key:_ ~data:d acc -> acc +. d) in
   IntMap.iteri vuln_score_count ~f:(fun ~key:n ~data:c ->
     Printf.bprintf buf "%f : %f\n" ((Float.of_int n) /. (Float.of_int mult))
-    ((Float.of_int c) /. (Float.of_int tot_count)));
+    (c /.  tot_count));
   let dir = "./expData/" in
   let _ = match (Sys.file_exists dir) with | `No -> Unix.mkdir dir | _ -> () in
   let oc = Out_channel.create (dir ^ file_name) ~append:true in
@@ -988,7 +991,7 @@ let simulate
             (* measure robustness of routing algs in terms of shared edges between paths *)
             if vulnerability_test then
               begin
-                accumulate_vulnerability_stats topology_file topo algorithm scheme;
+                accumulate_vulnerability_stats topology_file topo algorithm scheme actual;
                 scheme
               end
             else
