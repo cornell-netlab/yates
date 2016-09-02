@@ -833,7 +833,7 @@ let accumulate_vulnerability_stats topology_file topo algorithm scheme =
   let suffix = match suffix with
           | Some x -> x
           | None -> "default" in
-  let file_name = suffix ^ ".vscore" in
+  let file_name = suffix ^ "_b" ^ (string_of_int !Kulfi_Globals.budget) ^ ".vscore" in
   let vuln_score_count = SrcDstMap.fold scheme
       ~init:IntMap.empty
       ~f:(fun ~key:(s,d) ~data:path_prob_map acc ->
