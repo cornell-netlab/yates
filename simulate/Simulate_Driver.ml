@@ -824,6 +824,47 @@ let calculate_demand_envelope (topo:topology) (predict_file:string) (host_file:s
   close_demands predict_ic;
   envelope
 
+(* Measure vulnerability of routing schemes to link failures *)
+let accumulate_vulnerability_stats topology_file topo algorithm scheme =
+  let solver_name = (solver_to_string algorithm) in
+  let split_dot_file_list = String.split_on_chars topology_file ~on:['/';'.'] in
+  let suffix = List.nth split_dot_file_list (List.length split_dot_file_list -2) in
+  let mult = 2520 in
+  let suffix = match suffix with
+          | Some x -> x
+          | None -> "default" in
+  let file_name = suffix ^ ".vscore" in
+  let vuln_score_count = SrcDstMap.fold scheme
+      ~init:IntMap.empty
+      ~f:(fun ~key:(s,d) ~data:path_prob_map acc ->
+        let num_paths = PathMap.length path_prob_map in
+        let count_edge_usage = PathMap.fold path_prob_map
+        ~init:EdgeMap.empty
+        ~f:(fun ~key:path ~data:_ acc ->
+          List.fold_left path ~init:acc
+          ~f:(fun acc e ->
+            let e_count = match EdgeMap.find acc e with
+                  | Some x -> x
+                  | None -> 0 in
+            EdgeMap.add ~key:e ~data:(e_count+(mult/num_paths)) acc)) in (* normalizing by num_paths*)
+        EdgeMap.fold count_edge_usage ~init:acc ~f:(fun ~key:e ~data:vuln_score acc ->
+          let count = match IntMap.find acc vuln_score with
+            | Some x -> x
+            | None -> 0 in
+          IntMap.add ~key:vuln_score ~data:(count+1) acc)) in
+
+  let buf = Buffer.create 101 in
+  Printf.bprintf buf "\n\n%s\n" solver_name;
+  let tot_count = IntMap.fold vuln_score_count ~init:0 ~f:(fun ~key:_ ~data:d acc -> acc + d) in
+  IntMap.iteri vuln_score_count ~f:(fun ~key:n ~data:c ->
+    Printf.bprintf buf "%f : %f\n" ((Float.of_int n) /. (Float.of_int mult))
+    ((Float.of_int c) /. (Float.of_int tot_count)));
+  let dir = "./expData/" in
+  let _ = match (Sys.file_exists dir) with | `No -> Unix.mkdir dir | _ -> () in
+  let oc = Out_channel.create (dir ^ file_name) ~append:true in
+  fprintf oc "%s\n" (Buffer.contents buf);
+  Out_channel.close oc
+
 (****************** Main Simulation Function ******************)
 let simulate
     (spec_solvers:solver_type list)
@@ -833,6 +874,7 @@ let simulate
     (host_file:string)
     (num_tms_opt:int option)
     (robustness_test:bool)
+    (vulnerability_test:bool)
     (scale:float)
     (num_failures:int)
     (is_flash:bool)
@@ -943,6 +985,14 @@ let simulate
             (* simulate current traffic matrix *)
             let failing_edges = List.nth_exn failure_scenarios n in
             let flash_sink = List.nth_exn flash_sinks n in
+            (* measure robustness of routing algs in terms of shared edges between paths *)
+            if vulnerability_test then
+              begin
+                accumulate_vulnerability_stats topology_file topo algorithm scheme;
+                scheme
+              end
+            else
+
             let tm_sim_stats =
               simulate_tm scheme topo actual failing_edges predict algorithm is_flash flash_burst_amount flash_sink in
             (* simulation done *)
@@ -1114,6 +1164,7 @@ let command =
     +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
     +> flag "-deloop" no_arg ~doc:" remove loops in paths"
     +> flag "-robust" no_arg ~doc:" perform robustness test - fail all combinations of fail-num links"
+    +> flag "-vulnerability" no_arg ~doc:" perform path vulnerability test "
     +> flag "-fail-num" (optional_with_default 1 int) ~doc:" number of links to fail"
     +> flag "-fail-time" (optional_with_default (Int.max_value/100) int) ~doc:" simulation time to introduce failure at"
     +> flag "-lr-delay" (optional_with_default (Int.max_value/100) int) ~doc:" delay between failure and local recovery"
@@ -1159,6 +1210,7 @@ let command =
     (scalesyn:bool)
     (deloop:bool)
     (robust:bool)
+    (vulnerability:bool)
     (fail_num:int)
     (fail_time:int)
     (lr_delay:int)
@@ -1218,7 +1270,7 @@ let command =
       Kulfi_Globals.global_recovery_delay := gr_delay;
       if robust then
         Kulfi_Globals.failure_time  := 0;
-     simulate algorithms topology_file demand_file predict_file host_file num_tms robust tot_scale fail_num is_flash flash_ba out ())
+     simulate algorithms topology_file demand_file predict_file host_file num_tms robust vulnerability tot_scale fail_num is_flash flash_ba out ())
 
 let main = Command.run command
 
