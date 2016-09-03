@@ -825,7 +825,7 @@ let calculate_demand_envelope (topo:topology) (predict_file:string) (host_file:s
   envelope
 
 (* Measure vulnerability of routing schemes to link failures *)
-let accumulate_vulnerability_stats topology_file topo algorithm scheme demand =
+let accumulate_vulnerability_stats topology_file topo algorithm scheme  =
   let solver_name = (solver_to_string algorithm) in
   let split_dot_file_list = String.split_on_chars topology_file ~on:['/';'.'] in
   let suffix = List.nth split_dot_file_list (List.length split_dot_file_list -2) in
@@ -837,24 +837,23 @@ let accumulate_vulnerability_stats topology_file topo algorithm scheme demand =
   let vuln_score_count = SrcDstMap.fold scheme
       ~init:IntMap.empty
       ~f:(fun ~key:(s,d) ~data:path_prob_map acc ->
-        let dem = match SrcDstMap.find demand (s,d) with
-          | Some x -> x
-          | None -> 0. in
         let num_paths = PathMap.length path_prob_map in
         let count_edge_usage = PathMap.fold path_prob_map
         ~init:EdgeMap.empty
         ~f:(fun ~key:path ~data:_ acc ->
           List.fold_left path ~init:acc
           ~f:(fun acc e ->
-            let e_count = match EdgeMap.find acc e with
+            if edge_connects_switches e topo then (* consider only switch-switch edges *)
+              let e_count = match EdgeMap.find acc e with
                   | Some x -> x
                   | None -> 0 in
-            EdgeMap.add ~key:e ~data:(e_count+(mult/num_paths)) acc)) in (* normalizing by num_paths*)
+              EdgeMap.add ~key:e ~data:(e_count+(mult/num_paths)) acc (* normalizing by num_paths*)
+            else acc)) in
         EdgeMap.fold count_edge_usage ~init:acc ~f:(fun ~key:e ~data:vuln_score acc ->
           let count = match IntMap.find acc vuln_score with
             | Some x -> x
             | None -> 0. in
-          IntMap.add ~key:vuln_score ~data:(count+.dem) acc)) in
+          IntMap.add ~key:vuln_score ~data:(count+.1.) acc)) in
 
   let buf = Buffer.create 101 in
   Printf.bprintf buf "\n\n%s\n" solver_name;
@@ -991,7 +990,7 @@ let simulate
             (* measure robustness of routing algs in terms of shared edges between paths *)
             if vulnerability_test then
               begin
-                accumulate_vulnerability_stats topology_file topo algorithm scheme actual;
+                accumulate_vulnerability_stats topology_file topo algorithm scheme ;
                 scheme
               end
             else
