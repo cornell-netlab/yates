@@ -1121,19 +1121,76 @@ let simulate
   (************** End simulation ******************************************)
   (************************************************************************)
 
-(* For synthetic demands, scale them by multiplying by X/mcf_congestion,
- * where X (= 0.4) is the max congestion we expect to get when run with the new demands *)
-let calculate_syn_scale (topology:string) (demand_file:string) (host_file:string) =
+(* Estimate max congestion for a given topology, tm, solver and scale*)
+let estimate_max_cong (topology:string) (demand_file:string) (host_file:string) (solver) (scale) : float =
   let topo = Parse.from_dotfile topology in
   let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
-  let actual = next_demand ~scale:1.0 actual_ic actual_host_map in
-  let cmax = Kulfi_Mcf.solve topo actual
+  let actual = next_demand ~scale:scale actual_ic actual_host_map in
+  let cmax = solver topo actual
           |> congestion_of_paths topo actual
           |> EdgeMap.to_alist
           |> List.map ~f:snd
           |> get_max_congestion in
   close_demands actual_ic;
+  cmax
+
+(* For synthetic demands, scale them by multiplying by X/mcf_congestion,
+ * where X (= 0.4) is the max congestion we expect to get when run with the new demands *)
+let calculate_syn_scale (topology:string) (demand_file:string) (host_file:string) =
+  let cmax = estimate_max_cong topology demand_file host_file Kulfi_Mcf.solve 1.0 in
   0.4 /. cmax
+
+
+let compare_scaling_limit algorithms (num_tms:int option) (topology:string) (demand_file:string) (host_file:string) (out_dir:string option) () =
+  Printf.printf "Scale test\n%!";
+  let split_dot_file_list = String.split_on_chars topology ~on:['/';'.'] in
+  let suffix = List.nth split_dot_file_list (List.length split_dot_file_list -2) in
+  let suffix = match suffix with
+          | Some x -> x
+          | None -> "default" in
+  let out_dir = match out_dir with
+    | None -> suffix
+    | Some x -> x in
+  let file_name = "LimitingScale.dat" in
+  let num_tms = match num_tms with
+    | Some x -> x
+    | None -> 24 in
+  let norm = calculate_syn_scale topology demand_file host_file in
+  let topo = Parse.from_dotfile topology in
+  let edge_weights = set_topo_weights topo in
+  let buf = Buffer.create 101 in
+  List.iter algorithms ~f:(fun algorithm ->
+    Printf.printf "%s\n%!" (solver_to_string algorithm);
+    let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
+    List.iter (range 0 num_tms) ~f:(fun i ->
+      let actual = next_demand ~scale:norm actual_ic actual_host_map in
+      ignore(match algorithm with
+        | SemiMcfMcfEnv
+        | SemiMcfMcfFTEnv ->
+            (* avoid recomputing the same scheme for envelope-based MCF *)
+            if i = 0 then
+              begin
+              demand_envelope := (calculate_demand_envelope topo demand_file host_file num_tms);
+              initialize_scheme algorithm topo actual;
+              end
+        | _ -> (* initialize every time for average case analysis *)
+            initialize_scheme algorithm topo actual;);
+      let scheme,_ = solve_within_budget algorithm topo actual actual in
+      ignore(reset_topo_weights edge_weights topo;);
+      let cmax = congestion_of_paths topo actual scheme
+                |> EdgeMap.to_alist
+                |> List.map ~f:snd
+                |> get_max_congestion in
+      Printf.bprintf buf "%s\t%d\t%f\t0.0\n" (solver_to_string algorithm) i (1. /. cmax) );
+      close_demands actual_ic);
+
+  let dir = "./expData/" ^ out_dir ^ "/" in
+  let _ = match (Sys.file_exists dir) with | `No -> Unix.mkdir dir | _ -> () in
+  let oc = Out_channel.create (dir ^ file_name) in
+  fprintf oc "%s\n" (Buffer.contents buf);
+  Out_channel.close oc
+
+
 
 let command =
   Command.basic
@@ -1167,6 +1224,7 @@ let command =
     +> flag "-deloop" no_arg ~doc:" remove loops in paths"
     +> flag "-robust" no_arg ~doc:" perform robustness test - fail all combinations of fail-num links"
     +> flag "-vulnerability" no_arg ~doc:" perform path vulnerability test "
+    +> flag "-limittest" no_arg ~doc:" test at what scale congestion loss starts "
     +> flag "-fail-num" (optional_with_default 1 int) ~doc:" number of links to fail"
     +> flag "-fail-time" (optional_with_default (Int.max_value/100) int) ~doc:" simulation time to introduce failure at"
     +> flag "-lr-delay" (optional_with_default (Int.max_value/100) int) ~doc:" delay between failure and local recovery"
@@ -1213,6 +1271,7 @@ let command =
     (deloop:bool)
     (robust:bool)
     (vulnerability:bool)
+    (limittest:bool)
     (fail_num:int)
     (fail_time:int)
     (lr_delay:int)
@@ -1272,7 +1331,10 @@ let command =
       Kulfi_Globals.global_recovery_delay := gr_delay;
       if robust then
         Kulfi_Globals.failure_time  := 0;
-     simulate algorithms topology_file demand_file predict_file host_file num_tms robust vulnerability tot_scale fail_num is_flash flash_ba out ())
+      if limittest then
+        compare_scaling_limit algorithms num_tms topology_file demand_file host_file out ()
+      else
+        simulate algorithms topology_file demand_file predict_file host_file num_tms robust vulnerability tot_scale fail_num is_flash flash_ba out ())
 
 let main = Command.run command
 
