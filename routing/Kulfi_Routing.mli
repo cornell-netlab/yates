@@ -24,3 +24,5 @@ module Spf : Algorithm
 module Vlb : Algorithm
 
 module Ak : Algorithm
+
+module Ffc : Algorithm

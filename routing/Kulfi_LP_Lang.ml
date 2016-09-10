@@ -1,4 +1,4 @@
-open Core.Std       
+open Core.Std
 open Frenetic_Network
 open Net
 
@@ -6,7 +6,7 @@ open Net
 
 (* (s,t,r) = node s wants to send to node t at rate r *)
 type demand_pair = Topology.vertex * Topology.vertex * float
-       
+
 type arith_exp =
   | Var of string
   | Num of float
@@ -19,7 +19,7 @@ type constrain =
   | Geq of string * arith_exp * float
 
 type lp = arith_exp * (constrain list)
-				  
+
 let minus ex1 ex2 =
   let list1 = match ex1 with
     | Var _ | Num _ | Times _ -> [ex1]
@@ -91,22 +91,38 @@ let var_name_rev topo edge d_pair =
   Printf.sprintf "f_%s_%s--%s"
     (string_of_pair topo d_pair)
     (name_of_vertex topo dst)
-    (name_of_vertex topo src)		   
+    (name_of_vertex topo src)
+
+let granted_bw_var_name topo (src,dst) =
+  Printf.sprintf "gbf_%s--%s"
+    (name_of_vertex topo src)
+    (name_of_vertex topo dst)
+
 
 let string_of_lp ((objective, constrs) : lp) : string =
-  let cs = 
+  let cs =
     List.fold_left
       constrs
       ~init:""
-      ~f: (fun acc c -> acc ^ (Printf.sprintf "  %s\n" (string_of_constraint c))) in  
+      ~f: (fun acc c -> acc ^ (Printf.sprintf "  %s\n" (string_of_constraint c))) in
   "Minimize\n" ^ (Printf.sprintf "  %s\n" (string_of_aexp objective))
   ^ "Subject To\n" ^ cs
-    
-		   
+
+
 let serialize_lp ((objective, constrs) : lp) (filename : string) =
   let open Out_channel in
   let lp_file = create filename in
   output_string lp_file "Minimize\n";
+  output_string lp_file (Printf.sprintf "  %s\n" (string_of_aexp objective));
+  output_string lp_file "Subject To\n";
+  List.iter constrs ~f: (fun c -> output_string lp_file
+                (Printf.sprintf "  %s\n" (string_of_constraint c)));
+  close lp_file
+
+let serialize_max_lp ((objective, constrs) : lp) (filename : string) =
+  let open Out_channel in
+  let lp_file = create filename in
+  output_string lp_file "Maximize\n";
   output_string lp_file (Printf.sprintf "  %s\n" (string_of_aexp objective));
   output_string lp_file "Subject To\n";
   List.iter constrs ~f: (fun c -> output_string lp_file

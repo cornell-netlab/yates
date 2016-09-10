@@ -133,7 +133,8 @@ let prune_scheme (t:topology) (s:scheme) (budget:int) : scheme =
                   ~f:(fun acc (path,prob) -> PathMap.add acc ~key:path ~data:(prob /. total_prob))
                 in
         SrcDstMap.add acc ~key:(src,dst) ~data:pruned_paths) in
-  assert (probabilities_sum_to_one new_scheme);
-  assert (all_pairs_connectivity t (get_hosts t) new_scheme);
+  Printf.printf "\nWARN: Disabled scheme check assertions for FFC while pruning\n";
+  (*assert (probabilities_sum_to_one new_scheme);*)
+  (*assert (all_pairs_connectivity t (get_hosts t) new_scheme);*)
   new_scheme
 

@@ -32,6 +32,7 @@ let solver_to_string (s:solver_type) : string =
   | AkRaeke -> "akraeke"
   | AkEcmp -> "akecmp"
   | AkKsp -> "akksp"
+  | Ffc -> "ffc"
   | SemiMcfMcf -> "semimcfmcf"
   | SemiMcfMcfEnv -> "semimcfmcfenv"
   | SemiMcfMcfFTEnv -> "semimcfmcfftenv"
@@ -57,6 +58,7 @@ let select_algorithm solver = match solver with
   | AkRaeke
   | AkKsp
   | AkEcmp -> Kulfi_Routing.Ak.solve
+  | Ffc -> Kulfi_Routing.Ffc.solve
   | SemiMcfMcf
   | SemiMcfMcfEnv
   | SemiMcfMcfFTEnv
@@ -81,6 +83,7 @@ let select_local_recovery solver = match solver with
   | AkRaeke
   | AkKsp
   | AkEcmp -> Kulfi_Routing.Ak.local_recovery
+  | Ffc -> Kulfi_Routing.Ffc.local_recovery
   | SemiMcfMcf
   | SemiMcfMcfEnv
   | SemiMcfMcfFTEnv
@@ -186,11 +189,14 @@ let initial_scheme algorithm topo predict : scheme =
   | AkKsp ->
      let _ = Kulfi_Routing.Ksp.initialize SrcDstMap.empty in
      Kulfi_Routing.Ksp.solve topo SrcDstMap.empty
+  | Ffc ->
+     let _ = Kulfi_Routing.Ksp.initialize SrcDstMap.empty in (* TODO: change to p,q disjoint paths *)
+     Kulfi_Routing.Ksp.solve topo SrcDstMap.empty
   | _ -> SrcDstMap.empty
 
 (* Initialize a TE algorithm *)
 let initialize_scheme algorithm topo predict : unit =
-  Printf.printf "[Init...] \r";
+  Printf.printf "\n[Init...] \r";
   let start_scheme = initial_scheme algorithm topo predict in
   let pruned_scheme =
     if SrcDstMap.is_empty start_scheme then start_scheme
@@ -206,6 +212,7 @@ let initialize_scheme algorithm topo predict : unit =
   | SemiMcfRaeke
   | SemiMcfRaekeFT
   | SemiMcfVlb -> Kulfi_Routing.SemiMcf.initialize pruned_scheme
+  | Ffc -> Kulfi_Routing.Ffc.initialize pruned_scheme
   | AkEcmp
   | AkKsp
   | AkMcf
@@ -234,7 +241,7 @@ let solve_within_budget algorithm topo predict actual: (scheme * float) =
     | _ ->
         prune_scheme topo (solve topo predict) budget' in
   stop at;
-  assert (probabilities_sum_to_one sch);
+  (*assert (probabilities_sum_to_one sch);*)
   (sch, (get_time_in_seconds at))
 
 (* TODO(rjs): Do we count paths that have 0 flow ? *)
@@ -412,6 +419,7 @@ let simulate_tm (start_scheme:scheme)
        * add traffic to corresponding next hop links
        * or deliver to end host if last link in a path
   * *)
+  Printf.printf "%s\n" (dump_scheme topo start_scheme);
   let local_debug = false in
   let num_iterations = !Kulfi_Globals.tm_sim_iters in
   let steady_state_time = 0 in
@@ -1208,6 +1216,7 @@ let command =
     +> flag "-akraeke" no_arg ~doc:" run ak+raeke"
     +> flag "-akecmp" no_arg ~doc:" run ak+ecmp"
     +> flag "-akksp" no_arg ~doc:" run ak+ksp"
+    +> flag "-ffc" no_arg ~doc:" run FFC"
     +> flag "-semimcfmcf" no_arg ~doc:" run semi mcf+mcf"
     +> flag "-semimcfmcfenv" no_arg ~doc:" run semi mcf+mcf with envelope"
     +> flag "-semimcfmcfftenv" no_arg ~doc:" run semi mcf+mcf with envelope and joint failure opt"
@@ -1255,6 +1264,7 @@ let command =
     (akraeke:bool)
     (akecmp:bool)
     (akksp:bool)
+    (ffc:bool)
     (semimcfmcf:bool)
     (semimcfmcfenv:bool)
     (semimcfmcfftenv:bool)
@@ -1304,6 +1314,7 @@ let command =
          ; if akecmp            then Some AkEcmp      else None
          ; if akksp             then Some AkKsp       else None
          ; if akraeke           then Some AkRaeke     else None
+         ; if ffc || all        then Some Ffc         else None
          ; if raeke || all      then Some Raeke       else None
          ; if semimcfmcf        then Some SemiMcfMcf  else None
          ; if semimcfmcfenv || all    then Some SemiMcfMcfEnv   else None
