@@ -23,6 +23,10 @@ type throughput = float [@@ deriving sexp]
 
 type failure = EdgeSet.t [@@ deriving sexp]
 
+type flow_table = ((Node.t * Node.t),
+                   (Node.t * Node.t * float) list) Hashtbl.t
+
+
 module PathOrd = struct
   type t = path [@@ deriving sexp]
   let compare = Pervasives.compare

@@ -90,9 +90,6 @@ let lp_of_graph (topo : Topology.t) (demand_pairs : demands) =
   let all_constrs = conservation_constraints topo demand_pairs cap_and_demand in
   (objective, all_constrs)
 
-type flow_table = ((Node.t * Node.t),
-                   (Node.t * Node.t * float) list) Hashtbl.t
-
 let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
   : scheme  =
 
