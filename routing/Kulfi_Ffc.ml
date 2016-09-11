@@ -112,6 +112,45 @@ let demand_constraints (topo : Topology.t)
       (Leq (name, (Var (granted_bw_var)), (demand /. demand_divisor)))::acc) d_pairs
 
 
+(* Equation (9)
+ * Consider every possible failure and add a badnwidth constrain *)
+(* TODO:Currently for single link failures. Extend for general case *)
+let data_plane_fault_constraints (pmap : path_uid_map)
+                (emap : edge_uidlist_map)
+                (topo : topology)
+                (d : demands)
+                (base_path_set : (path List.t) SrcDstMap.t)
+                (init_acc : constrain list) : constrain list =
+  (* fold over all edges, consider that edge fails, add corresponding constraint *)
+  let constraints,_ = EdgeSet.fold (Topology.edges topo) ~init:(init_acc, EdgeSet.empty)
+    ~f:(fun (acc, handled_edges) e ->
+      if (EdgeSet.mem handled_edges e) then (acc, handled_edges)
+      else
+        begin
+        let inv_e = match Topology.inverse_edge topo e with
+            | None ->
+                Printf.printf "%s\n%!" (string_of_edge topo e);
+                failwith "No reverse edge found"
+            | Some x -> x in
+        let handled_edges = EdgeSet.add (EdgeSet.add handled_edges e) inv_e in
+        let failure_scen = EdgeSet.add (EdgeSet.singleton e) inv_e in
+        if edge_connects_switches e topo then
+          begin
+          let residual_path_set = SrcDstMap.fold base_path_set ~init:SrcDstMap.empty
+            ~f:(fun ~key:(src,dst) ~data:paths path_acc ->
+              (* for each src,dst pair, find the set of paths that are still up *)
+              let is_tunnel_up (failed_links) (p:path) : bool =
+                List.fold_left p ~init:true ~f:(fun up edge ->
+                  let edge_is_safe = not (EdgeSet.mem failed_links edge) in
+                  up && edge_is_safe) in
+              let residual_paths = List.filter ~f:(is_tunnel_up failure_scen) paths in
+              SrcDstMap.add ~key:(src,dst) ~data:residual_paths path_acc) in
+          (grantedbw_constraints pmap emap topo d residual_path_set acc, handled_edges)
+          end
+        else (acc, handled_edges)
+        end) in
+  constraints
+
 (* Construct linear program *)
 let lp_of_ffc_maps (pmap:path_uid_map)
               (emap:edge_uidlist_map)
@@ -121,6 +160,7 @@ let lp_of_ffc_maps (pmap:path_uid_map)
   let all_constrs =
       capacity_constraints pmap emap topo d []
       |> grantedbw_constraints pmap emap topo d base_path_set
+      |> data_plane_fault_constraints pmap emap topo d base_path_set
       |> demand_constraints topo d
       |> objective_fun topo d in
   (objective, all_constrs)
