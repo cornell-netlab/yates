@@ -9,3 +9,4 @@ let tm_sim_iters    = ref 1000
 let rand_seed : int option ref = ref None
 let local_recovery_delay  = ref Int.max_value
 let global_recovery_delay = ref Int.max_value
+let ffc_max_link_failures = ref 1

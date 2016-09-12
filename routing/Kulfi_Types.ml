@@ -405,3 +405,5 @@ let get_path_weight_arr (topo:topology) (p:edge Array.t) =
   Array.foldi p ~init:0.
     ~f:(fun _ acc e -> acc +. Link.weight (Topology.edge_to_label topo e))
 
+
+let rec range i j = if i >= j then [] else i :: (range (i+1) j)

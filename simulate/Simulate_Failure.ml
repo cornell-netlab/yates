@@ -1,18 +1,15 @@
 open Core.Std
 open Frenetic_Network
 open Net
+open Kulfi_Routing_Util
+open Kulfi_Util
 open Kulfi_Traffic
 open Kulfi_Types
-open Kulfi_Util
 open Simulation_Util
 
 (********************************************************************)
 (**************** Generate various failure scenarios ****************)
 (********************************************************************)
-
-let reverse_edge topo e = match Topology.inverse_edge topo e with
-          | Some x -> x
-          | None -> assert false
 
 (* helper: failure prob of a link is proportional to its congestion ^ alpha *)
 let rec get_util_based_failure_scenario (topo:topology) (alpha:float) (utils:congestion EdgeMap.t) : failure =
@@ -33,10 +30,7 @@ let rec get_util_based_failure_scenario (topo:topology) (alpha:float) (utils:con
       ~f:(fun (selected,sum) (e,w) ->
         if sum <= 0. then (selected,sum)
         else ((e,w), sum -. w)) in
-    let e' = match Topology.inverse_edge topo e with
-            | Some x -> x
-            | None -> assert false in
-    let fail = EdgeSet.add (EdgeSet.singleton e) e' in
+    let fail = bidir_failure topo e in
     if check_connectivity_after_failure topo fail then fail
     else get_util_based_failure_scenario topo alpha utils
 
@@ -56,7 +50,7 @@ let rec get_max_util_failure (topo:topology) (num_fail:int) (utils: congestion E
       if nf = 0 then acc
       else if EdgeSet.mem fail_set e then acc
       else
-        let fail_set_cand = EdgeSet.add (EdgeSet.add fail_set e) (reverse_edge topo e) in
+        let fail_set_cand = EdgeSet.add (EdgeSet.add fail_set e) (reverse_edge_exn topo e) in
         if check_connectivity_after_failure topo fail_set_cand then (fail_set_cand, nf-1)
         else acc) in
   (*let _ = EdgeSet.iter max_util_links_set ~f:(fun e -> Printf.printf "%s \t%!" (string_of_edge topo e);) in*)
@@ -89,9 +83,7 @@ let rec get_random_failure (topo:topology) (num_fail:int) : failure =
     let rand_edge = List.nth_exn all_edges rand in
     if EdgeSet.mem selected rand_edge then add_new_elem selected all_edges
     else
-      let rev_edge = match Topology.inverse_edge topo rand_edge with
-        | Some x -> x
-        | None -> assert false in
+      let rev_edge = reverse_edge_exn topo rand_edge in
       let selected = EdgeSet.add selected rand_edge in
       EdgeSet.add selected rev_edge in
 
@@ -123,10 +115,7 @@ let rec get_test_failure_scenario (topo:topology) (actual:demands) (iter_pos:flo
   let f_sel_pos = ((Float.of_int (List.length sorted_edge_utils - 1))) *. iter_pos in
   let sel_pos = Int.of_float (Float.round_down f_sel_pos) in
   let (e,_) = List.nth_exn sorted_edge_utils sel_pos in
-  let e' = match Topology.inverse_edge topo e with
-          | Some x -> x
-          | None -> assert false in
-  let f = EdgeSet.add (EdgeSet.singleton e) e' in
+  let f = bidir_failure topo e in
   if check_connectivity_after_failure topo f then f
   else
     if iter_pos >= 1. then EdgeSet.empty
@@ -152,32 +141,3 @@ let get_failure_scenarios (topo:topology) (demand_file:string) (host_file:string
   close_demands demand_ic;
   failure_scenarios
 
-(* Compute all possible failure scenarios with num_failures link failing, while not partitioning the network *)
-let get_all_possible_failures (topo:topology) (num_failures:int) : (failure List.t) =
-  (* List of single link failures *)
-  let all_single_failures =
-    EdgeSet.fold (Topology.edges topo) ~init:[]
-      ~f:(fun acc e ->
-        if not (edge_connects_switches e topo) then acc
-        else
-          let rev_e = reverse_edge topo e in
-          let fl = EdgeSet.add (EdgeSet.singleton e) rev_e in
-          if List.mem ~equal:EdgeSet.equal acc fl then acc
-          else fl::acc)
-    |> List.filter ~f:(fun fl -> check_connectivity_after_failure topo fl) in
-
-  let failures = List.fold_left (range 1 num_failures) ~init:all_single_failures
-    ~f:(fun partial_acc i ->
-      List.fold_left partial_acc ~init:[]
-        ~f:(fun acc partial_fl ->
-          List.fold_left all_single_failures ~init:acc
-            ~f:(fun acc single_fl ->
-              if EdgeSet.subset single_fl partial_fl then acc
-              else
-                let new_failure = EdgeSet.union partial_fl single_fl in
-                if check_connectivity_after_failure topo new_failure then new_failure::acc
-                else acc))) in
-  (*List.iter failures ~f:(fun failing_edges ->
-    Printf.printf "Selected failure: %s\n%!" (dump_edges topo (EdgeSet.elements failing_edges)));
-  Printf.printf "Total scenarios : %d\n" (List.length failures);*)
-  failures

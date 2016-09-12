@@ -3,6 +3,7 @@ open Frenetic_Network
 open Net
 open Kulfi_Types
 open Kulfi_Routing
+open Kulfi_Routing_Util
 open Kulfi_Traffic
 open Simulate_Exps
 open Simulate_Demands
@@ -1340,6 +1341,8 @@ let command =
       Kulfi_Globals.rand_seed     := rseed;
       Kulfi_Globals.local_recovery_delay  := lr_delay;
       Kulfi_Globals.global_recovery_delay := gr_delay;
+      Kulfi_Globals.ffc_max_link_failures :=
+        max fail_num !(Kulfi_Globals.ffc_max_link_failures);
       if robust then
         Kulfi_Globals.failure_time  := 0;
       if limittest then

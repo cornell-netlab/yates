@@ -2,10 +2,12 @@ open Array
 open Core.Std
 open Frenetic_Network
 open Kulfi_Types
+open Kulfi_Routing_Util
 open Net
 open Net.Topology
 
 (********************* Helper functions **************)
+
 
 (************** to string *******)
 let string_of_vertex (t:topology) v : string =
@@ -120,21 +122,20 @@ let prune_scheme (t:topology) (s:scheme) (budget:int) : scheme =
   let new_scheme = SrcDstMap.fold s
     ~init:SrcDstMap.empty
     ~f:(fun ~key:(src,dst) ~data:paths acc ->
-      if src = dst then acc
-      else
-        let pruned_paths = if PathMap.length paths <= budget then paths
-              else
-                let pplist = PathMap.to_alist paths in
-                let sorted_pp = List.sort ~cmp:(fun x y -> Float.compare (snd y) (snd x)) pplist in
-                let top_pp = list_first_n sorted_pp budget in
-                let total_prob = List.fold_left top_pp ~init:0.0 ~f:(fun acc (_,prob) -> acc +. prob) in
-                List.fold_left top_pp
-                  ~init:PathMap.empty
-                  ~f:(fun acc (path,prob) -> PathMap.add acc ~key:path ~data:(prob /. total_prob))
-                in
-        SrcDstMap.add acc ~key:(src,dst) ~data:pruned_paths) in
+      if src = dst then acc else
+      let pruned_paths =
+        if PathMap.length paths <= budget then paths
+        else
+          let pplist = PathMap.to_alist paths in
+          let sorted_pp = List.sort ~cmp:(fun x y -> Float.compare (snd y) (snd x)) pplist in
+          let top_pp = list_first_n sorted_pp budget in
+          let total_prob = List.fold_left top_pp ~init:0.0 ~f:(fun acc (_,prob) -> acc +. prob) in
+          List.fold_left top_pp ~init:PathMap.empty ~f:(fun acc (path,prob) ->
+              PathMap.add acc ~key:path ~data:(prob /. total_prob)) in
+      SrcDstMap.add acc ~key:(src,dst) ~data:pruned_paths) in
   Printf.printf "\nWARN: Disabled scheme check assertions for FFC while pruning\n";
   (*assert (probabilities_sum_to_one new_scheme);*)
   (*assert (all_pairs_connectivity t (get_hosts t) new_scheme);*)
   new_scheme
+
 

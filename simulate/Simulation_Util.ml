@@ -6,8 +6,6 @@ open Kulfi_Util
 
 (************ Helpful functions for simulator *****************)
 
-let rec range i j = if i >= j then [] else i :: (range (i+1) j)
-
 (* Return src and dst for a given path (edge list) *)
 let get_src_dst_for_path (p:path) =
   if p = [] then None
@@ -31,18 +29,6 @@ let get_src_dst_for_path_arr (p:edge Array.t) =
 let curr_capacity_of_edge (topo:topology) (link:edge) (fail:failure) : float =
   if EdgeSet.mem fail link then 0.
   else capacity_of_edge topo link
-
-let update_topo_with_failure (t:topology) (f:failure) : topology =
-  EdgeSet.fold f
-    ~init:t
-    ~f:(fun acc link -> Topology.remove_edge acc link)
-
-(* check all-pairs connectivity after failure *)
-let check_connectivity_after_failure (topo:topology) (fail:failure) : bool =
-  let topo' = update_topo_with_failure topo fail in
-  let hosts = get_hosts topo' in
-  Kulfi_Routing.Spf.solve topo' SrcDstMap.empty
-  |> all_pairs_connectivity topo' hosts
 
 (* For a given scheme, find the number of paths through each edge *)
 let count_paths_through_edge (s:scheme) : (int EdgeMap.t) =
