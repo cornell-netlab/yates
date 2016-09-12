@@ -1246,6 +1246,7 @@ let command =
     +> flag "-budget" (optional_with_default (Int.max_value/100) int) ~doc:" max paths between each pair of hosts"
     +> flag "-scale" (optional_with_default 1. float) ~doc:" scale demands by this factor"
     +> flag "-out" (optional string) ~doc:" name of directory in expData to store results"
+    +> flag "-appendout" no_arg ~doc:" append to results file instead of over-writing"
     +> flag "-rseed" (optional int) ~doc:" seed to initialize PRNG"
     +> flag "-num-tms" (optional int) ~doc:" number of TMs (-robust overrides this)"
     +> flag "-gurobi-method" (optional_with_default (-1) int) ~doc:" solver method used for Gurobi. -1=automatic, 0=primal simplex, 1=dual simplex, 2=barrier, 3=concurrent, 4=deterministic concurrent."
@@ -1294,6 +1295,7 @@ let command =
     (budget:int)
     (scale:float)
     (out:string option)
+    (appendout:bool)
     (rseed:int option)
     (num_tms:int option)
     (grb_method:int)
@@ -1332,6 +1334,7 @@ let command =
         else 1.0 in
       let tot_scale = scale *. syn_scale in
       Printf.printf "Scale factor: %f\n\n" tot_scale;
+      ExperimentalData.append_out := appendout;
       Kulfi_Globals.deloop := deloop;
       Kulfi_Globals.tm_sim_iters  := simtime;
       Kulfi_Globals.flash_recover := flash_recover;
