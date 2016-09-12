@@ -88,6 +88,7 @@ let grantedbw_constraints (pmap : path_uid_map)
         | None -> (* Grant 0 BW if no tunnel *)
             (Eq (name, (Var (granted_bw_var)), 0.))::acc
         | Some path_list ->
+            if (List.length path_list) = 0 then (Eq (name, (Var (granted_bw_var)), 0.))::acc else
             let all_flows =  List.fold_left ~init:[] ~f:(fun acc p ->
                 let pvar = match (PathMap.find pmap p) with
                   | None -> assert false
