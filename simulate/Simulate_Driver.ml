@@ -749,6 +749,7 @@ let kth_percentile (l:float list) (k:float) : float =
   let n = List.length l in
   let x = (Float.of_int n) *. k in
   (*Printf.printf "%f / %d\n%!" x n;*)
+  if n = 0 then 0. else
   if is_int x then
     let i = Int.of_float (Float.round_up x) in
     let lhs = match (List.nth l i) with

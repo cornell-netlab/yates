@@ -57,5 +57,6 @@ let get_all_possible_failures (topo:topology) (num_failures:int) : (failure List
               if EdgeSet.subset single_fl partial_fl then acc
               else
                 let new_failure = EdgeSet.union partial_fl single_fl in
+                if List.mem ~equal:EdgeSet.equal acc new_failure then acc else
                 if check_connectivity_after_failure topo new_failure then new_failure::acc
                 else acc)))
