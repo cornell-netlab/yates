@@ -218,8 +218,8 @@ let solve_ffc_lp (pmap:int PathMap.t) (emap:int list EdgeMap.t) (topo:topology) 
                   (opt_z, tup::flows)
               else
                 (opt_z, flows))) in
-        (*ignore (Sys.remove lp_filename);
-        ignore (Sys.remove lp_solname);*)
+        ignore (Sys.remove lp_filename);
+        ignore (Sys.remove lp_solname);
         (ratio,flows)
 
 let initialize (s:scheme) : unit =
