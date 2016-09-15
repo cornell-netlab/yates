@@ -35,6 +35,7 @@ let solver_to_string (s:solver_type) : string =
   | AkEcmp -> "akecmp"
   | AkKsp -> "akksp"
   | Ffc -> "ffc"
+  | Ffced -> "ffced"
   | SemiMcfMcf -> "semimcfmcf"
   | SemiMcfMcfEnv -> "semimcfmcfenv"
   | SemiMcfMcfFTEnv -> "semimcfmcfftenv"
@@ -61,7 +62,8 @@ let select_algorithm solver = match solver with
   | AkRaeke
   | AkKsp
   | AkEcmp -> Kulfi_Routing.Ak.solve
-  | Ffc -> Kulfi_Routing.Ffc.solve
+  | Ffc
+  | Ffced -> Kulfi_Routing.Ffc.solve
   | SemiMcfMcf
   | SemiMcfMcfEnv
   | SemiMcfMcfFTEnv
@@ -87,7 +89,8 @@ let select_local_recovery solver = match solver with
   | AkRaeke
   | AkKsp
   | AkEcmp -> Kulfi_Routing.Ak.local_recovery
-  | Ffc -> Kulfi_Routing.Ffc.local_recovery
+  | Ffc
+  | Ffced -> Kulfi_Routing.Ffc.local_recovery
   | SemiMcfMcf
   | SemiMcfMcfEnv
   | SemiMcfMcfFTEnv
@@ -194,8 +197,11 @@ let initial_scheme algorithm topo predict : scheme =
      let _ = Kulfi_Routing.Ksp.initialize SrcDstMap.empty in
      Kulfi_Routing.Ksp.solve topo SrcDstMap.empty
   | Ffc ->
-     let _ = Kulfi_Routing.Ksp.initialize SrcDstMap.empty in (* TODO: change to p,q disjoint paths *)
+     let _ = Kulfi_Routing.Ksp.initialize SrcDstMap.empty in
      Kulfi_Routing.Ksp.solve topo SrcDstMap.empty
+  | Ffced ->
+     let _ = Kulfi_Routing.Edksp.initialize SrcDstMap.empty in
+     Kulfi_Routing.Edksp.solve topo SrcDstMap.empty
   | _ -> SrcDstMap.empty
 
 (* Initialize a TE algorithm *)
@@ -216,7 +222,8 @@ let initialize_scheme algorithm topo predict : unit =
   | SemiMcfRaeke
   | SemiMcfRaekeFT
   | SemiMcfVlb -> Kulfi_Routing.SemiMcf.initialize pruned_scheme
-  | Ffc -> Kulfi_Routing.Ffc.initialize pruned_scheme
+  | Ffc
+  | Ffced -> Kulfi_Routing.Ffc.initialize pruned_scheme
   | AkEcmp
   | AkKsp
   | AkMcf
@@ -424,7 +431,6 @@ let simulate_tm (start_scheme:scheme)
        * add traffic to corresponding next hop links
        * or deliver to end host if last link in a path
   * *)
-  Printf.printf "%s\n" (dump_scheme topo start_scheme);
   let local_debug = false in
   let num_iterations = !Kulfi_Globals.tm_sim_iters in
   let steady_state_time = 0 in
@@ -1216,14 +1222,15 @@ let command =
     +> flag "-vlb" no_arg ~doc:" run vlb"
     +> flag "-ecmp" no_arg ~doc:" run ecmp"
     +> flag "-ksp" no_arg ~doc:" run ksp"
-    +> flag "-edksp" no_arg ~doc:" run edksp"
+    +> flag "-edksp" no_arg ~doc:" run edge-disjoint ksp"
     +> flag "-spf" no_arg ~doc:" run spf"
     +> flag "-akmcf" no_arg ~doc:" run ak+mcf"
     +> flag "-akvlb" no_arg ~doc:" run ak+vlb"
     +> flag "-akraeke" no_arg ~doc:" run ak+raeke"
     +> flag "-akecmp" no_arg ~doc:" run ak+ecmp"
     +> flag "-akksp" no_arg ~doc:" run ak+ksp"
-    +> flag "-ffc" no_arg ~doc:" run FFC"
+    +> flag "-ffc" no_arg ~doc:" run FFC with KSP base path set"
+    +> flag "-ffced" no_arg ~doc:" run FFC with Edge-disjoint KSP base path set"
     +> flag "-semimcfmcf" no_arg ~doc:" run semi mcf+mcf"
     +> flag "-semimcfmcfenv" no_arg ~doc:" run semi mcf+mcf with envelope"
     +> flag "-semimcfmcfftenv" no_arg ~doc:" run semi mcf+mcf with envelope and joint failure opt"
@@ -1274,6 +1281,7 @@ let command =
     (akecmp:bool)
     (akksp:bool)
     (ffc:bool)
+    (ffced:bool)
     (semimcfmcf:bool)
     (semimcfmcfenv:bool)
     (semimcfmcfftenv:bool)
@@ -1326,6 +1334,7 @@ let command =
          ; if akksp             then Some AkKsp       else None
          ; if akraeke           then Some AkRaeke     else None
          ; if ffc || all        then Some Ffc         else None
+         ; if ffced || all      then Some Ffced       else None
          ; if raeke || all      then Some Raeke       else None
          ; if semimcfmcf        then Some SemiMcfMcf  else None
          ; if semimcfmcfenv || all    then Some SemiMcfMcfEnv   else None

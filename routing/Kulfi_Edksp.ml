@@ -1,10 +1,13 @@
 open Frenetic_Network
 open Net
 open Core.Std
+open Kulfi_Apsp
 open Kulfi_Globals
 open Kulfi_LP_Lang
 open Kulfi_Routing_Util
 open Kulfi_Types
+
+let prev_scheme = ref SrcDstMap.empty
 
 let () = match !Kulfi_Globals.rand_seed with
   | Some x -> Random.init x
@@ -88,12 +91,14 @@ let rec new_rand () : float =
       `Yes -> new_rand ()
        | _ -> rand
 
-(* Given a topology and a set of pairs with demands,
+(* Given a topology,
  *  returns k edge-disjoint shortest paths per src-dst pair
- * TODO: handle case where k edge-disjoint shortest paths are not possible,
- * currently it returns empty path list for such a pair *)
-let solve (topo:topology) (pairs:demands) : scheme =
-  SrcDstMap.fold pairs ~init:SrcDstMap.empty ~f:(fun ~key:(src, dst) ~data:_ acc ->
+ * if k edge-disjoint shortest paths are not possible,
+ *  returns k-shortest paths for that pair *)
+
+let solve_lp (topo:topology) : scheme =
+  let sd_pairs = get_srcdst_pairs topo in
+  List.fold_left sd_pairs ~init:SrcDstMap.empty ~f:(fun acc (src, dst) ->
   (* Iterate over each src-dst pair to find k edge-disjoint shortest paths *)
   let name_table = Hashtbl.Poly.create () in
   Topology.iter_vertexes (fun vert ->
@@ -176,15 +181,32 @@ let solve (topo:topology) (pairs:demands) : scheme =
         else
           Hashtbl.Poly.add_exn flows_table (d_src, d_dst)
             [(e_src, e_dst, flow)]);
-
+    (* tmp_scheme has paths for only src->dst *)
     let tmp_scheme = Kulfi_Mcf.recover_paths topo flows_table in
     let st_ppmap = SrcDstMap.find tmp_scheme (src,dst) in
     match st_ppmap with
-    | None -> acc
+    | None ->
+        (* If k-edge-disjoint paths is not feasible, fall back to k-shortest paths *)
+        let ksp = k_shortest_path topo src dst (!Kulfi_Globals.budget) in
+        let num_paths = Float.of_int  (List.length ksp) in
+        let path_map = List.fold_left ksp ~init:PathMap.empty
+          ~f:(fun acc2 path ->
+              let prob = 1.0 /. num_paths in
+              PathMap.add acc2 ~key:path ~data:prob) in
+        SrcDstMap.add ~key:(src,dst) ~data:path_map acc
     | Some x ->
         SrcDstMap.add ~key:(src,dst) ~data:x acc)
 
+let solve (topo:topology) (_:demands) : scheme =
+  let new_scheme =
+    if not (SrcDstMap.is_empty !prev_scheme) then !prev_scheme else
+      solve_lp topo in
+  prev_scheme := new_scheme;
+  new_scheme
 
-let initialize _ = ()
+let initialize (s:scheme) : unit =
+  prev_scheme := s;
+  ()
+
 
 let local_recovery = Kulfi_Types.normalization_recovery

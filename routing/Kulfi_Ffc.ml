@@ -251,7 +251,7 @@ let ffc_mcf (topo:topology) (d:demands) (base_path_set : (path List.t) SrcDstMap
             (* get the possible paths, and for every path *)
             List.fold_left path_list ~init:acc ~f:(fun (umap,pmap,emap) path ->
                   let id = fresh_uid () in
-                  Printf.printf "\npath %d\t%d : " id (List.length path);
+                  (*Printf.printf "\npath %d\t%d : " id (List.length path);*)
                   let umap' = UidMap.add ~key:id ~data:(u,v,path) umap in
                   let pmap' = PathMap.add ~key:path ~data:id pmap in
                   (* get the edges in the path *)

@@ -343,17 +343,27 @@ let normalization_recovery (curr_scheme:scheme) (_:topology) (failed_links:failu
   Printf.printf "\t\t\t\t\t\t\t\t\t\tLOCAL\r";
   new_scheme
 
-
+(* Set of host nodes *)
 let get_hosts_set (topo:topology) : VertexSet.t =
   VertexSet.filter (Topology.vertexes topo)
   ~f:(fun v ->
     let label = Topology.vertex_to_label topo v in
     Node.device label = Node.Host)
 
+(* List of host nodes *)
 let get_hosts (topo:topology) =
   let host_set = get_hosts_set topo in
   Topology.VertexSet.elements host_set
 
+(* List of src-dst pairs. src != dst *)
+let get_srcdst_pairs (topo:topology) =
+  let hosts = get_hosts topo in
+  List.fold_left hosts ~init:[] ~f:(fun acc u ->
+    List.fold_left hosts ~init:acc ~f:(fun acc v ->
+      if u = v then acc else
+      (u,v)::acc))
+
+(* Check if all src-dst pairs are connected with given scheme *)
 let all_pairs_connectivity topo hosts scheme : bool =
   List.fold_left hosts
     ~init:true
@@ -361,13 +371,13 @@ let all_pairs_connectivity topo hosts scheme : bool =
       List.fold_left hosts
         ~init:acc
         ~f:(fun acc v ->
-	         if u = v then acc
-           else
-             match SrcDstMap.find scheme (u,v) with
-             | None -> Printf.printf "No route for pair (%s, %s)\n%!"
+          if u = v then acc
+          else
+            match SrcDstMap.find scheme (u,v) with
+            | None -> Printf.printf "No route for pair (%s, %s)\n%!"
              (Node.name (Net.Topology.vertex_to_label topo u))
              (Node.name (Net.Topology.vertex_to_label topo v)); false
-             | Some paths -> not (PathMap.is_empty paths)  && acc))
+            | Some paths -> not (PathMap.is_empty paths)  && acc))
 
 
 let paths_are_nonempty (s:scheme) : bool =
