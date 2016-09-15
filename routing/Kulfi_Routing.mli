@@ -26,3 +26,5 @@ module Vlb : Algorithm
 module Ak : Algorithm
 
 module Ffc : Algorithm
+
+module Edksp : Algorithm

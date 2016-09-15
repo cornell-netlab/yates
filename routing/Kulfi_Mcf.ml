@@ -1,11 +1,10 @@
-open Kulfi_Types
-
 open Frenetic_Network
 open Net
 open Core.Std
-open Kulfi_LP_Lang
-open Kulfi_Spf
 open Kulfi_Globals
+open Kulfi_LP_Lang
+open Kulfi_Routing_Util
+open Kulfi_Types
 
 let () = match !Kulfi_Globals.rand_seed with
   | Some x -> Random.init x
@@ -36,14 +35,6 @@ let capacity_constraints (topo : Topology.t) (d_pairs : demands)
       let name = Printf.sprintf "cap_%s"
           (string_of_edge topo edge) in
       (Leq (name, constr, 0.))::acc) topo init_acc
-
-let neighboring_edges topo src =
-  let src_neighbors = Topology.neighbors topo src in
-  (* Get all outgoing edges *)
-  let edges = VertexSet.fold src_neighbors ~init:[] ~f:(fun acc vtx ->
-      let es = Topology.find_all_edges topo src vtx in
-      List.rev_append (EdgeSet.elements es) acc) in
-  edges
 
 let demand_constraints (topo : Topology.t) (d_pairs : demands)
     (init_acc : constrain list) : constrain list =
