@@ -6,7 +6,7 @@ type solver_type =
   | Mcf | MwMcf | Vlb | Ecmp | Edksp | Ksp | Spf | Raeke
   | AkMcf | AkVlb | AkRaeke | AkEcmp | AkKsp
   | Ffc | Ffced
-  | SemiMcfMcf | SemiMcfMcfEnv | SemiMcfMcfFTEnv | SemiMcfVlb | SemiMcfRaeke | SemiMcfRaekeFT  | SemiMcfEcmp | SemiMcfKsp | SemiMcfKspFT
+  | SemiMcfMcf | SemiMcfMcfEnv | SemiMcfMcfFTEnv | SemiMcfVlb | SemiMcfRaeke | SemiMcfRaekeFT  | SemiMcfEcmp | SemiMcfKsp | SemiMcfEdksp | SemiMcfKspFT
   | OptimalMcf
 
 type network_iter_state = {

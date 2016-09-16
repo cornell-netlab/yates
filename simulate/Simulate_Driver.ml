@@ -44,6 +44,7 @@ let solver_to_string (s:solver_type) : string =
   | SemiMcfRaekeFT -> "semimcfraekeft"
   | SemiMcfEcmp -> "semimcfecmp"
   | SemiMcfKsp -> "semimcfksp"
+  | SemiMcfEdksp -> "semimcfedksp"
   | SemiMcfKspFT -> "semimcfkspft"
   | OptimalMcf -> "optimalmcf"
 
@@ -71,6 +72,7 @@ let select_algorithm solver = match solver with
   | SemiMcfRaeke
   | SemiMcfRaekeFT
   | SemiMcfKsp
+  | SemiMcfEdksp
   | SemiMcfKspFT
   | SemiMcfEcmp -> Kulfi_Routing.SemiMcf.solve
 
@@ -98,6 +100,7 @@ let select_local_recovery solver = match solver with
   | SemiMcfRaeke
   | SemiMcfRaekeFT
   | SemiMcfKsp
+  | SemiMcfEdksp
   | SemiMcfKspFT
   | SemiMcfEcmp -> Kulfi_Routing.SemiMcf.local_recovery
 
@@ -199,6 +202,7 @@ let initial_scheme algorithm topo predict : scheme =
   | Ffc ->
      let _ = Kulfi_Routing.Ksp.initialize SrcDstMap.empty in
      Kulfi_Routing.Ksp.solve topo SrcDstMap.empty
+  | SemiMcfEdksp
   | Ffced ->
      let _ = Kulfi_Routing.Edksp.initialize SrcDstMap.empty in
      Kulfi_Routing.Edksp.solve topo SrcDstMap.empty
@@ -215,6 +219,7 @@ let initialize_scheme algorithm topo predict : unit =
   match algorithm with
   | SemiMcfEcmp
   | SemiMcfKsp
+  | SemiMcfEdksp
   | SemiMcfKspFT
   | SemiMcfMcf
   | SemiMcfMcfEnv
@@ -1239,6 +1244,7 @@ let command =
     +> flag "-semimcfraekeft" no_arg ~doc:" run semi mcf+raeke with joint failure opt"
     +> flag "-semimcfecmp" no_arg ~doc:" run semi mcf+ecmp"
     +> flag "-semimcfksp" no_arg ~doc:" run semi mcf+ksp"
+    +> flag "-semimcfedksp" no_arg ~doc:" run semi mcf+edksp"
     +> flag "-semimcfkspft" no_arg ~doc:" run semi mcf+ksp with joint failure opt"
     +> flag "-raeke" no_arg ~doc:" run raeke"
     +> flag "-optimalmcf" no_arg ~doc:" run optimal mcf"
@@ -1290,6 +1296,7 @@ let command =
     (semimcfraekeft:bool)
     (semimcfecmp:bool)
     (semimcfksp:bool)
+    (semimcfedksp:bool)
     (semimcfkspft:bool)
     (raeke:bool)
     (optimalmcf:bool)
@@ -1341,6 +1348,7 @@ let command =
          ; if semimcfmcfftenv || all  then Some SemiMcfMcfFTEnv else None
          ; if semimcfecmp || all      then Some SemiMcfEcmp     else None
          ; if semimcfksp || all       then Some SemiMcfKsp      else None
+         ; if semimcfedksp || all     then Some SemiMcfEdksp      else None
          ; if semimcfkspft            then Some SemiMcfKspFT    else None
          ; if semimcfvlb || all       then Some SemiMcfVlb      else None
          ; if semimcfraeke || all     then Some SemiMcfRaeke    else None
