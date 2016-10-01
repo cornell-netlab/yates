@@ -1,0 +1,30 @@
+ [
+    { "source": "IP1", "target": "IP2", "capacity":"2",  "util":"50",  "type": "IP", 
+      "path": [ { "source": "O1", "target": "O3"},
+              { "source": "O3", "target": "O4"} ] },
+
+    { "source": "IP1", "target": "IP2", "capacity":"4",  "util":"80",  "type": "IP",
+        "path": [{"source":"O1", "target": "O3"}, {"source": "O3", "target": "O4"}]},
+
+    { "source": "IP3", "target": "IP1", "capacity":"6",  "util":"10",  "type": "IP",
+        "path": [{"source":"O1", "target": "O3"}, {"source": "O3", "target": "O4"},
+        {"source":"O4", "target": "O2"}, {"source": "O2", "target": "O5"}]},
+
+    { "source": "IP2", "target": "IP3", "capacity":"10", "util":"30",  "type": "IP",
+        "path": [ { "source": "O3", "target": "O4"},
+                { "source": "O1", "target": "O3"},
+                { "source": "O1", "target": "O2"},
+                { "source": "O2", "target": "O5"} ] },
+
+    { "source": "O1", "target": "O2", "type": "optical" },
+    { "source": "O1", "target": "O3", "type": "optical" },
+    { "source": "O2", "target": "O3", "type": "optical" },
+    { "source": "O2", "target": "O4", "type": "optical" },
+    { "source": "O2", "target": "O5", "type": "optical" },
+    { "source": "O3", "target": "O4", "type": "optical" },
+    { "source": "O4", "target": "O5", "type": "optical" },
+    { "source": "IP1", "target": "O1", "type": "mapping" },
+    { "source": "IP2", "target": "O4", "type": "mapping" },
+    { "source": "IP3", "target": "O5", "type": "mapping" }
+        
+  ]

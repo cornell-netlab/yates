@@ -1,0 +1,11 @@
+﻿
+path.mapped {
+ stroke-dasharray: 5,5;
+ stroke:#333;
+ fill:none;
+}
+
+text {
+  font: 60px sans-serif;
+  pointer-events: none;
+}
