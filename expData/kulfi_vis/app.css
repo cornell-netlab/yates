@@ -1,4 +1,7 @@
-﻿
+﻿img {
+    height: 200px;
+    width: 200px;
+}
 path.mapped {
  stroke-dasharray: 5,5;
  stroke:#333;
@@ -6,6 +9,15 @@ path.mapped {
 }
 
 text {
-  font: 60px sans-serif;
+  font: 10px sans-serif;
   pointer-events: none;
+}
+#parent_div_1, #parent_div_2, #parent_div_3{
+    margin-right:10px;
+    float:left;
+    height:500px;
+    width:640px;
+}
+#div1,#div2{
+    float:left;
 }

@@ -7,8 +7,34 @@
 </head>
 
 <body>
-</body>
+<div id="parent_div_1">
+<div id="div1" align="middle" width="400" height="400">
+</div>
 
+<div id="menulist" align="middle">
+    <select onchange="selectTopo(this.value,'#div1');" id="select1">
+        <option value="?" selected="selected">Select Map</option>
+        <option value="1">edksp_0</option>
+        <option value="2">edksp_1</option>
+    </select>
+</div>
+</div>
+
+<div id="parent_div_2">
+<div id="div2" align="middle" width="400" height="400">
+</div>
+<div id="menulist2" align="middle">
+    <select onchange="selectTopo(this.value,'#div2');" id="select2">
+        <option value="?" selected="selected">Select Map</option>
+        <option value="1">edksp_0</option>
+        <option value="2">edksp_1</option>
+    </select>
+</div>
+</div>
+
+
+</body>
 <script src="http://d3js.org/d3.v3.min.js"></script>
 <script src="app.js"></script>
+
 </html>
