@@ -206,7 +206,7 @@ function getRadioValue(theRadioGroup)
 }
 
 // Shellinabox url
-var url = "http://192.168.56.102:4200";
+var url = "http://192.168.56.101:4200";
 
 var input   = document.getElementById("input");
 var iframe  = document.getElementById("shell");
@@ -287,7 +287,7 @@ document.getElementById("commandbtn").addEventListener("click", function() {
         + hosts;
     var cmd = cmd + " " + tealgs + " -scale " + scale.value;
     var cmd = cmd + " -budget " + budget.value;
-    //var cmd = cmd + " -deloop -scalesyn";
+    var cmd = cmd + " -deloop -scalesyn";
     var cmd = cmd + expparams;
     var cmd = cmd + " -out " + "out";
     command.innerHTML = cmd;
@@ -306,7 +306,7 @@ document.getElementById("logout").addEventListener("click", function() {
 
 
 document.getElementById("results").addEventListener("click", function() {
-    var win = window.open('http://192.168.56.102/yates/congestion/vis.html');
+    var win = window.open('http://192.168.56.101/yates/congestion/vis.html');
     win.focus();
 });
 
