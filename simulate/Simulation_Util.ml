@@ -80,3 +80,5 @@ let congestion_of_paths (t:topology) (d:demands) (s:scheme) : (float EdgeMap.t) 
           acc) sent_on_each_edge
 
 
+let progress_bar x y l =
+  "[" ^ (String.make (x*l/y) '#') ^ (String.make (l-1-x*l/y) ' ') ^ "]"

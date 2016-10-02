@@ -210,7 +210,7 @@ let initial_scheme algorithm topo predict : scheme =
 
 (* Initialize a TE algorithm *)
 let initialize_scheme algorithm topo predict : unit =
-  Printf.printf "\n[Init...] \r";
+  (*Printf.printf "\n[Init...] \r";*)
   let start_scheme = initial_scheme algorithm topo predict in
   let pruned_scheme =
     if SrcDstMap.is_empty start_scheme then start_scheme
@@ -465,7 +465,8 @@ let simulate_tm (start_scheme:scheme)
     ~init:(make_network_iter_state ~scheme:start_scheme ~real_tm:dem ~predict_tm:predict ())
     ~f:(fun current_state iter ->
       (* begin iteration - time *)
-      Printf.printf "\t\t\t [Time : %3d]\r%!" (iter - steady_state_time);
+      (*Printf.printf "\t\t\t [Time : %3d]\r%!" (iter - steady_state_time);*)
+      Printf.printf "\t\t\t %s\r%!" (progress_bar (iter - steady_state_time) (num_iterations + wait_out_time) 10);
 
       (* Reset stats when steady state is reached *)
       let current_state =
@@ -487,7 +488,7 @@ let simulate_tm (start_scheme:scheme)
       let failed_links =
         if iter = failure_time then
           begin
-            Printf.printf "\t\t\t\t\tFail %s\r" (dump_edges topo (EdgeSet.elements fail_edges));
+            Printf.printf "\t\t\t\t\tx %s  \r" (dump_edges topo (EdgeSet.elements fail_edges));
             fail_edges
           end
         else current_state.failures in
@@ -977,7 +978,6 @@ let simulate
     ~f:(fun algorithm ->
       (*(praveenk): Raeke changes edge weights. Let's just reset them. *)
       ignore(reset_topo_weights edge_weights topo;);
-
       (* compute demand envelope if needed *)
       ignore(match algorithm with
         | SemiMcfMcfFTEnv
@@ -997,7 +997,7 @@ let simulate
         List.fold_left (range 0 num_tms) (* 0..num_tms *)
           ~init:SrcDstMap.empty
           ~f:(fun prev_scheme n ->
-            Printf.printf "\nAlgo: %s TM: %d\r%!" (solver_to_string algorithm) n;
+            Printf.printf "TE: %8s %s\r%!" (solver_to_string algorithm) (progress_bar n num_tms 10);
             (* get the next demand *)
             let actual = next_demand ~scale:scale actual_ic actual_host_map in
             let predict = next_demand ~scale:scale predict_ic predict_host_map in

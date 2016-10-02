@@ -283,7 +283,7 @@ let local_recovery (_:scheme) (topo:topology) (failed_links:failure) (d:demands)
       else SrcDstMap.find_exn d (u,v) in
       SrcDstMap.add ~key:(u,v) ~data:uv_dem acc) in
   let new_scheme = restricted_mcf topo new_demands new_base_path_set in
-  Printf.printf "\t\t\t\t\t\t\t\t\t\tLOCAL\r";
+  Printf.printf "\t\t\t\t\t\t\t\t\t\tL-REC\r";
   new_scheme
         
 

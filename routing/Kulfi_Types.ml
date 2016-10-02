@@ -340,7 +340,7 @@ let normalization_recovery (curr_scheme:scheme) (_:topology) (failed_links:failu
                        else prob /. total_prob in
         PathMap.add ~key:path ~data:new_prob acc) in
     SrcDstMap.add ~key:(src,dst) ~data:renormalized_paths acc) in
-  Printf.printf "\t\t\t\t\t\t\t\t\t\tLOCAL\r";
+  Printf.printf "\t\t\t\t\t\t\t\t\t\tL-REC\r";
   new_scheme
 
 (* Set of host nodes *)
