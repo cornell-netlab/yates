@@ -1,9 +1,9 @@
-with open('/home/yang/git/kulfi/expData/abilene/EdgeCongestionVsIterations.dat') as f:
+with open('/home/yates/expData/out/EdgeCongestionVsIterations.dat') as f:
     content=f.readlines()
 fileName=''
-base_dir='/home/yang/WebstormProjects/kulfi_vis/'
+base_dir='/home/yates/kulfi/expData/demo/congestion/'
 curf=-1
-files_repo=open('/home/yang/WebstormProjects/kulfi_vis/files.json','w')
+files_repo=open(base_dir+'files.json','w')
 files_repo.write('[\n')
 firstName=True
 for i in range(1,len(content)):

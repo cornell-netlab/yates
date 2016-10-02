@@ -142,7 +142,6 @@ Failure Time: <input type="text"   id="failtime" value="0"></input>
   <option>3</option>
   <option>4</option>
 </select></td><td>
-Number of TMs: <input type="text"   id="numtms" value="24"></input>
 </td></tr>
 </table>
 
@@ -244,8 +243,10 @@ function getExpParams() {
     if (experiment == "failure") {
         var failtime = document.getElementById("failtime").value;
         var failnum = document.getElementById("failnum").value;
+        var numtm = numtms.value;
         params += " -fail-time " + failtime;
         params += " -fail-num " + failnum;
+        params += " -num-tms " + numtm;
     }
     if(recovery == "yes"){
         var lrdelay = document.getElementById("lrdelay").value;
@@ -304,6 +305,10 @@ document.getElementById("logout").addEventListener("click", function() {
 });
 
 
+document.getElementById("results").addEventListener("click", function() {
+    var win = window.open('http://192.168.56.102/yates/congestion/vis.html');
+    win.focus();
+});
 
 // Receive response from shellinabox
 window.addEventListener("message", function(message) {
@@ -331,6 +336,51 @@ window.addEventListener("message", function(message) {
             var n = decoded.data.search("Complete.");
             if (n >= 0) {
                 document.getElementById("results").disabled = false;
+// Plot everything
+    var message = JSON.stringify({
+        type : 'input',
+        data : 'python kulfi/simulate/viz/TotalThroughputVsIterations.py out \n'
+    });
+    iframe.contentWindow.postMessage(message, url);
+
+    var message = JSON.stringify({
+        type : 'input',
+        data : 'python kulfi/simulate/viz/CongestionVsIterations.py out Max \n'
+    });
+    iframe.contentWindow.postMessage(message, url);
+
+    var message = JSON.stringify({
+        type : 'input',
+        data : 'python kulfi/simulate/viz/CongestionVsIterations.py out Mean \n'
+    });
+    iframe.contentWindow.postMessage(message, url);
+
+
+    var message = JSON.stringify({
+        type : 'input',
+        data : 'python kulfi/simulate/viz/LatencyCDF.py expData/out/LatencyDistributionVsIterations.dat\n'
+    });
+    iframe.contentWindow.postMessage(message, url);
+
+
+
+var message = JSON.stringify({
+        type : 'input',
+        data : 'cp expData/out/*svg kulfi/expData/demo/congestion/\n'
+    });
+    iframe.contentWindow.postMessage(message, url);
+
+
+
+// Plot everything
+    var message = JSON.stringify({
+        type : 'input',
+        data : 'rm kulfi/expData/demo/congestion/*.txt\npython3 kulfi/expData/demo/congestion/converter.py\n'
+    });
+    iframe.contentWindow.postMessage(message, url);
+
+
+
             }
 
             // Enter username
@@ -341,7 +391,7 @@ window.addEventListener("message", function(message) {
 			type : 'input',
 			data : 'yates\nreset\n'
 			});
-		    document.getElementById("results").disabled = true;
+		    document.getElementById("results").disabled = false;
 		    iframe.contentWindow.postMessage(message, url);
  	    }
 

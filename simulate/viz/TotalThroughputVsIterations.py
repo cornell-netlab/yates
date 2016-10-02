@@ -47,17 +47,18 @@ def main(dirn, fname, solvers):
   ax.legend( loc=0, borderaxespad=1., fancybox=True, fontsize=15)
   ymin, ymax = pp.ylim()
   pp.ylim(0.5,1.05)
-  pp.xlim(-0.2,3.2)
+  #pp.xlim(-0.2,3.2)
 
   xa = ax.get_xaxis()
   xa.set_major_locator(pylab.MaxNLocator(integer=True))
-  ax.annotate('link (s2-s12) fails', xy=(1.8, 0.54), xytext=(0.95, 0.6),
-            arrowprops=dict(facecolor='black', shrink=0.05), fontsize=14
-            )
-  pp.axvline(1.8, linestyle='dashed' )
+  #ax.annotate('link (s2-s12) fails', xy=(1.8, 0.54), xytext=(0.95, 0.6),
+  #          arrowprops=dict(facecolor='black', shrink=0.05), fontsize=14
+  #          )
+  #pp.axvline(1.8, linestyle='dashed' )
   pp.subplots_adjust(left=0.1, right=0.8, top=0.9, bottom=0.1)
 
-  pp.savefig(dirn+"/"+fname+"-".join(solvers)+".pdf")
+  #pp.savefig(dirn+"/"+fname+"-".join(solvers)+".pdf")
+  pp.savefig(dirn+"/"+fname+"-".join(solvers)+".svg")
 
 if __name__ == "__main__":
   if len(sys.argv) < 2:
