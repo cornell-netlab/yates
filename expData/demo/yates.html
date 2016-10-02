@@ -1,0 +1,350 @@
+<!DOCTYPE HTML>
+
+<html>
+    <head>
+<style>
+p { font-size:	1.1em; }
+#shell, #output {
+    width:		940px;
+    height:		400px;
+    margin: 	20px 10px;
+}
+#output {
+    width:		640px;
+    height:		50px;
+    margin: 	0px 0px;
+    overflow:	scroll;
+    border:		2px solid #999;
+}
+</style>
+</head>
+    <body>
+<h2>YATES Parameters</h2>
+<p> Topology:
+<select id="topology">
+  <option selected value="data/topologies/abilene.dot" host="data/hosts/abilene.hosts">Abilene</option>
+  <option value="data/topologies/AttMpls.dot" host="data/hosts/AttMpls.hosts">ATT</option>
+  <option value="data/topologies/Geant2012.dot" host="data/hosts/Geant2012.hosts">GEANT</option>
+</select>
+</p>
+
+<p> Traffic Matrix (Actual):
+<select id="actual">
+  <option selected value="data/demands/actual/abilene.txt">Abilene</option>
+  <option value="data/demands/actual/AttMpls.txt">ATT</option>
+  <option value="data/demands/actual/Geant2012.txt">GEANT</option>
+</select>
+</p>
+
+
+<p> Traffic Matrix (Predicted):
+<select id="predicted">
+  <option selected value="data/demands/predicted/abilene.txt">Abilene</option>
+  <option value="data/demands/predicted/AttMpls.txt">ATT</option>
+  <option value="data/demands/predicted/Geant2012.txt">GEANT</option>
+</select>
+</p>
+
+<p>
+Scale: <input type="text"   id="scale" value="1"></input>
+Budget: <input type="text"   id="budget" value="3"></input>
+Number of TMs: <input type="text"   id="numtms" value="24"></input>
+Simulation time: <input type="text"   id="simtime" value="500"></input> steps<br><br>
+</p>
+
+TE Algorithms:<br>
+<span>
+    <input name="alg" type="checkbox" value="spf"/>
+    <label for="alg">Shortest-Path</label>
+</span>
+<span>
+    <input name="alg" type="checkbox" value="ecmp"/>
+    <label for="alg">Equal Cost Multi Path</label>
+</span>
+<span>
+    <input name="alg" type="checkbox" value="ksp"/>
+    <label for="alg">k-Shortest Paths</label>
+</span>
+<span>
+    <input name="alg" type="checkbox" value="edksp"/>
+    <label for="alg">Edge-disjoint k-shortest paths</label>
+</span>
+<span>
+    <input name="alg" type="checkbox" value="raeke"/>
+    <label for="alg">Raecke </label>
+</span>
+<span>
+    <input name="alg" type="checkbox" value="vlb"/>
+    <label for="alg">Valiant Load Balancing</label>
+</span>
+<span>
+    <input name="alg" type="checkbox" value="mcf"/>
+    <label for="alg">Multi-Commodity Flow</label>
+</span>
+<span>
+    <input name="alg" type="checkbox" value="optimalmcf"/>
+    <label for="alg">Optimal MCF</label>
+</span>
+<span>
+    <input name="alg" type="checkbox" value="semimcfksp"/>
+    <label for="alg">SWAN - Semi-MCF with KSP</label>
+</span>
+<span>
+    <input name="alg" type="checkbox" value="semimcfedksp"/>
+    <label for="alg">Semi-MCF with edge-disjoint k-shortest paths</label>
+</span>
+<span>
+    <input name="alg" type="checkbox" value="ffced"/>
+    <label for="alg">Forward Fault Correction</label>
+</span>
+<span>
+    <input name="alg" type="checkbox" value="semimcfmcfftenv"/>
+    <label for="alg">Joint optimization for fault tolerance</label>
+</span>
+<span>
+    <input name="alg" type="checkbox" value="semimcfraeke"/>
+    <label for="alg">SMORE</label>
+</span>
+<p>
+
+<p>
+<input name="experiment" type="radio" value="robustness" checked="checked"/> Robustness Experiments <br>
+Number of failures: <select id="robustfailnum">
+  <option selected>0</option>
+  <option>1</option>
+  <option>2</option>
+  <option>3</option>
+  <option>4</option>
+</select>
+</p>
+
+<p>
+<input name="experiment" type="radio" value="failure"/> Failure Experiments <br>
+Failure Time: <input type="text"   id="failtime" value="0"></input>
+#failures:<select id="failnum">
+  <option selected>0</option>
+  <option>1</option>
+  <option>2</option>
+  <option>3</option>
+  <option>4</option>
+</select>
+Number of TMs: <input type="text"   id="numtms" value="24"></input>
+</p>
+
+<p>
+Failure Recovery:
+<input name="recovery" type="radio" value="yes" checked="checked"/> Yes
+<input name="recovery" type="radio" value="no"/> No <br>
+Recovery Delay: <input type="text"   id="lrdelay" value="0"></input> steps
+</p>
+
+<h2>YATES Simulator</h2>
+
+        <div>
+            <input type="button" id="commandbtn" value="Build Command"></input>
+            <input type="text"   id="inputcmd" size="60"> </input>
+            <input type="button" id="simulate" value="Simulate"></input>
+            <input type="button" id="results" value="Results"></input>
+            <input type="button" id="logout" value="Logout"></input>
+        </div>
+
+        <p id="command"> Command: --- </p>
+        <p id="session">Session status: ???</p>
+
+        <!--
+            Embedded shellinabox. In our case src attribute will be added with help
+            of JS. -->
+            <iframe id="shell" src=""></iframe>
+
+            <!-- Ouput -->
+            <p>Terminal output:</p>
+            <pre id="output"></pre>
+
+<script>
+
+function getSelectValue(selectMenu)
+{
+    var e = document.getElementById(selectMenu);
+    var val = e.options[e.selectedIndex].value;
+    return val;
+}
+
+function getHost()
+{
+    var e = document.getElementById("topology");
+    var val = e.options[e.selectedIndex].getAttribute("host");
+    return val;
+}
+
+
+function getRadioValue(theRadioGroup)
+{
+    var elements = document.getElementsByName(theRadioGroup);
+    for (var i = 0, l = elements.length; i < l; i++)
+    {
+        if (elements[i].checked)
+        {
+            return elements[i].value;
+        }
+    }
+}
+
+// Shellinabox url
+var url = "http://192.168.56.102:4200";
+
+var input   = document.getElementById("input");
+var iframe  = document.getElementById("shell");
+var output  = document.getElementById("output");
+var session = document.getElementById("session");
+
+
+// YATES Parameters
+var scale = document.getElementById("scale");
+var budget = document.getElementById("budget");
+var numtms = document.getElementById("numtms");
+
+var kulfidir = "/home/yates/kulfi/";
+var topology = kulfidir + getSelectValue("topology");
+var hosts = kulfidir + getHost();
+var actual = kulfidir +  getSelectValue("actual");
+var predicted = kulfidir + getSelectValue("predicted");
+
+function getTEAlgs() {
+    var checkboxes = document.querySelectorAll('input[name="alg"]:checked'), values = '';
+    Array.prototype.forEach.call(checkboxes, function(el) {
+        values += ' -' + el.value;
+    });
+    return values;
+}
+
+function getExpParams() {
+    var experiment = getRadioValue('experiment'), params = "";
+    var recovery = getRadioValue('recovery');
+    if (experiment == "robustness") {
+        params += " -robust";
+        var robustfailnum = getSelectValue("robustfailnum");
+    }
+    if (experiment == "failure") {
+        var failtime = document.getElementById("failtime");
+        var failnum = document.getElementById("failnum");
+        params += " -fail-time " + failtime;
+        params += " -fail-num " + failnum;
+    }
+    if(recovery == "yes"){
+        var lrdelay = document.getElementById("lrdelay").value;
+        params += " -lr-delay " + lrdelay;
+    }
+    return params;
+}
+
+document.getElementById("simulate").addEventListener("click", function() {
+    // Send input to shellinabox
+    var message = JSON.stringify({
+        type : 'input',
+        data : inputcmd.value + '\n'
+    });
+    iframe.contentWindow.postMessage(message, url);
+});
+
+document.getElementById("commandbtn").addEventListener("click", function() {
+    // Send input to shellinabox
+    document.getElementById("results").disabled = true;
+    var message = JSON.stringify({
+        type : 'session'
+    });
+    iframe.contentWindow.postMessage(message, url);
+    // Enable output replay from shellinabox iframe
+    var message = JSON.stringify({
+        type : 'output',
+        data : 'enable'
+    });
+    iframe.contentWindow.postMessage(message, url);
+     // Request shellianbox session status
+    var message = JSON.stringify({
+        type : 'session'
+    });
+    iframe.contentWindow.postMessage(message, url);
+
+
+    // Generate command
+    var tealgs = getTEAlgs();
+    var expparams = getExpParams();
+    var simulator = kulfidir + "Simulate_Driver.native";
+    var cmd = simulator + " " + topology + " " + actual + " " + predicted + " "
+        + hosts;
+    var cmd = cmd + " " + tealgs + " -scale " + scale.value;
+    var cmd = cmd + " -budget " + budget.value;
+    //var cmd = cmd + " -deloop -scalesyn";
+    var cmd = cmd + expparams;
+    var cmd = cmd + " -out " + "out";
+    command.innerHTML = cmd;
+    inputcmd.value = cmd;
+});
+
+
+document.getElementById("logout").addEventListener("click", function() {
+    // Send input to shellinabox
+    var message = JSON.stringify({
+        type : 'input',
+        data : 'exit\n'
+    });
+    iframe.contentWindow.postMessage(message, url);
+});
+
+
+
+// Receive response from shellinabox
+window.addEventListener("message", function(message) {
+
+    // Allow messages only from shellinabox
+    if (message.origin !== url) {
+        return;
+    }
+
+    // Handle response according to response type
+    var decoded = JSON.parse(message.data);
+    switch (decoded.type) {
+        case "ready":
+            // Shellinabox is ready to communicate and we will enable console output
+            // by default.
+            var message = JSON.stringify({
+                type : 'output',
+                data : 'enable'
+            });
+            iframe.contentWindow.postMessage(message, url);
+            break;
+        case "output" :
+            // Append new output
+            output.innerHTML = decoded.data;
+            var n = decoded.data.search("Complete.");
+            if (n >= 0) {
+                document.getElementById("results").disabled = false;
+            }
+
+            // Enter username
+            var n = decoded.data.search("login");
+            var m = decoded.data.search("password");
+            if (n >= 0 || m >= 0) {
+		    var message = JSON.stringify({
+			type : 'input',
+			data : 'yates\nreset\n'
+			});
+		    document.getElementById("results").disabled = true;
+		    iframe.contentWindow.postMessage(message, url);
+ 	    }
+
+            break;
+        case "session" :
+            // Reload session status
+            session.innerHTML = 'Session status: ' + decoded.data;
+            break;
+    }
+}, false);
+
+// Add url to our iframe after the event listener is installed.
+iframe.src = url;
+
+            </script>
+
+    </body>
+</html>
