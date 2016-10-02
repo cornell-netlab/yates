@@ -1,0 +1,18 @@
+body { font-family: Helvetica;  }
+h1 { background-color:#CCC;
+    border: 1px solid;
+    color:#39F;
+    text-align: center;
+    }
+
+h2 { background-color:#BBB;
+    border: 1px solid;
+    color:#39F;
+    text-align: center;
+    }
+
+
+table
+ {    background-color: #eee;    border: 1px solid #39F;    width: 40%;    }td {    border: 1px;    text-align: left;    }
+
+p {    color:#09F;    text-indent: 20px;  }

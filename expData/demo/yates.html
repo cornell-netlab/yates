@@ -10,105 +10,119 @@ p { font-size:	1.1em; }
     margin: 	20px 10px;
 }
 #output {
-    width:		640px;
+    width:		940px;
     height:		50px;
     margin: 	0px 0px;
     overflow:	scroll;
-    border:		2px solid #999;
+    border:		0px solid #999;
 }
 </style>
+<link rel="stylesheet" href="demo.css" type="text/css" />
 </head>
     <body>
+<h1>YATES - Yet Another Traffic Engineering System</h1>
 <h2>YATES Parameters</h2>
-<p> Topology:
-<select id="topology">
+<table width="400">
+<tr><td> Topology </td><td> <select id="topology">
   <option selected value="data/topologies/abilene.dot" host="data/hosts/abilene.hosts">Abilene</option>
   <option value="data/topologies/AttMpls.dot" host="data/hosts/AttMpls.hosts">ATT</option>
   <option value="data/topologies/Geant2012.dot" host="data/hosts/Geant2012.hosts">GEANT</option>
-</select>
-</p>
+</select></td></tr>
 
-<p> Traffic Matrix (Actual):
+<tr> <td> Traffic Matrix (Actual) </td><td>
 <select id="actual">
   <option selected value="data/demands/actual/abilene.txt">Abilene</option>
   <option value="data/demands/actual/AttMpls.txt">ATT</option>
   <option value="data/demands/actual/Geant2012.txt">GEANT</option>
 </select>
-</p>
+</td></tr>
 
-
-<p> Traffic Matrix (Predicted):
+<tr><td> Traffic Matrix (Predicted):
+</td> <td>
 <select id="predicted">
   <option selected value="data/demands/predicted/abilene.txt">Abilene</option>
   <option value="data/demands/predicted/AttMpls.txt">ATT</option>
   <option value="data/demands/predicted/Geant2012.txt">GEANT</option>
 </select>
-</p>
+</td> </tr>
 
-<p>
-Scale: <input type="text"   id="scale" value="1"></input>
-Budget: <input type="text"   id="budget" value="3"></input>
-Number of TMs: <input type="text"   id="numtms" value="24"></input>
-Simulation time: <input type="text"   id="simtime" value="500"></input> steps<br><br>
-</p>
+</table>
 
-TE Algorithms:<br>
-<span>
+<table><tr><td>
+Scale: </td><td><input type="text"   id="scale" value="1"></input></td><td>
+Budget: </td><td><input type="text"   id="budget" value="3"></input></td></tr>
+<tr><td>
+Number of TMs: </td><td><input type="text"   id="numtms" value="24"></input></td><td>
+Simulation time: </td><td><input type="text"   id="simtime" value="500"></input> steps</td></tr>
+</table>
+
+
+<h2>TE Algorithms:</h2>
+<table>
+<tr>
+<td>
     <input name="alg" type="checkbox" value="spf"/>
     <label for="alg">Shortest-Path</label>
-</span>
-<span>
+</td>
+<td>
     <input name="alg" type="checkbox" value="ecmp"/>
     <label for="alg">Equal Cost Multi Path</label>
-</span>
-<span>
+</td>
+<td>
     <input name="alg" type="checkbox" value="ksp"/>
     <label for="alg">k-Shortest Paths</label>
-</span>
-<span>
+</td>
+<td>
     <input name="alg" type="checkbox" value="edksp"/>
     <label for="alg">Edge-disjoint k-shortest paths</label>
-</span>
-<span>
+</td>
+</tr><tr>
+<td>
     <input name="alg" type="checkbox" value="raeke"/>
     <label for="alg">Raecke </label>
-</span>
-<span>
+</td>
+<td>
     <input name="alg" type="checkbox" value="vlb"/>
     <label for="alg">Valiant Load Balancing</label>
-</span>
-<span>
+</td>
+<td>
     <input name="alg" type="checkbox" value="mcf"/>
     <label for="alg">Multi-Commodity Flow</label>
-</span>
-<span>
+</td>
+<td>
     <input name="alg" type="checkbox" value="optimalmcf"/>
     <label for="alg">Optimal MCF</label>
-</span>
-<span>
+</td>
+</tr><tr>
+<td>
     <input name="alg" type="checkbox" value="semimcfksp"/>
     <label for="alg">SWAN - Semi-MCF with KSP</label>
-</span>
-<span>
+</td>
+<td>
     <input name="alg" type="checkbox" value="semimcfedksp"/>
     <label for="alg">Semi-MCF with edge-disjoint k-shortest paths</label>
-</span>
-<span>
+</td>
+<td>
     <input name="alg" type="checkbox" value="ffced"/>
     <label for="alg">Forward Fault Correction</label>
-</span>
-<span>
+</td>
+<td>
     <input name="alg" type="checkbox" value="semimcfmcfftenv"/>
     <label for="alg">Joint optimization for fault tolerance</label>
-</span>
-<span>
+</td>
+</tr><tr>
+<td>
     <input name="alg" type="checkbox" value="semimcfraeke"/>
     <label for="alg">SMORE</label>
-</span>
-<p>
+</td>
+</tr>
+</table>
 
-<p>
-<input name="experiment" type="radio" value="robustness" checked="checked"/> Robustness Experiments <br>
+<h2>Scenarios</h2>
+
+<table>
+<tr><td>
+<input name="experiment" type="radio" value="robustness" checked="checked"/> Robustness Experiments</td><td>
 Number of failures: <select id="robustfailnum">
   <option selected>0</option>
   <option>1</option>
@@ -116,10 +130,10 @@ Number of failures: <select id="robustfailnum">
   <option>3</option>
   <option>4</option>
 </select>
-</p>
-
-<p>
-<input name="experiment" type="radio" value="failure"/> Failure Experiments <br>
+</td><td></td>
+</tr><tr>
+<td>
+<input name="experiment" type="radio" value="failure"/> Failure Experiments</td><td>
 Failure Time: <input type="text"   id="failtime" value="0"></input>
 #failures:<select id="failnum">
   <option selected>0</option>
@@ -127,16 +141,19 @@ Failure Time: <input type="text"   id="failtime" value="0"></input>
   <option>2</option>
   <option>3</option>
   <option>4</option>
-</select>
+</select></td><td>
 Number of TMs: <input type="text"   id="numtms" value="24"></input>
-</p>
+</td></tr>
+</table>
 
-<p>
+<table><tr><td>
 Failure Recovery:
 <input name="recovery" type="radio" value="yes" checked="checked"/> Yes
-<input name="recovery" type="radio" value="no"/> No <br>
+<input name="recovery" type="radio" value="no"/> No </td><td>
 Recovery Delay: <input type="text"   id="lrdelay" value="0"></input> steps
-</p>
+</td></tr>
+</table>
+
 
 <h2>YATES Simulator</h2>
 
@@ -225,8 +242,8 @@ function getExpParams() {
         var robustfailnum = getSelectValue("robustfailnum");
     }
     if (experiment == "failure") {
-        var failtime = document.getElementById("failtime");
-        var failnum = document.getElementById("failnum");
+        var failtime = document.getElementById("failtime").value;
+        var failnum = document.getElementById("failnum").value;
         params += " -fail-time " + failtime;
         params += " -fail-num " + failnum;
     }
@@ -247,18 +264,13 @@ document.getElementById("simulate").addEventListener("click", function() {
 });
 
 document.getElementById("commandbtn").addEventListener("click", function() {
-    // Send input to shellinabox
-    document.getElementById("results").disabled = true;
-    var message = JSON.stringify({
-        type : 'session'
-    });
-    iframe.contentWindow.postMessage(message, url);
     // Enable output replay from shellinabox iframe
     var message = JSON.stringify({
         type : 'output',
         data : 'enable'
     });
     iframe.contentWindow.postMessage(message, url);
+
      // Request shellianbox session status
     var message = JSON.stringify({
         type : 'session'
