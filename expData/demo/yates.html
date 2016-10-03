@@ -124,8 +124,7 @@ Simulation time: </td><td><input type="text"   id="simtime" value="500"></input>
 <tr><td>
 <input name="experiment" type="radio" value="robustness" checked="checked"/> Robustness Experiments</td><td>
 Number of failures: <select id="robustfailnum">
-  <option selected>0</option>
-  <option>1</option>
+  <option selected>1</option>
   <option>2</option>
   <option>3</option>
   <option>4</option>
@@ -173,7 +172,6 @@ Recovery Delay: <input type="text"   id="lrdelay" value="0"></input> steps
             <iframe id="shell" src=""></iframe>
 
             <!-- Ouput -->
-            <p>Terminal output:</p>
             <pre id="output"></pre>
 
 <script>
@@ -332,7 +330,7 @@ window.addEventListener("message", function(message) {
             break;
         case "output" :
             // Append new output
-            output.innerHTML = decoded.data;
+            //output.innerHTML = decoded.data;
             var n = decoded.data.search("Complete.");
             if (n >= 0) {
                 document.getElementById("results").disabled = false;
