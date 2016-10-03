@@ -4,29 +4,29 @@ from collections import OrderedDict
 import numpy as np
 import sys
 import matplotlib.pyplot as pp
+from scipy.interpolate import pchip
 
 X_LABEL = "Path Length"
-Y_LABEL = "CDF (fraction of demand delivered)"
+Y_LABEL = "CDF (Throughput)"
 
-def display (all_latencies, directory):
-    scheme_latency_dist = OrderedDict()
+def display (all_latencies, directory): # all_latencies : solver -> #tm(0-23) -> path_len -> frac_traffic
+    scheme_latency_dist = OrderedDict()  # solver -> path_length -> (frac_tput_mean, frac_tput_std)
     for solver in all_latencies.keys():
         lat_percentile = get_latency_percentile(all_latencies, solver)
         scheme_latency_dist[solver] = lat_percentile
     CommonConf.setupMPPDefaults()
-    fmts = CommonConf.getLineFormats()
-    mrkrs = CommonConf.getLineMarkers()
-    colors = CommonConf.getLineColors()
-    fig = pp.figure(figsize=(12,6))
+    fmts = CommonConf.getLineFormatsDict()
+    mrkrs = CommonConf.getLineMarkersDict()
+    mrkrsize = CommonConf.getLineMarkersSizeDict()
+    mrkrlw = CommonConf.getLineMarkersLWDict()
+    colors = CommonConf.getLineColorsDict()
+    fig = pp.figure(figsize=(6,5))
     ax = fig.add_subplot(111)
-    index = 0
-    mxl = 0
+    max_lat = 0
     for solver, latencies in scheme_latency_dist.iteritems():
-        xl = sorted(latencies.keys())[-1]
-        if mxl < xl:
-            mxl = xl
+        max_lat = max(max_lat, max(latencies.keys()))
 
-    gap=20
+    gap=1
     for solver, latencies in scheme_latency_dist.iteritems():
         xs = []
         xsall = sorted(latencies.keys())
@@ -38,21 +38,50 @@ def display (all_latencies, directory):
 
         ys = [latencies[lat][0] for lat in xs]
         ydevs = [latencies[lat][1] for lat in xs]
-        ax.plot((xs[-1], mxl), (ys[-1], ys[-1]), linestyle=':',
-                color=colors[index])
-        ax.errorbar(xs, ys, yerr=ydevs, label=solver, marker=mrkrs[index],
-                linestyle=fmts[index], color=colors[index])
-        index = index + 1
+        ax.plot((xs[-1], max_lat), (ys[-1], ys[-1]), linestyle=':',
+                marker=mrkrs[solver],
+                color=colors[solver],
+                markersize=mrkrsize[solver],
+                markerfacecolor='none',
+                markeredgecolor=colors[solver],
+                markeredgewidth=mrkrsize[solver]/4,
+                linewidth=mrkrlw[solver])
+
+        new_xs = np.linspace(min(xs), max(xs), (max(xs)-min(xs))*3+1)
+        print new_xs
+        yinterp = pchip(xs, ys)
+        ydevsinterp = pchip(xs, ydevs)
+        new_ys = yinterp(new_xs)
+        new_ydevs = ydevsinterp(new_xs)
+        ax.errorbar(new_xs, new_ys, yerr=new_ydevs,
+                label=CommonConf.gen_label(solver), marker=mrkrs[solver],
+                linestyle=fmts[solver],
+                color=colors[solver],
+                markersize=mrkrsize[solver],
+                markerfacecolor='none',
+                markeredgecolor=colors[solver],
+                markeredgewidth=mrkrsize[solver]/4,
+                markevery=len(new_xs)/4,
+                errorevery=len(new_xs)/4,
+                linewidth=mrkrlw[solver])
     ax.set_xlabel(X_LABEL)
     ax.set_ylabel(Y_LABEL)
-    ax.legend(bbox_to_anchor=(1., 1.), loc=2, borderaxespad=1., fancybox=True)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.yaxis.set_ticks_position('left')
+    ax.xaxis.set_ticks_position('bottom')
+    ax.legend(loc='best', borderaxespad=1., fancybox=True)
     pp.subplots_adjust(left=0.1, right=0.8, top=0.9, bottom=0.1)
-    pp.ylim(ymax=1.0)
+    pp.ylim(0.0,1.05)
+    xmin,xmax = ax.get_xlim()
+    xmax = (xmax + (xmax%2))
+    pp.xlim(3, xmax)
+    pp.tight_layout()
     pp.savefig(directory+"/LatencyCDF.svg")
 
 
 def parse_latency_file (filename):
-    all_latencies = OrderedDict()
+    all_latencies = OrderedDict() # solver -> #tm(0-23) -> path_len -> frac_traffic
     scheme = ""
     iteration = ""
     latency_dist = dict()
@@ -80,14 +109,14 @@ def parse_latency_file (filename):
                     latency_dist[float(latency_percentile[0].strip())] = float(latency_percentile[1].strip())
     return all_latencies
 
-def get_latency_percentile (all_latencies, scheme):
-    scm_latency = all_latencies[scheme]
+def get_latency_percentile (all_latencies, scheme): # all_latencies : solver -> #tm(0-23) -> path_len -> frac_traffic
+    scm_latency = all_latencies[scheme]     # #tm(0-23) -> path_len -> frac_traffic
     latency_percentiles = dict()
     latency_mean_percentile = dict()
-    latency_val_set = set()
+    latency_val_set = set() # set of path_lengths
     for latencies in scm_latency.values():
         latency_val_set.update(latencies.keys())
-    latency_values = sorted(latency_val_set)
+    latency_values = sorted(latency_val_set) # sorted list of path_lengths
     for iteration, latencies in scm_latency.iteritems():
         prev_percentile = 0
         for lat in latency_values:
@@ -101,7 +130,7 @@ def get_latency_percentile (all_latencies, scheme):
     #    print latency_percentiles.get(l, [])
     for lat,pers in latency_percentiles.iteritems():
         latency_mean_percentile[lat] = (np.mean(pers), np.std(pers))
-    return latency_mean_percentile
+    return latency_mean_percentile # path_length -> (frac_tput_mean, frac_tput_std)
 
 
 if __name__ == "__main__":
