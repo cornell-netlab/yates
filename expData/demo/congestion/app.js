@@ -7,17 +7,22 @@ var pathSet=[];
 var circleSet=[];
 var circleTextSet=[];
 var scalesSet=[];
+var timeSet=[];
+var timeTextSet=[];
 var svgSet=[];
 var forceSet=[];
+var maxint=10;
 
-function getanewgraph(filename ,whichComp) {
+function getanewgraph(fileprefix,whichComp, selectTimethres,barthres) {
+    var filename=fileprefix+'_'+selectTimethres+'.txt';
     var links;
 
     var nodes = {};
     var counts = {};
     var selected_link = null;
     var nodeRadius = 5;
-    var thres=10;
+    var thres=barthres;
+    var timethres=selectTimethres;
     var curComp;
 
 
@@ -81,7 +86,7 @@ function getanewgraph(filename ,whichComp) {
     }
 
 
-    function startit(filename,whichComp) {
+    function startit(fileprefix,whichComp) {
         var filteredLinks=linksTot[whichComp].filter(function(d) { return d.target.name[0]!='h' && d.source.name[0]!='h' && d.util>=thres; });
         var filteredNodes=d3.values(nodesTot[whichComp]).filter(function (d){return d.name[0]!='h'});
         var force=forceSet[whichComp];
@@ -108,16 +113,16 @@ function getanewgraph(filename ,whichComp) {
                 .attr("x2", function (d, i) { return 100 + (i + 1) * barlength / tot; })
                 .on('mousedown',function (d){
                     thres=d;
-                    startit(filename,whichComp);
+                    getanewgraph(fileprefix,whichComp,timethres,thres);
                 })
                 .append("title")
                 .text(function (d) { return d; });
             scale.exit().remove();
 
-            var textin=["Congestion of "+filename];
+            var textin=["Congestion of "+fileprefix+" at time "+timethres];
             var curText=svgSet[whichComp].selectAll('text').data(textin, function (d) {return d;});
             curText.enter().
-              append('text').attr('y', starting-legWid).attr('x',  barlength/2).text(function(d){return d;});
+              append('text').attr('y', starting-legWid).attr('x',  barlength/1.8).text(function(d){return d;});
             curText.exit().remove();
             scale.enter().append('svg:text')
                 .attr('x', function (d, i) { return 100 + i * barlength / tot; })
@@ -129,6 +134,49 @@ function getanewgraph(filename ,whichComp) {
                     else
                         return "";
                 });
+
+        //-----------------------
+        var starting=375;
+        scdata=[];
+        var timescale=timeSet[whichComp].selectAll("line").data([],function(d){return d;});
+        timescale.exit().remove();
+        for (var i = 0; i <= maxint; i++)
+            scdata.push(i * (100 / tot));
+        timescale = timeSet[whichComp].selectAll("line").data(scdata);
+            var sg = timescale.enter();
+            sg.append('line').style("stroke", '#ACE5EE')
+                .style("stroke-width", function (d) {if (timethres==d) return 15; else return 10;})
+                .attr("y1", starting)
+                .attr("y2", starting)
+                .style("opacity", 30)
+                .attr("x1", function (d, i) { return 500 + i * barlength / tot; })
+                .attr("x2", function (d, i) { return 500 + (i + 1) * barlength / tot; })
+                .on('mousedown',function (d){
+                  timethres=d;
+                  getanewgraph(fileprefix,whichComp,timethres,thres);
+                })
+                .append("title")
+                .text(function (d) { return d; });
+            timescale.exit().remove();
+
+            textin=["Time Slice"];
+            curText=timeTextSet[whichComp].selectAll('text').data(textin, function (d) {return d;});
+            curText.enter().
+              append('text').attr('y', starting-legWid).attr('x', 540).text(function(d){return d;});
+            curText.exit().remove();
+
+            timescale.enter().append('svg:text')
+                .attr('x', function (d, i) { return 500 + i * barlength / tot; })
+                .attr('y', starting+legWid*2)
+                .attr('class', 'textid')
+                .text(function (d, i) {
+                    if ((i % 10 == 0) || (i==maxint))
+                        return d;
+                    else
+                        return "";
+                });
+
+        //------------
 
 
         var path= pathSet[whichComp].selectAll('path').data(filteredLinks, function (d) {return d.source.name+"-"+d.target.name;});
@@ -222,16 +270,23 @@ function getanewgraph(filename ,whichComp) {
         var circle =circleSet[whichComp]|| svg.append('svg:g');
         var circleText =circleTextSet[whichComp]|| svg.append('svg:g');
         var scales =scalesSet[whichComp]|| svg.append('svg:g');
+        var times=timeSet[whichComp]|| svg.append('svg:g');
+        var timeText=timeTextSet[whichComp]|| svg.append('svg:g');
         pathSet[whichComp]=path;
 
         circleSet[whichComp]=circle;
         circleTextSet[whichComp]=circleText;
         scalesSet[whichComp]=scales;
+        timeSet[whichComp]=times;
+        timeTextSet[whichComp]=times;
         svgSet[whichComp]=svg;
         curComp=whichComp;
-        startit(filename,whichComp);
+        startit(fileprefix,whichComp);
     });
 }
+
+
+
 var idName='select1';
 var oldSel = document.getElementById(idName);
 while (oldSel.options.length > 1) {
@@ -242,12 +297,16 @@ var i=0;
 d3.json("files.json", function (error, data) {
     if (error) alert(error);
     data.forEach(function (filename) {
-        var opt = document.createElement('option');
-        opt.text = filename.name;
-        opt.value = i;
-        i=i+1;
+        var st=filename.name.split("_");
+        var num=st[1].split(".")[0];
+        if (parseInt(st[1])==0){
+          var opt = document.createElement('option');
+          opt.text = st[0];
+          opt.value = i;
+          i=i+1;
 
-        oldSel.add(opt, null);
+          oldSel.add(opt, null);
+        }
     })
 });
 
@@ -261,16 +320,21 @@ var rs=[];
 d3.json("files.json", function (error, data) {
     if (error) alert(error);
     data.forEach(function (filename) {
-        var opt = document.createElement('option');
-        opt.text = filename.name;
-        opt.value = i2;
-        i2=i2+1;
-        rs.push(filename.name);
+        var st=filename.name.split("_");
+        var num=st[1].split(".")[0];
+        if (parseInt(st[1])>maxint) maxint=parseInt(st[1]);
+        if (parseInt(st[1])==0){
+          var opt = document.createElement('option');
+          opt.text = st[0];
+          opt.value = i2;
+          i2=i2+1;
+          rs.push(st[0]);
 
-        oldSel2.add(opt, null);
+          oldSel2.add(opt, null);
+        }
     })
 });
 
 function selectTopo(inobj,which) {
-    getanewgraph(rs[parseInt(inobj)],which);
+    getanewgraph(rs[parseInt(inobj)],which,0,10);
 }
