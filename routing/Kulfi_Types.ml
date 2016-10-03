@@ -317,7 +317,7 @@ let normalize_scheme_opt (s:scheme) : scheme =
 
 (* Modify routing scheme by normalizing path probabilites while avoiding failed links *)
 let normalization_recovery (curr_scheme:scheme) (_:topology) (failed_links:failure) (_:demands) : scheme =
-  Printf.printf "\t\t\t\t\t\t\t\t\t\tLocal\r";
+  Printf.printf "\t\t\t\t\t\t\t\t\t   L-REC\r";
   let new_scheme = SrcDstMap.fold curr_scheme
   ~init:SrcDstMap.empty
   ~f:(fun ~key:(src,dst) ~data:paths acc ->
@@ -340,7 +340,6 @@ let normalization_recovery (curr_scheme:scheme) (_:topology) (failed_links:failu
                        else prob /. total_prob in
         PathMap.add ~key:path ~data:new_prob acc) in
     SrcDstMap.add ~key:(src,dst) ~data:renormalized_paths acc) in
-  Printf.printf "\t\t\t\t\t\t\t\t\t\tL-REC\r";
   new_scheme
 
 (* Set of host nodes *)

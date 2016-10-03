@@ -2,20 +2,24 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as pp
 import numpy as np
-import scipy.stats as sp
 
 def gen_label (scm):
     names = { "raeke" : r"""$R\"acke$""",
+            "ecmp" : "ECMP",
+            "edksp" : "EDKSP",
+            "ffced" : "FFC",
+            "ffc" : "FFC-SP",
+            "ksp" : "KSP",
+            "mcf" : "MCF",
+            "optimalmcf" : "Optimal",
             "raecke" : r"""$R\"acke$""",
             "semimcfksp" : "SWAN",
+            "semimcfedksp" : "SWAN-ED",
             "semimcfraeke" : "SMORE",
-            "ecmp" : "ECMP",
+            "semimcfvlb" : "Semi-VLB",
             "semimcfmcfftenv" : "Joint",
-            "optimalmcf" : "Optimal",
-            "mcf" : "MCF",
-            "ksp" : "KSP",
+            "spf" : "SPF",
             "vlb" : "VLB",
-            "ffc" : "FFC",
             }
     return names.get(scm, scm)
 
@@ -52,85 +56,115 @@ def setupMPPDefaults():
 def getLineMarkersDict():
    return {
            'ecmp'   : '+',
-           'semimcfksp'    : '<',
-           'semimcfraeke'    : 'v',
-           'semimcfmcfftenv'  : '>',
-           'raeke' : 'o',
+           'edksp'   : '+',
+	   'ffc'    : 's',
+           'ffced'    : '.',
+           'ksp'    : 'd',
+	   'raeke' : 'o',
            'optimalmcf'     : '.',
            'mcf'    : 'd',
-           'vlb'    : 's',
-           'ksp'    : 'd',
-           'ffc'    : '.',
+           'semimcfksp'    : '<',
+           'semimcfedksp'    : 'o',
+           'semimcfraeke'    : 'v',
+           'semimcfmcfftenv'  : '>',
+           'semimcfvlb'  : 'v',
+           'spf'  : '<',
+           'vlb'  : 'd',
            }
 
 def getHatchDict():
    return {
            'ecmp'   : '+',
-           'semimcfksp'    : '/',
-           'semimcfraeke'    : '-',
-           'semimcfmcfftenv'  : '\\',
-           'raeke' : 'o',
+           'edksp'   : '/',
+           'ffc'    : '*',
+           'ffced'    : '*',
+           'ksp'    : '*',
+	   'raeke' : 'o',
            'optimalmcf'     : '.',
            'mcf'    : '*',
+           'semimcfksp'    : '/',
+           'semimcfedksp'    : '/',
+           'semimcfraeke'    : '-',
+           'semimcfmcfftenv'  : '\\',
+           'semimcfvlb'  : '\\',
+           'spf'    : 's',
            'vlb'    : 's',
-           'ksp'    : '*',
-           'ffc'    : '*',
            }
 
 def getLineMarkersLWDict():
    return {
            'ecmp'   : 5,
-           'semimcfksp'    : 5,
-           'semimcfraeke'    : 5,
-           'semimcfmcfftenv'  : 5,
-           'raeke' : 5,
+           'edksp'   : 5,
+           'ffc'    : 5,
+           'ffced'    : 5,
+           'ksp'    : 5,
+	   'raeke' : 5,
            'optimalmcf'     : 5,
            'mcf'    : 5,
+           'semimcfksp'    : 5,
+           'semimcfedksp'    : 5,
+           'semimcfraeke'    : 5,
+           'semimcfmcfftenv'  : 5,
+           'semimcfvlb'  : 5,
+           'spf'    : 5,
            'vlb'    : 5,
-           'ksp'    : 5,
-           'ffc'    : 5,
            }
 
 def getLineMarkersSizeDict():
    return {
-           'ecmp'           : 16,
-           'semimcfksp'     : 16,
-           'semimcfraeke'     : 16,
-           'semimcfmcfftenv'  : 16,
-           'raeke'          : 16,
+	   'ecmp'   : 16,
+           'edksp'   : 16,
+           'ffc'    : 16,
+           'ffced'    : 16,
+           'ksp'    : 16,
+	   'raeke' : 16,
            'optimalmcf'     : 16,
-           'mcf'            : 16,
-           'vlb'            : 16,
-           'ksp'            : 16,
-           'ffc'            : 16,
-           }
+           'mcf'    : 16,
+           'semimcfksp'    : 16,
+           'semimcfedksp'    : 16,
+           'semimcfraeke'    : 16,
+           'semimcfmcfftenv'  : 16,
+           'semimcfvlb'  : 16,
+           'spf'    : 16,
+           'vlb'    : 16,
+}
 
 def getLineColorsDict():
     return {
            'ecmp'   : 'green',
-           'semimcfksp'    : 'navy',
-           'semimcfraeke'    : 'red',
-           'semimcfmcfftenv'  : 'darkcyan',
+           'edksp'   : 'red',
+           'ffc'    : 'gray',
+           'ffced'    : 'gray',
+           'ksp'    : 'blue',
            'raeke' : 'coral',
            'optimalmcf'     : 'black',
            'mcf'    : 'darkgreen',
+           'semimcfksp'    : 'navy',
+           'semimcfedksp'    : 'orange',
+           'semimcfraeke'    : 'red',
+           'semimcfmcfftenv'  : 'darkcyan',
+           'semimcfvlb'  : 'darkcyan',
+           'spf'    : 'black',
            'vlb'    : 'dimgrey',
-           'ksp'    : 'blue',
-           'ffc'    : 'gray',
            }
 
 def getLineFormatsDict():
     return {
            'ecmp'   : '--',
-           'semimcfksp'    : '-',
-           'semimcfraeke'    : '-',
-           'semimcfmcfftenv'  : '--',
+           'edksp'   : '--',
+           'ffc'    : '-',
+	   'ffced'    : '-',
+           'ksp'    : '--',
            'raeke' : '--',
            'optimalmcf'     : ':',
            'mcf'    : '-',
+           'semimcfksp'    : '-',
+           'semimcfedksp'    : '-',
+           'semimcfraeke'    : '-',
+           'semimcfmcfftenv'  : '--',
+           'semimcfvlb'  : '--',
+           'spf'    : '--',
            'vlb'    : '--',
-           'ksp'    : '--',
-           'ffc'    : '-',
            }
 
 

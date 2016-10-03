@@ -259,7 +259,7 @@ let solve (topo:topology) (d:demands) : scheme =
   restricted_mcf topo d base_path_set
 
 let local_recovery (_:scheme) (topo:topology) (failed_links:failure) (d:demands) : scheme =
-  Printf.printf "\t\t\t\t\t\t\t\t\t\tLocal\r";
+  Printf.printf "\t\t\t\t\t\t\t\t\t   L-REC\r";
   let is_path_alive (p:path) : bool =
       List.fold_left p
       ~init:true
@@ -283,7 +283,6 @@ let local_recovery (_:scheme) (topo:topology) (failed_links:failure) (d:demands)
       else SrcDstMap.find_exn d (u,v) in
       SrcDstMap.add ~key:(u,v) ~data:uv_dem acc) in
   let new_scheme = restricted_mcf topo new_demands new_base_path_set in
-  Printf.printf "\t\t\t\t\t\t\t\t\t\tL-REC\r";
   new_scheme
         
 
