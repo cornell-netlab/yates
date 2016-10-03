@@ -12,6 +12,20 @@ var timeTextSet=[];
 var svgSet=[];
 var forceSet=[];
 var maxint=10;
+function nameswitch(name) {
+    switch(name) {
+        case 'semimcfraeke':
+            return 'SMORE';
+        case 'mcf':
+            return 'MCF';
+        case 'ksp':
+            return 'KSP';
+        case 'semimcfksp':
+            return 'SWAN';
+        default:
+            return st[0];
+    } 
+}
 
 function getanewgraph(fileprefix,whichComp, selectTimethres,barthres) {
     var filename=fileprefix+'_'+selectTimethres+'.txt';
@@ -82,7 +96,7 @@ function getanewgraph(fileprefix,whichComp, selectTimethres,barthres) {
 
 
     function textForNode(d) {
-        return "Utilization: " + d.util + "%"+ "Count: "+ d.count;
+        return "utilization: " + d.util + "%"+ "count: "+ d.count;
     }
 
 
@@ -119,7 +133,7 @@ function getanewgraph(fileprefix,whichComp, selectTimethres,barthres) {
                 .text(function (d) { return d; });
             scale.exit().remove();
 
-            var textin=["Congestion of "+fileprefix+" at time "+timethres];
+            var textin=["Congestion of "+nameswitch(fileprefix)+" at time "+timethres];
             var curText=svgSet[whichComp].selectAll('text').data(textin, function (d) {return d;});
             curText.enter().
               append('text').attr('y', starting-legWid).attr('x',  barlength/1.8).text(function(d){return d;});
@@ -301,7 +315,7 @@ d3.json("files.json", function (error, data) {
         var num=st[1].split(".")[0];
         if (parseInt(st[1])==0){
           var opt = document.createElement('option');
-          opt.text = st[0];
+          opt.text = nameswitch(st[0]);
           opt.value = i;
           i=i+1;
 
@@ -325,7 +339,7 @@ d3.json("files.json", function (error, data) {
         if (parseInt(st[1])>maxint) maxint=parseInt(st[1]);
         if (parseInt(st[1])==0){
           var opt = document.createElement('option');
-          opt.text = st[0];
+          opt.text = nameswitch(st[0]);
           opt.value = i2;
           i2=i2+1;
           rs.push(st[0]);
