@@ -17,4 +17,25 @@ h2 { background-color:#BBB;
 table
  { background-color: #eee;    border: 1px solid #39F;    width: 800px;    }td {    border: 1px;    text-align: left;    }
 
-p { color:#09F;    text-indent: 20px;  }
+p {    color:#09F;    text-indent: 20px;  }
+#first{
+float:left;
+width:600px;
+}
+#second{
+}
+#wrapper{
+width:1050px;
+overflow:auto;
+}
+#tablefirst, #tablesecond{
+width:600px;
+}
+#tablethird{
+width:700px;
+}
+#textid{
+width:343px;
+height:110px;
+resize:none;
+}
