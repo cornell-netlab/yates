@@ -1,6 +1,5 @@
-html, body {height:100%;}
-html {display:table; width:1000px;}
-body {display:table-cell; text-align:center; vertical-align:middle;}
+html, body {height:100%; text-align:center;}
+body {width:1000px; vertical-align:middle; margin-left:auto; margin-right:auto;}
 
 h1 { background-color:#CCC;
     border: 1px solid;
