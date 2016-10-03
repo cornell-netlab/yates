@@ -16,9 +16,11 @@ def main(dirn, fname, solvers):
   (xs, ysPerSolver, ydevsPerSolver) = CommonViz.parseData(dirn, fname, solvers)
 
   CommonConf.setupMPPDefaults()
-  fmts = CommonConf.getLineFormats()
-  mrkrs = CommonConf.getLineMarkers()
-  colors = CommonConf.getLineColors()
+  fmts = CommonConf.getLineFormatsDict()
+  mrkrs = CommonConf.getLineMarkersDict()
+  linewidth = CommonConf.getLineMarkersLWDict()
+  mrkrsize = CommonConf.getLineMarkersSizeDict()
+  colors = CommonConf.getLineColorsDict()
   fig = pp.figure(figsize=(12,6))
   ax = fig.add_subplot(111)
   # ax.set_xscale("log", basex=2)
@@ -33,8 +35,9 @@ def main(dirn, fname, solvers):
     ydevs.append(std_y)
 
 
-    ax.errorbar(xs_arr, ys, yerr=ydevs, label=solver, marker=mrkrs[index],
-        linestyle=fmts[index], alpha=0.8, color=colors[index])
+    ax.errorbar(xs_arr, ys, yerr=ydevs, label=CommonConf.gen_label(solver), marker=mrkrs[solver],
+        markersize=mrkrsize[solver], linewidth=linewidth[solver],
+        linestyle=fmts[solver], alpha=0.8, color=colors[solver])
     index = index + 1
 
   ax.set_xlabel(X_LABEL);

@@ -24,6 +24,8 @@ def main(dirn, fname, solvers):
   CommonConf.setupMPPDefaults()
   fmts = CommonConf.getLineFormatsDict()
   mrkrs = CommonConf.getLineMarkersDict()
+  linewidth = CommonConf.getLineMarkersLWDict()
+  mrkrsize = CommonConf.getLineMarkersSizeDict()
   colors = CommonConf.getLineColorsDict()
   fig = pp.figure(figsize=(12,6))
   ax = fig.add_subplot(111)
@@ -33,13 +35,14 @@ def main(dirn, fname, solvers):
   #xs.append(max(xs)+2)
   for (solver, ys), (solver, ydevs) in zip(ysPerSolver.iteritems(),ydevsPerSolver.iteritems()) :
     xs_arr = np.asarray(xs)
-    xs_arr = xs_arr + random.random()/4-0.1
+    xs_arr = xs_arr + random.random()/10
     #xs_arr[-1]+= random.random()*4
     #avg_y,std_y = np.mean(np.asarray(ys)), np.std(np.asarray(ys))
     #ys.append(avg_y)
     #ydevs.append(std_y)
-    ax.errorbar(xs_arr, ys, yerr=ydevs, label=fix_name(solver), marker=mrkrs[solver],
-        linestyle=fmts[solver], alpha=0.8, color=colors[solver], markersize=12)
+    ax.errorbar(xs_arr, ys, yerr=ydevs, label=CommonConf.gen_label(solver), marker=mrkrs[solver],
+        linestyle=fmts[solver], linewidth=linewidth[solver],
+        markersize=mrkrsize[solver], alpha=0.8, color=colors[solver])
     index = index + 1
 
   ax.set_xlabel(X_LABEL, fontsize=14);

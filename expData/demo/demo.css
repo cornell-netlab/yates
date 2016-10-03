@@ -1,4 +1,6 @@
-body { font-family: Helvetica;  }
+html, body {height:100%; text-align:center;}
+body {width:1000px; vertical-align:middle; margin-left:auto; margin-right:auto;}
+
 h1 { background-color:#CCC;
     border: 1px solid;
     color:#39F;
@@ -13,7 +15,7 @@ h2 { background-color:#BBB;
 
 
 table
- {    background-color: #eee;    border: 1px solid #39F;    width: 40%;    }td {    border: 1px;    text-align: left;    }
+ { background-color: #eee;    border: 1px solid #39F;    width: 800px;    }td {    border: 1px;    text-align: left;    }
 
 p {    color:#09F;    text-indent: 20px;  }
 #first{

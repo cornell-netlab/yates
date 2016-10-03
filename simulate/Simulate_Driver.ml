@@ -466,7 +466,7 @@ let simulate_tm (start_scheme:scheme)
     ~f:(fun current_state iter ->
       (* begin iteration - time *)
       (*Printf.printf "\t\t\t [Time : %3d]\r%!" (iter - steady_state_time);*)
-      Printf.printf "\t\t\t %s\r%!" (progress_bar (iter - steady_state_time) (num_iterations + wait_out_time) 10);
+      Printf.printf "\t\t\t\t   %s\r%!" (progress_bar (iter - steady_state_time) (num_iterations + wait_out_time) 15);
 
       (* Reset stats when steady state is reached *)
       let current_state =
@@ -488,7 +488,7 @@ let simulate_tm (start_scheme:scheme)
       let failed_links =
         if iter = failure_time then
           begin
-            Printf.printf "\t\t\t\t\tx %s  \r" (dump_edges topo (EdgeSet.elements fail_edges));
+            Printf.printf "\t\t\t\t\t\t     %s  \r" (dump_edges topo (EdgeSet.elements fail_edges));
             fail_edges
           end
         else current_state.failures in
@@ -970,6 +970,7 @@ let simulate
   (* Compute flash sink node for each iteration *)
   let flash_sinks = pick_flash_sinks topo num_tms in
 
+  Printf.printf "TE Algorithm  TMs \t\t   Simulation        Failures              Recovery%!";
 
   (******************************************************************)
   (******************** Iterate on routing algorithms ***************)
@@ -997,7 +998,7 @@ let simulate
         List.fold_left (range 0 num_tms) (* 0..num_tms *)
           ~init:SrcDstMap.empty
           ~f:(fun prev_scheme n ->
-            Printf.printf "TE: %8s %s\r%!" (solver_to_string algorithm) (progress_bar n num_tms 10);
+            Printf.printf "%12s  %s\r%!" (solver_to_string algorithm) (progress_bar n num_tms 15);
             (* get the next demand *)
             let actual = next_demand ~scale:scale actual_ic actual_host_map in
             let predict = next_demand ~scale:scale predict_ic predict_host_map in

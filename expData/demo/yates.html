@@ -95,11 +95,11 @@ Show Box
     <input name="alg" type="checkbox" value="ksp"/>
     <label for="alg">k-Shortest Paths</label>
 </td>
+</tr><tr>
 <td>
     <input name="alg" type="checkbox" value="edksp"/>
     <label for="alg">Edge-disjoint k-shortest paths</label>
 </td>
-</tr><tr>
 <td>
     <input name="alg" type="checkbox" value="raeke"/>
     <label for="alg">Raecke </label>
@@ -108,19 +108,20 @@ Show Box
     <input name="alg" type="checkbox" value="vlb"/>
     <label for="alg">Valiant Load Balancing</label>
 </td>
+</tr><tr>
 <td>
     <input name="alg" type="checkbox" value="mcf"/>
     <label for="alg">Multi-Commodity Flow</label>
 </td>
 <td>
-    <input name="alg" type="checkbox" value="optimalmcf"/>
-    <label for="alg">Optimal MCF</label>
+    <input name="alg" type="checkbox" value="semimcfraeke"/>
+    <label for="alg">SMORE</label>
 </td>
-</tr><tr>
 <td>
     <input name="alg" type="checkbox" value="semimcfksp"/>
     <label for="alg">SWAN - Semi-MCF with KSP</label>
 </td>
+</tr><tr>
 <td>
     <input name="alg" type="checkbox" value="semimcfedksp"/>
     <label for="alg">Semi-MCF with edge-disjoint k-shortest paths</label>
@@ -135,8 +136,8 @@ Show Box
 </td>
 </tr><tr>
 <td>
-    <input name="alg" type="checkbox" value="semimcfraeke"/>
-    <label for="alg">SMORE</label>
+    <input name="alg" type="checkbox" value="optimalmcf"/>
+    <label for="alg">Optimal MCF</label>
 </td>
 </tr>
 </table>
@@ -147,18 +148,18 @@ Show Box
 <tr><td>
 <input name="experiment" type="radio" value="robustness" checked="checked"/> Robustness Experiments</td><td>
 Number of failures: <select id="robustfailnum">
-  <option selected>0</option>
-  <option>1</option>
+  <option selected>1</option>
   <option>2</option>
   <option>3</option>
   <option>4</option>
 </select>
 </td><td></td>
-</tr><tr>
+</tr>
+</table><table><tr>
 <td>
 <input name="experiment" type="radio" value="failure"/> Failure Experiments</td><td>
 Failure Time: <input type="text"   id="failtime" value="0"></input>
-#failures:<select id="failnum">
+Number of failures:<select id="failnum">
   <option selected>0</option>
   <option>1</option>
   <option>2</option>
@@ -196,10 +197,10 @@ Recovery Delay: <input type="text"   id="lrdelay" value="0"></input> steps
             <iframe id="shell" src=""></iframe>
 
             <!-- Ouput -->
-            <p>Terminal output:</p>
             <pre id="output"></pre>
 
 <script>
+var ip = "192.168.56.102";
 
 function getSelectValue(selectMenu)
 {
@@ -229,7 +230,7 @@ function getRadioValue(theRadioGroup)
 }
 
 // Shellinabox url
-var url = "http://192.168.56.101:4200";
+var url = "http://"+ip+":4200";
 
 var input   = document.getElementById("input");
 var iframe  = document.getElementById("shell");
@@ -351,7 +352,7 @@ document.getElementById("logout").addEventListener("click", function() {
 
 
 document.getElementById("results").addEventListener("click", function() {
-    var win = window.open('http://192.168.56.101/yates/congestion/vis.html');
+    var win = window.open('http://'+ip+'/yates/congestion/vis.html');
     win.focus();
 });
 
@@ -377,7 +378,7 @@ window.addEventListener("message", function(message) {
             break;
         case "output" :
             // Append new output
-            output.innerHTML = decoded.data;
+            //output.innerHTML = decoded.data;
             var n = decoded.data.search("Complete.");
             if (n >= 0) {
                 document.getElementById("results").disabled = false;
