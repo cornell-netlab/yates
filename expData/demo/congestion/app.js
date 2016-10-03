@@ -23,7 +23,7 @@ function nameswitch(name) {
         case 'semimcfksp':
             return 'SWAN';
         default:
-            return st[0];
+            return name;
     } 
 }
 
