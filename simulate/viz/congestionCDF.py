@@ -14,12 +14,14 @@ def display (all_congestions, directory):
     sort_cong[scheme] = get_scheme_congestions(all_congestions, scheme)
 
   CommonConf.setupMPPDefaults()
-  fmts = CommonConf.getLineFormats()
-  mrkrs = CommonConf.getLineMarkers()
-  colors = CommonConf.getLineColors()
+  colors = CommonConf.getLineColorsDict()
+  fmts = CommonConf.getLineFormatsDict()
+  linewidth = CommonConf.getLineMarkersLWDict()
+  mrkrs = CommonConf.getLineMarkersDict()
+  mrkrsize = CommonConf.getLineMarkersSizeDict()
+
   fig = pp.figure(figsize=(12,6))
   ax = fig.add_subplot(111)
-  index = 0
   mxl = 0
   num_sample=20
   for solver, cong_dist in sort_cong.iteritems():
@@ -36,14 +38,20 @@ def display (all_congestions, directory):
       yy.append(ys[-1])
 
     ydevs = [0] * len(yy)
-    ax.errorbar(xx, yy, yerr=ydevs, label=solver, marker=mrkrs[index],
-              linestyle=fmts[index], color=colors[index])
-    index = index + 1
+    ax.errorbar(xx, yy, yerr=ydevs,
+            alpha=0.8,
+            color=colors[solver],
+            label=CommonConf.gen_label(solver),
+            linewidth=linewidth[solver],
+            linestyle=fmts[solver],
+            marker=mrkrs[solver],
+            markersize=mrkrsize[solver])
+
   ax.set_xlabel(X_LABEL)
   ax.set_ylabel(Y_LABEL)
   ax.legend(bbox_to_anchor=(1., 1.), loc=2, borderaxespad=1., fancybox=True)
   pp.subplots_adjust(left=0.1, right=0.8, top=0.9, bottom=0.1)
-  pp.ylim(ymax=1.0)
+  pp.ylim(0.2,1.01)
   pp.savefig(directory+"/CongestionCDF.svg")
 
 

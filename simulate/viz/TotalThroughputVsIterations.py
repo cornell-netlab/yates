@@ -15,18 +15,16 @@ Y_LABEL         = "Throughput (fraction of total demand)"
 
 random.seed()
 
-def fix_name(alg):
-    return alg.replace('raeke', 'raecke')
-
 def main(dirn, fname, solvers):
   (xs, ysPerSolver, ydevsPerSolver) = CommonViz.parseData(dirn, fname, solvers)
 
   CommonConf.setupMPPDefaults()
-  fmts = CommonConf.getLineFormatsDict()
-  mrkrs = CommonConf.getLineMarkersDict()
-  linewidth = CommonConf.getLineMarkersLWDict()
-  mrkrsize = CommonConf.getLineMarkersSizeDict()
   colors = CommonConf.getLineColorsDict()
+  fmts = CommonConf.getLineFormatsDict()
+  linewidth = CommonConf.getLineMarkersLWDict()
+  mrkrs = CommonConf.getLineMarkersDict()
+  mrkrsize = CommonConf.getLineMarkersSizeDict()
+
   fig = pp.figure(figsize=(12,6))
   ax = fig.add_subplot(111)
   # ax.set_xscale("log", basex=2)
@@ -36,21 +34,20 @@ def main(dirn, fname, solvers):
   for (solver, ys), (solver, ydevs) in zip(ysPerSolver.iteritems(),ydevsPerSolver.iteritems()) :
     xs_arr = np.asarray(xs)
     xs_arr = xs_arr + random.random()/10
-    #xs_arr[-1]+= random.random()*4
-    #avg_y,std_y = np.mean(np.asarray(ys)), np.std(np.asarray(ys))
-    #ys.append(avg_y)
-    #ydevs.append(std_y)
-    ax.errorbar(xs_arr, ys, yerr=ydevs, label=CommonConf.gen_label(solver), marker=mrkrs[solver],
-        linestyle=fmts[solver], linewidth=linewidth[solver],
-        markersize=mrkrsize[solver], alpha=0.8, color=colors[solver])
-    index = index + 1
+    ax.errorbar(xs_arr, ys, yerr=ydevs,
+            alpha=0.8,
+            color=colors[solver],
+            label=CommonConf.gen_label(solver),
+            linewidth=linewidth[solver],
+            linestyle=fmts[solver],
+            marker=mrkrs[solver],
+            markersize=mrkrsize[solver])
 
-  ax.set_xlabel(X_LABEL, fontsize=14);
-  ax.set_ylabel(Y_LABEL, fontsize=14);
-  ax.legend( loc=0, borderaxespad=1., fancybox=True, fontsize=15)
+  ax.set_xlabel(X_LABEL);
+  ax.set_ylabel(Y_LABEL);
+  ax.legend(loc=0, borderaxespad=1., fancybox=True)
   ymin, ymax = pp.ylim()
   pp.ylim(0.5,1.05)
-  #pp.xlim(-0.2,3.2)
 
   xa = ax.get_xaxis()
   xa.set_major_locator(pylab.MaxNLocator(integer=True))
