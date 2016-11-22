@@ -39,6 +39,7 @@ let check_connectivity_after_failure (topo:topology) (fail:failure) : bool =
 (* Compute all possible failure scenarios with num_failures link failing, while not partitioning the network *)
 let get_all_possible_failures (topo:topology) (num_failures:int) : (failure List.t) =
   (* List of single link failures *)
+  if num_failures = 0 then failwith "Number of failures should be > 0" else
   let all_single_failures =
     EdgeSet.fold (Topology.edges topo) ~init:[]
       ~f:(fun acc e ->

@@ -805,32 +805,51 @@ let get_latency_percentiles (lat_tput_map : throughput LatencyMap.t) (agg_dem:fl
       lat_percentile_map, sum_tput')) in
   latency_percentiles
 
-let set_weight topo edge w =
-    let label = Topology.edge_to_label topo edge in
-    Link.set_weight label w;
-    topo
+(* Set weight of a specified edge *)
+let set_weight topo edge wt : unit =
+  let label = Topology.edge_to_label topo edge in
+  Link.set_weight label wt
 
+(* Reset topology with edge weights as specified *)
 let reset_topo_weights edge_weights topo =
-  EdgeSet.fold (Topology.edges topo)
-    ~init:topo
-    ~f:(fun acc e ->
-      string_of_edge topo e
+  EdgeSet.iter (Topology.edges topo)
+    ~f:(fun edge ->
+      string_of_edge topo edge
       |> StringMap.find_exn edge_weights
-      |> set_weight acc e)
+      |> set_weight topo edge)
 
-let set_topo_weights topo =
-  (*Random.init (Topology.num_vertexes topo);*)
-  let topo' = List.fold_left (EdgeSet.elements (Topology.edges topo))
-    ~init:StringMap.empty
-    ~f:(fun acc e ->
-      let w = 1. in
-      (*let w = (0.5 +. Random.float 1.) in*)
-      let topo = set_weight topo e w in
-      StringMap.add ~key:(string_of_edge topo e) ~data:w acc) in
-  (*Random.self_init ();*)
-  topo'
+(* Parse a file specifying RTT of links.
+ * Return a map from edge's string repr to its RTT *)
+let parse_rtt_file (rtt_file_opt : string option) : (float StringMap.t) =
+  match rtt_file_opt with
+  | None -> StringMap.empty
+  | Some rtt_file ->
+      In_channel.with_file rtt_file
+      ~f:(fun file ->
+        In_channel.fold_lines file ~init:StringMap.empty
+        ~f:(fun acc line ->
+          let entries = Array.of_list (String.split line ~on:' ') in
+          let edge_str = entries.(0) in
+          let edge_rtt = Float.of_string entries.(1) in
+          StringMap.add ~key:edge_str ~data:edge_rtt acc))
 
-
+(* Set edge weights from the specified RTT file.
+ * If RTT of edge is not specified, the set weight = 1 *)
+let set_topo_weights (topo : topology) (rtt_file : string option) =
+  List.fold_left (EdgeSet.elements (Topology.edges topo))
+    ~init:(parse_rtt_file rtt_file)
+    ~f:(fun acc edge ->
+      let edge_str = string_of_edge topo edge in
+      match StringMap.find acc edge_str with
+      | Some wt -> begin
+          set_weight topo edge wt;
+          acc
+      end
+      | None -> begin
+          let wt = 1. in (* default weight if unspecified *)
+          set_weight topo edge wt;
+          StringMap.add ~key:edge_str ~data:wt acc
+      end)
 
 (* Calculate a demand matrix equal to max (envelope) of all TMs *)
 let calculate_demand_envelope (topo:topology) (predict_file:string) (host_file:string) (iters:int) =
@@ -907,10 +926,11 @@ let simulate
     (num_failures:int)
     (is_flash:bool)
     (flash_burst_amount:float)
+    (rtt_file_opt:string option)
     (out_dir:string option) () : unit =
 
   let topo = Parse.from_dotfile topology_file in
-  let edge_weights = set_topo_weights topo in
+  let edge_weights = set_topo_weights topo rtt_file_opt in
 
   (************************************************************)
   (********* Create records to store statisitics **************)
@@ -1167,7 +1187,8 @@ let calculate_syn_scale (topology:string) (demand_file:string) (host_file:string
   0.4 /. cmax
 
 
-let compare_scaling_limit algorithms (num_tms:int option) (topology:string) (demand_file:string) (host_file:string) (out_dir:string option) () =
+let compare_scaling_limit algorithms (num_tms:int option) (topology:string) (demand_file:string) (host_file:string)
+      (rtt_file_opt:string option) (out_dir:string option) () =
   Printf.printf "Scale test\n%!";
   let split_dot_file_list = String.split_on_chars topology ~on:['/';'.'] in
   let suffix = List.nth split_dot_file_list (List.length split_dot_file_list -2) in
@@ -1183,7 +1204,7 @@ let compare_scaling_limit algorithms (num_tms:int option) (topology:string) (dem
     | None -> 24 in
   let norm = calculate_syn_scale topology demand_file host_file in
   let topo = Parse.from_dotfile topology in
-  let edge_weights = set_topo_weights topo in
+  let edge_weights = set_topo_weights topo rtt_file_opt in
   let buf = Buffer.create 101 in
   List.iter algorithms ~f:(fun algorithm ->
     Printf.printf "%s\n%!" (solver_to_string algorithm);
@@ -1269,6 +1290,7 @@ let command =
     +> flag "-appendout" no_arg ~doc:" append to results file instead of over-writing"
     +> flag "-rseed" (optional int) ~doc:" seed to initialize PRNG"
     +> flag "-num-tms" (optional int) ~doc:" number of TMs (-robust overrides this)"
+    +> flag "-rtt-file" (optional string) ~doc:" file containing RTT values to be used as edge weights"
     +> flag "-gurobi-method" (optional_with_default (-1) int) ~doc:" solver method used for Gurobi. -1=automatic, 0=primal simplex, 1=dual simplex, 2=barrier, 3=concurrent, 4=deterministic concurrent."
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
@@ -1321,6 +1343,7 @@ let command =
     (appendout:bool)
     (rseed:int option)
     (num_tms:int option)
+    (rtt_file:string option)
     (grb_method:int)
     (topology_file:string)
     (demand_file:string)
@@ -1375,9 +1398,10 @@ let command =
       if robust then
         Kulfi_Globals.failure_time  := 0;
       if limittest then
-        compare_scaling_limit algorithms num_tms topology_file demand_file host_file out ()
+        compare_scaling_limit algorithms num_tms topology_file demand_file host_file rtt_file out ()
       else
-        simulate algorithms topology_file demand_file predict_file host_file num_tms robust vulnerability tot_scale fail_num is_flash flash_ba out ())
+        simulate algorithms topology_file demand_file predict_file host_file num_tms robust vulnerability tot_scale
+        fail_num is_flash flash_ba rtt_file out ())
 
 let main = Command.run command
 
