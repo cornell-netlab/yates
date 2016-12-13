@@ -4,7 +4,7 @@ open Frenetic_Network
 open Net
 open Core.Std
 open Kulfi_LP_Lang
-      
+
 let state_base_path_set = ref SrcDstMap.empty
 
 
@@ -22,8 +22,8 @@ let var_name_rev topo edge d_pair =
 
 let objective = Var "Z"
 
-let capacity_constraints (pmap : path_uid_map) (emap : edge_uidlist_map) 
-                         (topo : topology) (d : demands) 
+let capacity_constraints (pmap : path_uid_map) (emap : edge_uidlist_map)
+                         (topo : topology) (d : demands)
                          (init_acc : constrain list) : constrain list =
   (* For every edge, there is a capacity constraint *)
   Topology.fold_edges
@@ -79,24 +79,24 @@ let lp_of_maps (pmap:path_uid_map) (emap:edge_uidlist_map) (topo:topology)
   (objective, cap_and_demand)
 
 let rec new_rand () : float =
-  let rand = (Random.float 1.0) in 
-  let try_fn = (Printf.sprintf "lp/semimcf_%f.lp" rand) in 
-  match Sys.file_exists try_fn with 
-    `Yes -> new_rand () 
-  | _ -> rand  
-	   
+  let rand = (Random.float 1.0) in
+  let try_fn = (Printf.sprintf "lp/semimcf_%f.lp" rand) in
+  match Sys.file_exists try_fn with
+    `Yes -> new_rand ()
+  | _ -> rand
+
 (* Run everything. Given a topology and a set of pairs with demands,
    returns the optimal congestion ratio, the paths used, and the number
    of paths used. *)
 (* let solver_paths topo pairs verbose = *)
 
-let solve_lp (pmap:int PathMap.t) (emap:int list EdgeMap.t) (topo:topology) (d:demands) (base_path_set : (path List.t) SrcDstMap.t) : (float * (int * float) list)=    
-    let lp = lp_of_maps pmap emap topo d base_path_set in    
-    let rand = new_rand () in 
+let solve_lp (pmap:int PathMap.t) (emap:int list EdgeMap.t) (topo:topology) (d:demands) (base_path_set : (path List.t) SrcDstMap.t) : (float * (int * float) list)=
+    let lp = lp_of_maps pmap emap topo d base_path_set in
+    let rand = new_rand () in
     let lp_filename = (Printf.sprintf "lp/semimcf_%f.lp" rand) in
     let lp_solname = (Printf.sprintf "lp/semimcf_%f.sol" rand) in
     serialize_lp lp lp_filename;
-    
+
     let gurobi_in = Unix.open_process_in
 		      ("gurobi_cl OptimalityTol=1e-9 ResultFile=" ^ lp_solname ^ " " ^ lp_filename) in
     let time_str = "Solved in [0-9]+ iterations and \\([0-9.e+-]+\\) seconds" in
@@ -113,9 +113,9 @@ let solve_lp (pmap:int PathMap.t) (emap:int list EdgeMap.t) (topo:topology) (d:d
 	End_of_file -> solve_time in
     let _ = read_output gurobi_in 0. in
     ignore (Unix.close_process_in gurobi_in);
-    
+
     (* read back all the edge flows from the .sol file *)
-    
+
     let ratio, flows =
       In_channel.with_file
 	lp_solname
@@ -127,8 +127,8 @@ let solve_lp (pmap:int PathMap.t) (emap:int list EdgeMap.t) (topo:topology) (d:d
 	      ~init:(0.,[])
 	      ~f:(fun (opt_z,flows) line ->
 		  match line with
-		  | "" -> (opt_z,flows)		
-		  | _ ->      
+		  | "" -> (opt_z,flows)
+		  | _ ->
 		     if line.[0] = '#' then (opt_z, flows)
 		     else if line.[0] = 'Z' then
 		       let ratio_str = Str.string_after line 2 in
@@ -141,7 +141,7 @@ let solve_lp (pmap:int PathMap.t) (emap:int list EdgeMap.t) (topo:topology) (d:d
 			 let flow_amt = Float.of_string (Str.matched_group 2 line) in
 			 (* Printf.printf "%d %f\n" id flow_amt;  *)
 			 let tup = (id, flow_amt) in
-			 (opt_z, tup::flows) 
+			 (opt_z, tup::flows)
 		       else
 			 (opt_z, flows))) in
     ignore (Sys.remove lp_filename);
@@ -149,27 +149,27 @@ let solve_lp (pmap:int PathMap.t) (emap:int list EdgeMap.t) (topo:topology) (d:d
     (ratio,flows)
 
 
-let scheme_and_flows flows umap : (scheme * float SrcDstMap.t) = 
-  let (unnormalized_scheme, flow_sum) = 
+let scheme_and_flows flows umap : (scheme * float SrcDstMap.t) =
+  let (unnormalized_scheme, flow_sum) =
     List.fold_left
       flows
       ~init:(SrcDstMap.empty, SrcDstMap.empty)
-      ~f:(fun (us,fs) (id,flow_val) -> 
-	  match UidMap.find umap id with 
-          | None -> failwith "unrecognized uid in Gurobi solution" 
+      ~f:(fun (us,fs) (id,flow_val) ->
+	  match UidMap.find umap id with
+          | None -> failwith "unrecognized uid in Gurobi solution"
           (* This should never happen, so if the Gurobi output
 	        contains an unrecognized UID, throw an error. *)
           | Some (u,v,path) -> (* u = source, v = destination, p = path *)
 	     let new_us_data = match SrcDstMap.find us (u,v) with
-	       | None -> let pm = PathMap.empty in PathMap.add ~key:path ~data:flow_val pm 
+	       | None -> let pm = PathMap.empty in PathMap.add ~key:path ~data:flow_val pm
 	       | Some pm -> add_or_increment_path pm path flow_val in
 	     let new_fs_data = match SrcDstMap.find fs (u,v) with
 	       | None -> flow_val
 	       | Some fv -> fv +. flow_val in
 	     let new_us = SrcDstMap.add ~key:(u,v) ~data:new_us_data us in
-	     let new_fs = SrcDstMap.add ~key:(u,v) ~data:new_fs_data fs in 
+	     let new_fs = SrcDstMap.add ~key:(u,v) ~data:new_fs_data fs in
 	     (new_us,new_fs) )  in
-  (unnormalized_scheme, flow_sum) 
+  (unnormalized_scheme, flow_sum)
 
 (* Now normalize the values in the scheme so that they sum to 1 for each source-dest pair *)
 let normalize (unnormalized_scheme:scheme) (flow_sum:float SrcDstMap.t) : scheme =
@@ -180,14 +180,14 @@ let normalize (unnormalized_scheme:scheme) (flow_sum:float SrcDstMap.t) : scheme
        match SrcDstMap.find flow_sum (u,v) with
        | None -> assert false
        | Some sum_rate ->
-           ignore (if (sum_rate < 0.) then failwith "sum_rate leq 0. on flow" else ());
+           ignore (if (sum_rate <= 0.) then Printf.printf "sum_rate = %f on flow\n" sum_rate);
            let default_value = 1.0 /. (Float.of_int (PathMap.length f_decomp) ) in
            let normalized_f_decomp =
              PathMap.fold
              ~init:(PathMap.empty)
              ~f:(fun ~key:path ~data:rate acc ->
                let normalized_rate =
-                 if sum_rate = 0. then
+                 if sum_rate <= 0. then
                    default_value
                  else
                    rate /. sum_rate in
@@ -266,7 +266,7 @@ let local_recovery (_:scheme) (topo:topology) (failed_links:failure) (d:demands)
       ~f:(fun valid edge ->
         let edge_is_safe = not (EdgeSet.mem failed_links edge) in
         valid && edge_is_safe) in
-  let new_base_path_set = SrcDstMap.fold !state_base_path_set 
+  let new_base_path_set = SrcDstMap.fold !state_base_path_set
   ~init:SrcDstMap.empty
   ~f:(fun ~key:(src,dst) ~data:path_list acc ->
     let n_paths = List.fold_left path_list
@@ -284,7 +284,7 @@ let local_recovery (_:scheme) (topo:topology) (failed_links:failure) (d:demands)
       SrcDstMap.add ~key:(u,v) ~data:uv_dem acc) in
   let new_scheme = restricted_mcf topo new_demands new_base_path_set in
   new_scheme
-        
+
 
 
   (*
@@ -331,28 +331,28 @@ let local_recovery (_:scheme) (topo:topology) (failed_links:failure) (d:demands)
   (* Print path intersection *)
   let _ =
     UidMap.fold
-      pxmap 
-      ~init:0 
+      pxmap
+      ~init:0
       ~f:(fun ~key:id ~data:xids acc ->
         let xids = remove_dups xids in
         Printf.printf "\n %d : [%d] : " id (List.length xids);
         let _ = List.fold_left
           xids
           ~init:0
-          ~f:(fun acc xid -> 
-            Printf.printf "%d " xid; 
+          ~f:(fun acc xid ->
+            Printf.printf "%d " xid;
             0
           ) in
-        0 
+        0
       ) in
    (* End debug code *)
-   *)  
-  (* TODO: 
+   *)
+  (* TODO:
      - LP: variable for every path
      - minimize: Z (congestion)
-     - constraings: capacity constraints, demand constraints, 
+     - constraings: capacity constraints, demand constraints,
        and variables are non-negative
-     - capacity constraints: 
+     - capacity constraints:
          Sum_(all paths that contain that edge) flow_var < capacity * Z
          Sum_(all path for src,dst) flow_var >= demand
          flow_var >= 0
