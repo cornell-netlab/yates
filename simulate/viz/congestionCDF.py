@@ -70,6 +70,8 @@ def parse_congestions_file (filename):
         for line in f.readlines():
             if line[0] == "#":
                 continue
+            if "host" in line:
+                continue
             else:
                 tokens = line.split('\t')
                 if len(tokens) != 3:

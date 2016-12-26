@@ -39,3 +39,4 @@ setup.log
 setup.ml
 *bin*
 *.pdf
+*.pyc
