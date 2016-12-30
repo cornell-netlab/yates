@@ -21,91 +21,91 @@ let demand_envelope = ref SrcDstMap.empty
 
 let solver_to_string (s:solver_type) : string =
   match s with
-  | Mcf -> "mcf"
-  | MwMcf -> "mwmcf"
-  | Vlb -> "vlb"
-  | Ecmp -> "ecmp"
-  | Ksp -> "ksp"
-  | Edksp -> "edksp"
-  | Spf -> "spf"
-  | Raeke -> "raeke"
   | Ac -> "ac"
-  | AkMcf -> "akmcf"
-  | AkVlb -> "akvlb"
-  | AkRaeke -> "akraeke"
   | AkEcmp -> "akecmp"
   | AkKsp -> "akksp"
+  | AkMcf -> "akmcf"
+  | AkRaeke -> "akraeke"
+  | AkVlb -> "akvlb"
+  | Ecmp -> "ecmp"
+  | Edksp -> "edksp"
   | Ffc -> "ffc"
   | Ffced -> "ffced"
+  | Ksp -> "ksp"
+  | Mcf -> "mcf"
+  | MwMcf -> "mwmcf"
+  | Raeke -> "raeke"
+  | SemiMcfEcmp -> "semimcfecmp"
+  | SemiMcfEdksp -> "semimcfedksp"
+  | SemiMcfKsp -> "semimcfksp"
+  | SemiMcfKspFT -> "semimcfkspft"
   | SemiMcfMcf -> "semimcfmcf"
   | SemiMcfMcfEnv -> "semimcfmcfenv"
   | SemiMcfMcfFTEnv -> "semimcfmcfftenv"
-  | SemiMcfVlb -> "semimcfvlb"
   | SemiMcfRaeke -> "semimcfraeke"
   | SemiMcfRaekeFT -> "semimcfraekeft"
-  | SemiMcfEcmp -> "semimcfecmp"
-  | SemiMcfKsp -> "semimcfksp"
-  | SemiMcfEdksp -> "semimcfedksp"
-  | SemiMcfKspFT -> "semimcfkspft"
+  | SemiMcfVlb -> "semimcfvlb"
+  | Spf -> "spf"
+  | Vlb -> "vlb"
   | OptimalMcf -> "optimalmcf"
 
 let select_algorithm solver = match solver with
-  | Mcf -> Kulfi_Routing.Mcf.solve
-  | OptimalMcf -> Kulfi_Routing.Mcf.solve
-  | MwMcf -> Kulfi_Routing.MwMcf.solve
-  | Vlb -> Kulfi_Routing.Vlb.solve
-  | Ecmp -> Kulfi_Routing.Ecmp.solve
-  | Ksp -> Kulfi_Routing.Ksp.solve
-  | Edksp -> Kulfi_Routing.Edksp.solve
-  | Spf -> Kulfi_Routing.Spf.solve
-  | Raeke -> Kulfi_Routing.Raeke.solve
   | Ac -> Kulfi_Routing.Ac.solve
-  | AkMcf
-  | AkVlb
-  | AkRaeke
+  | AkEcmp
   | AkKsp
-  | AkEcmp -> Kulfi_Routing.Ak.solve
+  | AkMcf
+  | AkRaeke
+  | AkVlb -> Kulfi_Routing.Ak.solve
+  | Ecmp -> Kulfi_Routing.Ecmp.solve
+  | Edksp -> Kulfi_Routing.Edksp.solve
   | Ffc
   | Ffced -> Kulfi_Routing.Ffc.solve
+  | Ksp -> Kulfi_Routing.Ksp.solve
+  | Mcf -> Kulfi_Routing.Mcf.solve
+  | MwMcf -> Kulfi_Routing.MwMcf.solve
+  | OptimalMcf -> Kulfi_Routing.Mcf.solve
+  | Raeke -> Kulfi_Routing.Raeke.solve
+  | SemiMcfEcmp
+  | SemiMcfEdksp
+  | SemiMcfKsp
+  | SemiMcfKspFT
   | SemiMcfMcf
   | SemiMcfMcfEnv
   | SemiMcfMcfFTEnv
-  | SemiMcfVlb
   | SemiMcfRaeke
   | SemiMcfRaekeFT
-  | SemiMcfKsp
-  | SemiMcfEdksp
-  | SemiMcfKspFT
-  | SemiMcfEcmp -> Kulfi_Routing.SemiMcf.solve
+  | SemiMcfVlb -> Kulfi_Routing.SemiMcf.solve
+  | Spf -> Kulfi_Routing.Spf.solve
+  | Vlb -> Kulfi_Routing.Vlb.solve
 
 let select_local_recovery solver = match solver with
-  | Mcf -> Kulfi_Routing.Mcf.local_recovery
-  | OptimalMcf -> failwith "No local recovery for optimal mcf"
-  | MwMcf -> Kulfi_Routing.MwMcf.local_recovery
-  | Vlb -> Kulfi_Routing.Vlb.local_recovery
-  | Ecmp -> Kulfi_Routing.Ecmp.local_recovery
-  | Ksp -> Kulfi_Routing.Ksp.local_recovery
-  | Edksp -> Kulfi_Routing.Edksp.local_recovery
-  | Spf -> Kulfi_Routing.Spf.local_recovery
-  | Raeke -> Kulfi_Routing.Raeke.local_recovery
   | Ac -> Kulfi_Routing.Ac.local_recovery
-  | AkMcf
-  | AkVlb
-  | AkRaeke
+  | AkEcmp
   | AkKsp
-  | AkEcmp -> Kulfi_Routing.Ak.local_recovery
+  | AkMcf
+  | AkRaeke
+  | AkVlb -> Kulfi_Routing.Ak.local_recovery
+  | Ecmp -> Kulfi_Routing.Ecmp.local_recovery
+  | Edksp -> Kulfi_Routing.Edksp.local_recovery
   | Ffc
   | Ffced -> Kulfi_Routing.Ffc.local_recovery
+  | Ksp -> Kulfi_Routing.Ksp.local_recovery
+  | Mcf -> Kulfi_Routing.Mcf.local_recovery
+  | MwMcf -> Kulfi_Routing.MwMcf.local_recovery
+  | OptimalMcf -> failwith "No local recovery for optimal mcf"
+  | Raeke -> Kulfi_Routing.Raeke.local_recovery
+  | SemiMcfEcmp
+  | SemiMcfEdksp
+  | SemiMcfKsp
+  | SemiMcfKspFT
   | SemiMcfMcf
   | SemiMcfMcfEnv
   | SemiMcfMcfFTEnv
-  | SemiMcfVlb
   | SemiMcfRaeke
   | SemiMcfRaekeFT
-  | SemiMcfKsp
-  | SemiMcfEdksp
-  | SemiMcfKspFT
-  | SemiMcfEcmp -> Kulfi_Routing.SemiMcf.local_recovery
+  | SemiMcfVlb -> Kulfi_Routing.SemiMcf.local_recovery
+  | Spf -> Kulfi_Routing.Spf.local_recovery
+  | Vlb -> Kulfi_Routing.Vlb.local_recovery
 
 (* compute routing schemes for each link failure and merge the schemes *)
 let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
@@ -173,42 +173,40 @@ let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
 (* Compute the initial scheme for a TE algorithm *)
 let initial_scheme algorithm topo predict : scheme =
   match algorithm with
-  | SemiMcfMcfEnv ->
-     Kulfi_Routing.Mcf.solve topo !demand_envelope
-  | SemiMcfMcfFTEnv ->
-     all_failures_envelope Kulfi_Routing.Mcf.solve topo !demand_envelope
-  | SemiMcfMcf
-  | AkMcf ->
-     Kulfi_Routing.Mcf.solve topo predict
-  | SemiMcfVlb
-  | AkVlb ->
-     let _ = Kulfi_Routing.Vlb.initialize SrcDstMap.empty in
-     Kulfi_Routing.Vlb.solve topo SrcDstMap.empty
-  | SemiMcfRaekeFT ->
-     let _ = Kulfi_Routing.Raeke.initialize SrcDstMap.empty in
-     all_failures_envelope Kulfi_Routing.Raeke.solve topo SrcDstMap.empty
-  | SemiMcfRaeke
-  | AkRaeke ->
-     let _ = Kulfi_Routing.Raeke.initialize SrcDstMap.empty in
-     Kulfi_Routing.Raeke.solve topo SrcDstMap.empty
-  | SemiMcfEcmp
-  | AkEcmp ->
-     let _ = Kulfi_Routing.Ecmp.initialize SrcDstMap.empty in
-     Kulfi_Routing.Ecmp.solve topo SrcDstMap.empty
+  | AkEcmp
+  | SemiMcfEcmp ->
+    let _ = Kulfi_Routing.Ecmp.initialize SrcDstMap.empty in
+    Kulfi_Routing.Ecmp.solve topo SrcDstMap.empty
+  | Ffced
+  | SemiMcfEdksp ->
+    let _ = Kulfi_Routing.Edksp.initialize SrcDstMap.empty in
+    Kulfi_Routing.Edksp.solve topo SrcDstMap.empty
+  | AkKsp
+  | Ffc
+  | SemiMcfKsp ->
+    let _ = Kulfi_Routing.Ksp.initialize SrcDstMap.empty in
+    Kulfi_Routing.Ksp.solve topo SrcDstMap.empty
   | SemiMcfKspFT ->
-     let _ = Kulfi_Routing.Ksp.initialize SrcDstMap.empty in
-     all_failures_envelope Kulfi_Routing.Ksp.solve topo SrcDstMap.empty
-  | SemiMcfKsp
-  | AkKsp ->
-     let _ = Kulfi_Routing.Ksp.initialize SrcDstMap.empty in
-     Kulfi_Routing.Ksp.solve topo SrcDstMap.empty
-  | Ffc ->
-     let _ = Kulfi_Routing.Ksp.initialize SrcDstMap.empty in
-     Kulfi_Routing.Ksp.solve topo SrcDstMap.empty
-  | SemiMcfEdksp
-  | Ffced ->
-     let _ = Kulfi_Routing.Edksp.initialize SrcDstMap.empty in
-     Kulfi_Routing.Edksp.solve topo SrcDstMap.empty
+    let _ = Kulfi_Routing.Ksp.initialize SrcDstMap.empty in
+    all_failures_envelope Kulfi_Routing.Ksp.solve topo SrcDstMap.empty
+  | AkMcf
+  | SemiMcfMcf ->
+    Kulfi_Routing.Mcf.solve topo predict
+  | SemiMcfMcfEnv ->
+    Kulfi_Routing.Mcf.solve topo !demand_envelope
+  | SemiMcfMcfFTEnv ->
+    all_failures_envelope Kulfi_Routing.Mcf.solve topo !demand_envelope
+  | AkRaeke
+  | SemiMcfRaeke ->
+    let _ = Kulfi_Routing.Raeke.initialize SrcDstMap.empty in
+    Kulfi_Routing.Raeke.solve topo SrcDstMap.empty
+  | SemiMcfRaekeFT ->
+    let _ = Kulfi_Routing.Raeke.initialize SrcDstMap.empty in
+    all_failures_envelope Kulfi_Routing.Raeke.solve topo SrcDstMap.empty
+  | AkVlb
+  | SemiMcfVlb ->
+    let _ = Kulfi_Routing.Vlb.initialize SrcDstMap.empty in
+    Kulfi_Routing.Vlb.solve topo SrcDstMap.empty
   | _ -> SrcDstMap.empty
 
 (* Initialize a TE algorithm *)
@@ -220,9 +218,20 @@ let initialize_scheme algorithm topo predict : unit =
     else prune_scheme topo start_scheme !Kulfi_Globals.budget in
   (*Printf.printf "%s\n%!" (dump_scheme topo start_scheme);*)
   match algorithm with
+  | AkEcmp
+  | AkKsp
+  | AkMcf
+  | AkRaeke
+  | AkVlb -> Kulfi_Routing.Ak.initialize pruned_scheme
+  | Ecmp -> Kulfi_Routing.Ecmp.initialize SrcDstMap.empty
+  | Edksp -> Kulfi_Routing.Edksp.initialize SrcDstMap.empty
+  | Ffc
+  | Ffced -> Kulfi_Routing.Ffc.initialize pruned_scheme
+  | Ksp -> Kulfi_Routing.Ksp.initialize SrcDstMap.empty
+  | Raeke -> Kulfi_Routing.Raeke.initialize SrcDstMap.empty
   | SemiMcfEcmp
-  | SemiMcfKsp
   | SemiMcfEdksp
+  | SemiMcfKsp
   | SemiMcfKspFT
   | SemiMcfMcf
   | SemiMcfMcfEnv
@@ -230,23 +239,12 @@ let initialize_scheme algorithm topo predict : unit =
   | SemiMcfRaeke
   | SemiMcfRaekeFT
   | SemiMcfVlb -> Kulfi_Routing.SemiMcf.initialize pruned_scheme
-  | Ffc
-  | Ffced -> Kulfi_Routing.Ffc.initialize pruned_scheme
-  | AkEcmp
-  | AkKsp
-  | AkMcf
-  | AkRaeke
-  | AkVlb -> Kulfi_Routing.Ak.initialize pruned_scheme
-  | Ecmp -> Kulfi_Routing.Ecmp.initialize SrcDstMap.empty
-  | Ksp -> Kulfi_Routing.Ksp.initialize SrcDstMap.empty
-  | Edksp -> Kulfi_Routing.Edksp.initialize SrcDstMap.empty
-  | Raeke -> Kulfi_Routing.Raeke.initialize SrcDstMap.empty
   | Vlb -> Kulfi_Routing.Vlb.initialize SrcDstMap.empty
   | _ -> ()
 
 
 (* Compute a routing scheme for an algorithm and apply budget by pruning the top-k paths *)
-let solve_within_budget algorithm topo predict actual: (scheme * float) =
+let solve_within_budget algorithm topo predict actual : (scheme * float) =
   let at = make_auto_timer () in
   start at;
   let solve = select_algorithm algorithm in
@@ -1247,39 +1245,39 @@ let command =
     ~summary:"Simulate run of routing strategies"
     Command.Spec.(
     empty
-    +> flag "-mcf" no_arg ~doc:" run mcf"
-    +> flag "-mwmcf" no_arg ~doc:" run mwmcf"
-    +> flag "-vlb" no_arg ~doc:" run vlb"
-    +> flag "-ecmp" no_arg ~doc:" run ecmp"
-    +> flag "-ksp" no_arg ~doc:" run ksp"
-    +> flag "-edksp" no_arg ~doc:" run edge-disjoint ksp"
-    +> flag "-spf" no_arg ~doc:" run spf"
-    +> flag "-akmcf" no_arg ~doc:" run ak+mcf"
-    +> flag "-akvlb" no_arg ~doc:" run ak+vlb"
-    +> flag "-akraeke" no_arg ~doc:" run ak+raeke"
+    +> flag "-ac" no_arg ~doc:" run ac"
     +> flag "-akecmp" no_arg ~doc:" run ak+ecmp"
     +> flag "-akksp" no_arg ~doc:" run ak+ksp"
+    +> flag "-akmcf" no_arg ~doc:" run ak+mcf"
+    +> flag "-akraeke" no_arg ~doc:" run ak+raeke"
+    +> flag "-akvlb" no_arg ~doc:" run ak+vlb"
+    +> flag "-ecmp" no_arg ~doc:" run ecmp"
+    +> flag "-edksp" no_arg ~doc:" run edge-disjoint ksp"
     +> flag "-ffc" no_arg ~doc:" run FFC with KSP base path set"
     +> flag "-ffced" no_arg ~doc:" run FFC with Edge-disjoint KSP base path set"
+    +> flag "-ksp" no_arg ~doc:" run ksp"
+    +> flag "-raeke" no_arg ~doc:" run raeke"
+    +> flag "-mcf" no_arg ~doc:" run mcf"
+    +> flag "-mwmcf" no_arg ~doc:" run mwmcf"
+    +> flag "-optimalmcf" no_arg ~doc:" run optimal mcf"
+    +> flag "-semimcfecmp" no_arg ~doc:" run semi mcf+ecmp"
+    +> flag "-semimcfedksp" no_arg ~doc:" run semi mcf+edksp"
+    +> flag "-semimcfksp" no_arg ~doc:" run semi mcf+ksp"
+    +> flag "-semimcfkspft" no_arg ~doc:" run semi mcf+ksp with joint failure opt"
     +> flag "-semimcfmcf" no_arg ~doc:" run semi mcf+mcf"
     +> flag "-semimcfmcfenv" no_arg ~doc:" run semi mcf+mcf with envelope"
     +> flag "-semimcfmcfftenv" no_arg ~doc:" run semi mcf+mcf with envelope and joint failure opt"
-    +> flag "-semimcfvlb" no_arg ~doc:" run semi mcf+vlb"
     +> flag "-semimcfraeke" no_arg ~doc:" run semi mcf+raeke"
     +> flag "-semimcfraekeft" no_arg ~doc:" run semi mcf+raeke with joint failure opt"
-    +> flag "-semimcfecmp" no_arg ~doc:" run semi mcf+ecmp"
-    +> flag "-semimcfksp" no_arg ~doc:" run semi mcf+ksp"
-    +> flag "-semimcfedksp" no_arg ~doc:" run semi mcf+edksp"
-    +> flag "-semimcfkspft" no_arg ~doc:" run semi mcf+ksp with joint failure opt"
-    +> flag "-raeke" no_arg ~doc:" run raeke"
-    +> flag "-ac" no_arg ~doc:" run ac"
-    +> flag "-optimalmcf" no_arg ~doc:" run optimal mcf"
+    +> flag "-semimcfvlb" no_arg ~doc:" run semi mcf+vlb"
+    +> flag "-spf" no_arg ~doc:" run spf"
+    +> flag "-vlb" no_arg ~doc:" run vlb"
     +> flag "-all" no_arg ~doc:" run all schemes"
-    +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
     +> flag "-deloop" no_arg ~doc:" remove loops in paths"
-    +> flag "-robust" no_arg ~doc:" perform robustness test - fail all combinations of fail-num links"
-    +> flag "-vulnerability" no_arg ~doc:" perform path vulnerability test "
     +> flag "-limittest" no_arg ~doc:" test at what scale congestion loss starts "
+    +> flag "-robust" no_arg ~doc:" perform robustness test - fail all combinations of fail-num links"
+    +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
+    +> flag "-vulnerability" no_arg ~doc:" perform path vulnerability test "
     +> flag "-fail-num" (optional_with_default 1 int) ~doc:" number of links to fail"
     +> flag "-fail-time" (optional_with_default (Int.max_value/100) int) ~doc:" simulation time to introduce failure at"
     +> flag "-lr-delay" (optional_with_default (Int.max_value/100) int) ~doc:" delay between failure and local recovery"
@@ -1301,39 +1299,39 @@ let command =
     +> anon ("predict-file" %: string)
     +> anon ("host-file" %: string)
   ) (fun
-    (mcf:bool)
-    (mwmcf:bool)
-    (vlb:bool)
-    (ecmp:bool)
-    (ksp:bool)
-    (edksp:bool)
-    (spf:bool)
-    (akmcf:bool)
-    (akvlb:bool)
-    (akraeke:bool)
+    (ac:bool)
     (akecmp:bool)
     (akksp:bool)
+    (akmcf:bool)
+    (akraeke:bool)
+    (akvlb:bool)
+    (ecmp:bool)
+    (edksp:bool)
     (ffc:bool)
     (ffced:bool)
+    (ksp:bool)
+    (raeke:bool)
+    (mcf:bool)
+    (mwmcf:bool)
+    (optimalmcf:bool)
+    (semimcfecmp:bool)
+    (semimcfedksp:bool)
+    (semimcfksp:bool)
+    (semimcfkspft:bool)
     (semimcfmcf:bool)
     (semimcfmcfenv:bool)
     (semimcfmcfftenv:bool)
-    (semimcfvlb:bool)
     (semimcfraeke:bool)
     (semimcfraekeft:bool)
-    (semimcfecmp:bool)
-    (semimcfksp:bool)
-    (semimcfedksp:bool)
-    (semimcfkspft:bool)
-    (raeke:bool)
-    (ac:bool)
-    (optimalmcf:bool)
+    (semimcfvlb:bool)
+    (spf:bool)
+    (vlb:bool)
     (all:bool)
-    (scalesyn:bool)
     (deloop:bool)
-    (robust:bool)
-    (vulnerability:bool)
     (limittest:bool)
+    (robust:bool)
+    (scalesyn:bool)
+    (vulnerability:bool)
     (fail_num:int)
     (fail_time:int)
     (lr_delay:int)
@@ -1356,33 +1354,33 @@ let command =
     (host_file:string) () ->
       let algorithms =
         List.filter_map ~f:(fun x -> x)
-         [ if mcf || all        then Some Mcf         else None
-         ; if optimalmcf || all then Some OptimalMcf  else None
-         ; if mwmcf             then Some MwMcf       else None
-         ; if vlb || all        then Some Vlb         else None
-         ; if ecmp || all       then Some Ecmp        else None
-         ; if ksp || all        then Some Ksp         else None
-         ; if edksp || all      then Some Edksp       else None
-         ; if spf || all        then Some Spf         else None
-         ; if akmcf             then Some AkMcf       else None
-         ; if akvlb             then Some AkVlb       else None
+         [ if ac || all         then Some Ac          else None
          ; if akecmp            then Some AkEcmp      else None
          ; if akksp             then Some AkKsp       else None
+         ; if akmcf             then Some AkMcf       else None
          ; if akraeke           then Some AkRaeke     else None
+         ; if akvlb             then Some AkVlb       else None
+         ; if ecmp || all       then Some Ecmp        else None
+         ; if edksp || all      then Some Edksp       else None
          ; if ffc || all        then Some Ffc         else None
          ; if ffced || all      then Some Ffced       else None
+         ; if ksp || all        then Some Ksp         else None
+         ; if mcf || all        then Some Mcf         else None
+         ; if mwmcf             then Some MwMcf       else None
+         ; if optimalmcf || all then Some OptimalMcf  else None
          ; if raeke || all      then Some Raeke       else None
-         ; if ac || all         then Some Ac          else None
-         ; if semimcfmcf        then Some SemiMcfMcf  else None
+         ; if semimcfecmp || all      then Some SemiMcfEcmp     else None
+         ; if semimcfedksp || all     then Some SemiMcfEdksp      else None
+         ; if semimcfksp || all       then Some SemiMcfKsp      else None
+         ; if semimcfkspft            then Some SemiMcfKspFT    else None
+         ; if semimcfmcf              then Some SemiMcfMcf  else None
          ; if semimcfmcfenv || all    then Some SemiMcfMcfEnv   else None
          ; if semimcfmcfftenv || all  then Some SemiMcfMcfFTEnv else None
-         ; if semimcfecmp || all      then Some SemiMcfEcmp     else None
-         ; if semimcfksp || all       then Some SemiMcfKsp      else None
-         ; if semimcfedksp || all     then Some SemiMcfEdksp      else None
-         ; if semimcfkspft            then Some SemiMcfKspFT    else None
-         ; if semimcfvlb || all       then Some SemiMcfVlb      else None
          ; if semimcfraeke || all     then Some SemiMcfRaeke    else None
-         ; if semimcfraekeft || all   then Some SemiMcfRaekeFT  else None ] in
+         ; if semimcfraekeft || all   then Some SemiMcfRaekeFT  else None
+         ; if semimcfvlb || all       then Some SemiMcfVlb      else None
+         ; if spf || all        then Some Spf         else None
+         ; if vlb || all        then Some Vlb         else None ] in
       let syn_scale =
         if scalesyn then
           calculate_syn_scale topology_file demand_file host_file
@@ -1412,4 +1410,3 @@ let command =
 let main = Command.run command
 
 let _ = main
-
