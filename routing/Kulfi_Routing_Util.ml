@@ -62,11 +62,21 @@ let get_all_possible_failures (topo:topology) (num_failures:int) : (failure List
                 if check_connectivity_after_failure topo new_failure then new_failure::acc
                 else acc)))
 
-let neighboring_edges topo src =
+(* Find all outgoing edges from a node `src` *)
+let outgoing_edges topo src =
   let src_neighbors = Topology.neighbors topo src in
   (* Get all outgoing edges *)
   let edges = VertexSet.fold src_neighbors ~init:[] ~f:(fun acc vtx ->
       let es = Topology.find_all_edges topo src vtx in
+      List.rev_append (EdgeSet.elements es) acc) in
+  edges
+
+(* Find all incoming edges to a node `dst` *)
+let incoming_edges topo dst =
+  let dst_neighbors = Topology.neighbors topo dst in
+  (* Get all incoming edges *)
+  let edges = VertexSet.fold dst_neighbors ~init:[] ~f:(fun acc vtx ->
+      let es = Topology.find_all_edges topo vtx dst in
       List.rev_append (EdgeSet.elements es) acc) in
   edges
 

@@ -29,6 +29,7 @@ let solver_to_string (s:solver_type) : string =
   | Edksp -> "edksp"
   | Spf -> "spf"
   | Raeke -> "raeke"
+  | Ac -> "ac"
   | AkMcf -> "akmcf"
   | AkVlb -> "akvlb"
   | AkRaeke -> "akraeke"
@@ -58,6 +59,7 @@ let select_algorithm solver = match solver with
   | Edksp -> Kulfi_Routing.Edksp.solve
   | Spf -> Kulfi_Routing.Spf.solve
   | Raeke -> Kulfi_Routing.Raeke.solve
+  | Ac -> Kulfi_Routing.Ac.solve
   | AkMcf
   | AkVlb
   | AkRaeke
@@ -86,6 +88,7 @@ let select_local_recovery solver = match solver with
   | Edksp -> Kulfi_Routing.Edksp.local_recovery
   | Spf -> Kulfi_Routing.Spf.local_recovery
   | Raeke -> Kulfi_Routing.Raeke.local_recovery
+  | Ac -> Kulfi_Routing.Ac.local_recovery
   | AkMcf
   | AkVlb
   | AkRaeke
@@ -1269,6 +1272,7 @@ let command =
     +> flag "-semimcfedksp" no_arg ~doc:" run semi mcf+edksp"
     +> flag "-semimcfkspft" no_arg ~doc:" run semi mcf+ksp with joint failure opt"
     +> flag "-raeke" no_arg ~doc:" run raeke"
+    +> flag "-ac" no_arg ~doc:" run ac"
     +> flag "-optimalmcf" no_arg ~doc:" run optimal mcf"
     +> flag "-all" no_arg ~doc:" run all schemes"
     +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
@@ -1322,6 +1326,7 @@ let command =
     (semimcfedksp:bool)
     (semimcfkspft:bool)
     (raeke:bool)
+    (ac:bool)
     (optimalmcf:bool)
     (all:bool)
     (scalesyn:bool)
@@ -1357,7 +1362,7 @@ let command =
          ; if vlb || all        then Some Vlb         else None
          ; if ecmp || all       then Some Ecmp        else None
          ; if ksp || all        then Some Ksp         else None
-         ; if edksp || all      then Some Edksp         else None
+         ; if edksp || all      then Some Edksp       else None
          ; if spf || all        then Some Spf         else None
          ; if akmcf             then Some AkMcf       else None
          ; if akvlb             then Some AkVlb       else None
@@ -1367,6 +1372,7 @@ let command =
          ; if ffc || all        then Some Ffc         else None
          ; if ffced || all      then Some Ffced       else None
          ; if raeke || all      then Some Raeke       else None
+         ; if ac || all         then Some Ac          else None
          ; if semimcfmcf        then Some SemiMcfMcf  else None
          ; if semimcfmcfenv || all    then Some SemiMcfMcfEnv   else None
          ; if semimcfmcfftenv || all  then Some SemiMcfMcfFTEnv else None

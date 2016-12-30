@@ -31,11 +31,11 @@ let capacity_constraints (topo : Topology.t) (src : Topology.vertex) (dst : Topo
 let num_path_constraints (topo : Topology.t) (src : Topology.vertex) (dst : Topology.vertex) (k:int)
     (init_acc : constrain list) : constrain list =
   (* Constraint: sum of out going flows to other switches from src's ingress switch = k  *)
-  let ingress_switch = neighboring_edges topo src
+  let ingress_switch = outgoing_edges topo src
     |> List.hd_exn
     |> Topology.edge_dst
     |> fst in
-  let edges = neighboring_edges topo ingress_switch in
+  let edges = outgoing_edges topo ingress_switch in
   let diffs = List.fold_left edges ~init:[] ~f:(fun acc edge ->
     if edge_connects_switches edge topo then
           let forward_amt = var_name topo edge (src,dst) in
@@ -52,7 +52,7 @@ let conservation_constraints_st (topo : Topology.t) (src : Topology.vertex) (dst
   (* Every node in the topology except the source and sink has conservation constraints *)
   Topology.fold_vertexes (fun v acc ->
    if v = src || v = dst then acc else
-      let edges = neighboring_edges topo v in
+      let edges = outgoing_edges topo v in
       let outgoing = List.fold_left edges ~init:[] ~f:(fun acc_vars e ->
         (Var (var_name topo e (src,dst)))::acc_vars) in
       let incoming = List.fold_left edges ~init:[] ~f:(fun acc_vars e ->

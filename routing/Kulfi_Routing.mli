@@ -28,3 +28,5 @@ module Ak : Algorithm
 module Ffc : Algorithm
 
 module Edksp : Algorithm
+
+module Ac : Algorithm

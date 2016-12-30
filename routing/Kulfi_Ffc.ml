@@ -38,15 +38,6 @@ let objective_fun (topo : Topology.t)
   let name = "tput" in
   (Eq (name, diff_tput_obj, 0.))::init_acc
 
-let neighboring_edges topo src =
-  let src_neighbors = Topology.neighbors topo src in
-  (* Get all outgoing edges *)
-  let edges = VertexSet.fold src_neighbors ~init:[]
-    ~f:(fun acc vtx ->
-      let es = Topology.find_all_edges topo src vtx in
-      List.rev_append (EdgeSet.elements es) acc) in
-  edges
-
 (* Equation (2) :
  * Total traffic on an edge <= capacity of edge *)
 let capacity_constraints (pmap : path_uid_map)

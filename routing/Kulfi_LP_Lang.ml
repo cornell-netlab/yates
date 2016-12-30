@@ -93,6 +93,7 @@ let var_name_rev topo edge d_pair =
     (name_of_vertex topo dst)
     (name_of_vertex topo src)
 
+(* FFC: Create a LP variable for src->dst granted badnwidth *)
 let granted_bw_var_name topo (src,dst) =
   Printf.sprintf "gbf_%s--%s"
     (name_of_vertex topo src)

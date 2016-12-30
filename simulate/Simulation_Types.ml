@@ -3,7 +3,7 @@ open Kulfi_Util
 open Kulfi_Types
 
 type solver_type =
-  | Mcf | MwMcf | Vlb | Ecmp | Edksp | Ksp | Spf | Raeke
+  | Mcf | MwMcf | Vlb | Ecmp | Edksp | Ksp | Spf | Raeke | Ac
   | AkMcf | AkVlb | AkRaeke | AkEcmp | AkKsp
   | Ffc | Ffced
   | SemiMcfMcf | SemiMcfMcfEnv | SemiMcfMcfFTEnv | SemiMcfVlb | SemiMcfRaeke | SemiMcfRaekeFT  | SemiMcfEcmp | SemiMcfKsp | SemiMcfEdksp | SemiMcfKspFT

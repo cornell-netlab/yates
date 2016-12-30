@@ -41,7 +41,7 @@ let demand_constraints (topo : Topology.t) (d_pairs : demands)
   (* Every source-sink pair has a demand constraint *)
   SrcDstMap.fold ~init:init_acc ~f:(fun ~key:(src,dst) ~data:(demand) acc ->
       (* We need to add up the rates for all edges adjoining the source *)
-      let edges = neighboring_edges topo src in
+      let edges = outgoing_edges topo src in
       let diffs = List.fold_left edges ~init:[] ~f:(fun acc2 edge ->
           let forward_amt = var_name topo edge (src,dst) in
           let reverse_amt = var_name_rev topo edge (src,dst) in
@@ -61,7 +61,7 @@ let conservation_constraints (topo : Topology.t) (d_pairs : demands)
        * conservation constraints *)
       Topology.fold_vertexes (fun v acc2 ->
           if v = src || v = dst then acc2 else
-            let edges = neighboring_edges topo v in
+            let edges = outgoing_edges topo v in
             let outgoing = List.fold_left edges ~init:[] ~f:(fun acc_vars e ->
                 (Var (var_name topo e (src,dst)))::acc_vars) in
             let incoming = List.fold_left edges ~init:[] ~f:(fun acc_vars e ->
