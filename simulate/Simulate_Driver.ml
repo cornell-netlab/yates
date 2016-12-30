@@ -211,13 +211,12 @@ let initial_scheme algorithm topo predict : scheme =
 
 (* Initialize a TE algorithm *)
 let initialize_scheme algorithm topo predict : unit =
-  (*Printf.printf "\n[Init...] \r";*)
   let start_scheme = initial_scheme algorithm topo predict in
   let pruned_scheme =
     if SrcDstMap.is_empty start_scheme then start_scheme
     else prune_scheme topo start_scheme !Kulfi_Globals.budget in
-  (*Printf.printf "%s\n%!" (dump_scheme topo start_scheme);*)
   match algorithm with
+  | Ac -> Kulfi_Routing.Ac.initialize SrcDstMap.empty
   | AkEcmp
   | AkKsp
   | AkMcf
@@ -438,11 +437,17 @@ let simulate_tm (start_scheme:scheme)
        * or deliver to end host if last link in a path
   * *)
   let local_debug = false in
+  (* Number of timesteps to simulate *)
   let num_iterations = !Kulfi_Globals.tm_sim_iters in
+  (* wait for network to reach steady state *)
   let steady_state_time = 0 in
-  let wait_out_time = 50 in (* wait for this time for the network to reach steady state *)
+  (* wait for in-flight pkts to be delivered at the end *)
+  let wait_out_time = 50 in
+  (* Timestamp at which failures, if any, are introduced *)
   let failure_time =
-    if (EdgeSet.is_empty fail_edges) || (!Kulfi_Globals.failure_time > num_iterations)  then Int.max_value/100
+    if (EdgeSet.is_empty fail_edges) ||
+       (!Kulfi_Globals.failure_time > num_iterations)
+    then Int.max_value/100
     else !Kulfi_Globals.failure_time + steady_state_time in
   let local_recovery_delay = !Kulfi_Globals.local_recovery_delay in
   let global_recovery_delay = !Kulfi_Globals.global_recovery_delay in
@@ -459,256 +464,339 @@ let simulate_tm (start_scheme:scheme)
 
   (* flash *)
   agg_dem := sum_demands dem;
-  let per_src_flash_factor = flash_ba *. !agg_dem /. (total_flow_to_sink flash_sink topo dem) /. (Float.of_int (List.length (get_hosts topo))) in
-  if is_flash then Printf.printf "\t\t\t\t\tSink: %s\r" (string_of_vertex topo flash_sink);
+  let per_src_flash_factor =
+    flash_ba *. !agg_dem /. (total_flow_to_sink flash_sink topo dem)
+    /. (Float.of_int (List.length (get_hosts topo))) in
+  if is_flash then Printf.printf "\t\t\t\t\tSink: %s\r"
+      (string_of_vertex topo flash_sink);
+
+  (* Main loop: iterate over timesteps and update network state *)
   let final_network_state =
-  List.fold_left iterations
-    ~init:(make_network_iter_state ~scheme:start_scheme ~real_tm:dem ~predict_tm:predict ())
-    ~f:(fun current_state iter ->
-      (* begin iteration - time *)
-      (*Printf.printf "\t\t\t [Time : %3d]\r%!" (iter - steady_state_time);*)
-      Printf.printf "\t\t\t\t   %s\r%!" (progress_bar (iter - steady_state_time) (num_iterations + wait_out_time) 15);
+    List.fold_left iterations
+      ~init:(make_network_iter_state
+               ~scheme:start_scheme ~real_tm:dem ~predict_tm:predict ())
+      ~f:(fun current_state iter ->
+          (* begin iteration - time *)
+          Printf.printf "\t\t\t\t   %s\r%!"
+            (progress_bar (iter - steady_state_time)
+               (num_iterations + wait_out_time) 15);
 
-      (* Reset stats when steady state is reached *)
-      let current_state =
-        if iter = steady_state_time then
-          begin
-            agg_dem := 0.;
-            agg_sink_dem := 0.;
-            { current_state with
-                delivered       = SrcDstMap.empty;
-                latency         = SrcDstMap.empty;
-                utilization     = EdgeMap.empty;
-                failure_drop    = 0.0;
-                congestion_drop = 0.0; }
-          end
-        else
-          current_state in
-
-      (* introduce failures *)
-      let failed_links =
-        if iter = failure_time then
-          begin
-            Printf.printf "\t\t\t\t\t\t     %s  \r" (dump_edges topo (EdgeSet.elements fail_edges));
-            fail_edges
-          end
-        else current_state.failures in
-
-      (* update tms and scheme for flash *)
-      let actual_t, predict_t, new_scheme =
-        if is_flash && (iter >= steady_state_time) && (iter < steady_state_time + num_iterations) then
-          begin
-          let flash_t = iter - steady_state_time in
-            if flash_t % flash_step_time = 0 then
-              begin (* update actual & pred demand  and scheme *)
-                let act' = update_flash_demand topo flash_sink dem flash_t per_src_flash_factor (Float.of_int num_iterations) in
-                let pred' = update_flash_demand topo flash_sink dem (flash_t-flash_pred_delay) per_src_flash_factor (Float.of_int num_iterations) in
-                let sch' = match algorithm with
-                  | OptimalMcf ->
-                    begin
-                      let sch,rec_solve_time = global_recovery failed_links pred' act' algorithm topo in
-                      recovery_churn := !recovery_churn +. (get_churn current_state.scheme sch);
-                      solver_time := !solver_time +. rec_solve_time;
-                      sch
-                    end
-                  | _ ->
-                      if !Kulfi_Globals.flash_recover then (select_local_recovery algorithm) current_state.scheme topo failed_links pred'
-                      else current_state.scheme in
-                act',pred',sch'
+          (* Reset stats when steady state is reached *)
+          let current_state =
+            if iter = steady_state_time then
+              begin
+                agg_dem := 0.;
+                agg_sink_dem := 0.;
+                { current_state with
+                  delivered       = SrcDstMap.empty;
+                  latency         = SrcDstMap.empty;
+                  utilization     = EdgeMap.empty;
+                  failure_drop    = 0.0;
+                  congestion_drop = 0.0; }
               end
             else
-              current_state.real_tm, current_state.predict_tm, current_state.scheme
-          end
-        else
-        current_state.real_tm, current_state.predict_tm, current_state.scheme in
+              current_state in
 
-      (*debug*)
-      (*VertexSet.iter (get_hosts_set topo)
-        ~f:(fun src ->
-          if not (src = flash_sink) then
-          let act_d = SrcDstMap.find_exn dem (src,flash_sink) in
-          let f_act_d = SrcDstMap.find_exn actual_t (src,flash_sink) in
-          let p_act_d = SrcDstMap.find_exn predict_t (src,flash_sink) in
-          Printf.printf "%f\t%f\n" (f_act_d /. act_d) (p_act_d /. act_d) ;);*)
+          (* introduce failures *)
+          let failed_links =
+            if iter = failure_time then
+              begin
+                Printf.printf "\t\t\t\t\t\t     %s  \r"
+                  (dump_edges topo (EdgeSet.elements fail_edges));
+                fail_edges
+              end
+            else current_state.failures in
 
-      (* failures: local and global recovery *)
-      let new_scheme =
-        if iter < steady_state_time + num_iterations then
-        match algorithm with
-          | OptimalMcf ->
-              if iter = failure_time then
-                begin
-                  let sch,rec_solve_time = global_recovery failed_links predict_t actual_t algorithm topo in
-                  recovery_churn := !recovery_churn +. (get_churn new_scheme sch);
-                  solver_time := !solver_time +. rec_solve_time;
-                  sch
-                end
-              else new_scheme
-          | _ ->
-              if iter = (local_recovery_delay + failure_time) then ((select_local_recovery algorithm) new_scheme topo failed_links predict_t)
-              else if iter = (global_recovery_delay + failure_time) then
-                begin
-                  let sch,rec_solve_time = global_recovery failed_links predict_t actual_t algorithm topo in
-                  recovery_churn := !recovery_churn +. (get_churn new_scheme sch);
-                  solver_time := !solver_time +. rec_solve_time;
-                  sch
-                end
-              else new_scheme
-        else SrcDstMap.empty in
+          (* update tms and scheme for flash *)
+          let actual_t, predict_t, new_scheme =
+            if is_flash &&
+               (iter >= steady_state_time) &&
+               (iter < steady_state_time + num_iterations) then
+              begin
+                let flash_t = iter - steady_state_time in
+                if flash_t % flash_step_time = 0 then
+                  begin (* update actual & pred demand  and scheme *)
+                    let act' =
+                      update_flash_demand topo flash_sink dem flash_t
+                        per_src_flash_factor (Float.of_int num_iterations) in
+                    let pred' = update_flash_demand topo flash_sink dem
+                        (flash_t - flash_pred_delay) per_src_flash_factor
+                        (Float.of_int num_iterations) in
+                    let sch' = match algorithm with
+                      | OptimalMcf ->
+                        begin
+                          let sch,rec_solve_time =
+                            global_recovery failed_links pred' act' algorithm topo in
+                          recovery_churn :=
+                            !recovery_churn +. (get_churn current_state.scheme sch);
+                          solver_time := !solver_time +. rec_solve_time;
+                          sch
+                        end
+                      | _ ->
+                        if !Kulfi_Globals.flash_recover then
+                          (select_local_recovery algorithm) current_state.scheme
+                            topo failed_links pred'
+                        else current_state.scheme in
+                    act',
+                    pred',
+                    sch'
+                  end
+                else
+                  current_state.real_tm,
+                  current_state.predict_tm,
+                  current_state.scheme
+              end
+            else
+              current_state.real_tm,
+              current_state.predict_tm,
+              current_state.scheme in
 
-      let actual_t =
-        if iter < (steady_state_time + num_iterations) then actual_t
-        else SrcDstMap.empty in
+          (*debug*)
+          (*VertexSet.iter (get_hosts_set topo)
+            ~f:(fun src ->
+              if not (src = flash_sink) then
+              let act_d = SrcDstMap.find_exn dem (src,flash_sink) in
+              let f_act_d = SrcDstMap.find_exn actual_t (src,flash_sink) in
+              let p_act_d = SrcDstMap.find_exn predict_t (src,flash_sink) in
+              Printf.printf "%f\t%f\n" (f_act_d /. act_d) (p_act_d /. act_d) ;);*)
 
-      (* Add traffic at source of every path *)
-      if iter < (num_iterations + steady_state_time) then agg_dem := !agg_dem +. (sum_demands actual_t);
-      if iter < (num_iterations + steady_state_time) then agg_sink_dem := !agg_sink_dem +. (sum_sink_demands actual_t flash_sink);
+          (* failures: local and global recovery *)
+          let new_scheme =
+            if iter < steady_state_time + num_iterations then
+              match algorithm with
+              | OptimalMcf ->
+                if iter = failure_time then
+                  begin
+                    let sch,rec_solve_time =
+                      global_recovery failed_links predict_t actual_t algorithm topo in
+                    recovery_churn := !recovery_churn +. (get_churn new_scheme sch);
+                    solver_time := !solver_time +. rec_solve_time;
+                    sch
+                  end
+                else new_scheme
+              | _ ->
+                if iter = (local_recovery_delay + failure_time) then
+                  ((select_local_recovery algorithm) new_scheme topo failed_links predict_t)
+                else if iter = (global_recovery_delay + failure_time) then
+                  begin
+                    let sch,rec_solve_time =
+                      global_recovery failed_links predict_t actual_t algorithm topo in
+                    recovery_churn := !recovery_churn +. (get_churn new_scheme sch);
+                    solver_time := !solver_time +. rec_solve_time;
+                    sch
+                  end
+                else new_scheme
+            else SrcDstMap.empty in
 
-      (* probability of taking each path *)
-      let path_prob_arr = get_path_prob_demand_arr new_scheme actual_t in
+          (* Stop traffic generation after simulation end time *)
+          let actual_t =
+            if iter < (steady_state_time + num_iterations) then actual_t
+            else SrcDstMap.empty in
 
-      (* next_iter_traffic : map edge -> in_traffic in next iter *)
-      let next_iter_traffic = List.fold_left path_prob_arr
-        ~init:EdgeMap.empty
-        ~f:(fun acc (path_arr, dist, (prob,sd_demand)) ->
-            if Array.length path_arr = 0 then acc else
-            let first_link = path_arr.(0) in
-            let sched_traf_first_link = match EdgeMap.find acc first_link with
-                                        | None -> []
-                                        | Some v -> v in
-            let traf_first_link = (path_arr, 1, (prob *. sd_demand))::sched_traf_first_link in
-            EdgeMap.add ~key:first_link ~data:traf_first_link acc) in
+          (* Add traffic at source of every path *)
+          if iter < (num_iterations + steady_state_time) then
+            agg_dem := !agg_dem +. (sum_demands actual_t);
+          if iter < (num_iterations + steady_state_time) then
+            agg_sink_dem := !agg_sink_dem +. (sum_sink_demands actual_t flash_sink);
 
-      (* if no (s-d) path, then entire demand is dropped due to failure *)
-      (* if no (s-d) key, then entire demand is dropped due to failure *)
-      let cumul_fail_drop = SrcDstMap.fold actual_t
-        ~init:current_state.failure_drop
-        ~f:(fun ~key:(src,dst) ~data:d acc ->
-          match SrcDstMap.find new_scheme (src,dst) with
-          | None ->
-              acc +. d
-          | Some x ->
-              if PathMap.is_empty x then acc +. d
-              else acc) in
-      (* Done generating traffic at source *)
+          (* probability of taking each path *)
+          let path_prob_arr = get_path_prob_demand_arr new_scheme actual_t in
 
-      (* For each link, forward fair share of flows to next links or deliver to destination *)
-      let next_iter_traffic, new_delivered_map, new_lat_tput_map_map, new_link_utils, new_fail_drop, new_cong_drop =
-        EdgeMap.fold current_state.ingress_link_traffic
-        ~init:(next_iter_traffic, current_state.delivered, current_state.latency, current_state.utilization, cumul_fail_drop, current_state.congestion_drop)
-        ~f:(fun ~key:e ~data:in_queue_edge link_iter_acc ->
-          (* total ingress traffic on link *)
-          let demand_on_link = List.fold_left in_queue_edge
-            ~init:0.0
-            ~f:(fun link_dem (_,_,flow_dem) ->
-              if is_nan flow_dem then Printf.printf "flow_dem is nan!!\n";
-              link_dem +. flow_dem) in
-
-          if local_debug then Printf.printf "%s: %f / %f\n%!"
-            (string_of_edge topo e) (demand_on_link /. 1e9)
-            ((curr_capacity_of_edge topo e failed_links) /. 1e9);
-
-          (* calculate each flow's fair share *)
-          let fs_in_queue_edge =
-            if demand_on_link <= (curr_capacity_of_edge topo e failed_links) then in_queue_edge
-            else fair_share_at_edge_arr (curr_capacity_of_edge topo e failed_links) in_queue_edge in
-
-          (* Update traffic dropped due to failure or congestion *)
-          let forwarded_by_link = List.fold_left fs_in_queue_edge
-            ~init:0.0
-            ~f:(fun fwd_acc (_,_,flow_dem) -> fwd_acc +. flow_dem) in
-          let dropped = demand_on_link -. forwarded_by_link in
-          let (_,_,_,curr_lutil_map,curr_fail_drop,curr_cong_drop) = link_iter_acc in
-          let new_fail_drop,new_cong_drop =
-            if EdgeSet.mem failed_links e then curr_fail_drop +. dropped, curr_cong_drop
-            else curr_fail_drop, curr_cong_drop +. dropped in
-          if (is_nan new_cong_drop) && (is_nan dropped) then Printf.printf "dem = %f\tfwd = %f\n" demand_on_link forwarded_by_link;
-          (*if dropped > 0. then Printf.printf "%d : %f\n%!" iter dropped;*)
-          (* Forward/deliver traffic on this edge *)
-          let fl_init_nit,fl_init_dlvd_map,fl_init_ltm_map,_,_,_ = link_iter_acc in
-          let new_nit, dlvd_map, ltm_map =
-            List.fold_left fs_in_queue_edge
-            ~init:(fl_init_nit, fl_init_dlvd_map, fl_init_ltm_map)
-            ~f:(fun acc (path,dist,flow_fair_share) ->
-              let nit,dlvd_map,ltm_map = acc in
-              let next_link_opt = next_hop_arr path dist in
-              match next_link_opt with
-              | None -> (* End of path, deliver traffic to dst *)
-                  let (src,dst) = match get_src_dst_for_path_arr path with
-                                  | None -> failwith "Empty path"
-                                  | Some x -> x in
-                  (* Update delivered traffic for (src,dst) *)
-                  let prev_sd_dlvd = match SrcDstMap.find dlvd_map (src,dst) with
-                                    | None -> 0.0
-                                    | Some x -> x in
-                  let new_dlvd = SrcDstMap.add dlvd_map
-                    ~key:(src,dst)
-                    ~data:(prev_sd_dlvd +. flow_fair_share) in
-
-                  (* Update latency-tput distribution for (src,dst) *)
-                  let prev_sd_ltm = match SrcDstMap.find ltm_map (src,dst) with
-                                      | None -> LatencyMap.empty
-                                      | Some x -> x in
-                  let path_latency = get_path_weight_arr topo path in
-                  let prev_sd_tput_for_latency =
-                    match LatencyMap.find prev_sd_ltm path_latency with
-                                      | None -> 0.0
-                                      | Some x -> x in
-                  let new_sd_ltm = LatencyMap.add prev_sd_ltm
-                    ~key:path_latency
-                    ~data:(prev_sd_tput_for_latency +. flow_fair_share) in
-                  let new_ltm_map = SrcDstMap.add ltm_map
-                    ~key:(src,dst)
-                    ~data:new_sd_ltm in
-                  (nit, new_dlvd, new_ltm_map)
-              | Some next_link -> (* Forward traffic to next hop *)
-                  (* Update link ingress queue for next hop *)
-                  let sched_traf_next_link = match EdgeMap.find nit next_link with
+          (* next_iter_traffic : map edge -> in_traffic in next iter *)
+          let next_iter_traffic = List.fold_left path_prob_arr
+              ~init:EdgeMap.empty
+              ~f:(fun acc (path_arr, dist, (prob,sd_demand)) ->
+                  if Array.length path_arr = 0 then acc else
+                    let first_link = path_arr.(0) in
+                    let sched_traf_first_link =
+                      match EdgeMap.find acc first_link with
                       | None -> []
                       | Some v -> v in
-                  if is_nan flow_fair_share then assert false;
-                  let traf_next_link = (path,dist+1,flow_fair_share)::sched_traf_next_link in
-                  let new_nit = EdgeMap.add ~key:next_link ~data:traf_next_link nit in
-                  (new_nit, dlvd_map, ltm_map)) in
-          let new_lutil_map =
-            if iter < num_iterations + steady_state_time then
-              begin
-                let curr_lutil_e = match (EdgeMap.find curr_lutil_map e) with
-                  | None -> []
-                  | Some x -> x in
-                EdgeMap.add ~key:e ~data:(forwarded_by_link::curr_lutil_e) curr_lutil_map
-              end
-            else
-              curr_lutil_map in
-          (new_nit, dlvd_map, ltm_map, new_lutil_map, new_fail_drop, new_cong_drop)) in
-      (* Done forwarding for each link*)
+                    let traf_first_link =
+                      (path_arr, 1, (prob *. sd_demand))::sched_traf_first_link in
+                    EdgeMap.add ~key:first_link ~data:traf_first_link acc) in
 
-      (* Print state for debugging *)
-      if local_debug then
-          EdgeMap.iteri next_iter_traffic
-            ~f:(fun ~key:e ~data:paths_demand ->
-              Printf.printf "%s\n%!" (string_of_edge topo e);
-              List.iter paths_demand
-              ~f:(fun (path,_,d) ->
-                Printf.printf "%s\t%f\n%!" (dump_edges topo (Array.to_list path)) d));
-      if local_debug then SrcDstMap.iteri new_delivered_map
-            ~f:(fun ~key:(src,dst) ~data:delvd ->
-              Printf.printf "%s %s\t%f\n%!"
-                (Node.name (Net.Topology.vertex_to_label topo src))
-                (Node.name (Net.Topology.vertex_to_label topo dst)) delvd);
+          (* if no (s-d) path, then entire demand is dropped due to failure *)
+          (* if no (s-d) key, then entire demand is dropped due to failure *)
+          let cumul_fail_drop = SrcDstMap.fold actual_t
+              ~init:current_state.failure_drop
+              ~f:(fun ~key:(src,dst) ~data:d acc ->
+                  match SrcDstMap.find new_scheme (src,dst) with
+                  | None ->
+                    acc +. d
+                  | Some x ->
+                    if PathMap.is_empty x then acc +. d
+                    else acc) in
+          (* Done generating traffic at source *)
 
-      (* State carried over to next iter *)
-      { ingress_link_traffic  = next_iter_traffic;
-        delivered             = new_delivered_map;
-        latency               = new_lat_tput_map_map;
-        utilization           = new_link_utils;
-        scheme                = new_scheme;
-        failures              = failed_links;
-        failure_drop          = new_fail_drop;
-        congestion_drop       = new_cong_drop;
-        real_tm               = actual_t;
-        predict_tm            = predict_t; })
-      (* end iteration *) in
+          (*  For each link, *)
+          (*    forward fair share of flows to next links, *)
+          (*    or deliver to destination *)
+          let next_iter_traffic,
+              new_delivered_map,
+              new_lat_tput_map_map,
+              new_link_utils,
+              new_fail_drop,
+              new_cong_drop =
+            EdgeMap.fold current_state.ingress_link_traffic
+              ~init:(next_iter_traffic,
+                     current_state.delivered,
+                     current_state.latency,
+                     current_state.utilization,
+                     cumul_fail_drop,
+                     current_state.congestion_drop)
+              ~f:(fun ~key:e ~data:in_queue_edge link_iter_acc ->
+                  (* edge capacity can change due to failures *)
+                  let current_edge_capacity =
+                    (curr_capacity_of_edge topo e failed_links) in
+
+                  (* total ingress traffic on link *)
+                  let demand_on_link = List.fold_left in_queue_edge
+                      ~init:0.0
+                      ~f:(fun link_dem (_,_,flow_dem) ->
+                          if is_nan flow_dem then Printf.printf "flow_dem is nan!!\n";
+                          link_dem +. flow_dem) in
+
+                  if local_debug then Printf.printf "%s: %f / %f\n%!"
+                      (string_of_edge topo e) (demand_on_link /. 1e9)
+                      (current_edge_capacity /. 1e9);
+
+                  (* calculate each flow's fair share *)
+                  let fs_in_queue_edge =
+                    if demand_on_link <= current_edge_capacity then
+                      in_queue_edge
+                    else
+                      fair_share_at_edge_arr current_edge_capacity in_queue_edge in
+
+                  (* Update traffic dropped due to failure or congestion *)
+                  let forwarded_by_link = List.fold_left fs_in_queue_edge
+                      ~init:0.0
+                      ~f:(fun fwd_acc (_,_,flow_dem) -> fwd_acc +. flow_dem) in
+                  let dropped = demand_on_link -. forwarded_by_link in
+
+                  let (_,_,_,curr_lutil_map,curr_fail_drop,curr_cong_drop) = link_iter_acc in
+                  let new_fail_drop,new_cong_drop =
+                    if EdgeSet.mem failed_links e then
+                      curr_fail_drop +. dropped, curr_cong_drop
+                    else
+                      curr_fail_drop, curr_cong_drop +. dropped in
+                  if (is_nan new_cong_drop) && (is_nan dropped) then
+                    Printf.printf "dem = %f\tfwd = %f\n"
+                      demand_on_link forwarded_by_link;
+
+                  (* Forward/deliver traffic on this edge by iterating over
+                     every flow in the ingress queue *)
+                  let fl_init_nit,fl_init_dlvd_map,fl_init_ltm_map,_,_,_ = link_iter_acc in
+                  let new_nit,
+                      dlvd_map,
+                      ltm_map =
+                    List.fold_left fs_in_queue_edge
+                      ~init:(fl_init_nit,
+                             fl_init_dlvd_map,
+                             fl_init_ltm_map)
+                      ~f:(fun acc (path, dist, flow_fair_share) ->
+                          let nit,dlvd_map,ltm_map = acc in
+                          let next_link_opt = next_hop_arr path dist in
+                          match next_link_opt with
+                          | None ->
+                            (* End of path, deliver traffic to dst *)
+                            let (src,dst) =
+                              match get_src_dst_for_path_arr path with
+                              | None -> failwith "Empty path"
+                              | Some x -> x in
+                            (* Update delivered traffic for (src,dst) *)
+                            let prev_sd_dlvd =
+                              match SrcDstMap.find dlvd_map (src,dst) with
+                              | None -> 0.0
+                              | Some x -> x in
+                            let new_dlvd = SrcDstMap.add dlvd_map
+                                ~key:(src,dst)
+                                ~data:(prev_sd_dlvd +. flow_fair_share) in
+
+                            (* Update latency-tput distribution for (src,dst) *)
+                            let prev_sd_ltm =
+                              match SrcDstMap.find ltm_map (src,dst) with
+                              | None -> LatencyMap.empty
+                              | Some x -> x in
+                            let path_latency = get_path_weight_arr topo path in
+                            let prev_sd_tput_for_latency =
+                              match LatencyMap.find prev_sd_ltm path_latency with
+                              | None -> 0.0
+                              | Some x -> x in
+                            let new_sd_ltm = LatencyMap.add prev_sd_ltm
+                                ~key:path_latency
+                                ~data:(prev_sd_tput_for_latency +. flow_fair_share) in
+                            let new_ltm_map = SrcDstMap.add ltm_map
+                                ~key:(src,dst)
+                                ~data:new_sd_ltm in
+                            (nit,
+                             new_dlvd,
+                             new_ltm_map)
+                          | Some next_link ->
+                            (* Else, Forward traffic to next hop *)
+                            (* Update link ingress queue for next hop *)
+                            let sched_traf_next_link =
+                              match EdgeMap.find nit next_link with
+                              | None -> []
+                              | Some v -> v in
+                            if is_nan flow_fair_share then assert false;
+                            let traf_next_link =
+                              (path,dist+1,flow_fair_share)::sched_traf_next_link in
+                            let new_nit =
+                              EdgeMap.add ~key:next_link ~data:traf_next_link nit in
+                            (new_nit,
+                             dlvd_map,
+                             ltm_map)) in
+                  (* end: iteration over flows *)
+                  (* log link utilization for this edge & timestep *)
+                  let new_lutil_map =
+                    if iter < num_iterations + steady_state_time then
+                      begin
+                        let curr_lutil_e =
+                          match (EdgeMap.find curr_lutil_map e) with
+                          | None -> []
+                          | Some x -> x in
+                        EdgeMap.add curr_lutil_map
+                          ~key:e
+                          ~data:(forwarded_by_link::curr_lutil_e)
+                      end
+                    else
+                      curr_lutil_map in
+                  (new_nit,
+                   dlvd_map,
+                   ltm_map,
+                   new_lutil_map,
+                   new_fail_drop,
+                   new_cong_drop)) in
+          (* Done forwarding for each link *)
+
+          (* Print state for debugging *)
+          if local_debug then
+            EdgeMap.iteri next_iter_traffic
+              ~f:(fun ~key:e ~data:paths_demand ->
+                  Printf.printf "%s\n%!" (string_of_edge topo e);
+                  List.iter paths_demand
+                    ~f:(fun (path,_,d) ->
+                        Printf.printf "%s\t%f\n%!"
+                          (dump_edges topo (Array.to_list path)) d));
+          if local_debug then SrcDstMap.iteri new_delivered_map
+              ~f:(fun ~key:(src,dst) ~data:delvd ->
+                  Printf.printf "%s %s\t%f\n%!"
+                    (Node.name (Net.Topology.vertex_to_label topo src))
+                    (Node.name (Net.Topology.vertex_to_label topo dst)) delvd);
+
+          (* State carried over to next timestep *)
+          { ingress_link_traffic  = next_iter_traffic;
+            delivered             = new_delivered_map;
+            latency               = new_lat_tput_map_map;
+            utilization           = new_link_utils;
+            scheme                = new_scheme;
+            failures              = failed_links;
+            failure_drop          = new_fail_drop;
+            congestion_drop       = new_cong_drop;
+            real_tm               = actual_t;
+            predict_tm            = predict_t; })
+      (* end iteration over timesteps *) in
 
   agg_dem := !agg_dem /. (Float.of_int num_iterations);
   agg_sink_dem := !agg_sink_dem /. (Float.of_int num_iterations);
@@ -718,9 +806,9 @@ let simulate_tm (start_scheme:scheme)
       SrcDstMap.fold final_network_state.delivered
         ~init:SrcDstMap.empty
         ~f:(fun ~key:sd ~data:dlvd acc ->
-          SrcDstMap.add acc
-            ~key:sd
-            ~data:(dlvd /. (Float.of_int num_iterations) /. !agg_dem));
+            SrcDstMap.add acc
+              ~key:sd
+              ~data:(dlvd /. (Float.of_int num_iterations) /. !agg_dem));
 
     latency =
       get_aggregate_latency final_network_state.latency num_iterations;
@@ -729,10 +817,10 @@ let simulate_tm (start_scheme:scheme)
       EdgeMap.fold final_network_state.utilization
         ~init:EdgeMap.empty
         ~f:(fun ~key:e ~data:util_list acc ->
-          EdgeMap.add acc
-            ~key:e
-            ~data:((average_list util_list) /. (capacity_of_edge topo e),
-                   (max_list util_list)    /. (capacity_of_edge topo e)));
+            EdgeMap.add acc
+              ~key:e
+              ~data:((average_list util_list) /. (capacity_of_edge topo e),
+                     (max_list util_list)    /. (capacity_of_edge topo e)));
 
     failure_drop =
       final_network_state.failure_drop /. (Float.of_int num_iterations) /. !agg_dem;
@@ -742,18 +830,18 @@ let simulate_tm (start_scheme:scheme)
 
     flash_throughput =
       if is_flash then SrcDstMap.fold final_network_state.delivered
-        ~init:0.0
-        ~f:(fun ~key:(src,dst) ~data:dlvd acc ->
-          if dst = flash_sink then
-            acc +. dlvd /. (Float.of_int num_iterations) /. !agg_sink_dem
-          else acc)
+          ~init:0.0
+          ~f:(fun ~key:(src,dst) ~data:dlvd acc ->
+              if dst = flash_sink then
+                acc +. dlvd /. (Float.of_int num_iterations) /. !agg_sink_dem
+              else acc)
       else 0.0;
 
     aggregate_demand = !agg_dem;
     recovery_churn = !recovery_churn;
     scheme = final_network_state.scheme;
     solver_time = !solver_time; }
-  (* end simulate_tm *)
+(* end simulate_tm *)
 
 let is_int v =
   let p = (Float.modf v) in
