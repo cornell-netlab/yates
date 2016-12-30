@@ -1,30 +1,18 @@
-open Kulfi_Routing
+open Core.Std
 open Frenetic_Network
 open Net
-open Net.Topology
-open Kulfi_Ecmp
-open Kulfi_Ksp
-open Kulfi_Mcf
-open Kulfi_Mw
-open Kulfi_Raeke
-open Kulfi_Spf
-open Kulfi_Vlb
 open Kulfi_Types
 open Kulfi_Util
 open Simulate_Switch
-open Core.Std
-
-
-module VertexSet = Topology.VertexSet
 
 let tag_cell = ref 100
 
 let create_tag_hash (t:topology) =
   let tag_hash = Hashtbl.Poly.create () in
-  iter_edges
+  Topology.iter_edges
     (fun edge ->
-      let src, port = edge_src edge in
-      let lbl = vertex_to_label t src in
+      let src, port = Topology.edge_src edge in
+      let lbl = Topology.vertex_to_label t src in
       match Node.device lbl with
         | Node.Switch ->
           begin
@@ -43,15 +31,15 @@ let create_topology_and_demands () =
   let hosts = get_hosts topo in
   let demands =
     List.fold_left
-    hosts
+      hosts
       ~init:SrcDstMap.empty
       ~f:(fun acc u ->
-	  List.fold_left
-	   hosts
-	    ~init:acc
-	    ~f:(fun acc v ->
-		let r = if u = v then 0.0 else 500000.0 in
-		SrcDstMap.add acc ~key:(u,v) ~data:r)) in
+          List.fold_left
+            hosts
+            ~init:acc
+            ~f:(fun acc v ->
+                let r = if u = v then 0.0 else 500000.0 in
+                SrcDstMap.add acc ~key:(u,v) ~data:r)) in
 
   (* Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set); *)
   (* Printf.printf "# demands = %d\n" (SrcDstMap.length demands); *)
@@ -59,6 +47,7 @@ let create_topology_and_demands () =
 
   (hosts,topo,demands)
 
+(********** Budget tests ***********)
 let check_budget (s:scheme) (n:int) : bool =
   SrcDstMap.fold
     s
@@ -68,198 +57,20 @@ let check_budget (s:scheme) (n:int) : bool =
       else let num_paths = PathMap.length f_decomp in
       acc && (num_paths <= n))
 
-
-let test_mw () = false
-
-let test_ecmp () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Ecmp.solve topo pairs in
-  probabilities_sum_to_one scheme
-
-let test_ksp () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Ksp.solve topo pairs in
-  all_pairs_connectivity topo hosts scheme &&
-  probabilities_sum_to_one scheme
-
-let test_mcf () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme =
-    Kulfi_Mcf.solve topo pairs in
-  all_pairs_connectivity topo hosts scheme &&
-    probabilities_sum_to_one scheme
-
-let test_mwmcf () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme =
-    Kulfi_Mcf.solve topo pairs in
-  all_pairs_connectivity topo hosts scheme &&
-    probabilities_sum_to_one scheme
-
-let test_spf () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme =
-    Kulfi_Spf.solve topo pairs in
-  match hosts with
-  | h1::h2::tail ->
-      (* TODO(jnf,rjs): could just call sample_scheme here? *)
-      let x = match SrcDstMap.find scheme (h1,h2)  with | None -> assert false | Some x -> x in
-      PathMap.fold x
-    ~init:true
-    ~f:( fun ~key:path ~data:_ acc ->
-      acc && ((List.length path) = 3) )
-  | _ -> assert false
-
-let test_vlb () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme =
-    Kulfi_Vlb.solve topo pairs in
-  match hosts with
-  | h1::h2::tail ->
-      let paths = match SrcDstMap.find scheme (h1,h2) with | None -> assert false | Some x -> x in
-      (* Printf.printf "VLB set length =%d\n"  (PathMap.length paths); *)
-      (* Printf.printf "%s\n" (dump_scheme topo scheme); *)
-      (PathMap.length paths) = 2
-  | _ -> assert false
-
-let test_apsp () =
-    let (hosts,topo,pairs) = create_topology_and_demands () in
-    let paths = Frenetic_Network.NetPath.all_pairs_shortest_paths ~topo:topo ~f:(fun _ _ -> true) in
-    List.fold_left
-      hosts
-      ~init:true
-      ~f:(fun acc u ->
-	  List.fold_left
-	    hosts
-	    ~init:acc
-	    ~f:(fun acc v ->
-		if u = v then acc
-		else acc && List.exists paths (fun (_,v1,v2,_) -> v1 = u && v2 = v)))
-
-let test_vlb2 () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  Kulfi_Vlb.initialize SrcDstMap.empty;
-  let scheme = Kulfi_Vlb.solve topo pairs in
-  List.fold_left
-    hosts
-    ~init:true
-    ~f:(fun acc u ->
-	List.fold_left
-	  hosts
-	  ~init:acc
-	  ~f:(fun acc v ->
-	      if u = v then true && acc
-	      else
-		match SrcDstMap.find scheme (u,v) with
-		| None ->
-		   false
-		| Some paths -> not (PathMap.is_empty paths)  && acc))
-
-let test_vlb3 () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme = Kulfi_Vlb.solve topo pairs in
-  paths_are_nonempty scheme
-
-let test_raeke () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  Kulfi_Raeke.initialize SrcDstMap.empty;
-  let scheme = Kulfi_Raeke.solve topo pairs in
-  all_pairs_connectivity topo hosts scheme &&
-    probabilities_sum_to_one scheme
-
-let test_semimcf_mcf () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  let start_scheme = Kulfi_Mcf.solve topo pairs in
-  Kulfi_SemiMcf.initialize start_scheme;
-  let scheme = Kulfi_SemiMcf.solve topo pairs in
-  all_pairs_connectivity topo hosts scheme &&
-    probabilities_sum_to_one scheme
-
-let test_semimcf_ksp () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  Kulfi_Ksp.initialize SrcDstMap.empty;
-  let start_scheme = Kulfi_Ksp.solve topo pairs in
-  Kulfi_SemiMcf.initialize start_scheme;
-  let scheme = Kulfi_SemiMcf.solve topo pairs in
-  all_pairs_connectivity topo hosts scheme &&
-    probabilities_sum_to_one scheme
-
-let test_semimcf_vlb () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  Kulfi_Vlb.initialize SrcDstMap.empty;
-  let start_scheme = Kulfi_Vlb.solve topo pairs in
-  Kulfi_SemiMcf.initialize start_scheme;
-  let scheme = Kulfi_SemiMcf.solve topo pairs in
-  all_pairs_connectivity topo hosts scheme &&
-    probabilities_sum_to_one scheme
-
-let test_semimcf_raeke () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  Kulfi_Raeke.initialize SrcDstMap.empty;
-  let start_scheme = Kulfi_Routing.Raeke.solve topo pairs in
-  Kulfi_Routing.SemiMcf.initialize start_scheme;
-  let scheme = Kulfi_Routing.SemiMcf.solve topo pairs in
-  all_pairs_connectivity topo hosts scheme &&
-    probabilities_sum_to_one scheme
-
-let test_ak_mcf () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  let start_scheme = Kulfi_Mcf.solve topo pairs in
-  Kulfi_Ak.initialize start_scheme;
-  let scheme = Kulfi_Ak.solve topo pairs in
-  all_pairs_connectivity topo hosts scheme &&
-    probabilities_sum_to_one scheme
-
-let test_ak_ksp () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  Kulfi_Ksp.initialize SrcDstMap.empty;
-  let start_scheme = Kulfi_Ksp.solve topo pairs in
-  Kulfi_Ak.initialize start_scheme;
-  let scheme = Kulfi_Ak.solve topo pairs in
-  all_pairs_connectivity topo hosts scheme &&
-    probabilities_sum_to_one scheme
-
-let test_ak_vlb () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  Kulfi_Vlb.initialize SrcDstMap.empty;
-  let start_scheme = Kulfi_Vlb.solve topo pairs in
-  Kulfi_Ak.initialize start_scheme;
-  let scheme = Kulfi_Ak.solve topo pairs in
-  all_pairs_connectivity topo hosts scheme &&
-    probabilities_sum_to_one scheme
-
-let test_ak_raeke () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  Kulfi_Raeke.initialize SrcDstMap.empty;
-  let start_scheme = Kulfi_Raeke.solve topo pairs in
-  Kulfi_Ak.initialize start_scheme;
-  let scheme = Kulfi_Ak.solve topo pairs in
-  all_pairs_connectivity topo hosts scheme &&
-    probabilities_sum_to_one scheme
-
 let test_budget_raeke () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   Kulfi_Raeke.initialize SrcDstMap.empty;
   let scheme = prune_scheme topo (Kulfi_Raeke.solve topo pairs) 1 in
   all_pairs_connectivity topo hosts scheme &&
-    probabilities_sum_to_one scheme &&
-    check_budget scheme 1
+  probabilities_sum_to_one scheme &&
+  check_budget scheme 1
 
 let test_budget_mcf () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme =
-    prune_scheme topo (Kulfi_Mcf.solve topo pairs) 1 in
+  let scheme = prune_scheme topo (Kulfi_Mcf.solve topo pairs) 1 in
   all_pairs_connectivity topo hosts scheme &&
-    probabilities_sum_to_one scheme &&
-      check_budget scheme 1
-
-let test_capped_mcf () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
-  let scheme =
-    prune_scheme topo (Kulfi_Mcf_Capped.solve topo pairs) 1 in
-  all_pairs_connectivity topo hosts scheme &&
-    probabilities_sum_to_one scheme &&
-    check_budget scheme 1
+  probabilities_sum_to_one scheme &&
+  check_budget scheme 1
 
 let test_budget_semimcf_vlb () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
@@ -268,24 +79,32 @@ let test_budget_semimcf_vlb () =
   Kulfi_SemiMcf.initialize start_scheme;
   let scheme = prune_scheme topo (Kulfi_SemiMcf.solve topo pairs) 1 in
   all_pairs_connectivity topo hosts scheme &&
-    probabilities_sum_to_one scheme &&
-    check_budget scheme 1
+  probabilities_sum_to_one scheme &&
+  check_budget scheme 1
 
+let test_capped_mcf () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme = prune_scheme topo (Kulfi_Mcf_Capped.solve topo pairs) 1 in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme &&
+  check_budget scheme 1
+
+(********** Switch simulator tests ***********)
 let test_fair_share () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme = Kulfi_Spf.solve topo pairs in
   let v = ref 0.0 in
   let paths = SrcDstMap.fold scheme
-    ~init:PathMap.empty
-    ~f:(fun ~key:_ ~data:ppmap acc ->
-      PathMap.fold ppmap
-        ~init:acc
-        ~f:(fun ~key:p ~data:_ acc ->
-          match PathMap.find acc p with
-          | Some x -> acc
-          | None ->
-              v := !v +. 1.0;
-              PathMap.add acc ~key:p ~data:!v)) in
+      ~init:PathMap.empty
+      ~f:(fun ~key:_ ~data:ppmap acc ->
+          PathMap.fold ppmap
+            ~init:acc
+            ~f:(fun ~key:p ~data:_ acc ->
+                match PathMap.find acc p with
+                | Some x -> acc
+                | None ->
+                  v := !v +. 1.0;
+                  PathMap.add acc ~key:p ~data:!v)) in
   assert (PathMap.length paths = 7);
   (*PathMap.iter paths ~f:(fun ~key:p ~data:v -> Printf.printf "%f " v);*)
   let fs_paths = fair_share_at_edge 20.0 paths in
@@ -300,51 +119,218 @@ let test_fair_share () =
   List.nth shares 5 = Some 3.5 &&
   List.nth shares 6 = Some 3.5
 
-TEST "spf" = test_spf () = true
+(********** Routing algorithm tests ***********)
+let test_ac () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_AC.initialize SrcDstMap.empty;
+  let scheme = Kulfi_AC.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme
 
-TEST "ecmp" = test_ecmp () = true
+let test_ak_ksp () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Ksp.initialize SrcDstMap.empty;
+  let start_scheme = Kulfi_Ksp.solve topo pairs in
+  Kulfi_Ak.initialize start_scheme;
+  let scheme = Kulfi_Ak.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme
 
-TEST "ksp" = test_ksp () = true
+let test_ak_mcf () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let start_scheme = Kulfi_Mcf.solve topo pairs in
+  Kulfi_Ak.initialize start_scheme;
+  let scheme = Kulfi_Ak.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme
 
-TEST "mcf" = test_mcf () = true
+let test_ak_raeke () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Raeke.initialize SrcDstMap.empty;
+  let start_scheme = Kulfi_Raeke.solve topo pairs in
+  Kulfi_Ak.initialize start_scheme;
+  let scheme = Kulfi_Ak.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme
 
-TEST "apsp" = test_apsp () = true
+let test_ak_vlb () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Vlb.initialize SrcDstMap.empty;
+  let start_scheme = Kulfi_Vlb.solve topo pairs in
+  Kulfi_Ak.initialize start_scheme;
+  let scheme = Kulfi_Ak.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme
 
-TEST "vlb" = test_vlb () = true
+let test_apsp () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let paths = Frenetic_Network.NetPath.all_pairs_shortest_paths
+      ~topo:topo ~f:(fun _ _ -> true) in
+  List.fold_left hosts ~init:true
+    ~f:(fun acc u ->
+        List.fold_left hosts
+          ~init:acc
+          ~f:(fun acc v ->
+              if u = v then acc
+              else
+                acc &&
+                List.exists paths (fun (_,v1,v2,_) -> v1 = u && v2 = v)))
 
-TEST "vlb2" = test_vlb2 () = true
+let test_ecmp () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Ecmp.initialize SrcDstMap.empty;
+  let scheme = Kulfi_Ecmp.solve topo pairs in
+  probabilities_sum_to_one scheme
 
-TEST "vlb3" = test_vlb3 () = true
+let test_edksp () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Edksp.initialize SrcDstMap.empty;
+  let scheme = Kulfi_Edksp.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme
 
-(* TEST "mw" = test_mw () = true *)
+let test_ksp () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Ksp.initialize SrcDstMap.empty;
+  let scheme = Kulfi_Ksp.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme
 
-TEST "raeke" = test_raeke () = true
+let test_mcf () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme = Kulfi_Mcf.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme
 
-TEST "ak_mcf" = test_ak_mcf () = true
+let test_mwmcf () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let scheme = Kulfi_Mcf.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme
 
-TEST "ak_ksp" = test_ak_ksp () = true
+let test_mw () = false
 
-TEST "ak_vlb" = test_ak_vlb () = true
+let test_raeke () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Raeke.initialize SrcDstMap.empty;
+  let scheme = Kulfi_Raeke.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme
 
-TEST "ak_raeke" = test_ak_raeke () = true
+let test_semimcf_ksp () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Ksp.initialize SrcDstMap.empty;
+  let start_scheme = Kulfi_Ksp.solve topo pairs in
+  Kulfi_SemiMcf.initialize start_scheme;
+  let scheme = Kulfi_SemiMcf.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme
 
-TEST "semimcf_mcf" = test_semimcf_mcf () = true
+let test_semimcf_mcf () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let start_scheme = Kulfi_Mcf.solve topo pairs in
+  Kulfi_SemiMcf.initialize start_scheme;
+  let scheme = Kulfi_SemiMcf.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme
 
-TEST "semimcf_ksp" = test_semimcf_ksp () = true
+let test_semimcf_raeke () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Raeke.initialize SrcDstMap.empty;
+  let start_scheme = Kulfi_Routing.Raeke.solve topo pairs in
+  Kulfi_Routing.SemiMcf.initialize start_scheme;
+  let scheme = Kulfi_Routing.SemiMcf.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme
 
-TEST "semimcf_vlb" = test_semimcf_vlb () = true
+let test_semimcf_vlb () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Vlb.initialize SrcDstMap.empty;
+  let start_scheme = Kulfi_Vlb.solve topo pairs in
+  Kulfi_SemiMcf.initialize start_scheme;
+  let scheme = Kulfi_SemiMcf.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme
 
-TEST "semimcf_raeke" = test_semimcf_raeke () = true
+let test_spf () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Spf.initialize SrcDstMap.empty;
+  let scheme = Kulfi_Spf.solve topo pairs in
+  match hosts with
+  | h1::h2::tail ->
+    (* TODO(jnf,rjs): could just call sample_scheme here? *)
+    let x = match SrcDstMap.find scheme (h1,h2)  with
+      | None -> assert false
+      | Some x -> x in
+    PathMap.fold x
+      ~init:true
+      ~f:(fun ~key:path ~data:_ acc ->
+          acc && ((List.length path) = 3) )
+  | _ -> assert false
 
-TEST "mwmcf" = test_mwmcf () = true
+let test_vlb () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Vlb.initialize SrcDstMap.empty;
+  let scheme = Kulfi_Vlb.solve topo pairs in
+  match hosts with
+  | h1::h2::tail ->
+    let paths =
+      match SrcDstMap.find scheme (h1,h2) with
+      | None -> assert false
+      | Some x -> x in
+    (* Printf.printf "VLB set length =%d\n"  (PathMap.length paths); *)
+    (* Printf.printf "%s\n" (dump_scheme topo scheme); *)
+    (PathMap.length paths) = 2
+  | _ -> assert false
 
-TEST "budget_raeke" = test_budget_raeke () = true
+let test_vlb2 () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Vlb.initialize SrcDstMap.empty;
+  let scheme = Kulfi_Vlb.solve topo pairs in
+  List.fold_left hosts ~init:true
+    ~f:(fun acc u ->
+        List.fold_left hosts ~init:acc
+          ~f:(fun acc v ->
+              if u = v then true && acc
+              else
+                match SrcDstMap.find scheme (u,v) with
+                | None -> false
+                | Some paths -> not (PathMap.is_empty paths) && acc))
 
-TEST "budget_mcf" = test_budget_mcf () = true
+let test_vlb3 () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Vlb.initialize SrcDstMap.empty;
+  let scheme = Kulfi_Vlb.solve topo pairs in
+  paths_are_nonempty scheme
 
-TEST "budget_semimcf_vlb" = test_budget_semimcf_vlb () = true
+(******* Declare all tests to be performed ***********)
 
-TEST "fair_share" = test_fair_share () = true
 
-(* TEST "capped_mcf" = test_capped_mcf () = true *)
+let%test "ac" = test_ac ()
+let%test "ak_mcf" = test_ak_mcf ()
+let%test "ak_ksp" = test_ak_ksp ()
+let%test "ak_vlb" = test_ak_vlb ()
+let%test "ak_raeke" = test_ak_raeke ()
+let%test "apsp" = test_apsp ()
+let%test "ecmp" = test_ecmp ()
+(* let%test "edksp" = test_edksp ()*)
+let%test "ksp" = test_ksp ()
+let%test "mcf" = test_mcf ()
+let%test "mwmcf" = test_mwmcf ()
+(* let%test "mw" = test_mw () *)
+let%test "raeke" = test_raeke ()
+let%test "semimcf_mcf" = test_semimcf_mcf ()
+let%test "semimcf_ksp" = test_semimcf_ksp ()
+let%test "semimcf_vlb" = test_semimcf_vlb ()
+let%test "semimcf_raeke" = test_semimcf_raeke ()
+let%test "spf" = test_spf ()
+let%test "vlb" = test_vlb ()
+let%test "vlb2" = test_vlb2 ()
+let%test "vlb3" = test_vlb3 ()
 
+let%test "budget_raeke" = test_budget_raeke ()
+let%test "budget_mcf" = test_budget_mcf ()
+let%test "budget_semimcf_vlb" = test_budget_semimcf_vlb ()
+
+let%test "fair_share" = test_fair_share ()
+(* let%test "capped_mcf" = test_capped_mcf () *)

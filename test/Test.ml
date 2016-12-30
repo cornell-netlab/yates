@@ -3,4 +3,5 @@
 open Test_Routing
 open Test_Stats
 
-Pa_ounit_lib.Runtime.summarize ()
+let _ =
+  Ppx_inline_test_lib.Runtime.summarize ()

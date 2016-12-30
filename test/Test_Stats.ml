@@ -28,8 +28,8 @@ let test_dev2 =
   push stat 3.0;
   (get_standard_deviation stat = 1.0)
 
-    
-TEST "running_mean1" = test_mean1 = true
-TEST "running_mean2" = test_mean2 = true
-TEST "running_dev1" = test_dev1 = true
-TEST "running_dev2" = test_dev2 = true
+
+let%test "running_mean1" = test_mean1 = true
+let%test "running_mean2" = test_mean2 = true
+let%test "running_dev1" = test_dev1 = true
+let%test "running_dev2" = test_dev2 = true

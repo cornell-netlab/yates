@@ -6,4 +6,4 @@ S test
 S topo
 S util
 B _build/*
-PKG core lwt frenetic
+PKG core frenetic lwt ppx_unit_test

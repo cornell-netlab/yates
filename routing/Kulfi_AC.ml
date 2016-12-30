@@ -6,9 +6,7 @@ open Kulfi_LP_Lang
 open Kulfi_Routing_Util
 open Kulfi_Types
 
-let () = match !Kulfi_Globals.rand_seed with
-  | Some x -> Random.init x
-  | None -> Random.self_init ~allow_in_tests:true ()
+let prev_scheme = ref SrcDstMap.empty
 
 let objective = Var "Z"
 
@@ -238,90 +236,96 @@ let rec new_rand () : float =
 (* Given a topology, returns an oblivious routing scheme with optimal oblivious
    congestion ratio. *)
 let solve (topo:topology) (pairs:demands) : scheme =
+  let new_scheme =
+    if not (SrcDstMap.is_empty !prev_scheme) then !prev_scheme
+    else
+      let name_table = Hashtbl.Poly.create () in
+      Topology.iter_vertexes (fun vert ->
+          let label = Topology.vertex_to_label topo vert in
+          let name = Node.name label in
+          Hashtbl.Poly.add_exn name_table name vert) topo;
 
-  let name_table = Hashtbl.Poly.create () in
-  Topology.iter_vertexes (fun vert ->
-      let label = Topology.vertex_to_label topo vert in
-      let name = Node.name label in
-      Hashtbl.Poly.add_exn name_table name vert) topo;
+      let lp = lp_of_graph topo pairs in
+      let rand = new_rand () in
+      let lp_filename = (Printf.sprintf "lp/ac_%f.lp" rand) in
+      let lp_solname = (Printf.sprintf "lp/ac_%f.sol" rand) in
+      serialize_lp lp lp_filename;
 
-  let lp = lp_of_graph topo pairs in
-  let rand = new_rand () in
-  let lp_filename = (Printf.sprintf "lp/ac_%f.lp" rand) in
-  let lp_solname = (Printf.sprintf "lp/ac_%f.sol" rand) in
-  serialize_lp lp lp_filename;
-
-  let method_str = (Int.to_string !gurobi_method) in
-  let gurobi_in = Unix.open_process_in
-      ("gurobi_cl Method=" ^ method_str ^ " OptimalityTol=1e-9 ResultFile=" ^ lp_solname ^ " " ^ lp_filename) in
-  let time_str = "Solved in [0-9]+ iterations and \\([0-9.e+-]+\\) seconds" in
-  let time_regex = Str.regexp time_str in
-  let rec read_output gurobi solve_time =
-    try
-      let line = input_line gurobi in
-      if Str.string_match time_regex line 0 then
-        let num_seconds = Float.of_string (Str.matched_group 1 line) in
-        read_output gurobi num_seconds
-      else
-        read_output gurobi solve_time
-    with
-      End_of_file -> solve_time in
-  let _ = read_output gurobi_in 0. in
-  ignore (Unix.close_process_in gurobi_in);
-
-  (* read back all the edge flows from the .sol file *)
-  let read_results input =
-    let results = open_in input in
-    let result_str = "^f_\\([a-zA-Z0-9]+\\)--\\([a-zA-Z0-9]+\\)_" ^
-                     "\\([a-zA-Z0-9]+\\)--\\([a-zA-Z0-9]+\\) \\([0-9.e+-]+\\)$"
-    in
-    let regex = Str.regexp result_str in
-    let rec read inp opt_z flows =
-      let line = try input_line inp
-        with End_of_file -> "" in
-      if line = "" then (opt_z,flows)
-      else
-        let new_z, new_flows =
-          if line.[0] = '#' then (opt_z, flows)
-          else if line.[0] = 'Z' then
-            let ratio_str = Str.string_after line 2 in
-            let ratio = Float.of_string ratio_str in
-            (ratio *. demand_divisor /. cap_divisor, flows)
+      let method_str = (Int.to_string !gurobi_method) in
+      let gurobi_in = Unix.open_process_in
+          ("gurobi_cl Method=" ^ method_str ^ " OptimalityTol=1e-9 ResultFile=" ^ lp_solname ^ " " ^ lp_filename) in
+      let time_str = "Solved in [0-9]+ iterations and \\([0-9.e+-]+\\) seconds" in
+      let time_regex = Str.regexp time_str in
+      let rec read_output gurobi solve_time =
+        try
+          let line = input_line gurobi in
+          if Str.string_match time_regex line 0 then
+            let num_seconds = Float.of_string (Str.matched_group 1 line) in
+            read_output gurobi num_seconds
           else
-            (if Str.string_match regex line 0 then
-               let vertex s = Topology.vertex_to_label topo
-                   (Hashtbl.Poly.find_exn name_table s) in
-               let dem_src = vertex (Str.matched_group 1 line) in
-               let dem_dst = vertex (Str.matched_group 2 line) in
-               let edge_src = vertex (Str.matched_group 3 line) in
-               let edge_dst = vertex (Str.matched_group 4 line) in
-               let flow_amt = Float.of_string (Str.matched_group 5 line) in
-               if flow_amt = 0. then (opt_z, flows)
-               else
-                 let tup = (dem_src, dem_dst, flow_amt, edge_src, edge_dst) in
-                 (opt_z, (tup::flows))
-             else (opt_z, flows)) in
-        read inp new_z new_flows in
+            read_output gurobi solve_time
+        with
+          End_of_file -> solve_time in
+      let _ = read_output gurobi_in 0. in
+      ignore (Unix.close_process_in gurobi_in);
 
-    let result = read results 0. [] in
-    In_channel.close results; result in
-  let ratio, flows = read_results lp_solname in
-  let _ = Sys.remove lp_filename in
-  let _ = Sys.remove lp_solname in
-  let flows_table = Hashtbl.Poly.create () in
+      (* read back all the edge flows from the .sol file *)
+      let read_results input =
+        let results = open_in input in
+        let result_str = "^f_\\([a-zA-Z0-9]+\\)--\\([a-zA-Z0-9]+\\)_" ^
+                         "\\([a-zA-Z0-9]+\\)--\\([a-zA-Z0-9]+\\) \\([0-9.e+-]+\\)$"
+        in
+        let regex = Str.regexp result_str in
+        let rec read inp opt_z flows =
+          let line = try input_line inp
+            with End_of_file -> "" in
+          if line = "" then (opt_z,flows)
+          else
+            let new_z, new_flows =
+              if line.[0] = '#' then (opt_z, flows)
+              else if line.[0] = 'Z' then
+                let ratio_str = Str.string_after line 2 in
+                let ratio = Float.of_string ratio_str in
+                (ratio *. demand_divisor /. cap_divisor, flows)
+              else
+                (if Str.string_match regex line 0 then
+                   let vertex s = Topology.vertex_to_label topo
+                       (Hashtbl.Poly.find_exn name_table s) in
+                   let dem_src = vertex (Str.matched_group 1 line) in
+                   let dem_dst = vertex (Str.matched_group 2 line) in
+                   let edge_src = vertex (Str.matched_group 3 line) in
+                   let edge_dst = vertex (Str.matched_group 4 line) in
+                   let flow_amt = Float.of_string (Str.matched_group 5 line) in
+                   if flow_amt = 0. then (opt_z, flows)
+                   else
+                     let tup = (dem_src, dem_dst, flow_amt, edge_src, edge_dst) in
+                     (opt_z, (tup::flows))
+                 else (opt_z, flows)) in
+            read inp new_z new_flows in
 
-  (* partition the edge flows based on which commodity they are *)
-  List.iter flows ~f:(fun (d_src, d_dst, flow, e_src, e_dst) ->
-      if Hashtbl.Poly.mem flows_table (d_src, d_dst) then
-        let prev_edges = Hashtbl.Poly.find_exn flows_table (d_src, d_dst) in
-        Hashtbl.Poly.set flows_table (d_src, d_dst)
-          ((e_src, e_dst, flow)::prev_edges)
-      else
-        Hashtbl.Poly.add_exn flows_table (d_src, d_dst)
-          [(e_src, e_dst, flow)]);
+        let result = read results 0. [] in
+        In_channel.close results; result in
+      let ratio, flows = read_results lp_solname in
+      let _ = Sys.remove lp_filename in
+      let _ = Sys.remove lp_solname in
+      let flows_table = Hashtbl.Poly.create () in
 
-  Kulfi_Mcf.recover_paths topo flows_table
+      (* partition the edge flows based on which commodity they are *)
+      List.iter flows ~f:(fun (d_src, d_dst, flow, e_src, e_dst) ->
+          if Hashtbl.Poly.mem flows_table (d_src, d_dst) then
+            let prev_edges = Hashtbl.Poly.find_exn flows_table (d_src, d_dst) in
+            Hashtbl.Poly.set flows_table (d_src, d_dst)
+              ((e_src, e_dst, flow)::prev_edges)
+          else
+            Hashtbl.Poly.add_exn flows_table (d_src, d_dst)
+              [(e_src, e_dst, flow)]);
 
-let initialize _ = ()
+      Kulfi_Mcf.recover_paths topo flows_table in
+  prev_scheme := new_scheme;
+  new_scheme
+
+let initialize (s:scheme) : unit =
+  prev_scheme := s;
+  ()
 
 let local_recovery = Kulfi_Types.normalization_recovery
