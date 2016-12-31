@@ -35,6 +35,7 @@ let solver_to_string (s:solver_type) : string =
   | Mcf -> "mcf"
   | MwMcf -> "mwmcf"
   | Raeke -> "raeke"
+  | SemiMcfAc -> "semimcfac"
   | SemiMcfEcmp -> "semimcfecmp"
   | SemiMcfEdksp -> "semimcfedksp"
   | SemiMcfKsp -> "semimcfksp"
@@ -65,6 +66,7 @@ let select_algorithm solver = match solver with
   | MwMcf -> Kulfi_Routing.MwMcf.solve
   | OptimalMcf -> Kulfi_Routing.Mcf.solve
   | Raeke -> Kulfi_Routing.Raeke.solve
+  | SemiMcfAc
   | SemiMcfEcmp
   | SemiMcfEdksp
   | SemiMcfKsp
@@ -94,6 +96,7 @@ let select_local_recovery solver = match solver with
   | MwMcf -> Kulfi_Routing.MwMcf.local_recovery
   | OptimalMcf -> failwith "No local recovery for optimal mcf"
   | Raeke -> Kulfi_Routing.Raeke.local_recovery
+  | SemiMcfAc
   | SemiMcfEcmp
   | SemiMcfEdksp
   | SemiMcfKsp
@@ -173,6 +176,9 @@ let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
 (* Compute the initial scheme for a TE algorithm *)
 let initial_scheme algorithm topo predict : scheme =
   match algorithm with
+  | SemiMcfAc ->
+    let _ = Kulfi_Routing.Ac.initialize SrcDstMap.empty in
+    Kulfi_Routing.Ac.solve topo SrcDstMap.empty
   | AkEcmp
   | SemiMcfEcmp ->
     let _ = Kulfi_Routing.Ecmp.initialize SrcDstMap.empty in
@@ -228,6 +234,7 @@ let initialize_scheme algorithm topo predict : unit =
   | Ffced -> Kulfi_Routing.Ffc.initialize pruned_scheme
   | Ksp -> Kulfi_Routing.Ksp.initialize SrcDstMap.empty
   | Raeke -> Kulfi_Routing.Raeke.initialize SrcDstMap.empty
+  | SemiMcfAc
   | SemiMcfEcmp
   | SemiMcfEdksp
   | SemiMcfKsp
@@ -336,7 +343,8 @@ let get_total_tput (sd_tput:throughput SrcDstMap.t) : throughput =
       acc +. dlvd)
 
 (* Aggregate latency-tput over all sd-pairs *)
-let get_aggregate_latency (sd_lat_tput_map_map:(throughput LatencyMap.t) SrcDstMap.t) (num_iter:int) : (throughput LatencyMap.t) =
+let get_aggregate_latency (sd_lat_tput_map_map:(throughput LatencyMap.t) SrcDstMap.t)
+    (num_iter:int) : (throughput LatencyMap.t) =
   SrcDstMap.fold sd_lat_tput_map_map
     ~init:LatencyMap.empty
     ~f:(fun ~key:_ ~data:lat_tput_map acc ->
@@ -350,7 +358,8 @@ let get_aggregate_latency (sd_lat_tput_map_map:(throughput LatencyMap.t) SrcDstM
         LatencyMap.add ~key:latency ~data:(agg_tput) acc))
 
 (* Global recovery: recompute routing scheme after removing failed links *)
-let global_recovery (failed_links:failure) (predict:demands) (actual:demands) (algorithm:solver_type) (topo:topology) : (scheme * float) =
+let global_recovery (failed_links:failure) (predict:demands) (actual:demands)
+    (algorithm:solver_type) (topo:topology) : (scheme * float) =
   Printf.printf "\t\t\t\t\t\t\t\t\t\t\tGlobal\r";
   let topo' = EdgeSet.fold failed_links
     ~init:topo
@@ -403,7 +412,6 @@ let pick_flash_sinks (topo:topology) (iters:int) =
   List.fold_left (range 0 iters) ~init:[]
   ~f:(fun acc n ->
     let selected = List.nth_exn hosts (n % num_hosts) in
-    (*let selected = match List.nth_in hosts 4 in (*NOTE TODO: selecting h5. change back ^^^^^^*)*)
     selected::acc)
 
 let sum_demands (d:demands) : float =
@@ -884,7 +892,8 @@ let get_num_paths (s:scheme) : float =
   Float.of_int count
 
 (* Generate latency percentile based on throughput *)
-let get_latency_percentiles (lat_tput_map : throughput LatencyMap.t) (agg_dem:float) : (float LatencyMap.t) =
+let get_latency_percentiles (lat_tput_map : throughput LatencyMap.t)
+    (agg_dem:float) : (float LatencyMap.t) =
   let latency_percentiles,_ = LatencyMap.fold lat_tput_map
     ~init:(LatencyMap.empty,0.0)
     ~f:(fun ~key:latency ~data:tput acc ->
@@ -941,7 +950,8 @@ let set_topo_weights (topo : topology) (rtt_file : string option) =
       end)
 
 (* Calculate a demand matrix equal to max (envelope) of all TMs *)
-let calculate_demand_envelope (topo:topology) (predict_file:string) (host_file:string) (iters:int) =
+let calculate_demand_envelope (topo:topology) (predict_file:string)
+    (host_file:string) (iters:int) =
   let num_tm = min iters (List.length (In_channel.read_lines predict_file)) in
   let (predict_host_map, predict_ic) = open_demands predict_file host_file topo in
   let iterations = range 0 num_tm in
@@ -981,17 +991,20 @@ let accumulate_vulnerability_stats topology_file topo algorithm scheme  =
               let e_count = match EdgeMap.find acc e with
                   | Some x -> x
                   | None -> 0 in
-              EdgeMap.add ~key:e ~data:(e_count+(mult/num_paths)) acc (* normalizing by num_paths*)
+              (* normalize by num_paths*)
+              EdgeMap.add ~key:e ~data:(e_count+(mult/num_paths)) acc
             else acc)) in
-        EdgeMap.fold count_edge_usage ~init:acc ~f:(fun ~key:e ~data:vuln_score acc ->
-          let count = match IntMap.find acc vuln_score with
-            | Some x -> x
-            | None -> 0. in
-          IntMap.add ~key:vuln_score ~data:(count+.1.) acc)) in
+        EdgeMap.fold count_edge_usage ~init:acc
+          ~f:(fun ~key:e ~data:vuln_score acc ->
+              let count = match IntMap.find acc vuln_score with
+                | Some x -> x
+                | None -> 0. in
+              IntMap.add ~key:vuln_score ~data:(count+.1.) acc)) in
 
   let buf = Buffer.create 101 in
   Printf.bprintf buf "\n\n%s\n" solver_name;
-  let tot_count = IntMap.fold vuln_score_count ~init:0. ~f:(fun ~key:_ ~data:d acc -> acc +. d) in
+  let tot_count = IntMap.fold vuln_score_count ~init:0.
+      ~f:(fun ~key:_ ~data:d acc -> acc +. d) in
   IntMap.iteri vuln_score_count ~f:(fun ~key:n ~data:c ->
     Printf.bprintf buf "%f : %f\n" ((Float.of_int n) /. (Float.of_int mult))
     (c /.  tot_count));
@@ -1131,7 +1144,8 @@ let simulate
             else
 
             let tm_sim_stats =
-              simulate_tm scheme topo actual failing_edges predict algorithm is_flash flash_burst_amount flash_sink in
+              simulate_tm scheme topo actual failing_edges predict algorithm
+                is_flash flash_burst_amount flash_sink in
             (* simulation done *)
 
             (* Accumulate statistics *)
@@ -1155,8 +1169,8 @@ let simulate
             let expcmax = get_max_congestion list_of_exp_congestions in
             let expcmean = get_mean_congestion list_of_exp_congestions in
             let total_tput = get_total_tput tm_sim_stats.throughput in
-            let latency_percentiles =
-              get_latency_percentiles tm_sim_stats.latency tm_sim_stats.aggregate_demand in
+            let latency_percentiles = get_latency_percentiles
+                tm_sim_stats.latency tm_sim_stats.aggregate_demand in
 
             let percentile_values sort_cong =
               List.fold_left percentiles
@@ -1222,21 +1236,36 @@ let simulate
           | Some x -> x
           | None -> "default" in
     let dir = "./expData/" ^ output_dir ^ "/" in
-    to_file dir "TMChurnVsIterations.dat" tm_churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
-    to_file dir "RecoveryChurnVsIterations.dat" rec_churn_data "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
-    to_file dir "NumPathsVsIterations.dat" num_paths_data "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
-    to_file dir "TimeVsIterations.dat" time_data "# solver\titer\ttime\tstddev" iter_vs_time_to_string;
-    to_file dir "MaxCongestionVsIterations.dat" max_congestion_data "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string;
-    to_file dir "MeanCongestionVsIterations.dat" mean_congestion_data "# solver\titer\tmean-congestion\tstddev" iter_vs_congestion_to_string;
-    to_file dir "MaxExpCongestionVsIterations.dat" max_exp_congestion_data "# solver\titer\tmax-exp-congestion\tstddev" iter_vs_congestion_to_string;
-    to_file dir "MeanExpCongestionVsIterations.dat" mean_exp_congestion_data "# solver\titer\tmean-exp-congestion\tstddev" iter_vs_congestion_to_string;
-    to_file dir "TotalThroughputVsIterations.dat" total_tput_data "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string;
-    to_file dir "TotalSinkThroughputVsIterations.dat" total_sink_tput_data "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string;
-    to_file dir "FailureLossVsIterations.dat" failure_drop_data "# solver\titer\tfailure-drop\tstddev" iter_vs_throughput_to_string;
-    to_file dir "CongestionLossVsIterations.dat" congestion_drop_data "# solver\titer\tcongestion-drop\tstddev" iter_vs_throughput_to_string;
-    to_file dir "EdgeCongestionVsIterations.dat" edge_congestion_data "# solver\titer\tedge-congestion" (iter_vs_edge_congestions_to_string topo);
-    to_file dir "EdgeExpCongestionVsIterations.dat" edge_exp_congestion_data "# solver\titer\tedge-exp-congestion" (iter_vs_edge_congestions_to_string topo);
-    to_file dir "LatencyDistributionVsIterations.dat" latency_percentiles_data "#solver\titer\tlatency-throughput" iter_vs_latency_percentiles_to_string;
+    to_file dir "TMChurnVsIterations.dat" tm_churn_data
+      "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
+    to_file dir "RecoveryChurnVsIterations.dat" rec_churn_data
+      "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
+    to_file dir "NumPathsVsIterations.dat" num_paths_data
+      "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
+    to_file dir "TimeVsIterations.dat" time_data
+      "# solver\titer\ttime\tstddev" iter_vs_time_to_string;
+    to_file dir "MaxCongestionVsIterations.dat" max_congestion_data
+      "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string;
+    to_file dir "MeanCongestionVsIterations.dat" mean_congestion_data
+      "# solver\titer\tmean-congestion\tstddev" iter_vs_congestion_to_string;
+    to_file dir "MaxExpCongestionVsIterations.dat" max_exp_congestion_data
+      "# solver\titer\tmax-exp-congestion\tstddev" iter_vs_congestion_to_string;
+    to_file dir "MeanExpCongestionVsIterations.dat" mean_exp_congestion_data
+      "# solver\titer\tmean-exp-congestion\tstddev" iter_vs_congestion_to_string;
+    to_file dir "TotalThroughputVsIterations.dat" total_tput_data
+      "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string;
+    to_file dir "TotalSinkThroughputVsIterations.dat" total_sink_tput_data
+      "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string;
+    to_file dir "FailureLossVsIterations.dat" failure_drop_data
+      "# solver\titer\tfailure-drop\tstddev" iter_vs_throughput_to_string;
+    to_file dir "CongestionLossVsIterations.dat" congestion_drop_data
+      "# solver\titer\tcongestion-drop\tstddev" iter_vs_throughput_to_string;
+    to_file dir "EdgeCongestionVsIterations.dat" edge_congestion_data
+      "# solver\titer\tedge-congestion" (iter_vs_edge_congestions_to_string topo);
+    to_file dir "EdgeExpCongestionVsIterations.dat" edge_exp_congestion_data
+      "# solver\titer\tedge-exp-congestion" (iter_vs_edge_congestions_to_string topo);
+    to_file dir "LatencyDistributionVsIterations.dat" latency_percentiles_data
+      "#solver\titer\tlatency-throughput" iter_vs_latency_percentiles_to_string;
     List.iter2_exn
       percentile_data percentiles
       ~f:(fun d p ->
@@ -1257,7 +1286,8 @@ let simulate
   (************************************************************************)
 
 (* Estimate max congestion for a given topology, tm, solver and scale*)
-let estimate_max_cong (topology:string) (demand_file:string) (host_file:string) (solver) (scale) : float =
+let estimate_max_cong (topology:string) (demand_file:string) (host_file:string)
+    (solver) (scale) : float =
   let topo = Parse.from_dotfile topology in
   let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
   let actual = next_demand ~scale:scale actual_ic actual_host_map in
@@ -1276,8 +1306,9 @@ let calculate_syn_scale (topology:string) (demand_file:string) (host_file:string
   0.4 /. cmax
 
 
-let compare_scaling_limit algorithms (num_tms:int option) (topology:string) (demand_file:string) (host_file:string)
-      (rtt_file_opt:string option) (out_dir:string option) () =
+let compare_scaling_limit algorithms (num_tms:int option) (topology:string)
+    (demand_file:string) (host_file:string) (rtt_file_opt:string option)
+    (out_dir:string option) () =
   Printf.printf "Scale test\n%!";
   let split_dot_file_list = String.split_on_chars topology ~on:['/';'.'] in
   let suffix = List.nth split_dot_file_list (List.length split_dot_file_list -2) in
@@ -1306,7 +1337,8 @@ let compare_scaling_limit algorithms (num_tms:int option) (topology:string) (dem
             (* avoid recomputing the same scheme for envelope-based MCF *)
             if i = 0 then
               begin
-              demand_envelope := (calculate_demand_envelope topo demand_file host_file num_tms);
+                demand_envelope :=
+                  (calculate_demand_envelope topo demand_file host_file num_tms);
               initialize_scheme algorithm topo actual;
               end
         | _ -> (* initialize every time for average case analysis *)
@@ -1317,7 +1349,8 @@ let compare_scaling_limit algorithms (num_tms:int option) (topology:string) (dem
                 |> EdgeMap.to_alist
                 |> List.map ~f:snd
                 |> get_max_congestion in
-      Printf.bprintf buf "%s\t%d\t%f\t0.0\n" (solver_to_string algorithm) i (1. /. cmax) );
+      Printf.bprintf buf "%s\t%d\t%f\t0.0\n"
+        (solver_to_string algorithm) i (1. /. cmax) );
       close_demands actual_ic);
 
   let dir = "./expData/" ^ out_dir ^ "/" in
@@ -1344,10 +1377,11 @@ let command =
     +> flag "-ffc" no_arg ~doc:" run FFC with KSP base path set"
     +> flag "-ffced" no_arg ~doc:" run FFC with Edge-disjoint KSP base path set"
     +> flag "-ksp" no_arg ~doc:" run ksp"
-    +> flag "-raeke" no_arg ~doc:" run raeke"
     +> flag "-mcf" no_arg ~doc:" run mcf"
     +> flag "-mwmcf" no_arg ~doc:" run mwmcf"
     +> flag "-optimalmcf" no_arg ~doc:" run optimal mcf"
+    +> flag "-raeke" no_arg ~doc:" run raeke"
+    +> flag "-semimcfac" no_arg ~doc:" run semi mcf+ac"
     +> flag "-semimcfecmp" no_arg ~doc:" run semi mcf+ecmp"
     +> flag "-semimcfedksp" no_arg ~doc:" run semi mcf+edksp"
     +> flag "-semimcfksp" no_arg ~doc:" run semi mcf+ksp"
@@ -1367,9 +1401,12 @@ let command =
     +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
     +> flag "-vulnerability" no_arg ~doc:" perform path vulnerability test "
     +> flag "-fail-num" (optional_with_default 1 int) ~doc:" number of links to fail"
-    +> flag "-fail-time" (optional_with_default (Int.max_value/100) int) ~doc:" simulation time to introduce failure at"
-    +> flag "-lr-delay" (optional_with_default (Int.max_value/100) int) ~doc:" delay between failure and local recovery"
-    +> flag "-gr-delay" (optional_with_default (Int.max_value/100) int) ~doc:" delay between failure and global recovery"
+    +> flag "-fail-time" (optional_with_default (Int.max_value/100) int)
+      ~doc:" simulation time to introduce failure at"
+    +> flag "-lr-delay" (optional_with_default (Int.max_value/100) int)
+      ~doc:" delay between failure and local recovery"
+    +> flag "-gr-delay" (optional_with_default (Int.max_value/100) int)
+      ~doc:" delay between failure and global recovery"
     +> flag "-is-flash" no_arg ~doc:" simulate flash or not"
     +> flag "-flash-ba" (optional_with_default 0. float) ~doc:" fraction of total traffic to add as flash"
     +> flag "-flash-recover" no_arg ~doc:" perform local recovery for flash"
@@ -1381,7 +1418,8 @@ let command =
     +> flag "-rseed" (optional int) ~doc:" seed to initialize PRNG"
     +> flag "-num-tms" (optional int) ~doc:" number of TMs (-robust overrides this)"
     +> flag "-rtt-file" (optional string) ~doc:" file containing RTT values to be used as edge weights"
-    +> flag "-gurobi-method" (optional_with_default (-1) int) ~doc:" solver method used for Gurobi. -1=automatic, 0=primal simplex, 1=dual simplex, 2=barrier, 3=concurrent, 4=deterministic concurrent."
+    +> flag "-gurobi-method" (optional_with_default (-1) int)
+      ~doc:" solver method used for Gurobi. -1=automatic, 0=primal simplex, 1=dual simplex, 2=barrier, 3=concurrent, 4=deterministic concurrent."
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
     +> anon ("predict-file" %: string)
@@ -1398,10 +1436,11 @@ let command =
     (ffc:bool)
     (ffced:bool)
     (ksp:bool)
-    (raeke:bool)
     (mcf:bool)
     (mwmcf:bool)
     (optimalmcf:bool)
+    (raeke:bool)
+    (semimcfac:bool)
     (semimcfecmp:bool)
     (semimcfedksp:bool)
     (semimcfksp:bool)
@@ -1457,6 +1496,7 @@ let command =
          ; if mwmcf             then Some MwMcf       else None
          ; if optimalmcf || all then Some OptimalMcf  else None
          ; if raeke || all      then Some Raeke       else None
+         ; if semimcfac || all        then Some SemiMcfAc     else None
          ; if semimcfecmp || all      then Some SemiMcfEcmp     else None
          ; if semimcfedksp || all     then Some SemiMcfEdksp      else None
          ; if semimcfksp || all       then Some SemiMcfKsp      else None
@@ -1490,10 +1530,12 @@ let command =
       if robust then
         Kulfi_Globals.failure_time  := 0;
       if limittest then
-        compare_scaling_limit algorithms num_tms topology_file demand_file host_file rtt_file out ()
+        compare_scaling_limit algorithms num_tms topology_file demand_file
+          host_file rtt_file out ()
       else
-        simulate algorithms topology_file demand_file predict_file host_file num_tms robust vulnerability tot_scale
-        fail_num is_flash flash_ba rtt_file out ())
+        simulate algorithms topology_file demand_file predict_file host_file
+          num_tms robust vulnerability tot_scale fail_num is_flash flash_ba
+          rtt_file out ())
 
 let main = Command.run command
 

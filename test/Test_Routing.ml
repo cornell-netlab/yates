@@ -217,6 +217,24 @@ let test_raeke () =
   all_pairs_connectivity topo hosts scheme &&
   probabilities_sum_to_one scheme
 
+let test_semimcf_ac () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_AC.initialize SrcDstMap.empty;
+  let start_scheme = Kulfi_AC.solve topo pairs in
+  Kulfi_SemiMcf.initialize start_scheme;
+  let scheme = Kulfi_SemiMcf.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme
+
+let test_semimcf_edksp () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Edksp.initialize SrcDstMap.empty;
+  let start_scheme = Kulfi_Edksp.solve topo pairs in
+  Kulfi_SemiMcf.initialize start_scheme;
+  let scheme = Kulfi_SemiMcf.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme
+
 let test_semimcf_ksp () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   Kulfi_Ksp.initialize SrcDstMap.empty;
@@ -307,10 +325,10 @@ let test_vlb3 () =
 
 
 let%test "ac" = test_ac ()
-let%test "ak_mcf" = test_ak_mcf ()
 let%test "ak_ksp" = test_ak_ksp ()
-let%test "ak_vlb" = test_ak_vlb ()
+let%test "ak_mcf" = test_ak_mcf ()
 let%test "ak_raeke" = test_ak_raeke ()
+let%test "ak_vlb" = test_ak_vlb ()
 let%test "apsp" = test_apsp ()
 let%test "ecmp" = test_ecmp ()
 (* let%test "edksp" = test_edksp ()*)
@@ -319,10 +337,12 @@ let%test "mcf" = test_mcf ()
 let%test "mwmcf" = test_mwmcf ()
 (* let%test "mw" = test_mw () *)
 let%test "raeke" = test_raeke ()
-let%test "semimcf_mcf" = test_semimcf_mcf ()
+let%test "semimcf_ac" = test_semimcf_ac ()
+let%test "semimcf_edksp" = test_semimcf_edksp ()
 let%test "semimcf_ksp" = test_semimcf_ksp ()
-let%test "semimcf_vlb" = test_semimcf_vlb ()
+let%test "semimcf_mcf" = test_semimcf_mcf ()
 let%test "semimcf_raeke" = test_semimcf_raeke ()
+let%test "semimcf_vlb" = test_semimcf_vlb ()
 let%test "spf" = test_spf ()
 let%test "vlb" = test_vlb ()
 let%test "vlb2" = test_vlb2 ()

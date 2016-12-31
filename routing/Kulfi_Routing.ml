@@ -6,26 +6,26 @@ module type Algorithm = sig
   val local_recovery : scheme -> topology -> failure -> demands -> scheme
 end
 
+module Ac = Kulfi_AC
+
+module Ak = Kulfi_Ak
+
 module Ecmp = Kulfi_Ecmp
+
+module Edksp = Kulfi_Edksp
+
+module Ffc = Kulfi_Ffc
+
+module Ksp = Kulfi_Ksp
 
 module Mcf = Kulfi_Mcf
 
 module MwMcf = Kulfi_MwMcf
 
-module SemiMcf = Kulfi_SemiMcf
-
 module Raeke = Kulfi_Raeke
+
+module SemiMcf = Kulfi_SemiMcf
 
 module Spf = Kulfi_Spf
 
 module Vlb = Kulfi_Vlb
-
-module Ak = Kulfi_Ak
-
-module Ksp = Kulfi_Ksp
-
-module Ffc = Kulfi_Ffc
-
-module Edksp = Kulfi_Edksp
-
-module Ac = Kulfi_AC

@@ -65,7 +65,7 @@ let var_path_length (topo : topology) (l : aclink) i j : string =
 
 (* Routing constraints - *)
 (* Eq 2 of "Optimal Oblivious Routing in Polynomial Time" *)
-let routing_constraints (topo : Topology.t) (d_pairs : demands)
+let routing_constraints (topo : Topology.t) (demand_pairs : demands)
   : constrain list =
   let non_neg_flow_constraints =
     if gurobi_auto_lb_zero then []
@@ -81,7 +81,7 @@ let routing_constraints (topo : Topology.t) (d_pairs : demands)
                    let flow_on_edge = var_name topo edge (src, dst) in
                    let name = Printf.sprintf "gez-%s" flow_on_edge in
                    (Geq (name, Var (flow_on_edge), 0.)::e_acc)
-                ) topo sd_acc) d_pairs in
+                ) topo sd_acc) demand_pairs in
 
   let source_constraints =
     (* For every src, dst:
@@ -103,7 +103,7 @@ let routing_constraints (topo : Topology.t) (d_pairs : demands)
           let name = Printf.sprintf "src-%s-%s" (name_of_vertex topo src)
               (name_of_vertex topo dst) in
           let src_constr = (Eq (name, net_outgoing, 1.)) in
-          src_constr::sd_acc) d_pairs in
+          src_constr::sd_acc) demand_pairs in
 
   let conservation_constraints =
     (* For every src, dst and node v != src or dst:
@@ -132,7 +132,7 @@ let routing_constraints (topo : Topology.t) (d_pairs : demands)
                   let name = Printf.sprintf "con-%s-%s"
                       (name_of_vertex topo src) (name_of_vertex topo dst) in
                   let con_constr = (Eq (name, net_outgoing, 0.)) in
-                  con_constr::v_acc) topo sd_acc) d_pairs in
+                  con_constr::v_acc) topo sd_acc) demand_pairs in
   (* concat all constraints *)
   non_neg_flow_constraints @ source_constraints @ conservation_constraints
 
@@ -221,7 +221,18 @@ let ac_lp_constraints (topo : Topology.t) (demand_pairs) =
   path_length_cnstrs
 
 (* Applegate-Cohen's LP formulation *)
-let lp_of_graph (topo : Topology.t) (demand_pairs : demands) =
+let ac_lp_of_graph (topo : Topology.t) =
+  (* Create a SrcDstMap of src-dst pairs *)
+  let hosts = get_hosts topo in
+  let demand_pairs =
+    List.fold_left hosts ~init:SrcDstMap.empty
+      ~f:(fun u_acc u ->
+          List.fold_left hosts ~init:u_acc
+            ~f:(fun v_acc v ->
+                let dem =
+                  if u = v then 0.
+                  else 1. in
+                SrcDstMap.add v_acc ~key:(u,v) ~data:dem)) in
   let routing_constrs = routing_constraints topo demand_pairs in
   let ac_lp_constrs = ac_lp_constraints topo demand_pairs in
   (objective, routing_constrs@ac_lp_constrs)
@@ -235,7 +246,7 @@ let rec new_rand () : float =
 
 (* Given a topology, returns an oblivious routing scheme with optimal oblivious
    congestion ratio. *)
-let solve (topo:topology) (pairs:demands) : scheme =
+let solve (topo:topology) (_:demands) : scheme =
   let new_scheme =
     if not (SrcDstMap.is_empty !prev_scheme) then !prev_scheme
     else
@@ -245,7 +256,7 @@ let solve (topo:topology) (pairs:demands) : scheme =
           let name = Node.name label in
           Hashtbl.Poly.add_exn name_table name vert) topo;
 
-      let lp = lp_of_graph topo pairs in
+      let lp = ac_lp_of_graph topo in
       let rand = new_rand () in
       let lp_filename = (Printf.sprintf "lp/ac_%f.lp" rand) in
       let lp_solname = (Printf.sprintf "lp/ac_%f.sol" rand) in

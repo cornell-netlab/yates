@@ -1,4 +1,3 @@
-
 open Kulfi_Types
 
 module type Algorithm = sig
@@ -7,7 +6,15 @@ module type Algorithm = sig
     val local_recovery : scheme -> topology -> failure -> demands -> scheme
 end
 
+module Ac : Algorithm
+
+module Ak : Algorithm
+
 module Ecmp : Algorithm
+
+module Edksp : Algorithm
+
+module Ffc : Algorithm
 
 module Ksp : Algorithm
 
@@ -15,18 +22,10 @@ module Mcf : Algorithm
 
 module MwMcf : Algorithm
 
-module SemiMcf : Algorithm
-
 module Raeke : Algorithm
+
+module SemiMcf : Algorithm
 
 module Spf : Algorithm
 
 module Vlb : Algorithm
-
-module Ak : Algorithm
-
-module Ffc : Algorithm
-
-module Edksp : Algorithm
-
-module Ac : Algorithm
