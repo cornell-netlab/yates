@@ -1,0 +1,144 @@
+# OASIS_START
+# DO NOT EDIT (digest: 2b3843176b2e3869928d4d260637e203)
+# Ignore VCS directories, you can use the same kind of rule outside
+# OASIS_START/STOP if you want to exclude directories that contains
+# useless stuff for the build process
+true: annot, bin_annot
+<**/.svn>: -traverse
+<**/.svn>: not_hygienic
+".bzr": -traverse
+".bzr": not_hygienic
+".hg": -traverse
+".hg": not_hygienic
+".git": -traverse
+".git": not_hygienic
+"_darcs": -traverse
+"_darcs": not_hygienic
+# Library routing
+"routing/routing.cmxs": use_routing
+<routing/*.ml{,i,y}>: package(async)
+<routing/*.ml{,i,y}>: package(core)
+<routing/*.ml{,i,y}>: package(frenetic)
+<routing/*.ml{,i,y}>: package(ocamlgraph)
+<routing/*.ml{,i,y}>: package(ppx_jane)
+<routing/*.ml{,i,y}>: package(sexplib)
+<routing/*.ml{,i,y}>: package(threads)
+# Library util
+"util/util.cmxs": use_util
+<util/util.{cma,cmxa}>: oasis_library_util_cclib
+"util/libutil_stubs.lib": oasis_library_util_cclib
+"util/dllutil_stubs.dll": oasis_library_util_cclib
+"util/libutil_stubs.a": oasis_library_util_cclib
+"util/dllutil_stubs.so": oasis_library_util_cclib
+<util/util.{cma,cmxa}>: use_libutil_stubs
+<util/*.ml{,i,y}>: package(async)
+<util/*.ml{,i,y}>: package(core)
+<util/*.ml{,i,y}>: package(threads)
+"util/time_stubs.c": package(async)
+"util/time_stubs.c": package(core)
+"util/time_stubs.c": package(threads)
+# Library controller
+"controller/controller.cmxs": use_controller
+<controller/*.ml{,i,y}>: package(async)
+<controller/*.ml{,i,y}>: package(core)
+<controller/*.ml{,i,y}>: package(frenetic)
+<controller/*.ml{,i,y}>: package(frenetic.async)
+<controller/*.ml{,i,y}>: package(ocamlgraph)
+<controller/*.ml{,i,y}>: package(ppx_jane)
+<controller/*.ml{,i,y}>: package(sexplib)
+<controller/*.ml{,i,y}>: package(threads)
+<controller/*.ml{,i,y}>: use_routing
+<controller/*.ml{,i,y}>: use_util
+# Library simulate
+"simulate/simulate.cmxs": use_simulate
+# Executable kulfi
+"kulfi/Kulfi.native": package(async)
+"kulfi/Kulfi.native": package(core)
+"kulfi/Kulfi.native": package(frenetic)
+"kulfi/Kulfi.native": package(frenetic.async)
+"kulfi/Kulfi.native": package(ocamlgraph)
+"kulfi/Kulfi.native": package(ppx_jane)
+"kulfi/Kulfi.native": package(sexplib)
+"kulfi/Kulfi.native": package(threads)
+"kulfi/Kulfi.native": use_controller
+"kulfi/Kulfi.native": use_routing
+"kulfi/Kulfi.native": use_util
+<kulfi/*.ml{,i,y}>: package(async)
+<kulfi/*.ml{,i,y}>: package(core)
+<kulfi/*.ml{,i,y}>: package(frenetic)
+<kulfi/*.ml{,i,y}>: package(frenetic.async)
+<kulfi/*.ml{,i,y}>: package(ocamlgraph)
+<kulfi/*.ml{,i,y}>: package(ppx_jane)
+<kulfi/*.ml{,i,y}>: package(sexplib)
+<kulfi/*.ml{,i,y}>: package(threads)
+<kulfi/*.ml{,i,y}>: use_controller
+<kulfi/*.ml{,i,y}>: use_routing
+<kulfi/*.ml{,i,y}>: use_util
+# Executable topology
+"topo/TopoProcess.native": package(async)
+"topo/TopoProcess.native": package(core)
+"topo/TopoProcess.native": package(frenetic)
+"topo/TopoProcess.native": package(ocamlgraph)
+"topo/TopoProcess.native": package(ppx_jane)
+"topo/TopoProcess.native": package(sexplib)
+"topo/TopoProcess.native": package(threads)
+"topo/TopoProcess.native": use_routing
+"topo/TopoProcess.native": use_util
+<topo/*.ml{,i,y}>: package(async)
+<topo/*.ml{,i,y}>: package(core)
+<topo/*.ml{,i,y}>: package(frenetic)
+<topo/*.ml{,i,y}>: package(ocamlgraph)
+<topo/*.ml{,i,y}>: package(ppx_jane)
+<topo/*.ml{,i,y}>: package(sexplib)
+<topo/*.ml{,i,y}>: package(threads)
+<topo/*.ml{,i,y}>: use_routing
+<topo/*.ml{,i,y}>: use_util
+# Executable simulator
+"simulate/Simulate_Driver.native": package(async)
+"simulate/Simulate_Driver.native": package(core)
+"simulate/Simulate_Driver.native": package(frenetic)
+"simulate/Simulate_Driver.native": package(ocamlgraph)
+"simulate/Simulate_Driver.native": package(ppx_deriving.make)
+"simulate/Simulate_Driver.native": package(ppx_jane)
+"simulate/Simulate_Driver.native": package(sexplib)
+"simulate/Simulate_Driver.native": package(threads)
+"simulate/Simulate_Driver.native": use_routing
+"simulate/Simulate_Driver.native": use_util
+<simulate/*.ml{,i,y}>: package(async)
+<simulate/*.ml{,i,y}>: package(core)
+<simulate/*.ml{,i,y}>: package(frenetic)
+<simulate/*.ml{,i,y}>: package(ocamlgraph)
+<simulate/*.ml{,i,y}>: package(ppx_deriving.make)
+<simulate/*.ml{,i,y}>: package(ppx_jane)
+<simulate/*.ml{,i,y}>: package(sexplib)
+<simulate/*.ml{,i,y}>: package(threads)
+<simulate/*.ml{,i,y}>: use_routing
+<simulate/*.ml{,i,y}>: use_util
+# Executable unittest
+"test/Test.native": package(async)
+"test/Test.native": package(core)
+"test/Test.native": package(frenetic)
+"test/Test.native": package(ocamlgraph)
+"test/Test.native": package(ppx_deriving.make)
+"test/Test.native": package(ppx_inline_test)
+"test/Test.native": package(ppx_jane)
+"test/Test.native": package(sexplib)
+"test/Test.native": package(threads)
+"test/Test.native": use_routing
+"test/Test.native": use_simulate
+"test/Test.native": use_util
+<test/*.ml{,i,y}>: package(async)
+<test/*.ml{,i,y}>: package(core)
+<test/*.ml{,i,y}>: package(frenetic)
+<test/*.ml{,i,y}>: package(ocamlgraph)
+<test/*.ml{,i,y}>: package(ppx_deriving.make)
+<test/*.ml{,i,y}>: package(ppx_inline_test)
+<test/*.ml{,i,y}>: package(ppx_jane)
+<test/*.ml{,i,y}>: package(sexplib)
+<test/*.ml{,i,y}>: package(threads)
+<test/*.ml{,i,y}>: use_routing
+<test/*.ml{,i,y}>: use_simulate
+<test/*.ml{,i,y}>: use_util
+# OASIS_STOP
+<test/*.ml{,i}>: predicate(ppx_driver)
+<test/*.ml{,i}>: pp(ppx-jane -dump-ast -inline-test-lib unittest)
