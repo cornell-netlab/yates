@@ -4,29 +4,11 @@ open Net
 open Kulfi_Types
 open Kulfi_Util
 open Simulate_Switch
-
-let tag_cell = ref 100
-
-let create_tag_hash (t:topology) =
-  let tag_hash = Hashtbl.Poly.create () in
-  Topology.iter_edges
-    (fun edge ->
-      let src, port = Topology.edge_src edge in
-      let lbl = Topology.vertex_to_label t src in
-      match Node.device lbl with
-        | Node.Switch ->
-          begin
-            let tag = !tag_cell in
-            incr tag_cell;
-            Hashtbl.Poly.add_exn tag_hash edge tag;
-            Printf.printf "LINK: %s -> %d\n" (dump_edges t [edge]) tag;
-          end
-        | _ ->
-          ()) t;
-  tag_hash
-
+open Simulate_TM
+open Simulation_Types
 
 let create_topology_and_demands () =
+  Kulfi_Globals.deloop := true;
   let topo = Parse.from_dotfile "./data/topologies/3cycle.dot" in
   let hosts = get_hosts topo in
   let demands =
@@ -38,14 +20,24 @@ let create_topology_and_demands () =
             hosts
             ~init:acc
             ~f:(fun acc v ->
-                let r = if u = v then 0.0 else 500000.0 in
+                let r = if u = v then 0.0 else 536870912. in
                 SrcDstMap.add acc ~key:(u,v) ~data:r)) in
 
   (* Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set); *)
   (* Printf.printf "# demands = %d\n" (SrcDstMap.length demands); *)
   (* Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo); *)
-
   (hosts,topo,demands)
+
+
+let test_max_congestion (sch : scheme) (topo : topology) (dem : demands)
+    (algorithm : solver_type) (exp_cmax : float) : bool =
+  let sim_stats = simulate_tm sch topo dem EdgeSet.empty dem algorithm false 0.
+      (List.hd_exn (get_hosts topo)) in
+  let _, list_of_max_congestions =
+    List.map ~f:snd (EdgeMap.to_alist sim_stats.congestion)
+    |> split_alist in
+  let cmax = get_max_congestion list_of_max_congestions in
+  cmax =. exp_cmax
 
 (********** Budget tests ***********)
 let check_budget (s:scheme) (n:int) : bool =
@@ -125,7 +117,8 @@ let test_ac () =
   Kulfi_AC.initialize SrcDstMap.empty;
   let scheme = Kulfi_AC.solve topo pairs in
   all_pairs_connectivity topo hosts scheme &&
-  probabilities_sum_to_one scheme
+  probabilities_sum_to_one scheme &&
+  test_max_congestion scheme topo pairs Ac (2./.3.)
 
 let test_ak_ksp () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
@@ -180,27 +173,52 @@ let test_ecmp () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   Kulfi_Ecmp.initialize SrcDstMap.empty;
   let scheme = Kulfi_Ecmp.solve topo pairs in
-  probabilities_sum_to_one scheme
+  probabilities_sum_to_one scheme &&
+  test_max_congestion scheme topo pairs Ecmp 0.5
+
 
 let test_edksp () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   Kulfi_Edksp.initialize SrcDstMap.empty;
   let scheme = Kulfi_Edksp.solve topo pairs in
   all_pairs_connectivity topo hosts scheme &&
-  probabilities_sum_to_one scheme
+  probabilities_sum_to_one scheme &&
+  test_max_congestion scheme topo pairs Edksp 0.75
+
+let test_ffc () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Ksp.initialize SrcDstMap.empty;
+  let start_scheme = Kulfi_Ksp.solve topo pairs in
+  Kulfi_Ffc.initialize start_scheme;
+  let scheme = Kulfi_Ffc.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme &&
+  test_max_congestion scheme topo pairs Ffc 0.75
+
+let test_ffced () =
+  let (hosts,topo,pairs) = create_topology_and_demands () in
+  Kulfi_Edksp.initialize SrcDstMap.empty;
+  let start_scheme = Kulfi_Edksp.solve topo pairs in
+  Kulfi_Ffc.initialize start_scheme;
+  let scheme = Kulfi_Ffc.solve topo pairs in
+  all_pairs_connectivity topo hosts scheme &&
+  probabilities_sum_to_one scheme &&
+  test_max_congestion scheme topo pairs Ffced 0.75
 
 let test_ksp () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   Kulfi_Ksp.initialize SrcDstMap.empty;
   let scheme = Kulfi_Ksp.solve topo pairs in
   all_pairs_connectivity topo hosts scheme &&
-  probabilities_sum_to_one scheme
+  probabilities_sum_to_one scheme &&
+  test_max_congestion scheme topo pairs Ksp 0.75
 
 let test_mcf () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
   let scheme = Kulfi_Mcf.solve topo pairs in
   all_pairs_connectivity topo hosts scheme &&
-  probabilities_sum_to_one scheme
+  probabilities_sum_to_one scheme &&
+  test_max_congestion scheme topo pairs Mcf 0.5
 
 let test_mwmcf () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
@@ -233,7 +251,8 @@ let test_semimcf_edksp () =
   Kulfi_SemiMcf.initialize start_scheme;
   let scheme = Kulfi_SemiMcf.solve topo pairs in
   all_pairs_connectivity topo hosts scheme &&
-  probabilities_sum_to_one scheme
+  probabilities_sum_to_one scheme &&
+  test_max_congestion scheme topo pairs SemiMcfEdksp 0.50
 
 let test_semimcf_ksp () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
@@ -242,7 +261,8 @@ let test_semimcf_ksp () =
   Kulfi_SemiMcf.initialize start_scheme;
   let scheme = Kulfi_SemiMcf.solve topo pairs in
   all_pairs_connectivity topo hosts scheme &&
-  probabilities_sum_to_one scheme
+  probabilities_sum_to_one scheme &&
+  test_max_congestion scheme topo pairs SemiMcfKsp 0.50
 
 let test_semimcf_mcf () =
   let (hosts,topo,pairs) = create_topology_and_demands () in
@@ -323,7 +343,6 @@ let test_vlb3 () =
 
 (******* Declare all tests to be performed ***********)
 
-
 let%test "ac" = test_ac ()
 let%test "ak_ksp" = test_ak_ksp ()
 let%test "ak_mcf" = test_ak_mcf ()
@@ -331,7 +350,9 @@ let%test "ak_raeke" = test_ak_raeke ()
 let%test "ak_vlb" = test_ak_vlb ()
 let%test "apsp" = test_apsp ()
 let%test "ecmp" = test_ecmp ()
-(* let%test "edksp" = test_edksp ()*)
+let%test "edksp" = test_edksp ()
+let%test "ffc" = test_ffc ()
+let%test "ffced" = test_ffced ()
 let%test "ksp" = test_ksp ()
 let%test "mcf" = test_mcf ()
 let%test "mwmcf" = test_mwmcf ()
