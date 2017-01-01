@@ -187,7 +187,7 @@ let solve_lp (topo:topology) : scheme =
     match st_ppmap with
     | None ->
         (* If k-edge-disjoint paths is not feasible, fall back to k-shortest paths *)
-        let ksp = k_shortest_path topo src dst (!Kulfi_Globals.budget) in
+        let ksp = k_shortest_path topo src dst (min !Kulfi_Globals.budget 100) in
         let num_paths = Float.of_int  (List.length ksp) in
         let path_map = List.fold_left ksp ~init:PathMap.empty
           ~f:(fun acc2 path ->
