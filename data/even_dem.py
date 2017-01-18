@@ -1,7 +1,8 @@
 #!/usr/bin/python
+import sys
 dem = []
 dem_str = ""
-nh=18
+nh=int(sys.argv[1])
 for tm in range(10):
     row = []
     for src in range(nh):
@@ -9,7 +10,7 @@ for tm in range(10):
             if src == dst:
                 row.append(0.0)
             else:
-                row.append((2**30)/(nh-1))
+                row.append((2**30))
     dem.append(row)
 
 for row in dem:
