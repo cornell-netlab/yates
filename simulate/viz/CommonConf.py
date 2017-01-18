@@ -2,29 +2,28 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as pp
 import numpy as np
+import scipy.stats as sp
 
 def gen_label (scm):
     names = { "raeke" : r"""$R\"acke$""",
-            "ecmp" : "ECMP",
-            "edksp" : "EDKSP",
-            "ffced" : "FFC",
-            "ffc" : "FFC-SP",
-            "ksp" : "KSP",
-            "mcf" : "MCF",
-            "optimalmcf" : "Optimal",
             "raecke" : r"""$R\"acke$""",
             "semimcfksp" : "SWAN",
-            "semimcfmcf" : "Semi-MCF",
-            "semimcfedksp" : "SWAN-ED",
+            "semimcfedksp" : "SMOEDK",
+            "ac" : "AC",
+            "edksp" : "EDK",
             "semimcfraeke" : "SMORE",
-            "semimcfvlb" : "Semi-VLB",
+            "ecmp" : "ECMP",
             "semimcfmcfftenv" : "Joint",
-            "spf" : "SPF",
+            "optimalmcf" : "Optimal",
+            "mcf" : "MCF",
+            "ksp" : "KSP",
             "vlb" : "VLB",
+            "ffc" : "FFCksp",
+            "ffced" : "FFC",
             }
     return names.get(scm, scm)
 
-solver_list = ['ecmp', 'raeke', 'semimcfmcfftenv', 'semimcfksp', 'ffc', 'semimcfraeke', 'optimalmcf']
+solver_list = ['ecmp', 'raeke', 'semimcfmcfftenv', 'semimcfksp', 'ffced', 'semimcfraeke', 'optimalmcf']
 
 markevery = 2
 
@@ -36,14 +35,14 @@ height=3
 left_plot='base'
 
 def setupMPPDefaults():
-    pp.rcParams['font.size'] = 20
+    pp.rcParams['font.size'] = 28
     pp.rcParams['mathtext.default'] = 'regular'
-    pp.rcParams['ytick.labelsize'] = 18
-    pp.rcParams['xtick.labelsize'] = 18
-    pp.rcParams['legend.fontsize'] = 18
+    pp.rcParams['ytick.labelsize'] = 24
+    pp.rcParams['xtick.labelsize'] = 24
+    pp.rcParams['legend.fontsize'] = 20
     pp.rcParams['lines.markersize'] = 12
-    pp.rcParams['axes.titlesize'] = 20
-    pp.rcParams['axes.labelsize'] = 20
+    pp.rcParams['axes.titlesize'] = 24
+    pp.rcParams['axes.labelsize'] = 24
     pp.rcParams['axes.edgecolor'] = 'grey'
     pp.rcParams['axes.linewidth'] = 3.0
     pp.rcParams['axes.grid'] = True
@@ -57,121 +56,109 @@ def setupMPPDefaults():
 def getLineMarkersDict():
    return {
            'ecmp'   : '+',
-           'edksp'   : '+',
-           'ffc'    : 's',
-           'ffced'    : '.',
-           'ksp'    : 'd',
+           'semimcfksp'    : '<',
+           'semimcfedksp'    : 's',
+           'ac'    : 'o',
+           'edksp'    : 's',
+           'semimcfraeke'    : 'v',
+           'semimcfmcfftenv'  : '>',
            'raeke' : 'o',
            'optimalmcf'     : '.',
            'mcf'    : 'd',
-           'semimcfksp'    : '<',
-           'semimcfmcf'    : 's',
-           'semimcfedksp'    : 'o',
-           'semimcfraeke'    : 'v',
-           'semimcfmcfftenv'  : '>',
-           'semimcfvlb'  : 'v',
-           'spf'  : '<',
-           'vlb'  : 'd',
+           'vlb'    : 's',
+           'ksp'    : 'd',
+           'ffc'    : '.',
+           'ffced'    : 'x',
            }
 
 def getHatchDict():
    return {
            'ecmp'   : '+',
-           'edksp'   : '/',
-           'ffc'    : '*',
-           'ffced'    : '*',
-           'ksp'    : '*',
+           'semimcfksp'    : '/',
+           'semimcfedksp'    : 's',
+           'ac'    : '-',
+           'edksp'    : 's',
+           'semimcfraeke'    : '-',
+           'semimcfmcfftenv'  : '\\',
            'raeke' : 'o',
            'optimalmcf'     : '.',
            'mcf'    : '*',
-           'semimcfmcf'    : 'o',
-           'semimcfksp'    : '/',
-           'semimcfedksp'    : '/',
-           'semimcfraeke'    : '-',
-           'semimcfmcfftenv'  : '\\',
-           'semimcfvlb'  : '\\',
-           'spf'    : 's',
            'vlb'    : 's',
+           'ksp'    : '*',
+           'ffc'    : '*',
+           'ffced'    : 'o',
            }
 
 def getLineMarkersLWDict():
    return {
            'ecmp'   : 5,
-           'edksp'   : 5,
-           'ffc'    : 5,
-           'ffced'    : 5,
-           'ksp'    : 5,
+           'semimcfksp'    : 5,
+           'semimcfedksp'    : 5,
+           'ac'    : 5,
+           'edksp'    : 5,
+           'semimcfraeke'    : 5,
+           'semimcfmcfftenv'  : 5,
            'raeke' : 5,
            'optimalmcf'     : 5,
            'mcf'    : 5,
-           'semimcfksp'    : 5,
-           'semimcfmcf'    : 5,
-           'semimcfedksp'    : 5,
-           'semimcfraeke'    : 5,
-           'semimcfmcfftenv'  : 5,
-           'semimcfvlb'  : 5,
-           'spf'    : 5,
            'vlb'    : 5,
+           'ksp'    : 5,
+           'ffc'    : 5,
+           'ffced'    : 5,
            }
 
 def getLineMarkersSizeDict():
    return {
-           'ecmp'   : 16,
-           'edksp'   : 16,
-           'ffc'    : 16,
-           'ffced'    : 16,
-           'ksp'    : 16,
-           'raeke' : 16,
-           'optimalmcf'     : 16,
-           'mcf'    : 16,
-           'semimcfksp'    : 16,
-           'semimcfmcf'    : 16,
-           'semimcfedksp'    : 16,
-           'semimcfraeke'    : 16,
-           'semimcfmcfftenv'  : 16,
-           'semimcfvlb'  : 16,
-           'spf'    : 16,
-           'vlb'    : 16,
-}
+           'ecmp'           : 14,
+           'semimcfksp'     : 14,
+           'semimcfedksp'     : 10,
+           'ac'     : 10,
+           'edksp'     : 10,
+           'semimcfraeke'     : 14,
+           'semimcfmcfftenv'  : 14,
+           'raeke'          : 14,
+           'optimalmcf'     : 14,
+           'mcf'            : 14,
+           'vlb'            : 14,
+           'ksp'            : 14,
+           'ffc'            : 14,
+           'ffced'            : 10,
+           }
 
 def getLineColorsDict():
     return {
-           'ecmp'   : 'green',
-           'edksp'   : 'red',
-           'ffc'    : 'gray',
-           'ffced'    : 'gray',
-           'ksp'    : 'blue',
+           'ecmp'   : 'purple',
+           'semimcfksp'    : 'navy',
+           'semimcfedksp'    : 'green',
+           'ac'    : 'green',
+           'edksp'    : 'green',
+           'semimcfraeke'    : 'red',
+           'semimcfmcfftenv'  : 'dimgrey',
            'raeke' : 'coral',
            'optimalmcf'     : 'black',
            'mcf'    : 'darkgreen',
-           'semimcfksp'    : 'navy',
-           'semimcfmcf'    : 'black',
-           'semimcfedksp'    : 'orange',
-           'semimcfraeke'    : 'red',
-           'semimcfmcfftenv'  : 'darkcyan',
-           'semimcfvlb'  : 'darkcyan',
-           'spf'    : 'black',
            'vlb'    : 'dimgrey',
+           'ksp'    : 'blue',
+           'ffc'    : 'gray',
+           'ffced'    : 'dodgerblue',
            }
 
 def getLineFormatsDict():
     return {
            'ecmp'   : '--',
-           'edksp'   : '--',
-           'ffc'    : '-',
-           'ffced'    : '-',
-           'ksp'    : '--',
+           'semimcfksp'    : '-',
+           'semimcfedksp'    : '-',
+           'ac'    : '--',
+           'edksp'    : '-',
+           'semimcfraeke'    : '-',
+           'semimcfmcfftenv'  : '--',
            'raeke' : '--',
            'optimalmcf'     : ':',
            'mcf'    : '-',
-           'semimcfksp'    : '-',
-           'semimcfmcf'    : '-',
-           'semimcfedksp'    : '-',
-           'semimcfraeke'    : '-',
-           'semimcfmcfftenv'  : '--',
-           'semimcfvlb'  : '--',
-           'spf'    : '--',
            'vlb'    : '--',
+           'ksp'    : '--',
+           'ffc'    : '-',
+           'ffced'    : '-',
            }
 
 
@@ -180,7 +167,7 @@ def create_legend():
     mrkrs=getLineMarkersDict()
     mrkrsize = getLineMarkersSizeDict()
     fig = pp.figure()
-    figlegend = pp.figure(figsize=(14,0.6))
+    figlegend = pp.figure(figsize=(18,0.6))
     ax = fig.add_subplot(111)
     handles = []
     props = dict(alpha=0.6, edgecolors='none' )
@@ -190,10 +177,10 @@ def create_legend():
             linewidths=mrkrsize[solver]/3,
             s=400, **props))
 
-    figlegend.legend(handles, [gen_label(x) for x in solver_list],loc=4, ncol=6)
+    figlegend.legend(handles, [gen_label(x) for x in solver_list],loc=4, ncol=8)
     figlegend.savefig('legend.pdf')
 
-def plot_scatter(congs, tputs, y_lim, x_lim, plot_file,x_label,y_label,allow_legend):
+def plot_scatter(congs, tputs, y_lim, x_lim, plot_file,x_label,y_label,allow_legend,set_label=False):
     setupMPPDefaults()
     #if allow_legend and left_plot in plot_file:
     #    fig = pp.figure(figsize=(width+0.5,height))
@@ -207,21 +194,26 @@ def plot_scatter(congs, tputs, y_lim, x_lim, plot_file,x_label,y_label,allow_leg
     mrkrsize = getLineMarkersSizeDict()
     handles = []
     slist = solver_list
-    slist.remove('ffc')
+    if 'ffc' in slist:
+      slist.remove('ffc')
+    #if 'semimcfedksp' in slist:
+    #  slist.remove('semimcfedksp')
     for solver in slist:
+        if len(congs.get(solver,[])) == 0:
+            continue
         x = np.mean(np.asarray(congs[solver]))
         y = np.mean(np.asarray(tputs[solver]))
         #ax.errorbar([x],[y],xerr=[(0-0*min(congs[solver]), max(congs[solver])-x)], yerr=[(y-min(tputs[solver]), max(tputs[solver])-x)])
-        #if False:
-        #    pts = geo.MultiPoint(zip(x,y))
-        #    hull = pts.convex_hull
-        #    print hull
-        #    patch = PolygonPatch(hull,fc=colors[solver], ec=colors[solver], fill=True, zorder=-1, alpha=0.2)
-        #    ax.add_patch(patch)
-        #handles.append(ax.scatter(x, y, c=colors[solver],
-        #    marker=mrkrs[solver],
-        #    linewidths=mrkrsize[solver]/3,
-        #    s=400, **props))
+        if False:
+            pts = geo.MultiPoint(zip(x,y))
+            hull = pts.convex_hull
+            print hull
+            patch = PolygonPatch(hull,fc=colors[solver], ec=colors[solver], fill=True, zorder=-1, alpha=0.2)
+            ax.add_patch(patch)
+        handles.append(ax.scatter(x, y, c=colors[solver],
+            marker=mrkrs[solver],
+            linewidths=mrkrsize[solver]/3,
+            s=400, **props))
     # mark regions in graph
     #if "scale3" in plot_file:
     if False:
@@ -230,7 +222,9 @@ def plot_scatter(congs, tputs, y_lim, x_lim, plot_file,x_label,y_label,allow_leg
         ax.annotate('high tput\nhigh cong', color='y', xy=(.68, .9), xycoords='axes fraction', horizontalalignment='center', verticalalignment='center')
         ax.annotate('low tput\nhigh cong', color='red', xy=(.8, .2), xycoords='axes fraction', horizontalalignment='center', verticalalignment='center')
     #ax.plot((0, 1), color='gray',linestyle="--",alpha=0.5)
-    #ax.set_xlabel(x_label)
+    if set_label:
+        ax.set_xlabel(x_label)
+        ax.set_ylabel(y_label)
     if left_plot in plot_file:
         #ax.set_ylabel(y_label)
         if allow_legend:

@@ -9,6 +9,7 @@ import sys
 import matplotlib.pyplot as pp
 import pylab
 
+NUMTM=91
 
 translate = { 'tput' : 'Throughput',
         'closs' : 'Congestion Loss',
@@ -21,6 +22,43 @@ translate = { 'tput' : 'Throughput',
         }
 
 metrics = ['tput', 'closs', 'maxc', 'meanc', 'floss']
+
+colors = {"tput":"black", "closs":"red", "floss":'blue', 'maxc':'green', 'meanc' :
+          'grey', 'medianc':'magenta'}
+
+
+def setupMPPDefaults():
+    pp.rcParams['font.size'] = 60
+    pp.rcParams['mathtext.default'] = 'regular'
+    pp.rcParams['ytick.labelsize'] = 60
+    pp.rcParams['xtick.labelsize'] = 60
+    pp.rcParams['legend.fontsize'] = 16
+    pp.rcParams['lines.markersize'] = 12
+    pp.rcParams['axes.titlesize'] = 50
+    pp.rcParams['axes.labelsize'] = 60
+    pp.rcParams['axes.edgecolor'] = 'grey'
+    pp.rcParams['axes.linewidth'] = 3.0
+    pp.rcParams['axes.grid'] = True
+    pp.rcParams['grid.alpha'] = 0.4
+    pp.rcParams['grid.color'] = 'grey'
+    pp.rcParams['legend.frameon'] = True
+    pp.rcParams['legend.framealpha'] = 0.4
+    pp.rcParams['legend.numpoints'] = 1
+    pp.rcParams['legend.scatterpoints'] = 1
+
+def create_legend(dirn):
+    fig = pp.figure()
+    figlegend = pp.figure(figsize=(14,0.6))
+    ax = fig.add_subplot(111)
+    handles = []
+    props = dict(alpha=0.6, edgecolors='none', marker='|')
+    for metric in metrics:
+        handles.append(ax.scatter([1], [1], c=colors[metric],
+            linewidths=20,
+            s=40, **props))
+
+    figlegend.legend(handles, [translate[x] for x in metrics],loc=4, ncol=5)
+    figlegend.savefig(dirn+'/metriclegend.pdf')
 
 
 def main(dirn, solvers):
@@ -39,17 +77,15 @@ def main(dirn, solvers):
   for solver,ys in ysPerSolver['meanc'].iteritems():
       ysPerSolver['meanc'][solver] = [y * 262/180 for y in ys]
 
-  CommonConf.setupMPPDefaults()
-  colors = {"tput":"black", "closs":"red", "floss":"blue", 'maxc':'orange', 'meanc' :
-          'grey', 'medianc':'magenta'}
-
-  fig, axes = pp.subplots(1, len(solvers), sharex=True, sharey=True, figsize=(20,12))
+  setupMPPDefaults()
+  fig, axes = pp.subplots(1, len(solvers), sharex=True, sharey=True,
+                          figsize=(24,14))
 
   first = True
   for ax,solver in zip(axes, solvers):
       for metric in metrics:
-          ys = ysPerSolver[metric][solver]
-          xs_arr = np.asarray(xs[metric])
+          ys = ysPerSolver[metric][solver][:NUMTM]
+          xs_arr = np.asarray(xs[metric][:NUMTM])
           ax.plot(xs_arr, ys,
                     alpha=0.8,
                     color=colors[metric],
@@ -62,13 +98,21 @@ def main(dirn, solvers):
               ax.spines[spine].set_visible(False)
       ax.xaxis.set_ticks_position('none')
       ax.yaxis.set_ticks_position('none')
+      #xmin, xmax = ax.get_xlim()
+      #ax.xaxis.set_ticks(np.arange(xmin, xmax, 50))
+      ax.tick_params(labelbottom='off')
       if not first:
           ax.spines['left'].set_alpha(0.2)
-      if first:
-          ax.legend(loc="upper left", borderaxespad=-2., fancybox=True,
-                  ncol=len(metrics))
+      #if first:
+      #    ax.legend(loc="lower left", borderaxespad=-4., fancybox=True,
+      #            ncol=len(metrics))
       first = False
+      ax.title.set_text(CommonConf.gen_label(solver))
+      ax.title.set_rotation(0)
+      ax.title.set_va('bottom')
 
+  fig.text(0.5, 0.04, 'Time', ha='center')
+  fig.text(0.03, 0.5, 'Metric', va='center', rotation='vertical')
   pp.ylim(-0.01,1.02)
   pp.subplots_adjust(wspace=0, hspace=0)
   pp.savefig(dirn+"/timeline.pdf")
@@ -79,3 +123,4 @@ if __name__ == "__main__":
   else:
         main(sys.argv[1], ["optimalmcf", "ecmp", "semimcfksp", "ffced",
             "semimcfmcfftenv", "raeke", "semimcfraeke"])
+  create_legend(sys.argv[1])
