@@ -81,6 +81,28 @@ let calculate_demand_envelope (topo:topology) (predict_file:string)
   close_demands predict_ic;
   envelope
 
+let store_paths log_paths scheme topo topology_file algorithm n : unit =
+  if log_paths then
+    let split_dot_file_list =
+      String.split_on_chars topology_file ~on:['/';'.'] in
+    let suffix =
+      match List.nth split_dot_file_list (List.length split_dot_file_list -2) with
+      | Some x -> x
+      | None -> "default" in
+    let dir = "./expData/" ^ suffix ^ "/" in
+    let _ = match (Sys.file_exists dir) with
+      | `No -> Unix.mkdir dir
+      | _ -> () in
+    let dir = "./expData/" ^ suffix ^ "/paths/" in
+    let _ = match (Sys.file_exists dir) with
+      | `No -> Unix.mkdir dir
+      | _ -> () in
+    let file_name = (solver_to_string algorithm) ^ "_" ^ (string_of_int n) in
+    let oc = Out_channel.create (dir ^ file_name) in
+    fprintf oc "%s\n" (dump_scheme topo scheme);
+    Out_channel.close oc
+  else ()
+
 (* Measure vulnerability of routing schemes to link failures *)
 let accumulate_vulnerability_stats topology_file topo algorithm scheme  =
   let solver_name = (solver_to_string algorithm) in
@@ -142,6 +164,7 @@ let simulate
     (is_flash:bool)
     (flash_burst_amount:float)
     (rtt_file_opt:string option)
+    (log_paths:bool)
     (out_dir:string option) () : unit =
 
   let topo = Parse.from_dotfile topology_file in
@@ -245,9 +268,13 @@ let simulate
             let scheme,solver_time = solve_within_budget algorithm topo predict actual in
             ignore(reset_topo_weights edge_weights topo;);
 
+            (* Print paths *)
+            store_paths log_paths scheme topo topology_file algorithm n;
+
             (* simulate current traffic matrix *)
             let failing_edges = List.nth_exn failure_scenarios n in
             let flash_sink = List.nth_exn flash_sinks n in
+
             (* measure robustness of routing algs in terms of shared edges between paths *)
             if vulnerability_test then
               begin
@@ -513,6 +540,7 @@ let command =
     +> flag "-robust" no_arg ~doc:" perform robustness test - fail all combinations of fail-num links"
     +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
     +> flag "-vulnerability" no_arg ~doc:" perform path vulnerability test "
+    +> flag "-log-paths" no_arg ~doc:" store paths caomputed by solvers"
     +> flag "-fail-num" (optional_with_default 1 int) ~doc:" number of links to fail"
     +> flag "-fail-time" (optional_with_default (Int.max_value/100) int)
       ~doc:" simulation time to introduce failure at"
@@ -572,6 +600,7 @@ let command =
     (robust:bool)
     (scalesyn:bool)
     (vulnerability:bool)
+    (log_paths:bool)
     (fail_num:int)
     (fail_time:int)
     (lr_delay:int)
@@ -648,7 +677,7 @@ let command =
       else
         simulate algorithms topology_file demand_file predict_file host_file
           num_tms robust vulnerability tot_scale fail_num is_flash flash_ba
-          rtt_file out ())
+          rtt_file log_paths out ())
 
 let main = Command.run command
 
