@@ -9,6 +9,8 @@ open Kulfi_Types
 
 let prev_scheme = ref SrcDstMap.empty
 
+let use_min_cut = false
+
 let () = match !Kulfi_Globals.rand_seed with
   | Some x -> Random.init x
   | None -> Random.self_init ~allow_in_tests:true ()
@@ -77,7 +79,7 @@ let minimize_path_lengths (topo : Topology.t) (src : Topology.vertex) (dst : Top
   let constr = Eq (name, path_length_obj, 0.) in
   constr::init_acc
 
-let lp_of_st (topo : Topology.t) (src : Topology.vertex) (dst : Topology.vertex) (k : int) =
+let edksp_lp_of_st (topo : Topology.t) (src : Topology.vertex) (dst : Topology.vertex) (k : int) =
   let all_constrs = capacity_constraints topo src dst []
     |> num_path_constraints topo src dst k
     |> conservation_constraints_st topo src dst
@@ -91,11 +93,71 @@ let rec new_rand () : float =
       `Yes -> new_rand ()
        | _ -> rand
 
+(***************** Minimum s-t cut ******************)
+(* Given a topology, a source src and a sink dst, find the minimum src-dst cut
+ * assuming unit link capacity *)
+let max_st_flow (topo : Topology.t) (src : Topology.vertex) (dst : Topology.vertex)
+    (init_acc : constrain list) : constrain list =
+  (* objective = sum of out going flows to other switches from src's ingress switch *)
+  let ingress_switch = outgoing_edges topo src
+    |> List.hd_exn
+    |> Topology.edge_dst
+    |> fst in
+  let edges = outgoing_edges topo ingress_switch in
+  let diffs = List.fold_left edges ~init:[] ~f:(fun acc edge ->
+    if edge_connects_switches edge topo then
+          let forward_amt = var_name topo edge (src,dst) in
+          let reverse_amt = var_name_rev topo edge (src,dst) in
+          let net_outgoing = minus (Var (forward_amt)) (Var (reverse_amt)) in
+          net_outgoing::acc
+    else acc) in
+  let sum_net_outgoing = Sum (diffs) in
+  let constr = minus sum_net_outgoing objective in
+  let name = Printf.sprintf "obj-%s-%s" (name_of_vertex topo src)
+      (name_of_vertex topo dst) in
+  (Eq (name, constr, 0.))::init_acc
+
+let min_st_cut (topo : Topology.t) (src : Topology.vertex)
+    (dst : Topology.vertex) =
+  let all_constrs = capacity_constraints topo src dst []
+    |> conservation_constraints_st topo src dst
+    |> max_st_flow topo src dst in
+  let rand = new_rand () in
+  let lp_filename = (Printf.sprintf "lp/cut_%f.lp" rand) in
+  let lp_solname = (Printf.sprintf "lp/cut_%f.sol" rand) in
+  serialize_max_lp (objective, all_constrs) lp_filename;
+  let method_str = (Int.to_string !gurobi_method) in
+  let gurobi_in = Unix.open_process_in
+      ("gurobi_cl Method=" ^ method_str ^ " OptimalityTol=1e-9 ResultFile=" ^
+       lp_solname ^ " " ^ lp_filename) in
+  let obj_str = "Optimal objective  \\([0-9.e+-]+\\)" in
+  let obj_regex = Str.regexp obj_str in
+  let rec read_output gurobi opt_z =
+    try
+      let line = input_line gurobi in
+      let opt_z =
+        if Str.string_match obj_regex line 0 then
+          Float.of_string (Str.matched_group 1 line)
+        else
+          opt_z in
+      read_output gurobi opt_z
+    with
+      End_of_file -> opt_z in
+  let opt_z = read_output gurobi_in 0. in
+  ignore (Unix.close_process_in gurobi_in);
+  let _ = Sys.remove lp_filename in
+  let _ = Sys.remove lp_solname in
+  let min_cut = int_of_float opt_z in
+  Printf.printf "Min cut: %s - %s : %d\n"
+    (name_of_vertex topo src) (name_of_vertex topo dst) min_cut;
+  min_cut
+
+(****************************************************)
+
 (* Given a topology,
  *  returns k edge-disjoint shortest paths per src-dst pair
  * if k edge-disjoint shortest paths are not possible,
  *  returns k-shortest paths for that pair *)
-
 let solve_lp (topo:topology) : scheme =
   let sd_pairs = get_srcdst_pairs topo in
   List.fold_left sd_pairs ~init:SrcDstMap.empty ~f:(fun acc (src, dst) ->
@@ -106,7 +168,9 @@ let solve_lp (topo:topology) : scheme =
     let name = Node.name label in
         Hashtbl.Poly.add_exn name_table name vert) topo;
 
-  let lp = lp_of_st topo src dst (!Kulfi_Globals.budget) in
+  let max_budget = if use_min_cut then min_st_cut topo src dst
+    else (!Kulfi_Globals.budget) in
+  let lp = edksp_lp_of_st topo src dst max_budget in
   let rand = new_rand () in
   let lp_filename = (Printf.sprintf "lp/edksp_%f.lp" rand) in
   let lp_solname = (Printf.sprintf "lp/edksp_%f.sol" rand) in
@@ -207,6 +271,5 @@ let solve (topo:topology) (_:demands) : scheme =
 let initialize (s:scheme) : unit =
   prev_scheme := s;
   ()
-
 
 let local_recovery = Kulfi_Types.normalization_recovery
