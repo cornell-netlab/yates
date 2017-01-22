@@ -77,7 +77,7 @@ def display (all_latencies, directory): # all_latencies : solver -> #tm(0-23) ->
     xmax = (xmax + (xmax%2))
     pp.xlim(3, xmax)
     pp.tight_layout()
-    pp.savefig(directory+"/LatencyCDF.svg")
+    pp.savefig(directory+"/LatencyCDF.pdf")
 
 
 def parse_latency_file (filename):

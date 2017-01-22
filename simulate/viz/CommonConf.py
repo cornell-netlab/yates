@@ -5,21 +5,22 @@ import numpy as np
 import scipy.stats as sp
 
 def gen_label (scm):
-    names = { "raeke" : r"""$R\"acke$""",
-            "raecke" : r"""$R\"acke$""",
-            "semimcfksp" : "SWAN",
-            "semimcfedksp" : "SMOEDK",
-            "ac" : "AC",
-            "edksp" : "EDK",
-            "semimcfraeke" : "SMORE",
+    names = {"ac" : "AC",
             "ecmp" : "ECMP",
-            "semimcfmcfftenv" : "Joint",
-            "optimalmcf" : "Optimal",
-            "mcf" : "MCF",
-            "ksp" : "KSP",
-            "vlb" : "VLB",
+            "edksp" : "EDKSP",
             "ffc" : "FFCksp",
             "ffced" : "FFC",
+            "ksp" : "KSP",
+            "mcf" : "MCF",
+            "optimalmcf" : "Optimal",
+            "raeke" : r"""$R\"acke$""",
+            "raecke" : r"""$R\"acke$""",
+            "semimcfedksp" : "SMOEDK",
+            "semimcfksp" : "SWAN",
+            "semimcfmcfftenv" : "Joint",
+            "semimcfraeke" : "SMORE",
+            "spf" : "SPF",
+            "vlb" : "VLB",
             }
     return names.get(scm, scm)
 
@@ -56,6 +57,7 @@ def setupMPPDefaults():
 def getLineMarkersDict():
    return {
            'ecmp'   : '+',
+           'spf'   : 'x',
            'semimcfksp'    : '<',
            'semimcfedksp'    : 's',
            'ac'    : 'o',
@@ -74,6 +76,7 @@ def getLineMarkersDict():
 def getHatchDict():
    return {
            'ecmp'   : '+',
+           'spf'   : '+',
            'semimcfksp'    : '/',
            'semimcfedksp'    : 's',
            'ac'    : '-',
@@ -92,6 +95,7 @@ def getHatchDict():
 def getLineMarkersLWDict():
    return {
            'ecmp'   : 5,
+           'spf'   : 5,
            'semimcfksp'    : 5,
            'semimcfedksp'    : 5,
            'ac'    : 5,
@@ -110,6 +114,7 @@ def getLineMarkersLWDict():
 def getLineMarkersSizeDict():
    return {
            'ecmp'           : 14,
+           'spf'           : 14,
            'semimcfksp'     : 14,
            'semimcfedksp'     : 10,
            'ac'     : 10,
@@ -128,6 +133,7 @@ def getLineMarkersSizeDict():
 def getLineColorsDict():
     return {
            'ecmp'   : 'purple',
+           'spf'   : 'blue',
            'semimcfksp'    : 'navy',
            'semimcfedksp'    : 'green',
            'ac'    : 'green',
@@ -146,6 +152,7 @@ def getLineColorsDict():
 def getLineFormatsDict():
     return {
            'ecmp'   : '--',
+           'spf'   : '--',
            'semimcfksp'    : '-',
            'semimcfedksp'    : '-',
            'ac'    : '--',

@@ -19,6 +19,7 @@ from matplotlib.font_manager import FontProperties
 from math import sin, cos, sqrt, atan2, radians
 
 from showEdgeCongestion import *
+import CommonConf
 import CommonViz
 
 __all__ = ['plot_graph']
@@ -35,9 +36,31 @@ opt.add_option('--bluemarble', action="store_true",
 opt.add_option('--back_image', help="Image to use as background")
 opt.add_option('--edge_label', help="attribute to use for edge_label")
 
+opt.add_option('--link_util', action="store_true", default=False, help="plot link utilizations")
+opt.add_option('--paths', action="store_true", default=False, help="plot paths")
+
+opt.add_option('--showalg', action="store_true", default=False, help="show algorithm name")
+
 opt.add_option('--expand_scale', type="float", default=1,
                 help="Scale to expand map beyond outermost nodes"
                " Example range: 1-5")
+
+opt.add_option('--crop_right', type="float", default=0,
+                help="Fraction of figure to crop from right"
+               " Example range: 0-1")
+
+opt.add_option('--crop_left', type="float", default=0,
+                help="Fraction of figure to crop from left"
+               " Example range: 0-1")
+
+opt.add_option('--crop_top', type="float", default=0,
+                help="Fraction of figure to crop from top"
+               " Example range: 0-1")
+
+opt.add_option('--crop_bottom', type="float", default=0,
+                help="Fraction of figure to crop from top"
+               " Example range: 0-1")
+
 
 opt.add_option('--external_node_scale', type="float", default=0,
                 help="Scale for external nodes to be spaced out. Default 0"
@@ -61,7 +84,7 @@ opt.add_option('--image_scale',
 
 opt.add_option('--max_scale', help="Expected Max Congestion", type="float", default=10)
 opt.add_option('--label_font_size', help="Size to plot nodes labels as", type="float", default=10)
-opt.add_option('--country_color', help="Background color for countries", type="str", default="#eeeeee")
+opt.add_option('--country_color', help="Background color for countries", type="str", default="#dddddd")
 opt.add_option('--default_edge_color', help="Color for edges", type="str", default="")
 opt.add_option('--edge_label_order', help="Ordering for edge colors", type="str", default="")
 opt.add_option('--edge_colormap', help="Colormap for edge colors. Note most colormaps have a reverse _r eg cool_r", type="str", default="")
@@ -87,6 +110,11 @@ options, args = opt.parse_args()
 
 #TODO: split into functions
 
+path_colors = ['#aa00aa', '#006600', '#aa0000', '#0000ff']
+
+def get_offset(color):
+    return path_colors.index(color) - len(path_colors)/2
+
 def get_max_exp_utilization(network_name):
   (xs, ysPerSolver, ydevsPerSolver) = CommonViz.parseData(
       '../../expData/'+network_name, 'MaxExpCongestionVsIterations', set())
@@ -96,6 +124,27 @@ def get_max_exp_utilization(network_name):
 def getExpUtils(network_name):
     all_congestions = parse_congestions_file('../../expData/'+network_name+'/EdgeExpCongestionVsIterations.dat')
     return all_congestions
+
+def get_links_in_path(paths_file):
+    read_paths = False
+    index = len(path_colors)/2
+    link_colors = dict()
+    with open(paths_file) as f:
+        for l in f.readlines():
+            if "h47 -> h1 :" in l:
+                read_paths = True
+                continue
+            if read_paths:
+                if len(l.strip()) == 0:
+                    break
+                print l.split('@')
+                path = l.split('@')[0].strip()[1:-1].split(', ')
+                weight = l.split('@')[1].strip()
+
+                for link in path:
+                    link_colors[link] = link_colors.get(link, []) + [path_colors[index]]
+                index = (index + 1)%len(path_colors)
+    return link_colors
 
 def plot_graph(G, solver, output_path, title=False, use_bluemarble=False,
                back_image = False,
@@ -390,6 +439,12 @@ def plot_graph(G, solver, output_path, title=False, use_bluemarble=False,
     urcrnrlon += margin_lon
     urcrnrlat += margin_lat
 
+    # Crop image
+    llcrnrlon += options.crop_left * abs(urcrnrlon - llcrnrlon)
+    llcrnrlat += options.crop_bottom * abs(urcrnrlat - llcrnrlat)
+    urcrnrlon -= options.crop_right * abs(urcrnrlon - llcrnrlon)
+    urcrnrlat -= options.crop_top * abs(urcrnrlat - llcrnrlat)
+
     # Stop wrapping around at date-line, due to expansions above
     llcrnrlon = max(llcrnrlon, -179)
     urcrnrlon = min(urcrnrlon, 179)
@@ -487,7 +542,7 @@ def plot_graph(G, solver, output_path, title=False, use_bluemarble=False,
         else:
             node_color = "k"
         font_color = "k"
-        default_edge_color = "#338899"
+        default_edge_color = "#666666"
         #default_edge_color = "0.8"
         title_color = "k"
         caption_color = 'gray'
@@ -522,19 +577,33 @@ def plot_graph(G, solver, output_path, title=False, use_bluemarble=False,
 
     cmap = cm.ScalarMappable(norm = colors.Normalize(vmin=0., vmax=max_scale),
                              cmap = cm.rainbow)
-
+    link_colors = dict()
+    if options.paths:
+        paths_file = "../../expData/"+network_name+"/paths/"+solver+"_0"
+        link_colors = get_links_in_path(paths_file)
 
     for src, dst, data in G.edges(data=True):
         #print src, dst, G.node[src], G.node[dst], data
         # edge color
-        link = '(s'+str(src)+',s'+str(dst)+')'
-        rlink = '(s'+str(src)+',s'+str(dst)+')'
-        link_max_cong = max(get_link_congestion(exputils, solver, link))
-        rlink_max_cong = max(get_link_congestion(exputils, solver, rlink))
-        link_max_cong = max(link_max_cong, rlink_max_cong) # take max of links in either dir
-        data['edge_color'] = cmap.to_rgba(link_max_cong)
-        print link,link_max_cong
-        data['edge_width'] = 20*link_max_cong/max_scale+1
+        link_score = 0
+        num_paths = 1
+        if options.paths:
+            link = '(s'+str(src)+',s'+str(dst)+')'
+            rlink = '(s'+str(dst)+',s'+str(src)+')'
+            if link in link_colors:
+                data['edge_colors'] = link_colors[link]
+            if rlink in link_colors:
+                data['edge_colors'] = data.get('edge_colors', []) + link_colors[rlink]
+
+        else:
+            link = '(s'+str(src)+',s'+str(dst)+')'
+            rlink = '(s'+str(dst)+',s'+str(src)+')'
+            link_max_cong = max(get_link_congestion(exputils, solver, link))
+            rlink_max_cong = max(get_link_congestion(exputils, solver, rlink))
+            link_score = max(link_max_cong, rlink_max_cong) # take max of links in either dir
+            data['edge_color'] = cmap.to_rgba(link_score)
+            data['edge_width'] = 20*link_score/max_scale+1
+
         lon1 = G.node[src]['Longitude']
         lat1 = G.node[src]['Latitude']
         lon2 = G.node[dst]['Longitude']
@@ -546,10 +615,11 @@ def plot_graph(G, solver, output_path, title=False, use_bluemarble=False,
         else:
             edge_color = default_edge_color
 
-        # Mark inferred links clearl
         linestyle = 'solid'
         if data.get('inferred'):
             linestyle = 'dotted'
+        if options.paths:
+            linestyle = 'dashed'
 
         if 'edge_width' in data:
             curr_line_width = line_width * int(data['edge_width'])
@@ -577,11 +647,24 @@ def plot_graph(G, solver, output_path, title=False, use_bluemarble=False,
         x_diff = np.diff(x)
         if np.all(x_diff > 0) or np.all(x_diff < 0) or np.all(x_diff == 0):
             m.drawgreatcircle(lon1, lat1, lon2, lat2, color = edge_color,
+                          linewidth=curr_line_width,
+                          alpha = 0.7,
+                          linestyle = linestyle,
+                          #dashes=(4,1),
+                          zorder=zorder,
+                          solid_capstyle="round")
+            if options.paths:
+                edge_colors = data.get('edge_colors',[])
+                curr_line_width = 6
+                for edge_color in edge_colors:
+                    offset = get_offset(edge_color)
+                    print edge_color
+                    m.drawgreatcircle(lon1, lat1+offset, lon2, lat2+offset, color = edge_color,
                               linewidth=curr_line_width,
-                              alpha = 0.8,
-                              linestyle = linestyle,
+                              alpha = 0.9,
+                              linestyle = 'solid',
                               #dashes=(4,1),
-                              zorder=zorder)
+                              zorder=zorder+1)
 
         else:
             # Generate larger set of points to plot with
@@ -733,28 +816,30 @@ def plot_graph(G, solver, output_path, title=False, use_bluemarble=False,
                                     """
     # Add title
     if title:
-        network_title = ax.text(0.02, 0.98,
+        network_title = ax.text(0.98, 0.98,
                 G.graph['Network'],
-                horizontalalignment='left',
-                weight='heavy',
+                horizontalalignment='right',
+                #weight='heavy',
                 fontsize=16, color=title_color,
                 verticalalignment='top',
                 transform=ax.transAxes)
 
-        ax.text(0.98, 0.98,
-                solver,
-                horizontalalignment='right',
-                fontsize=14, color=title_color,
+    if options.showalg:
+        ax.text(0.02, 0.98,
+                CommonConf.gen_label(solver),
+                horizontalalignment='left',
+                fontsize=16, color=title_color,
                 verticalalignment='top',
                 transform=ax.transAxes)
 
     # Show colorbar for edge color encoding
-    a = np.array([[0,max_scale]])
-    im = plt.imshow(a, cmap=cm.rainbow)
-    ax = plt.gca()
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="2%", pad=0.05)
-    plt.colorbar(im, cax=cax)
+    if options.link_util:
+        a = np.array([[0,max_scale]])
+        im = plt.imshow(a, cmap=cm.rainbow)
+        ax = plt.gca()
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="2%", pad=0.02)
+        plt.colorbar(im, cax=cax)
 
     plt_file_pdf = open(plt_filename_pdf, "w")
 
@@ -783,6 +868,10 @@ def main():
         print "No files found. Please specify a -f file"
         sys.exit(0)
 
+    if options.paths:
+        options.link_util = False
+    else:
+        options.link_util = True
 
     # Don't want to write into root directory
     path = os.path.abspath(path)
@@ -790,14 +879,17 @@ def main():
     if options.output_dir:
         output_path = options.output_dir
     else:
-        output_path = path + "/plotted"
+        output_path = path + "/geoplot"
         # And append the map type to the directory
-        if options.bluemarble:
-            output_path += "_bm"
-        elif options.back_image:
-            output_path += "_img"
+        if options.link_util:
+            if options.bluemarble:
+                output_path += "_bm"
+            elif options.back_image:
+                output_path += "_img"
+            else:
+                output_path += "_flat"
         else:
-            output_path += "_flat"
+            output_path += "_path"
 
     if not os.path.isdir(output_path):
         os.mkdir(output_path)
@@ -812,17 +904,21 @@ def main():
                                       len(network_files))
         print "reading %s " % net_file
 
-        G = nx.read_gml(net_file, label='id')
-
-        # Reduce to undirected single edge graph for simplicity
-        G = nx.Graph(G)
-        G.name = network_name
         if options.max_scale == 10:
-            options.max_scale = get_max_exp_utilization(network_name)
+            if options.paths:
+                options.max_scale = 3
+            else:
+                options.max_scale = get_max_exp_utilization(network_name)
 
 
-        for solver in ['spf', 'ecmp', 'edksp', 'ksp', 'raeke', 'optimalmcf', 'vlb',
-                       'semimcfraeke', 'semimcfksp']:
+        for solver in ['ecmp', 'edksp', 'ksp', 'raeke', 'optimalmcf', 'vlb',
+                       'semimcfraeke', 'semimcfksp', 'spf']:
+            G = nx.read_gml(net_file, label='id')
+
+            # Reduce to undirected single edge graph for simplicity
+            G = nx.Graph(G)
+            G.name = network_name
+
             plot_graph(G, solver, output_path,
                        title=options.title,
                        use_bluemarble=options.bluemarble,
