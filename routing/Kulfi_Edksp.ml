@@ -71,7 +71,8 @@ let minimize_path_lengths (topo : Topology.t) (src : Topology.vertex) (dst : Top
     (init_acc : constrain list) : constrain list =
   (* Set objective = sum of all path lengths *)
   let paths_list = Topology.fold_edges (fun e acc ->
-    (Var (var_name topo e (src,dst)))::acc) topo [] in
+      let weight = Link.weight (Topology.edge_to_label topo e) in
+      (Times (weight, (Var (var_name topo e (src,dst)))))::acc) topo [] in
   let total_path_length = Sum (paths_list) in
   let path_length_obj = minus total_path_length objective in
   let name = Printf.sprintf "obj-%s-%s" (name_of_vertex topo src)
