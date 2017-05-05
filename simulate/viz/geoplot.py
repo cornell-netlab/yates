@@ -502,6 +502,22 @@ def plot_graph(G, solver, output_path, title=False, use_bluemarble=False,
             else:
                 labels[n] =  data['label']
 
+    # Labels for certain nodes for ECMP link util plot
+    if solver == 'ecmp' and options.link_util:
+        use_labels = True
+        labels = {}
+        for n, data in G.nodes(data = True):
+            if data['label'] in ['Boston', 'Halifax']:
+                labels[n] =  data['label']
+    # Labels for certain nodes for path plot
+    if options.paths:
+        use_labels = True
+        labels = {}
+        for n, data in G.nodes(data = True):
+            if data['label'] in ['Seattle', 'Miami']:
+                labels[n] =  data['label']
+
+
     if numeric_labels:
         print "Labels:"
         for n, data in G.nodes(data = True):
@@ -659,12 +675,13 @@ def plot_graph(G, solver, output_path, title=False, use_bluemarble=False,
                 for edge_color in edge_colors:
                     offset = get_offset(edge_color)
                     print edge_color
-                    m.drawgreatcircle(lon1, lat1+offset, lon2, lat2+offset, color = edge_color,
-                              linewidth=curr_line_width,
+                    m.drawgreatcircle(lon1, lat1+offset/3, lon2, lat2+offset/3, color = edge_color,
+                              linewidth=2*curr_line_width,
                               alpha = 0.9,
-                              linestyle = 'solid',
+                              linestyle = '--',
                               #dashes=(4,1),
                               zorder=zorder+1)
+
 
         else:
             # Generate larger set of points to plot with
@@ -780,7 +797,17 @@ def plot_graph(G, solver, output_path, title=False, use_bluemarble=False,
                             node_shape='s')
 
     if use_labels:
-        label_pos = pos
+        label_pos = dict()
+        for k,v in pos.iteritems():
+            if nx.get_node_attributes(G,'label')[k] == 'Seattle':
+                label_pos[k] = (v[0]+1000000,v[1])
+            elif nx.get_node_attributes(G,'label')[k] == 'Miami':
+                label_pos[k] = (v[0]-700000,v[1]-300000)
+            elif nx.get_node_attributes(G,'label')[k] == 'Halifax':
+                label_pos[k] = (v[0]+1200000,v[1]-300000)
+            else:
+                label_pos[k] = (v[0]+1000000,v[1]-500000)
+
         nx.draw_networkx_labels(G, label_pos,
                             labels=labels,
                             font_size = label_font_size,
@@ -825,10 +852,11 @@ def plot_graph(G, solver, output_path, title=False, use_bluemarble=False,
                 transform=ax.transAxes)
 
     if options.showalg:
-        ax.text(0.02, 0.98,
+        ax.text(0.02, 0.02,
                 CommonConf.gen_label(solver),
+                style='normal',
                 horizontalalignment='left',
-                fontsize=16, color=title_color,
+                fontsize=max(label_font_size,16), color=title_color,
                 verticalalignment='top',
                 transform=ax.transAxes)
 
@@ -911,7 +939,7 @@ def main():
                 options.max_scale = get_max_exp_utilization(network_name)
 
 
-        for solver in ['ecmp', 'edksp', 'ksp', 'raeke', 'optimalmcf', 'vlb',
+        for solver in ['ecmp', 'edksp', 'ksp', 'raeke', 'mcf', 'vlb',
                        'semimcfraeke', 'semimcfksp', 'spf']:
             G = nx.read_gml(net_file, label='id')
 

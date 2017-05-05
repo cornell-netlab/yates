@@ -21,21 +21,23 @@ translate = { 'tput' : 'Throughput',
         'stime' : 'Solver Time',
         }
 
-metrics = ['tput', 'closs', 'maxc', 'meanc', 'floss']
+#metrics = ['tput', 'closs', 'maxc', 'meanc', 'floss']
+#metrics = ['tput', 'floss', 'closs', 'maxc']
+metrics = ['tput', 'closs', 'maxc']
 
 colors = {"tput":"black", "closs":"red", "floss":'blue', 'maxc':'green', 'meanc' :
           'grey', 'medianc':'magenta'}
 
 
 def setupMPPDefaults():
-    pp.rcParams['font.size'] = 60
+    pp.rcParams['font.size'] = 50
     pp.rcParams['mathtext.default'] = 'regular'
-    pp.rcParams['ytick.labelsize'] = 60
-    pp.rcParams['xtick.labelsize'] = 60
+    pp.rcParams['ytick.labelsize'] = 50
+    pp.rcParams['xtick.labelsize'] = 50
     pp.rcParams['legend.fontsize'] = 16
     pp.rcParams['lines.markersize'] = 12
-    pp.rcParams['axes.titlesize'] = 50
-    pp.rcParams['axes.labelsize'] = 60
+    pp.rcParams['axes.titlesize'] = 40
+    pp.rcParams['axes.labelsize'] = 50
     pp.rcParams['axes.edgecolor'] = 'grey'
     pp.rcParams['axes.linewidth'] = 3.0
     pp.rcParams['axes.grid'] = True
@@ -77,22 +79,32 @@ def main(dirn, solvers):
   for solver,ys in ysPerSolver['meanc'].iteritems():
       ysPerSolver['meanc'][solver] = [y * 262/180 for y in ys]
 
+  print np.mean(np.asarray(ysPerSolver['maxc']['semimcfraeke'])/np.asarray(ysPerSolver['maxc']['optimalmcf']))
+  print np.min(np.asarray(ysPerSolver['maxc']['semimcfraeke'])/np.asarray(ysPerSolver['maxc']['optimalmcf']))
+  print np.max(np.asarray(ysPerSolver['maxc']['semimcfraeke'])/np.asarray(ysPerSolver['maxc']['optimalmcf']))
+  print np.std(np.asarray(ysPerSolver['maxc']['semimcfraeke'])/np.asarray(ysPerSolver['maxc']['optimalmcf']))
+  print np.mean(ysPerSolver['maxc']['semimcfraeke'])/np.mean(ysPerSolver['maxc']['optimalmcf'])
   setupMPPDefaults()
   fig, axes = pp.subplots(1, len(solvers), sharex=True, sharey=True,
-                          figsize=(24,14))
+                          figsize=(24,12))
 
   first = True
   for ax,solver in zip(axes, solvers):
       for metric in metrics:
           ys = ysPerSolver[metric][solver][:NUMTM]
           xs_arr = np.asarray(xs[metric][:NUMTM])
+          ydev = np.std(ys)
+          linewidth = 5
+          if ydev < 1e-2:
+              linewidth = linewidth*2
           ax.plot(xs_arr, ys,
                     alpha=0.8,
                     color=colors[metric],
                     label=translate[metric],
-                    linewidth=4,
+                    linewidth=linewidth,
                     linestyle="-",
-                    marker=None)
+                    marker=None,
+                  zorder = 1/(np.mean(ys)+1))
       spines_to_remove = ['top', 'right']
       for spine in spines_to_remove:
               ax.spines[spine].set_visible(False)
