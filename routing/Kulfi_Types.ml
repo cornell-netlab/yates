@@ -9,6 +9,8 @@ type topology = Net.Topology.t
 
 type edge = Net.Topology.edge [@@ deriving sexp]
 
+type vertex = Net.Topology.vertex [@@ deriving sexp]
+
 type path = edge list [@@ deriving sexp]
 
 type demand = float [@@ deriving sexp]
@@ -158,6 +160,22 @@ let dump_edges (t:topology) (es:path) : string =
      Printf.sprintf "(%s,%s)"
           (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_src e))))
           (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_dst e))))) ", "  es
+
+let dump_topology (t:topology) : string =
+  let buf = Buffer.create 101 in
+  Printf.bprintf buf "V: [ ";
+  Topology.iter_vertexes
+    (fun v ->
+      Printf.bprintf buf "%s " (Node.name (Net.Topology.vertex_to_label t v)))
+    t;
+  Printf.bprintf buf "]\nE: [ ";
+  Topology.iter_edges
+    (fun e -> Printf.bprintf buf "(%s,%s) "
+      (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_src e))))
+      (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_dst e)))))
+    t;
+  Printf.bprintf buf "]\n";
+  Buffer.contents buf
 
 let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
 

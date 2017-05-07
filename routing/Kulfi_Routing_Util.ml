@@ -80,3 +80,8 @@ let incoming_edges topo dst =
       List.rev_append (EdgeSet.elements es) acc) in
   edges
 
+(* Find a host's neighboring switch *)
+let ingress_switch topo host =
+  let label = Topology.vertex_to_label topo host in
+  assert (Node.device label = Node.Host);
+  VertexSet.choose_exn (Topology.neighbors topo host)

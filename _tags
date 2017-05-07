@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 2b3843176b2e3869928d4d260637e203)
+# DO NOT EDIT (digest: fb4cf1c6b6606f206bb113bdda93adaf)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -23,6 +23,16 @@ true: annot, bin_annot
 <routing/*.ml{,i,y}>: package(ppx_jane)
 <routing/*.ml{,i,y}>: package(sexplib)
 <routing/*.ml{,i,y}>: package(threads)
+# Library shiftmodel
+"shift/shiftmodel.cmxs": use_shiftmodel
+<shift/*.ml{,i,y}>: package(async)
+<shift/*.ml{,i,y}>: package(core)
+<shift/*.ml{,i,y}>: package(frenetic)
+<shift/*.ml{,i,y}>: package(ocamlgraph)
+<shift/*.ml{,i,y}>: package(ppx_jane)
+<shift/*.ml{,i,y}>: package(sexplib)
+<shift/*.ml{,i,y}>: package(threads)
+<shift/*.ml{,i,y}>: use_routing
 # Library util
 "util/util.cmxs": use_util
 <util/util.{cma,cmxa}>: oasis_library_util_cclib
@@ -104,6 +114,18 @@ true: annot, bin_annot
 "simulate/Simulate_Driver.native": package(threads)
 "simulate/Simulate_Driver.native": use_routing
 "simulate/Simulate_Driver.native": use_util
+# Executable shiftsimulator
+"simulate/Shift_Simulator.native": package(async)
+"simulate/Shift_Simulator.native": package(core)
+"simulate/Shift_Simulator.native": package(frenetic)
+"simulate/Shift_Simulator.native": package(ocamlgraph)
+"simulate/Shift_Simulator.native": package(ppx_deriving.make)
+"simulate/Shift_Simulator.native": package(ppx_jane)
+"simulate/Shift_Simulator.native": package(sexplib)
+"simulate/Shift_Simulator.native": package(threads)
+"simulate/Shift_Simulator.native": use_routing
+"simulate/Shift_Simulator.native": use_shiftmodel
+"simulate/Shift_Simulator.native": use_util
 <simulate/*.ml{,i,y}>: package(async)
 <simulate/*.ml{,i,y}>: package(core)
 <simulate/*.ml{,i,y}>: package(frenetic)
@@ -113,6 +135,7 @@ true: annot, bin_annot
 <simulate/*.ml{,i,y}>: package(sexplib)
 <simulate/*.ml{,i,y}>: package(threads)
 <simulate/*.ml{,i,y}>: use_routing
+<simulate/*.ml{,i,y}>: use_shiftmodel
 <simulate/*.ml{,i,y}>: use_util
 # Executable unittest
 "test/Test.native": package(async)
@@ -125,6 +148,7 @@ true: annot, bin_annot
 "test/Test.native": package(sexplib)
 "test/Test.native": package(threads)
 "test/Test.native": use_routing
+"test/Test.native": use_shiftmodel
 "test/Test.native": use_simulate
 "test/Test.native": use_util
 <test/*.ml{,i,y}>: package(async)
@@ -137,6 +161,7 @@ true: annot, bin_annot
 <test/*.ml{,i,y}>: package(sexplib)
 <test/*.ml{,i,y}>: package(threads)
 <test/*.ml{,i,y}>: use_routing
+<test/*.ml{,i,y}>: use_shiftmodel
 <test/*.ml{,i,y}>: use_simulate
 <test/*.ml{,i,y}>: use_util
 # OASIS_STOP

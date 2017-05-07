@@ -24,6 +24,13 @@ Library routing
    sexplib,
    frenetic
 
+Library shiftmodel
+  Path: shift
+  Modules:
+    Kulfi_Shift
+  BuildDepends:
+   routing
+
 Library util
   Path: util
   CSources:
@@ -64,6 +71,7 @@ Library simulate
     frenetic,
     ppx_deriving.make,
     routing,
+    shiftmodel,
     util
 
 Executable kulfi
@@ -99,6 +107,17 @@ Executable simulator
     frenetic,
     ppx_deriving.make,
     routing,
+    util
+
+Executable shiftsimulator
+  Install: False
+  Build$: flag(is_native)
+  Path:   simulate
+  MainIs: Shift_Simulator.ml
+  CompiledObject: native
+  BuildDepends:
+    ppx_deriving.make,
+    shiftmodel,
     util
 
 Executable unittest
