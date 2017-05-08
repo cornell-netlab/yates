@@ -18,6 +18,7 @@ let simulate
     (topology_file:string)
     (demand_file:string)
     (host_file:string)
+    (crashed_dc_name:string)
     (num_tms_opt:int option)
     (scale:float) () : unit =
 
@@ -25,10 +26,21 @@ let simulate
   let demand_lines_length = List.length (In_channel.read_lines demand_file) in
   let num_tms = demand_lines_length in
 
-  (* TODO: get this as input *)
-  let crashed_dc = VertexSet.choose_exn (get_hosts_set topo) in
+  let crashed_dc_opt = Topology.fold_vertexes (fun v acc ->
+      match acc with
+      | None ->
+        let label = Topology.vertex_to_label topo v in
+        if Node.device label = Node.Host &&
+           Node.name label = crashed_dc_name then
+          Some v
+        else
+          None
+      | _ -> acc) topo None in
+  let crashed_dc = match crashed_dc_opt with
+    | None -> failwith "Could not find specified host!"
+    | Some x -> x in
   let crashed_router = ingress_switch topo crashed_dc in
-  Printf.printf "(%s,%s)"
+  Printf.printf "(%s,%s)\n"
     (Node.name (Net.Topology.vertex_to_label topo crashed_dc))
     (Node.name (Net.Topology.vertex_to_label topo crashed_router));
 
@@ -51,7 +63,8 @@ let simulate
     List.fold_left shifted_tms
       ~init:SrcDstMap.empty
       ~f:(fun prev_scheme tm ->
-          if (SrcDstMap.is_empty prev_scheme) then initialize_scheme algorithm topo' tm;
+          if (SrcDstMap.is_empty prev_scheme) then
+            initialize_scheme algorithm topo' tm;
           let scheme,_ = solve_within_budget algorithm topo' tm tm in
           let cmax = congestion_of_paths topo' tm scheme
                 |> EdgeMap.to_alist
@@ -76,16 +89,19 @@ let command =
     +> anon ("topology-file" %: string)
     +> anon ("demand-file" %: string)
     +> anon ("host-file" %: string)
+    +> anon ("dc" %: string)
   ) (fun
     (budget:int)
     (scale:float)
     (num_tms:int option)
     (topology_file:string)
     (demand_file:string)
-    (host_file:string) () ->
+    (host_file:string)
+    (dc:string)
+    () ->
       Kulfi_Globals.deloop := true;
       Kulfi_Globals.budget := budget;
-      simulate topology_file demand_file host_file num_tms scale ())
+      simulate topology_file demand_file host_file dc num_tms scale ())
 
 let main = Command.run command
 
