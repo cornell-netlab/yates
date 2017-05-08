@@ -14,6 +14,17 @@ open Simulate_TM
 open Simulation_Types
 open Simulation_Util
 
+type shiftmodel_type = | NS | SD
+
+let shiftmodel_to_string (s:shiftmodel_type) : string =
+  match s with
+  | NS -> "Naive shift"
+  | SD -> "Source-Destination based"
+
+let select_model (s:shiftmodel_type) = match s with
+  | NS -> Kulfi_Shift.NS.model
+  | SD -> Kulfi_Shift.SD.model
+
 let simulate
     (topology_file:string)
     (demand_file:string)
@@ -47,32 +58,38 @@ let simulate
   let topo' = Topology.remove_vertex
       (Topology.remove_vertex topo crashed_dc) crashed_router in
 
-  let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
-  let shifted_tms =
-    List.fold_left (range 0 num_tms)
-      ~init:[]
-      ~f:(fun acc _ ->
-          let tm = next_demand ~scale:scale actual_ic actual_host_map in
-          let shifted_tm = NS.model topo' crashed_dc tm in
-          shifted_tm::acc)
-    |> List.rev in
-  close_demands actual_ic;
+  List.iter [NS; SD] ~f:(fun shiftmodel ->
+      (* Read real traffic matrices *)
+      let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
 
-  let algorithm = Mcf in
-  let _ =
-    List.fold_left shifted_tms
-      ~init:SrcDstMap.empty
-      ~f:(fun prev_scheme tm ->
-          if (SrcDstMap.is_empty prev_scheme) then
-            initialize_scheme algorithm topo' tm;
-          let scheme,_ = solve_within_budget algorithm topo' tm tm in
-          let cmax = congestion_of_paths topo' tm scheme
-                |> EdgeMap.to_alist
-                |> List.map ~f:snd
-                |> get_max_congestion in
-          Printf.printf "Max exp congestion: %f\n" cmax;
-          scheme) in
+      (* Create traffic matrices based on selected shofting algorithm *)
+      let shifted_tms =
+        List.fold_left (range 0 num_tms)
+          ~init:[]
+          ~f:(fun acc _ ->
+              let tm = next_demand ~scale:scale actual_ic actual_host_map in
+              let model = select_model shiftmodel in
+              let shifted_tm = model topo' crashed_dc tm in
+              shifted_tm::acc)
+        |> List.rev in
+      close_demands actual_ic;
 
+      (* Evaluate perf on shifted traffic matrices with some TE approach *)
+      let algorithm = Mcf in
+      let _ =
+        List.fold_left shifted_tms
+          ~init:SrcDstMap.empty
+          ~f:(fun prev_scheme tm ->
+              if (SrcDstMap.is_empty prev_scheme) then
+                initialize_scheme algorithm topo' tm;
+              let scheme,_ = solve_within_budget algorithm topo' tm tm in
+              let cmax = congestion_of_paths topo' tm scheme
+                         |> EdgeMap.to_alist
+                         |> List.map ~f:snd
+                         |> get_max_congestion in
+              Printf.printf "Max exp congestion: %f\n" cmax;
+              scheme) in
+      Printf.printf "\n");
   Printf.printf "\nComplete.\n"
 
 let command =

@@ -8,31 +8,6 @@ open SM_LP_Lang
 
 let objective = Var "Z"
 
-let capacity_constraints (topo : Topology.t) (crashed_dc:Topology.vertex)
-    (d_pairs : demands) (init_acc : constrain list) : constrain list =
-  (* For every edge, there is a capacity constraint *)
-  Topology.fold_edges
-    (fun edge acc ->
-       (* The sum of all commodity flows in each direction must exceed be less
-          than Z * capacity. *)
-
-       (* Gather all of the terms for each commodity *)
-       let all_flows = SrcDstMap.fold ~init:[]
-           ~f:(fun ~key:(u,v) ~data:_ acc2 ->
-               if u = crashed_dc || v = crashed_dc then acc2
-               else
-                 let forward_amt = var_name topo edge (u,v) in
-                 Var(forward_amt)::  acc2) d_pairs in
-       (* Add them all up *)
-       let total_flow = Sum (all_flows) in
-       let scaled_cap = Times ((capacity_of_edge topo edge) /. cap_divisor,
-                               objective) in
-       (* Total flow is at most the scaled capacity *)
-       let constr = minus total_flow scaled_cap in
-       let name = Printf.sprintf "cap_%s"
-           (string_of_edge topo edge) in
-       (Leq (name, constr, 0.))::acc) topo init_acc
-
 let demand_constraints (topo : Topology.t) (crashed_dc:Topology.vertex)
     (d_pairs : demands) (init_acc : constrain list) : constrain list =
   (* Every source-sink pair has a demand constraint *)
@@ -51,14 +26,14 @@ let demand_constraints (topo : Topology.t) (crashed_dc:Topology.vertex)
 
         (* Update demand to included traffic shifted:
            (src:u, dst:v, crashednode:x)
-           d'_uv = d_uv + sin_xv * d_ux + seg_xu * d_xv *)
+           d'_uv = d_uv + sin_uxv * d_ux + seg_xuv * d_xv *)
         let d_ux = SrcDstMap.find_exn d_pairs (src, crashed_dc) /. demand_divisor in
-        let sin_xv = var_name_sin topo crashed_dc dst in
+        let sin_uxv = var_name_sdsin topo src crashed_dc dst in
         let d_xv = SrcDstMap.find_exn d_pairs (crashed_dc, dst) /. demand_divisor in
-        let seg_xu = var_name_seg topo crashed_dc src in
+        let seg_xuv = var_name_sdseg topo crashed_dc src dst in
         let demand_on_shift = Sum ([ (* d_ab goes to right side of constraint *)
-            Times (d_ux, Var (sin_xv));
-            Times (d_xv, Var (seg_xu))]) in
+            Times (d_ux, Var (sin_uxv));
+            Times (d_xv, Var (seg_xuv))]) in
 
         (* Outgoing traffic - new_demand >= 0 *)
         let diff = minus sum_net_outgoing demand_on_shift in
@@ -68,58 +43,52 @@ let demand_constraints (topo : Topology.t) (crashed_dc:Topology.vertex)
             (name_of_vertex topo dst) in
         (Geq (name, diff, (demand /. demand_divisor)))::acc) d_pairs
 
-let conservation_constraints (topo : Topology.t) (crashed_dc:Topology.vertex)
-      (d_pairs : demands) (init_acc : constrain list) : constrain list =
-  (* Every source-sink pair has its own conservation constraints *)
-  SrcDstMap.fold ~init:init_acc ~f:(fun ~key:(src,dst) ~data:_ acc ->
-      (* ignore demands to/from crashed node *)
-      if src = crashed_dc || dst = crashed_dc then acc
-      else
-        (* Every node in the topology except the source and sink has
-         * conservation constraints *)
-        Topology.fold_vertexes (fun v acc2 ->
-            if v = src || v = dst then acc2 else
-              let edges = outgoing_edges topo v in
-              let outgoing = List.fold_left edges ~init:[] ~f:(fun acc_vars e ->
-                  (Var (var_name topo e (src,dst)))::acc_vars) in
-              let incoming = List.fold_left edges ~init:[] ~f:(fun acc_vars e ->
-                  (Var (var_name_rev topo e (src,dst)))::acc_vars) in
-              let total_out = Sum (outgoing) in
-              let total_in = Sum (incoming) in
-              let net = minus total_out total_in in
-              let name = Printf.sprintf "con-%s-%s_%s" (name_of_vertex topo src)
-                  (name_of_vertex topo dst) (name_of_vertex topo v) in
-              let constr = Eq (name, net, 0.) in
-              constr::acc2) topo acc) d_pairs
-
 let shift_amount_constraints (topo : Topology.t) (crashed_dc:Topology.vertex)
     (init_acc : constrain list) : constrain list =
   let hosts = get_hosts_set topo in
-  let sum_sin, sum_seg =
-    VertexSet.fold ~init:([],[]) ~f:(fun (sin_acc,seg_acc) host ->
-        (* total volume of traffic shifted to/from the crashed node is some
-           fraction of total traffic to/from the crashed node in steady state *)
-        if host = crashed_dc then (sin_acc, seg_acc)
-        else
-          let sin_xv = Var (var_name_sin topo crashed_dc host) in
-          let seg_xu = Var (var_name_seg topo crashed_dc host) in
-          (sin_xv::sin_acc, seg_xu::seg_acc)) hosts in
-  let sin_constr = Geq("sum_sin", Sum (sum_sin), 1.) in
-  let seg_constr = Geq("sum_seg", Sum (sum_seg), 1.) in
-  sin_constr::seg_constr::init_acc
-
+  let sin_acc = VertexSet.fold ~init:init_acc ~f:(fun acc u ->
+      (* for each u, *)
+      if u = crashed_dc then acc
+      else
+        (* \sum sin_uxv = 1 *)
+        let sin_uxvs = VertexSet.fold ~init:[] ~f:(fun acc v ->
+            if v = crashed_dc then acc
+            else Var (var_name_sdsin topo u crashed_dc v)::acc) hosts in
+        let sum_sin_uxvs = Sum(sin_uxvs) in
+        let name = Printf.sprintf "sum_sin_%s" (name_of_vertex topo u) in
+        (Eq (name, sum_sin_uxvs, 1.)::acc)) hosts in
+  let seg_acc = VertexSet.fold ~init:sin_acc ~f:(fun acc v ->
+      (* for each v, *)
+      if v = crashed_dc then acc
+      else
+        (* \sum seg_xuv = 1 *)
+        let seg_xuvs = VertexSet.fold ~init:[] ~f:(fun acc u ->
+            if u = crashed_dc then acc
+            else Var (var_name_sdseg topo crashed_dc u v)::acc) hosts in
+        let sum_seg_xuvs = Sum(seg_xuvs) in
+        let name = Printf.sprintf "sum_seg_%s" (name_of_vertex topo v) in
+        (Eq (name, sum_seg_xuvs, 1.)::acc)) hosts in
+  VertexSet.fold ~init:seg_acc ~f:(fun acc u ->
+      (* for each u, *)
+      if u = crashed_dc then acc
+      else
+        let sin_uxu = Var (var_name_sdsin topo u crashed_dc u) in
+        let seg_xuu = Var (var_name_sdseg topo crashed_dc u u) in
+        let name_sin = Printf.sprintf "sin_%s" (name_of_vertex topo u) in
+        let name_seg = Printf.sprintf "seg_%s" (name_of_vertex topo u) in
+        (Eq (name_sin, sin_uxu, 0.)::Eq (name_seg, seg_xuu, 0.)::acc)) hosts
 
 (* Construct joint LP considering naive traffic shift and routing *)
 let lp_of_graph (topo : Topology.t) (crashed_dc:Topology.vertex) (demand_pairs : demands) =
-  let all_constrs = capacity_constraints topo crashed_dc demand_pairs []
+  let all_constrs = SM_Naive.capacity_constraints topo crashed_dc demand_pairs []
                     |> demand_constraints topo crashed_dc demand_pairs
-                    |> conservation_constraints topo crashed_dc demand_pairs
+                    |> SM_Naive.conservation_constraints topo crashed_dc demand_pairs
                     |> shift_amount_constraints topo crashed_dc in
   (objective, all_constrs)
 
 let rec new_rand () : float =
   let rand = (Random.float 1.0) in
-  let try_fn = (Printf.sprintf "lp/ns_%f.lp" rand) in
+  let try_fn = (Printf.sprintf "lp/sds_%f.lp" rand) in
   match Sys.file_exists try_fn with
     `Yes -> new_rand ()
   | _ -> rand
@@ -135,8 +104,8 @@ let model (topo:topology) (crashed_dc:vertex) (pairs:demands) : demands =
 
   let lp = lp_of_graph topo crashed_dc pairs in
   let rand = new_rand () in
-  let lp_filename = (Printf.sprintf "lp/ns_%f.lp" rand) in
-  let lp_solname = (Printf.sprintf "lp/ns_%f.sol" rand) in
+  let lp_filename = (Printf.sprintf "lp/sds_%f.lp" rand) in
+  let lp_solname = (Printf.sprintf "lp/sds_%f.sol" rand) in
   serialize_lp lp lp_filename;
 
   let method_str = (Int.to_string !gurobi_method) in
@@ -164,7 +133,7 @@ let model (topo:topology) (crashed_dc:vertex) (pairs:demands) : demands =
                      "\\([a-zA-Z0-9]+\\)--\\([a-zA-Z0-9]+\\) \\([0-9.e+-]+\\)$" in
     let regex = Str.regexp result_str in
     let shift_str = "^s\\([a-z]+\\)_\\([a-zA-Z0-9]+\\)--\\([a-zA-Z0-9]+\\)" ^
-                     " \\([0-9.e+-]+\\)$" in
+                     "--\\([a-zA-Z0-9]+\\) \\([0-9.e+-]+\\)$" in
     let shift_regex = Str.regexp shift_str in
 
     let rec read inp opt_z flows shift_vals =
@@ -194,25 +163,26 @@ let model (topo:topology) (crashed_dc:vertex) (pairs:demands) : demands =
              else (
                if Str.string_match shift_regex line 0 then
                  let shift_in, shift_eg = shift_vals in
-                 let shift_amt = Float.of_string (Str.matched_group 4 line) in
+                 let shift_amt = Float.of_string (Str.matched_group 5 line) in
                  let new_shift_vals =
                    (match (Str.matched_group 1 line) with
                     | "in" ->
-                      let shift_in_node = Hashtbl.Poly.find_exn name_table (Str.matched_group 3 line) in
-                      (SrcDstMap.add shift_in
-                         ~key:(crashed_dc, shift_in_node) ~data:shift_amt,
-                       shift_eg)
+                      let shift_in_u = Hashtbl.Poly.find_exn name_table (Str.matched_group 2 line) in
+                      let shift_in_v = Hashtbl.Poly.find_exn name_table (Str.matched_group 4 line) in
+                      Hashtbl.Poly.add_exn shift_in (shift_in_u, crashed_dc, shift_in_v) shift_amt;
+                      (shift_in, shift_eg)
                     | "eg" ->
-                      let shift_eg_node = Hashtbl.Poly.find_exn name_table (Str.matched_group 3 line) in
-                      (shift_in,
-                       SrcDstMap.add shift_eg
-                         ~key:(crashed_dc, shift_eg_node) ~data:shift_amt)
+                      let shift_eg_u = Hashtbl.Poly.find_exn name_table (Str.matched_group 3 line) in
+                      let shift_eg_v = Hashtbl.Poly.find_exn name_table (Str.matched_group 4 line) in
+                      Hashtbl.Poly.add_exn shift_eg (crashed_dc, shift_eg_u, shift_eg_v) shift_amt;
+                      (shift_in, shift_eg)
                     | _ -> shift_vals) in
                  (opt_z, flows, new_shift_vals)
 
               else (opt_z, flows, shift_vals))) in
         read inp new_z new_flows shift_vals in
-    let result = read results 0. [] (SrcDstMap.empty, SrcDstMap.empty) in
+    let result = read results 0. [] (Hashtbl.Poly.create(),
+                                     Hashtbl.Poly.create()) in
     In_channel.close results; result in
     (* end read_results *)
 
@@ -224,13 +194,14 @@ let model (topo:topology) (crashed_dc:vertex) (pairs:demands) : demands =
       ~f:(fun ~key:(u,v) ~data:(d) acc ->
           if u = crashed_dc || v = crashed_dc then acc
           else
+           (* d'_uv = d_uv + sin_uxv * d_ux + seg_xuv * d_xv *)
             let d' =
               (if u = v then 0.
                else
-                 let sin_xv = SrcDstMap.find_exn shift_in (crashed_dc, v) in
-                 let seg_xu = SrcDstMap.find_exn shift_eg (crashed_dc, u) in
+                 let sin_uxv = Hashtbl.Poly.find_exn shift_in (u, crashed_dc, v) in
+                 let seg_xuv = Hashtbl.Poly.find_exn shift_eg (crashed_dc, u, v) in
                  let d_ux = SrcDstMap.find_exn pairs (u, crashed_dc) in
                  let d_xv = SrcDstMap.find_exn pairs (crashed_dc, v) in
-                 d +. d_ux *. sin_xv +. d_xv *. seg_xu) in
+                 d +. d_ux *. sin_uxv +. d_xv *. seg_xuv) in
             SrcDstMap.add ~key:(u,v) ~data:d' acc) pairs in
   shifted_tm

@@ -5,3 +5,4 @@ module type ShiftModel = sig
 end
 
 module NS : ShiftModel
+module SD : ShiftModel

@@ -5,3 +5,4 @@ module type ShiftModel = sig
 end
 
 module NS = SM_Naive
+module SD = SM_SD
