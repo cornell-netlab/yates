@@ -1,5 +1,5 @@
-open Core.Std
-open Async.Std
+open Core
+open Async
 open Frenetic_OpenFlow
 open Frenetic_OpenFlow0x01
 open Frenetic_Network
@@ -89,7 +89,7 @@ let add_paths_from_scheme (scm:scheme) (path_tag_map:Tag.t PathMap.t) : Tag.t Pa
 let create_sw_flows_map topo (path_tag_map:Tag.t PathMap.t) : (switchId, flowMod list) Hashtbl.t =
   let sw_flow_map = Hashtbl.Poly.create () in
   PathMap.iteri path_tag_map ~f:(fun ~key:path ~data:tag ->
-    Core.Std.printf "%d\t%s\n" tag (dump_edges topo path));
+    Core.printf "%d\t%s\n" tag (dump_edges topo path));
   PathMap.iteri path_tag_map ~f:(fun ~key:path ~data:tag ->
     match path with
     | _::sw_path ->

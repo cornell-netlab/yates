@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_Network
 open Net
 open AutoTimer
@@ -526,10 +526,21 @@ let simulate_tm (start_scheme:scheme)
       (string_of_vertex topo flash_sink);
 
   (* Main loop: iterate over timesteps and update network state *)
+  let initial_network_state =
+    { ingress_link_traffic = EdgeMap.empty;
+      delivered = SrcDstMap.empty;
+      latency = SrcDstMap.empty;
+      utilization = EdgeMap.empty;
+      scheme = start_scheme;
+      failures = EdgeSet.empty;
+      failure_drop = 0.0;
+      congestion_drop = 0.0;
+      real_tm = dem;
+      predict_tm = predict } in 
+  
   let final_network_state =
     List.fold_left iterations
-      ~init:(make_network_iter_state
-               ~scheme:start_scheme ~real_tm:dem ~predict_tm:predict ())
+      ~init:initial_network_state
       ~f:(fun current_state iter ->
           (* begin iteration - time *)
           Printf.printf "\t\t\t\t   %s\r%!"

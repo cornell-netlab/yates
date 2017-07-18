@@ -1,4 +1,4 @@
-open Core.Std
+open Core
        
 type time = {
   mutable time : float;

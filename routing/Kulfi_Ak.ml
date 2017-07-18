@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Kulfi_Types
 open Frenetic_Network
 open Net

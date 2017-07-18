@@ -1,5 +1,5 @@
-open Core.Std
-open Async.Std
+open Core
+open Async
 open Frenetic_Network
 open Net
 open Net.Topology
@@ -82,7 +82,7 @@ let create (t:topology) =
             let tag = !tag_cell in
             incr tag_cell;
             Hashtbl.Poly.add_exn tag_hash edge tag;
-            Core.Std.printf "LINK: %s -> %d\n" (dump_edges t [edge]) tag;
+            Core.printf "LINK: %s -> %d\n" (dump_edges t [edge]) tag;
             let flow_mod = mk_flow_mod tag (Int32.to_int_exn port) in
             match Hashtbl.Poly.find flow_hash sw with
               | None ->

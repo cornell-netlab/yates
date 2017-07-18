@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 include Kulfi_LP_Lang
 

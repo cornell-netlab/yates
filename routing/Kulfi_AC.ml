@@ -1,6 +1,6 @@
 open Frenetic_Network
 open Net
-open Core.Std
+open Core
 open Kulfi_Globals
 open Kulfi_LP_Lang
 open Kulfi_Routing_Util
@@ -269,7 +269,7 @@ let solve (topo:topology) (_:demands) : scheme =
       let time_regex = Str.regexp time_str in
       let rec read_output gurobi solve_time =
         try
-          let line = input_line gurobi in
+          let line = In_channel.input_line_exn gurobi in
           if Str.string_match time_regex line 0 then
             let num_seconds = Float.of_string (Str.matched_group 1 line) in
             read_output gurobi num_seconds
@@ -282,13 +282,13 @@ let solve (topo:topology) (_:demands) : scheme =
 
       (* read back all the edge flows from the .sol file *)
       let read_results input =
-        let results = open_in input in
+        let results = In_channel.create input in
         let result_str = "^f_\\([a-zA-Z0-9]+\\)--\\([a-zA-Z0-9]+\\)_" ^
                          "\\([a-zA-Z0-9]+\\)--\\([a-zA-Z0-9]+\\) \\([0-9.e+-]+\\)$"
         in
         let regex = Str.regexp result_str in
         let rec read inp opt_z flows =
-          let line = try input_line inp
+          let line = try In_channel.input_line_exn inp
             with End_of_file -> "" in
           if line = "" then (opt_z,flows)
           else

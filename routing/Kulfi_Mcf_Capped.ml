@@ -2,7 +2,7 @@ open Kulfi_Types
 
 open Frenetic_Network
 open Net
-open Core.Std
+open Core
 open Kulfi_LP_Lang
 
 (*

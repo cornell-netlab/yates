@@ -69,7 +69,7 @@ Library simulate
   BuildDepends:
     ocamlgraph,
     frenetic,
-    ppx_deriving.make,
+    ppx_deriving.std,
     routing,
     shiftmodel,
     util
@@ -105,7 +105,7 @@ Executable simulator
   BuildDepends:
     ocamlgraph,
     frenetic,
-    ppx_deriving.make,
+    ppx_deriving.std,
     routing,
     util
 
@@ -116,7 +116,7 @@ Executable shiftsimulator
   MainIs: Shift_Simulator.ml
   CompiledObject: native
   BuildDepends:
-    ppx_deriving.make,
+    ppx_deriving.std,
     shiftmodel,
     util
 

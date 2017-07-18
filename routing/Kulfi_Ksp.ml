@@ -1,7 +1,7 @@
 open Frenetic_Network
 open Net
 open Net.Topology
-open Core.Std
+open Core
 open Kulfi_Apsp
 open Kulfi_Globals
 open Kulfi_Types

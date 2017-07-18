@@ -1,13 +1,13 @@
 open Frenetic_Network
 open Net
-open Core.Std
+open Core
 open Kulfi_Types
 
 let () = match !Kulfi_Globals.rand_seed with
   | Some x -> Random.init x
   | None -> Random.self_init ~allow_in_tests:true ()
 
-let pi = 4.0 *. atan 1.0
+let pi = 4.0 *. Float.atan 1.0
 
 type host = Topology.vertex
 
@@ -134,7 +134,7 @@ let get_demands model =
             if i = j then () else
               let (phase,amp) = demand_fns.(i).(j) in
               let t = float time in
-              let d = phase *. sin (freq *. (t +. phase)) in
+              let d = phase *. Float.sin (freq *. (t +. phase)) in
               if d = 0. then () else
                 lst := (hosts.(i), hosts.(j), d)::(!lst))
           hosts)

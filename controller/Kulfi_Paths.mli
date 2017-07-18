@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_Network
 open Frenetic_OpenFlow
 open Frenetic_OpenFlow0x01

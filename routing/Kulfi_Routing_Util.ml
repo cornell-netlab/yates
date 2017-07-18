@@ -2,7 +2,7 @@ open Kulfi_Types
 
 open Frenetic_Network
 open Net
-open Core.Std
+open Core
 
 let reverse_edge_exn topo e = match Topology.inverse_edge topo e with
           | Some x -> x
@@ -55,7 +55,7 @@ let get_all_possible_failures (topo:topology) (num_failures:int) : (failure List
         ~f:(fun acc partial_fl ->
           List.fold_left all_single_failures ~init:acc
             ~f:(fun acc single_fl ->
-              if EdgeSet.subset single_fl partial_fl then acc
+              if EdgeSet.is_subset single_fl partial_fl then acc
               else
                 let new_failure = EdgeSet.union partial_fl single_fl in
                 if List.mem ~equal:EdgeSet.equal acc new_failure then acc else

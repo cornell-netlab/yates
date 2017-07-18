@@ -1,5 +1,5 @@
-open Core.Std
-open Async.Std
+open Core
+open Async
 open Kulfi_Routing
 open Kulfi_Types
 open Kulfi_Traffic
@@ -16,7 +16,7 @@ let port_stats_delay = 1.0
 
 let verbose s =
   if false then
-    Core.Std.eprintf "[kulfi]: %s\n%!" s
+    Core.eprintf "[kulfi]: %s\n%!" s
   else
     ()
 
@@ -62,7 +62,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
   (* Command-line Interface *)
   let rec cli () =
     let help () =
-      Core.Std.printf "Kulfi commands:\n\
+      Core.printf "Kulfi commands:\n\
                      \thelp : print this message\n\
                      \tswitches : print connected switches\n\
                      \tports [switch] : print ports for [switch]\n\
@@ -72,7 +72,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
                      %!";
       return () in
     let switches () =
-      Core.Std.printf
+      Core.printf
         "[%s]\n%!"
         (Kulfi_Types.intercalate
            (Printf.sprintf "%Ld")
@@ -83,9 +83,9 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
       let sw = try Int64.of_string sws with _ -> -1L in
       begin match Hashtbl.Poly.find global_state.network sw with
             | None ->
-               Core.Std.printf "No ports for switch %s\n%!" sws
+               Core.printf "No ports for switch %s\n%!" sws
             | Some sw_state ->
-               Core.Std.printf
+               Core.printf
                  "[%s]\n%!"
                  (Kulfi_Types.intercalate
                     (Printf.sprintf "%d")
@@ -94,7 +94,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
       end;
       return () in
     let flows () =
-      Core.Std.printf
+      Core.printf
         "%s\n%!"
         (Hashtbl.Poly.fold
            global_state.network
@@ -113,9 +113,9 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
       begin match Hashtbl.Poly.find global_state.stats (sw,pt) with
             | None
             | Some [] ->
-               Core.Std.printf "No stats for switch %s port %s\n" sws pts
+               Core.printf "No stats for switch %s port %s\n" sws pts
             | Some ((time,ps)::_) ->
-               Core.Std.printf "%s\n" (string_of_stats sw (time,ps))
+               Core.printf "%s\n" (string_of_stats sw (time,ps))
       end;
       return () in
 
@@ -135,7 +135,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
       List.filter (String.split s ' ') ((<>) "") in
 
     begin
-      Core.Std.printf "kulfi> %!";
+      Core.printf "kulfi> %!";
       Reader.read_line (force Reader.stdin) >>=
         (function
           | `Eof -> eof ()
@@ -176,6 +176,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
     port_stats_loop ()
 
   let send (sw, x, msg) =
+    let open Frenetic_OpenFlow0x01_Plugin in 
     Controller.send sw x msg >>= function
     | RpcEof -> return ()
     | RpcOk -> return ()
@@ -189,13 +190,13 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
     match evt with
     | SwitchUp (sw, ports) ->
        begin
-         Core.Std.printf "switch %Ld connected" sw;
+         Core.printf "switch %Ld connected" sw;
          (* Save global state *)
          let sw_state =
            { ports = List.map ports ~f:(Int32.to_int_exn);
              flows =
                (match Hashtbl.Poly.find flow_hash sw with
-                | None -> begin Core.Std.printf "no flows!\n"; [] end
+                | None -> begin Core.printf "no flows!\n"; [] end
                 | Some flows -> flows) } in
          safe_add global_state.network sw sw_state (fun x _ -> x);
          (* Propagate state to network *)
@@ -239,13 +240,13 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
     Hashtbl.iteri sw_flow_map
         ~f:(fun ~key:sw ~data:flows ->
           Kulfi_Types.intercalate Frenetic_OpenFlow0x01.FlowMod.to_string "\n" flows
-          |> Core.Std.printf "%d : %s\n" (Int64.to_int_exn sw))
+          |> Core.printf "%d : %s\n" (Int64.to_int_exn sw))
 
   (* Start controller CLI loop and install flow rules *)
   let start_controller sw_flows_map () =
-      Core.Std.eprintf "[Kulfi: starting controller]\n%!";
+      Core.eprintf "[Kulfi: starting controller]\n%!";
       Controller.start 6633;
-      Core.Std.eprintf "[Kulfi: running...]\n%!";
+      Core.eprintf "[Kulfi: running...]\n%!";
       don't_wait_for (cli ());
       don't_wait_for (port_stats_loop ());
       don't_wait_for (Pipe.iter Controller.events (handler sw_flows_map));
@@ -273,7 +274,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
         () in
     let open Deferred in
     (* Main code *)
-    Core.Std.eprintf "[Kulfi: generating configurations]\n%!";
+    Core.eprintf "[Kulfi: generating configurations]\n%!";
     simulate 0;
     (*dump_flow_mods flow_hash;*)
     start_controller flow_hash ()
@@ -292,19 +293,19 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
       try
         let predict = next_demand predict_traffic_ic predict_host_map in
         let scheme' = Solver.solve topo predict in
-        Core.Std.printf "%d\n%!" (SrcDstMap.length scheme');
+        Core.printf "%d\n%!" (SrcDstMap.length scheme');
         let path_tag_map = Kulfi_Paths.add_paths_from_scheme scheme' path_tag_map in
         print_configuration topo (path_routing_configuration_of_scheme topo scheme' path_tag_map) i;
         simulate (i+1) path_tag_map
       with err ->
-        Core.Std.printf "exit %d %s\n%!" i (Exn.to_string err);
+        Core.printf "exit %d %s\n%!" i (Exn.to_string err);
         path_tag_map in
     let open Deferred in
     (* Main code *)
-    Core.Std.eprintf "[Kulfi: generating configurations]\n%!";
+    Core.eprintf "[Kulfi: generating configurations]\n%!";
     (* Generate schemes for each iteration and create a tag for every path *)
     let path_tag_map = simulate 0 PathMap.empty in
-    Core.Std.eprintf "[Kulfi: %d]\n%!" (PathMap.length path_tag_map);
+    Core.eprintf "[Kulfi: %d]\n%!" (PathMap.length path_tag_map);
     (* translate path-tag map into flow mods for each switch *)
     let sw_flows_map = Kulfi_Paths.create_sw_flows_map topo path_tag_map in
     (*dump_flow_mods sw_flows_map;*)

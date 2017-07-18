@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Kulfi_Util
 open Kulfi_Types
 
@@ -12,28 +12,27 @@ type solver_type =
   | OptimalMcf
 
 type network_iter_state = {
-  ingress_link_traffic  : ((edge Array.t * int * float) list) EdgeMap.t
-      [@default EdgeMap.empty];
-  delivered       : float SrcDstMap.t       [@default SrcDstMap.empty];
-  latency         : (float LatencyMap.t) SrcDstMap.t [@default SrcDstMap.empty];
-  utilization     : (float list) EdgeMap.t  [@default EdgeMap.empty];
-  scheme          : scheme    [@default SrcDstMap.empty];
-  failures        : failure   [@default EdgeSet.empty];
-  failure_drop    : float     [@default 0.0];
-  congestion_drop : float     [@default 0.0];
-  real_tm         : demands   [@default SrcDstMap.empty];
-  predict_tm      : demands   [@default SrcDstMap.empty];
-} [@@deriving make]
+  ingress_link_traffic  : ((edge Array.t * int * float) list) EdgeMap.t;
+  delivered       : float SrcDstMap.t;
+  latency         : (float LatencyMap.t) SrcDstMap.t;
+  utilization     : (float list) EdgeMap.t;
+  scheme          : scheme;
+  failures        : failure;
+  failure_drop    : float;
+  congestion_drop : float;
+  real_tm         : demands;
+  predict_tm      : demands;
+} 
 
 type sim_tm_stats = {
-  throughput    : throughput SrcDstMap.t    [@default SrcDstMap.empty];
-  latency       : throughput LatencyMap.t   [@default LatencyMap.empty];
-  congestion    : (congestion * congestion) EdgeMap.t [@default EdgeMap.empty];
-  failure_drop  : throughput              [@default 0.];
-  congestion_drop   : throughput              [@default 0.];
-  flash_throughput  : throughput              [@default 0.];
-  aggregate_demand  : demand                  [@default 0.];
-  recovery_churn    : float                   [@default 0.];
-  scheme            : scheme                  [@default SrcDstMap.empty];
-  solver_time       : float                   [@default 0.];
-} [@@deriving make]
+  throughput    : throughput SrcDstMap.t;
+  latency       : throughput LatencyMap.t;
+  congestion    : (congestion * congestion) EdgeMap.t;
+  failure_drop  : throughput;
+  congestion_drop   : throughput;
+  flash_throughput  : throughput;
+  aggregate_demand  : demand;    
+  recovery_churn    : float;   
+  scheme            : scheme;    
+  solver_time       : float;
+} 

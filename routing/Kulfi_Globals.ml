@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 let budget          = ref Int.max_value
 let deloop          = ref false

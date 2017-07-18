@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Frenetic_Network
 module Topology = Net.Topology
 
@@ -187,9 +187,9 @@ struct
               | Node (_,set,children) ->
                 let result1 = List.fold_left children ~init:true
 		  ~f:(fun acc c -> acc && match c with
-                  | Single (set2) -> Topology.VertexSet.subset set2 set
-                  | Leaf (_,set2) -> Topology.VertexSet.subset set2 set
-                  | Node (_,set2,_) -> Topology.VertexSet.subset set2 set) in
+                  | Single (set2) -> Topology.VertexSet.is_subset set2 set
+                  | Leaf (_,set2) -> Topology.VertexSet.is_subset set2 set
+                  | Node (_,set2,_) -> Topology.VertexSet.is_subset set2 set) in
                 result1 && (List.fold_left children ~init:true ~f:(fun acc x ->
 		  acc && check x)) in
         check tree
@@ -226,7 +226,7 @@ struct
         | Node (v,_,_) -> v
 
     let cluster_subset (vset : Topology.VertexSet.t) (c : cut_decomp) =
-      Topology.VertexSet.subset vset (get_cluster c)
+      Topology.VertexSet.is_subset vset (get_cluster c)
 
     let cluster_inter (vset : Topology.VertexSet.t) (c : cut_decomp) =
       Topology.VertexSet.inter vset (get_cluster c)
@@ -313,7 +313,7 @@ struct
                 if Hashtbl.mem usage_table edge then
                   Hashtbl.find_exn usage_table edge
                 else Int64.zero in
-              Hashtbl.replace usage_table edge (Int64.(+) old_usage amount) in
+              Hashtbl.set usage_table edge (Int64.(+) old_usage amount) in
             add_to edge;
             match Topology.inverse_edge orig_topo edge with
               | Some inv -> add_to inv
@@ -492,7 +492,7 @@ struct
           let () = if Hashtbl.mem level_table center then
               let old_level = Hashtbl.find_exn level_table center in
               let new_level = min old_level level in
-              Hashtbl.replace level_table center new_level
+              Hashtbl.set level_table center new_level
             else
               Hashtbl.add_exn level_table center level in
           List.fold_left children ~init:(VertexSet.singleton center)
@@ -509,17 +509,17 @@ struct
     let write_dot1 topo rrt filename =
       let tree_edges = edges_in_tree rrt in
       let tree_verts,levels = vertices_in_tree rrt in
-      let out_file = open_out (filename ^ "-rrt1.dot") in
-      output_string out_file "strict digraph {\n";
+      let out_chan = Out_channel.create (filename ^ "-rrt1.dot") in
+      Out_channel.output_string out_chan "strict digraph {\n";
       Topology.iter_vertexes (fun v ->
         let level = if Hashtbl.mem levels v then Hashtbl.find_exn levels v else 16 in
-        output_string out_file
+        Out_channel.output_string out_chan
           (vertex_to_dot topo v level (VertexSet.mem tree_verts v))) topo;
       Topology.iter_edges (fun e ->
-        output_string out_file
+        Out_channel.output_string out_chan
           (edge_to_dot topo e (EdgeSet.mem tree_edges e))) topo;
-      output_string out_file "}\n";
-      Out_channel.close out_file
+      Out_channel.output_string out_chan "}\n";
+      Out_channel.close out_chan
 
     let write_dot2 topo rrt filename =
       let tree_edges = edges_in_tree rrt in
@@ -530,41 +530,41 @@ struct
           let acc2 = VertexSet.add acc src in
           VertexSet.add acc2 dst) in
       (* output original topology *)
-      let topo_out = open_out (filename ^ "-rrt2.dot") in
-      output_string topo_out "strict digraph {\n";
-      Topology.iter_vertexes (fun v -> output_string topo_out
+      let topo_out = Out_channel.create (filename ^ "-rrt2.dot") in
+      Out_channel.output_string topo_out "strict digraph {\n";
+      Topology.iter_vertexes (fun v -> Out_channel.output_string topo_out
         (vertex_to_dot topo v 0 false)) topo;
-      Topology.iter_edges (fun e -> output_string topo_out
+      Topology.iter_edges (fun e -> Out_channel.output_string topo_out
         (edge_to_dot topo e false)) topo;
-      output_string topo_out "}\n";
+      Out_channel.output_string topo_out "}\n";
       (* output tree topology *)
-      output_string topo_out "strict digraph {\n";
-      VertexSet.iter tree_verts ~f:(fun v -> output_string topo_out
+      Out_channel.output_string topo_out "strict digraph {\n";
+      VertexSet.iter tree_verts ~f:(fun v -> Out_channel.output_string topo_out
         (vertex_to_dot topo v 0 false));
-      EdgeSet.iter tree_edges ~f:(fun e -> output_string topo_out
+      EdgeSet.iter tree_edges ~f:(fun e -> Out_channel.output_string topo_out
         (edge_to_dot topo e false)) ;
-      output_string topo_out "}\n";
+      Out_channel.output_string topo_out "}\n";
       Out_channel.close topo_out;
       ()
 
     let write_frt topo frt filename =
       let levels = get_levels frt in
       let all_edges = Topology.edges topo in
-      let out_file = open_out (filename ^ "-frt.dot") in
+      let out_file = Out_channel.create (filename ^ "-frt.dot") in
       let write_level level =
-        output_string out_file "strict digraph {\n";
+        Out_channel.output_string out_file "strict digraph {\n";
         let edge_in_cluster cluster e =
           let src,_ = Topology.edge_src e in
           let dst,_ = Topology.edge_dst e in
           (VertexSet.mem cluster src) && (VertexSet.mem cluster dst) in
         let write_cluster cluster =
           let cl_edges = EdgeSet.filter all_edges ~f:(edge_in_cluster cluster) in
-          VertexSet.iter cluster ~f:(fun v -> output_string out_file
+          VertexSet.iter cluster ~f:(fun v -> Out_channel.output_string out_file
             (vertex_to_dot topo v 0 false)) ;
-          EdgeSet.iter cl_edges ~f:(fun e -> output_string out_file
+          EdgeSet.iter cl_edges ~f:(fun e -> Out_channel.output_string out_file
             (edge_to_dot topo e false))  in
         List.iter level ~f:write_cluster ;
-        output_string out_file "}\n" in
+        Out_channel.output_string out_file "}\n" in
       List.iter levels ~f:write_level;
       Out_channel.close out_file
 

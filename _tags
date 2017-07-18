@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: fb4cf1c6b6606f206bb113bdda93adaf)
+# DO NOT EDIT (digest: 457a45cb9b0c63675399062813bd74f7)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -108,7 +108,7 @@ true: annot, bin_annot
 "simulate/Simulate_Driver.native": package(core)
 "simulate/Simulate_Driver.native": package(frenetic)
 "simulate/Simulate_Driver.native": package(ocamlgraph)
-"simulate/Simulate_Driver.native": package(ppx_deriving.make)
+"simulate/Simulate_Driver.native": package(ppx_deriving.std)
 "simulate/Simulate_Driver.native": package(ppx_jane)
 "simulate/Simulate_Driver.native": package(sexplib)
 "simulate/Simulate_Driver.native": package(threads)
@@ -119,7 +119,7 @@ true: annot, bin_annot
 "simulate/Shift_Simulator.native": package(core)
 "simulate/Shift_Simulator.native": package(frenetic)
 "simulate/Shift_Simulator.native": package(ocamlgraph)
-"simulate/Shift_Simulator.native": package(ppx_deriving.make)
+"simulate/Shift_Simulator.native": package(ppx_deriving.std)
 "simulate/Shift_Simulator.native": package(ppx_jane)
 "simulate/Shift_Simulator.native": package(sexplib)
 "simulate/Shift_Simulator.native": package(threads)
@@ -130,7 +130,7 @@ true: annot, bin_annot
 <simulate/*.ml{,i,y}>: package(core)
 <simulate/*.ml{,i,y}>: package(frenetic)
 <simulate/*.ml{,i,y}>: package(ocamlgraph)
-<simulate/*.ml{,i,y}>: package(ppx_deriving.make)
+<simulate/*.ml{,i,y}>: package(ppx_deriving.std)
 <simulate/*.ml{,i,y}>: package(ppx_jane)
 <simulate/*.ml{,i,y}>: package(sexplib)
 <simulate/*.ml{,i,y}>: package(threads)
@@ -142,7 +142,7 @@ true: annot, bin_annot
 "test/Test.native": package(core)
 "test/Test.native": package(frenetic)
 "test/Test.native": package(ocamlgraph)
-"test/Test.native": package(ppx_deriving.make)
+"test/Test.native": package(ppx_deriving.std)
 "test/Test.native": package(ppx_inline_test)
 "test/Test.native": package(ppx_jane)
 "test/Test.native": package(sexplib)
@@ -155,7 +155,7 @@ true: annot, bin_annot
 <test/*.ml{,i,y}>: package(core)
 <test/*.ml{,i,y}>: package(frenetic)
 <test/*.ml{,i,y}>: package(ocamlgraph)
-<test/*.ml{,i,y}>: package(ppx_deriving.make)
+<test/*.ml{,i,y}>: package(ppx_deriving.std)
 <test/*.ml{,i,y}>: package(ppx_inline_test)
 <test/*.ml{,i,y}>: package(ppx_jane)
 <test/*.ml{,i,y}>: package(sexplib)

@@ -3,7 +3,7 @@ open Kulfi_Routing_Util
 
 open Frenetic_Network
 open Net
-open Core.Std
+open Core
 open Kulfi_LP_Lang
 open Kulfi_Globals
 
@@ -171,7 +171,7 @@ let solve_ffc_lp (pmap:int PathMap.t) (emap:int list EdgeMap.t) (topo:topology) 
     let time_regex = Str.regexp time_str in
     let rec read_output gurobi solve_time =
       try
-        let line = input_line gurobi in
+        let line = In_channel.input_line_exn gurobi in
         if Str.string_match time_regex line 0 then
           let num_seconds = Float.of_string (Str.matched_group 1 line) in
           read_output gurobi num_seconds

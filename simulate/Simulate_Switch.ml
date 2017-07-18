@@ -1,8 +1,8 @@
-open Core.Std
+open Core
 open Kulfi_Types
 
 let is_nan x =
-  classify_float x = FP_nan
+  Float.classify x = Float.Class.Nan
 
 (* Calculate fair share of flows *)
 let fair_share_at_edge (capacity:float) (in_flows: float PathMap.t) : (float PathMap.t) =

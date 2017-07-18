@@ -1,6 +1,6 @@
 open Frenetic_Network
 open Net
-open Core.Std
+open Core
 
 module EdgeSet = Topology.EdgeSet
 module VertexSet = Topology.VertexSet

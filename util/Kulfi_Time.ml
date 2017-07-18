@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 external kulfi_gettime : unit -> Int64.t = "kulfi_gettime"
 

@@ -1,9 +1,9 @@
-open Core.Std
+open Core
 open Kulfi_Types
 open Frenetic_Network
 open Net
 
-let open_demands (demand_file:string) (host_file:string) (topo:topology) : (index_map * in_channel) =
+let open_demands (demand_file:string) (host_file:string) (topo:topology) : (index_map * In_channel.t) =
   let name_map =
     VertexSet.fold (Topology.vertexes topo)
     ~init:StringMap.empty
@@ -22,18 +22,18 @@ let open_demands (demand_file:string) (host_file:string) (topo:topology) : (inde
             (i+1, (IntMap.add m ~key:i ~data:n)))) in
   (host_map, (In_channel.create demand_file))
 
-let close_demands (ic:in_channel) : unit =
+let close_demands (ic:In_channel.t) : unit =
   In_channel.close ic
 
-let next_demand ?scale:(scale=1.0) (ic:in_channel) (host_map:index_map) : demands =
+let next_demand ?scale:(scale=1.0) (ic:In_channel.t) (host_map:index_map) : demands =
   let line =
     try
-      input_line ic
+      In_channel.input_line_exn ic
     with e ->
       (* Wrap around when EOF is reached *)
       Printf.printf "Wrapping around...\n";
       In_channel.seek ic 0L;
-      input_line ic
+      In_channel.input_line_exn ic
       (*close_in_noerr ic;
       raise e*)
   in
