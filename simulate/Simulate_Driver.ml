@@ -81,24 +81,17 @@ let calculate_demand_envelope (topo:topology) (predict_file:string)
   close_demands predict_ic;
   envelope
 
-let store_paths log_paths scheme topo topology_file algorithm n : unit =
+let store_paths log_paths scheme topo out_dir algorithm n : unit =
   if log_paths then
-    let split_dot_file_list =
-      String.split_on_chars topology_file ~on:['/';'.'] in
-    let suffix =
-      match List.nth split_dot_file_list (List.length split_dot_file_list -2) with
-      | Some x -> x
-      | None -> "default" in
-    let dir = "./expData/" ^ suffix ^ "/" in
-    let _ = match (Sys.file_exists dir) with
-      | `No -> Unix.mkdir dir
+    let _ = match (Sys.file_exists out_dir) with
+      | `No -> Unix.mkdir out_dir
       | _ -> () in
-    let dir = "./expData/" ^ suffix ^ "/paths/" in
-    let _ = match (Sys.file_exists dir) with
-      | `No -> Unix.mkdir dir
+    let out_dir = out_dir ^ "paths/" in
+    let _ = match (Sys.file_exists out_dir) with
+      | `No -> Unix.mkdir out_dir
       | _ -> () in
     let file_name = (solver_to_string algorithm) ^ "_" ^ (string_of_int n) in
-    let oc = Out_channel.create (dir ^ file_name) in
+    let oc = Out_channel.create (out_dir ^ file_name) in
     fprintf oc "%s\n" (dump_scheme topo scheme);
     Out_channel.close oc
   else ()
@@ -131,10 +124,11 @@ let accumulate_vulnerability_stats topology_file topo algorithm scheme  =
             else acc)) in
         EdgeMap.fold count_edge_usage ~init:acc
           ~f:(fun ~key:e ~data:vuln_score acc ->
-              let count = match IntMap.find acc vuln_score with
-                | Some x -> x
-                | None -> 0. in
-              IntMap.add ~key:vuln_score ~data:(count+.1.) acc)) in
+            let count =
+              match IntMap.find acc vuln_score with
+              | Some x -> x
+              | None -> 0. in
+            IntMap.add ~key:vuln_score ~data:(count+.1.) acc)) in
 
   let buf = Buffer.create 101 in
   Printf.bprintf buf "\n\n%s\n" solver_name;
@@ -143,9 +137,12 @@ let accumulate_vulnerability_stats topology_file topo algorithm scheme  =
   IntMap.iteri vuln_score_count ~f:(fun ~key:n ~data:c ->
     Printf.bprintf buf "%f : %f\n" ((Float.of_int n) /. (Float.of_int mult))
     (c /.  tot_count));
-  let dir = "./expData/" in
-  let _ = match (Sys.file_exists dir) with | `No -> Unix.mkdir dir | _ -> () in
-  let oc = Out_channel.create (dir ^ file_name) ~append:true in
+  let out_dir = "./expData/" in
+  let _ =
+    match (Sys.file_exists out_dir) with
+    | `No -> Unix.mkdir out_dir
+    | _ -> () in
+  let oc = Out_channel.create (out_dir ^ file_name) ~append:true in
   fprintf oc "%s\n" (Buffer.contents buf);
   Out_channel.close oc
 
@@ -169,6 +166,20 @@ let simulate
 
   let topo = Parse.from_dotfile topology_file in
   let edge_weights = set_topo_weights topo rtt_file_opt in
+
+  (* Store results in a directory name =
+     topology name or provided name in expData *)
+  let output_dir = match out_dir with
+    | Some x -> x
+    | None ->
+      let split_dot_file_list =
+        String.split_on_chars topology_file ~on:['/';'.'] in
+      let suffix =
+        List.nth split_dot_file_list (List.length split_dot_file_list -2) in
+      match suffix with
+      | Some x -> x
+      | None -> "default" in
+  let abs_out_dir = "./expData/" ^ output_dir ^ "/" in
 
   (************************************************************)
   (********* Create records to store statisitics **************)
@@ -269,7 +280,7 @@ let simulate
             ignore(reset_topo_weights edge_weights topo;);
 
             (* Print paths *)
-            store_paths log_paths scheme topo topology_file algorithm n;
+            store_paths log_paths scheme topo abs_out_dir algorithm n;
 
             (* simulate current traffic matrix *)
             let failing_edges = List.nth_exn failure_scenarios n in
@@ -366,61 +377,51 @@ let simulate
       close_demands actual_ic;
       close_demands predict_ic;);
 
-    (* Store results in a directory name = topology name or provided name in expData *)
-    let output_dir = match out_dir with
-      | Some x -> x
-      | None ->
-        let split_dot_file_list = String.split_on_chars topology_file ~on:['/';'.'] in
-        let suffix = List.nth split_dot_file_list (List.length split_dot_file_list -2) in
-        match suffix with
-          | Some x -> x
-          | None -> "default" in
-    let dir = "./expData/" ^ output_dir ^ "/" in
-    to_file dir "TMChurnVsIterations.dat" tm_churn_data
-      "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
-    to_file dir "RecoveryChurnVsIterations.dat" rec_churn_data
-      "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
-    to_file dir "NumPathsVsIterations.dat" num_paths_data
-      "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
-    to_file dir "TimeVsIterations.dat" time_data
-      "# solver\titer\ttime\tstddev" iter_vs_time_to_string;
-    to_file dir "MaxCongestionVsIterations.dat" max_congestion_data
-      "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string;
-    to_file dir "MeanCongestionVsIterations.dat" mean_congestion_data
-      "# solver\titer\tmean-congestion\tstddev" iter_vs_congestion_to_string;
-    to_file dir "MaxExpCongestionVsIterations.dat" max_exp_congestion_data
-      "# solver\titer\tmax-exp-congestion\tstddev" iter_vs_congestion_to_string;
-    to_file dir "MeanExpCongestionVsIterations.dat" mean_exp_congestion_data
-      "# solver\titer\tmean-exp-congestion\tstddev" iter_vs_congestion_to_string;
-    to_file dir "TotalThroughputVsIterations.dat" total_tput_data
-      "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string;
-    to_file dir "TotalSinkThroughputVsIterations.dat" total_sink_tput_data
-      "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string;
-    to_file dir "FailureLossVsIterations.dat" failure_drop_data
-      "# solver\titer\tfailure-drop\tstddev" iter_vs_throughput_to_string;
-    to_file dir "CongestionLossVsIterations.dat" congestion_drop_data
-      "# solver\titer\tcongestion-drop\tstddev" iter_vs_throughput_to_string;
-    to_file dir "EdgeCongestionVsIterations.dat" edge_congestion_data
-      "# solver\titer\tedge-congestion" (iter_vs_edge_congestions_to_string topo);
-    to_file dir "EdgeExpCongestionVsIterations.dat" edge_exp_congestion_data
-      "# solver\titer\tedge-exp-congestion" (iter_vs_edge_congestions_to_string topo);
-    to_file dir "LatencyDistributionVsIterations.dat" latency_percentiles_data
-      "#solver\titer\tlatency-throughput" iter_vs_latency_percentiles_to_string;
-    List.iter2_exn
-      percentile_data percentiles
-      ~f:(fun d p ->
-        let file_name = Printf.sprintf "k%dCongestionVsIterations.dat"
-                          (Int.of_float (p *. 100.)) in
-        let header = Printf.sprintf "# solver\titer\t.%f-congestion\tstddev" p in
-        to_file dir file_name d header iter_vs_congestion_to_string) ;
-    List.iter2_exn
-      exp_percentile_data percentiles
-      ~f:(fun d p ->
-        let file_name = Printf.sprintf "k%dExpCongestionVsIterations.dat"
-                          (Int.of_float (p *. 100.)) in
-        let header = Printf.sprintf "# solver\titer\t.%f-exp-congestion\tstddev" p in
-        to_file dir file_name d header iter_vs_congestion_to_string) ;
-    Printf.printf "\nComplete.\n"
+  to_file abs_out_dir "TMChurnVsIterations.dat" tm_churn_data
+    "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
+  to_file abs_out_dir "RecoveryChurnVsIterations.dat" rec_churn_data
+    "# solver\titer\tchurn\tstddev" iter_vs_churn_to_string;
+  to_file abs_out_dir "NumPathsVsIterations.dat" num_paths_data
+    "# solver\titer\tnum_paths\tstddev" iter_vs_num_paths_to_string;
+  to_file abs_out_dir "TimeVsIterations.dat" time_data
+    "# solver\titer\ttime\tstddev" iter_vs_time_to_string;
+  to_file abs_out_dir "MaxCongestionVsIterations.dat" max_congestion_data
+    "# solver\titer\tmax-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file abs_out_dir "MeanCongestionVsIterations.dat" mean_congestion_data
+    "# solver\titer\tmean-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file abs_out_dir "MaxExpCongestionVsIterations.dat" max_exp_congestion_data
+    "# solver\titer\tmax-exp-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file abs_out_dir "MeanExpCongestionVsIterations.dat" mean_exp_congestion_data
+    "# solver\titer\tmean-exp-congestion\tstddev" iter_vs_congestion_to_string;
+  to_file abs_out_dir "TotalThroughputVsIterations.dat" total_tput_data
+    "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string;
+  to_file abs_out_dir "TotalSinkThroughputVsIterations.dat" total_sink_tput_data
+    "# solver\titer\ttotal-throughput\tstddev" iter_vs_throughput_to_string;
+  to_file abs_out_dir "FailureLossVsIterations.dat" failure_drop_data
+    "# solver\titer\tfailure-drop\tstddev" iter_vs_throughput_to_string;
+  to_file abs_out_dir "CongestionLossVsIterations.dat" congestion_drop_data
+    "# solver\titer\tcongestion-drop\tstddev" iter_vs_throughput_to_string;
+  to_file abs_out_dir "EdgeCongestionVsIterations.dat" edge_congestion_data
+    "# solver\titer\tedge-congestion" (iter_vs_edge_congestions_to_string topo);
+  to_file abs_out_dir "EdgeExpCongestionVsIterations.dat" edge_exp_congestion_data
+    "# solver\titer\tedge-exp-congestion" (iter_vs_edge_congestions_to_string topo);
+  to_file abs_out_dir "LatencyDistributionVsIterations.dat" latency_percentiles_data
+    "#solver\titer\tlatency-throughput" iter_vs_latency_percentiles_to_string;
+  List.iter2_exn
+    percentile_data percentiles
+    ~f:(fun d p ->
+      let file_name = Printf.sprintf "k%dCongestionVsIterations.dat"
+                        (Int.of_float (p *. 100.)) in
+      let header = Printf.sprintf "# solver\titer\t.%f-congestion\tstddev" p in
+      to_file abs_out_dir file_name d header iter_vs_congestion_to_string) ;
+  List.iter2_exn
+    exp_percentile_data percentiles
+    ~f:(fun d p ->
+      let file_name = Printf.sprintf "k%dExpCongestionVsIterations.dat"
+                        (Int.of_float (p *. 100.)) in
+      let header = Printf.sprintf "# solver\titer\t.%f-exp-congestion\tstddev" p in
+      to_file abs_out_dir file_name d header iter_vs_congestion_to_string) ;
+  Printf.printf "\nComplete.\n"
 
   (************** End simulation ******************************************)
   (************************************************************************)
@@ -498,8 +499,6 @@ let compare_scaling_limit algorithms (num_tms:int option) (topology:string)
   let oc = Out_channel.create (dir ^ file_name) in
   fprintf oc "%s\n" (Buffer.contents buf);
   Out_channel.close oc
-
-
 
 let command =
   Command.basic
