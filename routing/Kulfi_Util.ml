@@ -45,6 +45,17 @@ let add_or_increment_path (fd : flow_decomp) (p : path) (r : probability) : flow
     | Some prior_value -> prior_value +. r in
   PathMap.add ~key:p ~data:new_value fd
 
+(* Check if the queried scheme contains all paths from the base scheme *)
+let contains_all_paths (base:scheme) (query:scheme) : bool =
+  SrcDstMap.fold base ~init:true
+    ~f:(fun ~key:uv ~data:base_ppm acc ->
+      match SrcDstMap.find query uv with
+      | None -> Printf.printf "u-v path not in query\n"; base_ppm = PathMap.empty && acc
+      | Some q_ppm ->
+        PathMap.fold base_ppm ~init:acc ~f:(fun ~key:path ~data:_ acc ->
+          match PathMap.find q_ppm path with
+          | None -> false
+          | Some _ -> acc))
 
 (* The following stuff was moved from Kulfi_Mcf.ml to here
    so that it could be used in Kulfi_Ak.ml. It doesn't really

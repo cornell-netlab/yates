@@ -281,10 +281,6 @@ let simulate
             (* Print paths *)
             store_paths log_paths scheme topo abs_out_dir algorithm n;
 
-            (* simulate current traffic matrix *)
-            let failing_edges = List.nth_exn failure_scenarios n in
-            let flash_sink = List.nth_exn flash_sinks n in
-
             (* measure robustness of routing algs in terms of shared edges between paths *)
             if vulnerability_test then
               begin
@@ -292,6 +288,10 @@ let simulate
                 scheme
               end
             else
+
+            (* simulate current traffic matrix *)
+            let failing_edges = List.nth_exn failure_scenarios n in
+            let flash_sink = List.nth_exn flash_sinks n in
 
             let tm_sim_stats =
               simulate_tm scheme topo actual failing_edges predict algorithm
@@ -499,6 +499,35 @@ let compare_scaling_limit algorithms (num_tms:int option) (topology:string)
   fprintf oc "%s\n" (Buffer.contents buf);
   Out_channel.close oc
 
+(* run ksp with increasing budgets until the generated scheme contains all
+   paths produced by raecke's algorithm with the original budget *)
+let find_ksp_budget_test (topology:string) (demand_file:string)
+      (host_file:string) (rtt_file_opt:string option) () =
+  Kulfi_Globals.deloop := true;
+  let topo = Parse.from_dotfile topology in
+  let edge_weights = set_topo_weights topo rtt_file_opt in
+  let original_budget = !Kulfi_Globals.budget in
+  let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
+  let actual = next_demand actual_ic actual_host_map in
+  let raeke_scheme,_ = solve_within_budget Raeke topo actual actual in
+  ignore(reset_topo_weights edge_weights topo;);
+
+  store_paths true raeke_scheme topo "./" Raeke original_budget;
+  let rec try_ksp k =
+    Kulfi_Globals.budget := k;
+    Printf.printf "%d\n%!" !Kulfi_Globals.budget;
+    Kulfi_Routing.Ksp.initialize SrcDstMap.empty;
+    let ksp_scheme,_ = solve_within_budget Ksp topo actual actual in
+    store_paths true ksp_scheme topo "./" Ksp k;
+    if contains_all_paths raeke_scheme ksp_scheme then k
+    else
+      try_ksp (k+1) in
+
+  let ksp_budget = try_ksp original_budget in
+  Printf.printf "%d\n%!" ksp_budget;
+  close_demands actual_ic
+
+
 let command =
   Command.basic
     ~summary:"Simulate run of routing strategies"
@@ -540,6 +569,7 @@ let command =
     +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
     +> flag "-vulnerability" no_arg ~doc:" perform path vulnerability test "
     +> flag "-log-paths" no_arg ~doc:" store paths caomputed by solvers"
+    +> flag "-find-ksp-budget" no_arg ~doc:" find minimum value of k for ksp to be competitive with raecke"
     +> flag "-fail-num" (optional_with_default 1 int) ~doc:" number of links to fail"
     +> flag "-fail-time" (optional_with_default (Int.max_value/100) int)
       ~doc:" simulation time to introduce failure at"
@@ -601,6 +631,7 @@ let command =
     (scalesyn:bool)
     (vulnerability:bool)
     (log_paths:bool)
+    (find_ksp_budget:bool)
     (fail_num:int)
     (fail_time:int)
     (lr_delay:int)
@@ -675,6 +706,10 @@ let command =
       if limittest then
         compare_scaling_limit algorithms num_tms topology_file demand_file
           host_file rtt_file out ()
+
+      else if find_ksp_budget then
+        find_ksp_budget_test topology_file demand_file host_file rtt_file ()
+
       else
         simulate algorithms topology_file demand_file predict_file host_file
           num_tms robust vulnerability tot_scale fail_num is_flash flash_ba
