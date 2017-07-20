@@ -1,13 +1,15 @@
 open Core
 open Async
-open Kulfi_Routing
-open Kulfi_Types
-open Kulfi_Traffic
 open Frenetic_OpenFlow
 open Frenetic_OpenFlow0x01
-open Message
 open Frenetic_Network
+open Message
 open Net
+
+open Kulfi_Routing
+open Kulfi_Traffic
+open Kulfi_Types
+open Kulfi_Util
 
 module Controller = Frenetic_OpenFlow0x01_Plugin.LowLevel
 
@@ -74,7 +76,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
     let switches () =
       Core.printf
         "[%s]\n%!"
-        (Kulfi_Types.intercalate
+        (Kulfi_Util.intercalate
            (Printf.sprintf "%Ld")
            ", "
            (Hashtbl.Poly.keys global_state.network));
@@ -87,7 +89,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
             | Some sw_state ->
                Core.printf
                  "[%s]\n%!"
-                 (Kulfi_Types.intercalate
+                 (Kulfi_Util.intercalate
                     (Printf.sprintf "%d")
                     ", "
                     sw_state.ports)
@@ -104,7 +106,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
                  "%sswitch %Ld:\n%s"
                  (if acc = "" then "" else acc ^ "\n\n")
                  sw
-                 (Kulfi_Types.intercalate Frenetic_OpenFlow0x01.FlowMod.to_string "\n" st.flows)));
+                 (Kulfi_Util.intercalate Frenetic_OpenFlow0x01.FlowMod.to_string "\n" st.flows)));
       return () in
 
     let stats sws pts =
@@ -176,7 +178,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
     port_stats_loop ()
 
   let send (sw, x, msg) =
-    let open Frenetic_OpenFlow0x01_Plugin in 
+    let open Frenetic_OpenFlow0x01_Plugin in
     Controller.send sw x msg >>= function
     | RpcEof -> return ()
     | RpcOk -> return ()
@@ -239,7 +241,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
   let dump_flow_mods (sw_flow_map : (switchId, flowMod list) Hashtbl.t) =
     Hashtbl.iteri sw_flow_map
         ~f:(fun ~key:sw ~data:flows ->
-          Kulfi_Types.intercalate Frenetic_OpenFlow0x01.FlowMod.to_string "\n" flows
+          Kulfi_Util.intercalate Frenetic_OpenFlow0x01.FlowMod.to_string "\n" flows
           |> Core.printf "%d : %s\n" (Int64.to_int_exn sw))
 
   (* Start controller CLI loop and install flow rules *)

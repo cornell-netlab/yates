@@ -1,10 +1,11 @@
 open Frenetic_Network
 open Net
 open Core
+
 open Kulfi_Globals
 open Kulfi_LP_Lang
-open Kulfi_Routing_Util
 open Kulfi_Types
+open Kulfi_Util
 
 let () = match !Kulfi_Globals.rand_seed with
   | Some x -> Random.init x
@@ -292,4 +293,4 @@ let solve (topo:topology) (pairs:demands) : scheme =
 
 let initialize _ = ()
 
-let local_recovery = Kulfi_Types.normalization_recovery
+let local_recovery = Kulfi_Util.normalization_recovery

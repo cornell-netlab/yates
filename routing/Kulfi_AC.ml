@@ -3,8 +3,8 @@ open Net
 open Core
 open Kulfi_Globals
 open Kulfi_LP_Lang
-open Kulfi_Routing_Util
 open Kulfi_Types
+open Kulfi_Util
 
 let prev_scheme = ref SrcDstMap.empty
 
@@ -339,4 +339,4 @@ let initialize (s:scheme) : unit =
   prev_scheme := s;
   ()
 
-let local_recovery = Kulfi_Types.normalization_recovery
+let local_recovery = normalization_recovery

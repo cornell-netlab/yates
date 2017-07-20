@@ -3,8 +3,8 @@ open Frenetic_Network
 open Net
 open Net.Topology
 
-open Kulfi_Routing_Util
 open Kulfi_Types
+open Kulfi_Util
 
 module PQueue = Core_kernel.Heap.Removable
 

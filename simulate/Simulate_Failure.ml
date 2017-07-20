@@ -1,7 +1,6 @@
 open Core
 open Frenetic_Network
 open Net
-open Kulfi_Routing_Util
 open Kulfi_Util
 open Kulfi_Traffic
 open Kulfi_Types

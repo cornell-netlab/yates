@@ -1,9 +1,11 @@
 open Frenetic_Network
 open Net
 open Core
+
 open Kulfi_Globals
-open Kulfi_Routing_Util
 open Kulfi_Types
+open Kulfi_Util
+
 open SM_LP_Lang
 
 let objective = Var "Z"

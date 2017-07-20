@@ -1,11 +1,11 @@
-open Kulfi_Types
-open Kulfi_Routing_Util
-
 open Frenetic_Network
 open Net
 open Core
+
 open Kulfi_LP_Lang
 open Kulfi_Globals
+open Kulfi_Types
+open Kulfi_Util
 
 let () = match !Kulfi_Globals.rand_seed with
   | Some x -> Random.init x
@@ -269,4 +269,4 @@ let solve (topo:topology) (d:demands) : scheme =
   let base_path_set = !state_base_path_set in
   ffc_mcf topo d base_path_set
 
-let local_recovery = Kulfi_Types.normalization_recovery
+let local_recovery = normalization_recovery

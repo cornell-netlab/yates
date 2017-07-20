@@ -1,6 +1,7 @@
 open Core
-open Kulfi_Routing_Util
+
 open Kulfi_Types
+open Kulfi_Util
 
 let solve = solve_spf
 

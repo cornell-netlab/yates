@@ -4,7 +4,6 @@ open Net
 
 open Kulfi_Globals
 open Kulfi_Routing
-open Kulfi_Routing_Util
 open Kulfi_Shift
 open Kulfi_Traffic
 open Kulfi_Types
