@@ -3,7 +3,7 @@ open Kulfi_Util
 open Kulfi_Types
 
 type solver_type =
-  | Ac | Ecmp | Edksp | Ksp | Mcf | MwMcf | Raeke | Spf | Vlb
+  | Ac | Cspf | Ecmp | Edksp | Ksp | Mcf | MwMcf | Raeke | Spf | Vlb
   | AkMcf | AkRaeke | AkEcmp | AkKsp | AkVlb
   | Ffc | Ffced
   | SemiMcfAc | SemiMcfEcmp | SemiMcfEdksp | SemiMcfKsp | SemiMcfKspFT
@@ -22,7 +22,7 @@ type network_iter_state = {
   congestion_drop : float;
   real_tm         : demands;
   predict_tm      : demands;
-} 
+}
 
 type sim_tm_stats = {
   throughput    : throughput SrcDstMap.t;
@@ -31,8 +31,8 @@ type sim_tm_stats = {
   failure_drop  : throughput;
   congestion_drop   : throughput;
   flash_throughput  : throughput;
-  aggregate_demand  : demand;    
-  recovery_churn    : float;   
-  scheme            : scheme;    
+  aggregate_demand  : demand;
+  recovery_churn    : float;
+  scheme            : scheme;
   solver_time       : float;
-} 
+}

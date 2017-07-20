@@ -10,6 +10,8 @@ module Ac : Algorithm
 
 module Ak : Algorithm
 
+module Cspf : Algorithm
+
 module Ecmp : Algorithm
 
 module Edksp : Algorithm

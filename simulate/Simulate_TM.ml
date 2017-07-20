@@ -18,6 +18,7 @@ let solver_to_string (s:solver_type) : string =
   | AkMcf -> "akmcf"
   | AkRaeke -> "akraeke"
   | AkVlb -> "akvlb"
+  | Cspf -> "cspf"
   | Ecmp -> "ecmp"
   | Edksp -> "edksp"
   | Ffc -> "ffc"
@@ -48,6 +49,7 @@ let select_algorithm solver = match solver with
   | AkMcf
   | AkRaeke
   | AkVlb -> Kulfi_Routing.Ak.solve
+  | Cspf -> Kulfi_Routing.Cspf.solve
   | Ecmp -> Kulfi_Routing.Ecmp.solve
   | Edksp -> Kulfi_Routing.Edksp.solve
   | Ffc
@@ -78,6 +80,7 @@ let select_local_recovery solver = match solver with
   | AkMcf
   | AkRaeke
   | AkVlb -> Kulfi_Routing.Ak.local_recovery
+  | Cspf -> Kulfi_Routing.Cspf.local_recovery
   | Ecmp -> Kulfi_Routing.Ecmp.local_recovery
   | Edksp -> Kulfi_Routing.Edksp.local_recovery
   | Ffc
@@ -219,6 +222,7 @@ let initialize_scheme algorithm topo predict : unit =
   | AkMcf
   | AkRaeke
   | AkVlb -> Kulfi_Routing.Ak.initialize pruned_scheme
+  | Cspf -> Kulfi_Routing.Cspf.initialize SrcDstMap.empty
   | Ecmp -> Kulfi_Routing.Ecmp.initialize SrcDstMap.empty
   | Edksp -> Kulfi_Routing.Edksp.initialize SrcDstMap.empty
   | Ffc
@@ -536,8 +540,8 @@ let simulate_tm (start_scheme:scheme)
       failure_drop = 0.0;
       congestion_drop = 0.0;
       real_tm = dem;
-      predict_tm = predict } in 
-  
+      predict_tm = predict } in
+
   let final_network_state =
     List.fold_left iterations
       ~init:initial_network_state

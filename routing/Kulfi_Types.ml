@@ -122,31 +122,6 @@ type scheme = flow_decomp SrcDstMap.t
 
 type configuration = (probability TagsMap.t) SrcDstMap.t
 
-(* A Routing Scheme is an object that describes a prob distribution over paths.
-   It supports an interface to lets one draw a random sample, and a way to compare
-   to other routing schemes, for example, if we want to minimize differences  *)
-
-let sample_dist (path_dist:flow_decomp) : path =
-  (* TODO: make a correct sampling procedure here.
-           A correct procedure would do the following.
-           1. Build up a list of partial sums of the probabilities in
-              path_dist.
-           2. Simultaneously with 1, build up a map from each partial sum
-              to the path whose probability yielded that partial sum.
-           3. Sample a uniformly random float between 0 and 1.
-           4. Find which is the smallest partial sum that exceeds the
-              sampled value.
-           5. Use the map to find the corresponding path.
-  *)
-  assert false
-  (* Old but incorrect sampling routing is here:
-     let paths = PathMap.keys path_dist in
-     let bound = List.length paths in
-     let i = Random.int bound in
-     match List.nth paths i with
-     | None -> assert false
-     | Some p -> p
-  *)
 
 let intercalate f s = function
   | [] ->
@@ -179,15 +154,10 @@ let dump_topology (t:topology) : string =
 
 let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
 
-(* The following function is used in Kulfi_Vlb.ml and Kulfi_SemiMcf.ml,
-   and may possibly be useful elsewhere. Not sure that Kulfi_Types is
-   where it belongs, but it's a convenient place. *)
-
 let add_or_increment_path (fd : flow_decomp) (p : path) (r : probability) : flow_decomp =
   let new_value = match PathMap.find fd p with
-  | None -> r
-  | Some prior_value -> prior_value +. r
-  in
+    | None -> r
+    | Some prior_value -> prior_value +. r in
   PathMap.add ~key:p ~data:new_value fd
 
 
@@ -398,17 +368,17 @@ let all_pairs_connectivity topo hosts scheme : bool =
 
 
 let paths_are_nonempty (s:scheme) : bool =
-    SrcDstMap.fold s
-      ~init:true
-      (* for every pair of hosts u,v *)
-      ~f:(fun ~key:(u,v) ~data:paths acc ->
-        if u = v then true && acc
-        else
-          PathMap.fold paths
+  SrcDstMap.fold s
+    ~init:true
+    (* for every pair of hosts u,v *)
+    ~f:(fun ~key:(u,v) ~data:paths acc ->
+      if u = v then true && acc
+      else
+        PathMap.fold paths
           ~init:acc
-	        (* get the possible paths, and for every path *)
+          (* get the possible paths, and for every path *)
           ~f:(fun ~key:path ~data:_ acc ->
-		         acc && (not (List.is_empty path))))
+            acc && (not (List.is_empty path))))
 
 let probabilities_sum_to_one (s:scheme) : bool =
   SrcDstMap.fold s
@@ -418,9 +388,9 @@ let probabilities_sum_to_one (s:scheme) : bool =
       else
         let sum_rate =
           PathMap.fold f_decomp
-          ~init:0.
-	        ~f:(fun ~key:path ~data:r acc -> acc +. r) in
-	      acc && (sum_rate > 1.-.1e-4) && (sum_rate < 1.+.1e-4) )
+            ~init:0.
+            ~f:(fun ~key:path ~data:r acc -> acc +. r) in
+        acc && (sum_rate > 1.-.1e-4) && (sum_rate < 1.+.1e-4) )
 
 
 (* Latency for a path *)
