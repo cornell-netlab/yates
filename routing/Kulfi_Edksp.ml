@@ -10,7 +10,7 @@ open Kulfi_Util
 
 let prev_scheme = ref SrcDstMap.empty
 
-let use_min_cut = false
+let use_min_cut = true
 
 let () = match !Kulfi_Globals.rand_seed with
   | Some x -> Random.init x
@@ -170,8 +170,11 @@ let solve_lp (topo:topology) : scheme =
     let name = Node.name label in
         Hashtbl.Poly.add_exn name_table name vert) topo;
 
-  let max_budget = if use_min_cut then min_st_cut topo src dst
-    else (!Kulfi_Globals.budget) in
+  let max_budget =
+    if use_min_cut then
+      min (min_st_cut topo src dst) (!Kulfi_Globals.budget)
+    else
+      (!Kulfi_Globals.budget) in
   let lp = edksp_lp_of_st topo src dst max_budget in
   let rand = new_rand () in
   let lp_filename = (Printf.sprintf "lp/edksp_%f.lp" rand) in
@@ -252,13 +255,17 @@ let solve_lp (topo:topology) : scheme =
     let st_ppmap = SrcDstMap.find tmp_scheme (src,dst) in
     match st_ppmap with
     | None ->
-        (* If k-edge-disjoint paths is not feasible, fall back to k-shortest paths *)
+      if use_min_cut then
+        failwith "EdKSP failed to find min-cut # paths."
+      else
+        (* If k-edge-disjoint paths is not feasible,
+           fall back to k-shortest paths *)
         let ksp = k_shortest_path topo src dst (min !Kulfi_Globals.budget 100) in
         let num_paths = Float.of_int  (List.length ksp) in
         let path_map = List.fold_left ksp ~init:PathMap.empty
-          ~f:(fun acc2 path ->
-              let prob = 1.0 /. num_paths in
-              PathMap.add acc2 ~key:path ~data:prob) in
+                         ~f:(fun acc2 path ->
+                           let prob = 1.0 /. num_paths in
+                           PathMap.add acc2 ~key:path ~data:prob) in
         SrcDstMap.add ~key:(src,dst) ~data:path_map acc
     | Some x ->
         SrcDstMap.add ~key:(src,dst) ~data:x acc)
