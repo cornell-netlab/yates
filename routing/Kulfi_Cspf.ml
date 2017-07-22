@@ -8,16 +8,24 @@ open Kulfi_Util
 
 module PQueue = Core_kernel.Heap.Removable
 
-let initialize _ = ()
+let prev_scheme = ref SrcDstMap.empty
+
+let initialize (s:scheme) : unit =
+  prev_scheme := s;
+  ()
+
 
 let local_recovery = normalization_recovery
+
+(* Keep headroom for unexpected traffic *)
+let max_util = 0.8
 
 (* Find a constrained shortest path from src to dst which has at least `bw`
    unreserved bandwidth *)
 let constrained_shortest_path (topo:topology) (avail_bw:float EdgeMap.t) src dst bw =
-  Printf.printf "\n%s -> %s\n"
-                (Node.name (Net.Topology.vertex_to_label topo src))
-                (Node.name (Net.Topology.vertex_to_label topo dst));
+  (* Printf.printf "\n%s -> %s\n" *)
+                (* (Node.name (Net.Topology.vertex_to_label topo src)) *)
+                (* (Node.name (Net.Topology.vertex_to_label topo dst)); *)
 
   if src = dst then [[]]
   else
@@ -47,15 +55,15 @@ let constrained_shortest_path (topo:topology) (avail_bw:float EdgeMap.t) src dst
                let edge_avail_bw = EdgeMap.find_exn avail_bw edge in
                (* Consider an edge only if it has enough available
                   bandwidth *)
-               Printf.printf "%f %f\n" (edge_avail_bw/.1e9) (bw/.1e9);
+               (* Printf.printf "%f %f\n" (edge_avail_bw/.1e9) (bw/.1e9); *)
                if edge_avail_bw >= bw then
                  let weight = Link.weight (Topology.edge_to_label topo edge) in
                  let new_dist = dist +. weight in
                  let (neighbor, _) = Topology.edge_dst edge in
-                 Printf.printf "%f %f %f %f %s %s\n" new_dist weight
-                   (edge_avail_bw/.1e9) (bw/.1e9)
-                   (Node.name (Net.Topology.vertex_to_label topo vert))
-                   (Node.name (Net.Topology.vertex_to_label topo neighbor));
+                 (* Printf.printf "%f %f %f %f %s %s\n" new_dist weight *)
+                   (* (edge_avail_bw/.1e9) (bw/.1e9) *)
+                   (* (Node.name (Net.Topology.vertex_to_label topo vert)) *)
+                   (* (Node.name (Net.Topology.vertex_to_label topo neighbor)); *)
                  let old_dist = Hashtbl.Poly.find_exn dist_table neighbor in
                  (* update paths if needed *)
                  if new_dist < old_dist then
@@ -73,7 +81,7 @@ let constrained_shortest_path (topo:topology) (avail_bw:float EdgeMap.t) src dst
                      if Hashtbl.Poly.mem prev_table neighbor then
                        Hashtbl.Poly.find_exn prev_table neighbor
                      else [] in
-                   Printf.printf "%f = %f\n" new_dist old_dist;
+                   (* Printf.printf "%f = %f\n" new_dist old_dist; *)
                    Hashtbl.Poly.set prev_table neighbor (vert::old_prevs)
                  else ()
                else ()) topo vert in
@@ -99,9 +107,9 @@ let constrained_shortest_path (topo:topology) (avail_bw:float EdgeMap.t) src dst
           List.fold_left preds
             ~init:[]
             ~f:(fun acc p ->
-              Printf.printf "Pred(%s) = %s "
-                (Node.name (Net.Topology.vertex_to_label topo dst))
-                (Node.name (Net.Topology.vertex_to_label topo p));
+              (* Printf.printf "Pred(%s) = %s " *)
+                (* (Node.name (Net.Topology.vertex_to_label topo dst)) *)
+                (* (Node.name (Net.Topology.vertex_to_label topo p)); *)
               let prev_paths = get_paths p in
               let new_paths =
                 List.map prev_paths
@@ -123,36 +131,42 @@ let reserve_bw avail_bw path bw =
     EdgeMap.add ~key:e ~data:(prev_av_bw -. bw) acc)
 
 let solve (topo:topology) (pairs:demands) : scheme =
-  let budget = (min !Kulfi_Globals.budget 100) in
-  let per_lsp_prob = 1. /. (float_of_int budget) in
-  (* Initialize available bandwidths as link capacities *)
-  let avail_bw = Topology.fold_edges
-                   (fun edge acc ->
-                      let cap = capacity_of_edge topo edge in
-                      EdgeMap.add ~key:edge ~data:cap acc) topo EdgeMap.empty in
+  let new_scheme =
+    if not (SrcDstMap.is_empty !prev_scheme) then
+      !prev_scheme
+    else
+      let budget = (min !Kulfi_Globals.budget 100) in
+      let per_lsp_prob = 1. /. (float_of_int budget) in
+      (* Initialize available bandwidths as link capacities *)
+      let avail_bw = Topology.fold_edges
+          (fun edge acc ->
+             let cap = capacity_of_edge topo edge in
+             EdgeMap.add ~key:edge ~data:(0.8 *. cap) acc) topo EdgeMap.empty in
 
-  (* Assigning LSPs src-dst pairs one src-dst pair at a time is inefficient in
-     terms of bin-packing. So assign LSPs for src-dst pairs in round-robin
-     fashion. *)
-  let (_, routes) =
-    List.fold (range 0 budget)
-      ~init:(avail_bw, SrcDstMap.empty)
-      ~f:(fun (avail_bw, routes) i ->
-        SrcDstMap.fold
-          ~init:(avail_bw, routes)
-          ~f:(fun ~key:(u,v) ~data:d (avail_bw, routes) ->
-            let per_lsp_demand = d /. (float_of_int budget) in
-            let uv_path =
-              constrained_shortest_path topo avail_bw u v per_lsp_demand
-              |> tie_break_random in
-            (* TODO: Handle the case when demands are feasible but cSPF is
-               unable to find paths due to inefficient bin-packing *)
-            let avail_bw = reserve_bw avail_bw uv_path per_lsp_demand in
-            let prev_pp_map = match SrcDstMap.find routes (u, v) with
-              | Some x -> x
-              | None -> PathMap.empty in
-            let pp_map =
-              add_or_increment_path prev_pp_map uv_path per_lsp_prob in
-            (avail_bw,
-             SrcDstMap.add ~key:(u,v) ~data:(pp_map) routes)) pairs) in
-  routes
+      (* Assigning LSPs src-dst pairs one src-dst pair at a time is inefficient in
+         terms of bin-packing. So assign LSPs for src-dst pairs in round-robin
+         fashion. *)
+      let (_, routes) =
+        List.fold (range 0 budget)
+          ~init:(avail_bw, SrcDstMap.empty)
+          ~f:(fun (avail_bw, routes) i ->
+              SrcDstMap.fold
+                ~init:(avail_bw, routes)
+                ~f:(fun ~key:(u,v) ~data:d (avail_bw, routes) ->
+                    let per_lsp_demand = d /. (float_of_int budget) in
+                    let uv_path =
+                      constrained_shortest_path topo avail_bw u v per_lsp_demand
+                      |> tie_break_random in
+                    (* TODO: Handle the case when demands are feasible but cSPF is
+                       unable to find paths due to inefficient bin-packing *)
+                    let avail_bw = reserve_bw avail_bw uv_path per_lsp_demand in
+                    let prev_pp_map = match SrcDstMap.find routes (u, v) with
+                      | Some x -> x
+                      | None -> PathMap.empty in
+                    let pp_map =
+                      add_or_increment_path prev_pp_map uv_path per_lsp_prob in
+                    (avail_bw,
+                     SrcDstMap.add ~key:(u,v) ~data:(pp_map) routes)) pairs) in
+      routes in
+  prev_scheme := new_scheme;
+  new_scheme
