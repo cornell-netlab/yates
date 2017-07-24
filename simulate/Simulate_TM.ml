@@ -1,108 +1,19 @@
 open Core
 open Frenetic_Network
 open Net
+
 open AutoTimer
 open Kulfi_Types
 open Kulfi_Util
 open Simulate_Switch
 open Simulation_Types
 open Simulation_Util
+(***********************************************************)
+(* Simulate one traffic matrix and generate statistics *)
+(***********************************************************)
+
 
 let demand_envelope = ref SrcDstMap.empty
-
-let solver_to_string (s:solver_type) : string =
-  match s with
-  | Ac -> "ac"
-  | AkEcmp -> "akecmp"
-  | AkKsp -> "akksp"
-  | AkMcf -> "akmcf"
-  | AkRaeke -> "akraeke"
-  | AkVlb -> "akvlb"
-  | Cspf -> "cspf"
-  | Ecmp -> "ecmp"
-  | Edksp -> "edksp"
-  | Ffc -> "ffc"
-  | Ffced -> "ffced"
-  | Ksp -> "ksp"
-  | Mcf -> "mcf"
-  | MwMcf -> "mwmcf"
-  | Raeke -> "raeke"
-  | SemiMcfAc -> "semimcfac"
-  | SemiMcfEcmp -> "semimcfecmp"
-  | SemiMcfEdksp -> "semimcfedksp"
-  | SemiMcfKsp -> "semimcfksp"
-  | SemiMcfKspFT -> "semimcfkspft"
-  | SemiMcfMcf -> "semimcfmcf"
-  | SemiMcfMcfEnv -> "semimcfmcfenv"
-  | SemiMcfMcfFTEnv -> "semimcfmcfftenv"
-  | SemiMcfRaeke -> "semimcfraeke"
-  | SemiMcfRaekeFT -> "semimcfraekeft"
-  | SemiMcfVlb -> "semimcfvlb"
-  | Spf -> "spf"
-  | Vlb -> "vlb"
-  | OptimalMcf -> "optimalmcf"
-
-let select_algorithm solver = match solver with
-  | Ac -> Kulfi_Routing.Ac.solve
-  | AkEcmp
-  | AkKsp
-  | AkMcf
-  | AkRaeke
-  | AkVlb -> Kulfi_Routing.Ak.solve
-  | Cspf -> Kulfi_Routing.Cspf.solve
-  | Ecmp -> Kulfi_Routing.Ecmp.solve
-  | Edksp -> Kulfi_Routing.Edksp.solve
-  | Ffc
-  | Ffced -> Kulfi_Routing.Ffc.solve
-  | Ksp -> Kulfi_Routing.Ksp.solve
-  | Mcf -> Kulfi_Routing.Mcf.solve
-  | MwMcf -> Kulfi_Routing.MwMcf.solve
-  | OptimalMcf -> Kulfi_Routing.Mcf.solve
-  | Raeke -> Kulfi_Routing.Raeke.solve
-  | SemiMcfAc
-  | SemiMcfEcmp
-  | SemiMcfEdksp
-  | SemiMcfKsp
-  | SemiMcfKspFT
-  | SemiMcfMcf
-  | SemiMcfMcfEnv
-  | SemiMcfMcfFTEnv
-  | SemiMcfRaeke
-  | SemiMcfRaekeFT
-  | SemiMcfVlb -> Kulfi_Routing.SemiMcf.solve
-  | Spf -> Kulfi_Routing.Spf.solve
-  | Vlb -> Kulfi_Routing.Vlb.solve
-
-let select_local_recovery solver = match solver with
-  | Ac -> Kulfi_Routing.Ac.local_recovery
-  | AkEcmp
-  | AkKsp
-  | AkMcf
-  | AkRaeke
-  | AkVlb -> Kulfi_Routing.Ak.local_recovery
-  | Cspf -> Kulfi_Routing.Cspf.local_recovery
-  | Ecmp -> Kulfi_Routing.Ecmp.local_recovery
-  | Edksp -> Kulfi_Routing.Edksp.local_recovery
-  | Ffc
-  | Ffced -> Kulfi_Routing.Ffc.local_recovery
-  | Ksp -> Kulfi_Routing.Ksp.local_recovery
-  | Mcf -> Kulfi_Routing.Mcf.local_recovery
-  | MwMcf -> Kulfi_Routing.MwMcf.local_recovery
-  | OptimalMcf -> failwith "No local recovery for optimal mcf"
-  | Raeke -> Kulfi_Routing.Raeke.local_recovery
-  | SemiMcfAc
-  | SemiMcfEcmp
-  | SemiMcfEdksp
-  | SemiMcfKsp
-  | SemiMcfKspFT
-  | SemiMcfMcf
-  | SemiMcfMcfEnv
-  | SemiMcfMcfFTEnv
-  | SemiMcfRaeke
-  | SemiMcfRaekeFT
-  | SemiMcfVlb -> Kulfi_Routing.SemiMcf.local_recovery
-  | Spf -> Kulfi_Routing.Spf.local_recovery
-  | Vlb -> Kulfi_Routing.Vlb.local_recovery
 
 (* compute routing schemes for each link failure and merge the schemes *)
 let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
@@ -243,24 +154,28 @@ let initialize_scheme algorithm topo predict : unit =
   | Vlb -> Kulfi_Routing.Vlb.initialize SrcDstMap.empty
   | _ -> ()
 
-
-
 (* Compute a routing scheme for an algorithm and apply budget by pruning the top-k paths *)
 let solve_within_budget algorithm topo predict actual : (scheme * float) =
   let at = make_auto_timer () in
   start at;
   let solve = select_algorithm algorithm in
-  let budget' = match algorithm with
-    | OptimalMcf ->
-        Int.max_value / 100
-    | _ ->
-        !Kulfi_Globals.budget in
+  let budget = !Kulfi_Globals.budget in
   let sch = match algorithm with
-    | OptimalMcf -> (* Use actual demands for Optimal *)
-        prune_scheme topo (solve topo actual) budget'
+    | OptimalMcf ->
+      (* Use actual demands for Optimal, without any budget restriction *)
+      solve topo actual
     | _ ->
-        prune_scheme topo (solve topo predict) budget' in
+        prune_scheme topo (solve topo predict) budget in
   stop at;
+  let sch =
+    match !Kulfi_Globals.nbins with
+    | None -> sch
+    | Some nbins ->
+      begin
+        match algorithm with
+        | OptimalMcf -> sch
+        | _ -> fit_scheme_to_bins sch nbins
+      end in
   (*assert (probabilities_sum_to_one sch);*)
   (sch, (get_time_in_seconds at))
 
@@ -405,9 +320,6 @@ let get_latency_percentiles (lat_tput_map : throughput LatencyMap.t)
       lat_percentile_map, sum_tput')) in
   latency_percentiles
 
-
-
-
 (* Global recovery: recompute routing scheme after removing failed links *)
 let global_recovery (failed_links:failure) (predict:demands) (actual:demands)
     (algorithm:solver_type) (topo:topology) : (scheme * float) =
@@ -476,7 +388,8 @@ let sum_sink_demands (d:demands) sink : float =
       else acc)
 
 (***********************************************************)
-(************** Simulate routing for one TM ****************)
+(* Main function to simulate routing for one TM *)
+(***********************************************************)
 let simulate_tm (start_scheme:scheme)
     (topo : topology)
     (dem : demands)

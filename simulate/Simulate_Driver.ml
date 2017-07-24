@@ -1,15 +1,16 @@
 open Core
 open Frenetic_Network
 open Net
-open Kulfi_Types
-open Kulfi_Routing
-open Kulfi_Traffic
-open Simulate_Exps
-open Simulate_Demands
-open RunningStat
+
 open ExperimentalData
 open Kulfi_Globals
+open Kulfi_Routing
+open Kulfi_Traffic
+open Kulfi_Types
 open Kulfi_Util
+open RunningStat
+open Simulate_Demands
+open Simulate_Exps
 open Simulate_Failure
 open Simulate_TM
 open Simulation_Types
@@ -79,21 +80,6 @@ let calculate_demand_envelope (topo:topology) (predict_file:string)
           SrcDstMap.add ~key:(s,d) ~data:(max env_sd pred) acc)) in
   close_demands predict_ic;
   envelope
-
-let store_paths log_paths scheme topo out_dir algorithm n : unit =
-  if log_paths then
-    let _ = match (Sys.file_exists out_dir) with
-      | `No -> Unix.mkdir out_dir
-      | _ -> () in
-    let out_dir = out_dir ^ "paths/" in
-    let _ = match (Sys.file_exists out_dir) with
-      | `No -> Unix.mkdir out_dir
-      | _ -> () in
-    let file_name = (solver_to_string algorithm) ^ "_" ^ (string_of_int n) in
-    let oc = Out_channel.create (out_dir ^ file_name) in
-    fprintf oc "%s\n" (dump_scheme topo scheme);
-    Out_channel.close oc
-  else ()
 
 (* Measure vulnerability of routing schemes to link failures *)
 let accumulate_vulnerability_stats topology_file topo algorithm scheme  =
@@ -582,6 +568,7 @@ let command =
     +> flag "-flash-recover" no_arg ~doc:" perform local recovery for flash"
     +> flag "-simtime" (optional_with_default 500 int) ~doc:" time steps to simulate each TM"
     +> flag "-budget" (optional_with_default (Int.max_value/100) int) ~doc:" max paths between each pair of hosts"
+    +> flag "-nbins" (optional int) ~doc:" number of bins to round path weights into"
     +> flag "-scale" (optional_with_default 1. float) ~doc:" scale demands by this factor"
     +> flag "-out" (optional string) ~doc:" name of directory in expData to store results"
     +> flag "-appendout" no_arg ~doc:" append to results file instead of over-writing"
@@ -641,6 +628,7 @@ let command =
     (flash_recover:bool)
     (simtime:int)
     (budget:int)
+    (nbins:int option)
     (scale:float)
     (out:string option)
     (appendout:bool)
@@ -694,10 +682,11 @@ let command =
       Kulfi_Globals.tm_sim_iters  := simtime;
       Kulfi_Globals.flash_recover := flash_recover;
       Kulfi_Globals.gurobi_method := grb_method;
-      Kulfi_Globals.budget        := budget;
-      Kulfi_Globals.failure_time  := fail_time;
-      Kulfi_Globals.rand_seed     := rseed;
-      Kulfi_Globals.local_recovery_delay  := lr_delay;
+      Kulfi_Globals.budget := budget;
+      Kulfi_Globals.nbins := nbins;
+      Kulfi_Globals.failure_time := fail_time;
+      Kulfi_Globals.rand_seed := rseed;
+      Kulfi_Globals.local_recovery_delay := lr_delay;
       Kulfi_Globals.global_recovery_delay := gr_delay;
       Kulfi_Globals.ffc_max_link_failures :=
         max fail_num !(Kulfi_Globals.ffc_max_link_failures);

@@ -1,10 +1,126 @@
 open Core
 open Frenetic_Network
 open Net
+
 open Kulfi_Types
 open Kulfi_Util
+open Simulation_Types
 
-(************ Helpful functions for simulator *****************)
+(**************************************************************)
+(* Helper functions for simulator *)
+(**************************************************************)
+let solver_to_string (s:solver_type) : string =
+  match s with
+  | Ac -> "ac"
+  | AkEcmp -> "akecmp"
+  | AkKsp -> "akksp"
+  | AkMcf -> "akmcf"
+  | AkRaeke -> "akraeke"
+  | AkVlb -> "akvlb"
+  | Cspf -> "cspf"
+  | Ecmp -> "ecmp"
+  | Edksp -> "edksp"
+  | Ffc -> "ffc"
+  | Ffced -> "ffced"
+  | Ksp -> "ksp"
+  | Mcf -> "mcf"
+  | MwMcf -> "mwmcf"
+  | Raeke -> "raeke"
+  | SemiMcfAc -> "semimcfac"
+  | SemiMcfEcmp -> "semimcfecmp"
+  | SemiMcfEdksp -> "semimcfedksp"
+  | SemiMcfKsp -> "semimcfksp"
+  | SemiMcfKspFT -> "semimcfkspft"
+  | SemiMcfMcf -> "semimcfmcf"
+  | SemiMcfMcfEnv -> "semimcfmcfenv"
+  | SemiMcfMcfFTEnv -> "semimcfmcfftenv"
+  | SemiMcfRaeke -> "semimcfraeke"
+  | SemiMcfRaekeFT -> "semimcfraekeft"
+  | SemiMcfVlb -> "semimcfvlb"
+  | Spf -> "spf"
+  | Vlb -> "vlb"
+  | OptimalMcf -> "optimalmcf"
+
+let select_algorithm solver = match solver with
+  | Ac -> Kulfi_Routing.Ac.solve
+  | AkEcmp
+  | AkKsp
+  | AkMcf
+  | AkRaeke
+  | AkVlb -> Kulfi_Routing.Ak.solve
+  | Cspf -> Kulfi_Routing.Cspf.solve
+  | Ecmp -> Kulfi_Routing.Ecmp.solve
+  | Edksp -> Kulfi_Routing.Edksp.solve
+  | Ffc
+  | Ffced -> Kulfi_Routing.Ffc.solve
+  | Ksp -> Kulfi_Routing.Ksp.solve
+  | Mcf -> Kulfi_Routing.Mcf.solve
+  | MwMcf -> Kulfi_Routing.MwMcf.solve
+  | OptimalMcf -> Kulfi_Routing.Mcf.solve
+  | Raeke -> Kulfi_Routing.Raeke.solve
+  | SemiMcfAc
+  | SemiMcfEcmp
+  | SemiMcfEdksp
+  | SemiMcfKsp
+  | SemiMcfKspFT
+  | SemiMcfMcf
+  | SemiMcfMcfEnv
+  | SemiMcfMcfFTEnv
+  | SemiMcfRaeke
+  | SemiMcfRaekeFT
+  | SemiMcfVlb -> Kulfi_Routing.SemiMcf.solve
+  | Spf -> Kulfi_Routing.Spf.solve
+  | Vlb -> Kulfi_Routing.Vlb.solve
+
+let select_local_recovery solver = match solver with
+  | Ac -> Kulfi_Routing.Ac.local_recovery
+  | AkEcmp
+  | AkKsp
+  | AkMcf
+  | AkRaeke
+  | AkVlb -> Kulfi_Routing.Ak.local_recovery
+  | Cspf -> Kulfi_Routing.Cspf.local_recovery
+  | Ecmp -> Kulfi_Routing.Ecmp.local_recovery
+  | Edksp -> Kulfi_Routing.Edksp.local_recovery
+  | Ffc
+  | Ffced -> Kulfi_Routing.Ffc.local_recovery
+  | Ksp -> Kulfi_Routing.Ksp.local_recovery
+  | Mcf -> Kulfi_Routing.Mcf.local_recovery
+  | MwMcf -> Kulfi_Routing.MwMcf.local_recovery
+  | OptimalMcf -> failwith "No local recovery for optimal mcf"
+  | Raeke -> Kulfi_Routing.Raeke.local_recovery
+  | SemiMcfAc
+  | SemiMcfEcmp
+  | SemiMcfEdksp
+  | SemiMcfKsp
+  | SemiMcfKspFT
+  | SemiMcfMcf
+  | SemiMcfMcfEnv
+  | SemiMcfMcfFTEnv
+  | SemiMcfRaeke
+  | SemiMcfRaekeFT
+  | SemiMcfVlb -> Kulfi_Routing.SemiMcf.local_recovery
+  | Spf -> Kulfi_Routing.Spf.local_recovery
+  | Vlb -> Kulfi_Routing.Vlb.local_recovery
+
+let store_paths log_paths scheme topo out_dir algorithm n : unit =
+  if log_paths then
+    let _ = match (Sys.file_exists out_dir) with
+      | `No -> Unix.mkdir out_dir
+      | _ -> () in
+    let out_dir = out_dir ^ "paths/" in
+    let _ = match (Sys.file_exists out_dir) with
+      | `No -> Unix.mkdir out_dir
+      | _ -> () in
+    let file_name = (solver_to_string algorithm) ^ "_" ^ (string_of_int n) in
+    let oc = Out_channel.create (out_dir ^ file_name) in
+    fprintf oc "%s\n" (dump_scheme topo scheme);
+    Out_channel.close oc
+  else ()
+
+(**************************************************************)
+(* Topology and routing scheme operations *)
+(**************************************************************)
 
 (* Return src and dst for a given path (edge list) *)
 let get_src_dst_for_path (p:path) =
@@ -46,9 +162,9 @@ let count_paths_through_edge (s:scheme) : (int EdgeMap.t) =
                 | Some x -> x in
         EdgeMap.add ~key:edge ~data:(c+1) acc)))
 
-
-
-(****************** Common metric computation **********************)
+(*******************************************************************)
+(* Common metric computation *)
+(*******************************************************************)
 
 (* Compute scheduled load on links ... can be > 1 *)
 let congestion_of_paths (t:topology) (d:demands) (s:scheme) : (float EdgeMap.t) =

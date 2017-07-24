@@ -429,6 +429,34 @@ let prune_scheme (t:topology) (s:scheme) (budget:int) : scheme =
   (*assert (all_pairs_connectivity t (get_hosts t) new_scheme);*)
   new_scheme
 
+let fit_scheme_to_bins (s:scheme) (nbins:int) : scheme =
+  (* Round weights to multiples of 1/nbins while minimizing sum of differences
+     between new weights and old weights *)
+  SrcDstMap.fold s ~init:SrcDstMap.empty
+    ~f:(fun ~key:(src,dst) ~data:paths acc ->
+      let path_int_rem_prob, sum_int_probs =
+        PathMap.fold paths ~init:(PathMap.empty, 0)
+          ~f:(fun ~key:path ~data:prob (path_acc, int_prob_acc) ->
+            let scaled_prob = prob *. (Float.of_int nbins) in
+            (* (prob * nbins) -> get ceiling and remainder *)
+            let int_prob = Float.to_int scaled_prob in
+            let rem_prob = scaled_prob -. (Float.of_int int_prob) in
+            (PathMap.add path_acc ~key:path ~data:(int_prob, rem_prob),
+             int_prob_acc + int_prob)) in
+      let num_paths_to_roundup = nbins - sum_int_probs in
+      let sorted_by_rem_prob =
+        PathMap.to_alist path_int_rem_prob
+        |> List.sort ~cmp:(fun x y -> Float.compare (snd (snd y)) (snd (snd x))) in
+      let pp_map,_ =
+        List.fold sorted_by_rem_prob ~init:(PathMap.empty, num_paths_to_roundup)
+          ~f:(fun (path_acc, to_roundup) (path, (int_prob, _)) ->
+            let int_prob =
+              if to_roundup > 0 then int_prob + 1
+              else int_prob in
+            let prob = Float.(of_int int_prob / of_int nbins) in
+            (PathMap.add path_acc ~key:path ~data:prob,
+             to_roundup - 1)) in
+      SrcDstMap.add acc ~key:(src,dst) ~data:pp_map)
 
 (**************** Failures ************)
 let bidir_failure topo e =
