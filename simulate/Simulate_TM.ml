@@ -76,7 +76,7 @@ let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
           SrcDstMap.add ~key:(s,d) ~data:n_pp_map res)) in
   (* normalize scheme *)
   assert (not (SrcDstMap.is_empty agg_scheme));
-  normalize_scheme_opt agg_scheme
+  normalize_scheme agg_scheme
 
 (* Compute the initial scheme for a TE algorithm *)
 let initial_scheme algorithm topo predict : scheme =
@@ -154,7 +154,8 @@ let initialize_scheme algorithm topo predict : unit =
   | Vlb -> Kulfi_Routing.Vlb.initialize SrcDstMap.empty
   | _ -> ()
 
-(* Compute a routing scheme for an algorithm and apply budget by pruning the top-k paths *)
+(* Compute a routing scheme for an algorithm and apply budget by pruning the
+   top-k paths. Also, round path weights if nbins is specified. *)
 let solve_within_budget algorithm topo predict actual : (scheme * float) =
   let at = make_auto_timer () in
   start at;
@@ -178,6 +179,90 @@ let solve_within_budget algorithm topo predict actual : (scheme * float) =
       end in
   (*assert (probabilities_sum_to_one sch);*)
   (sch, (get_time_in_seconds at))
+
+let linearly_combine_schemes hi_fraction hi_sch lo_sch =
+  let updated_hi = SrcDstMap.fold hi_sch ~init:SrcDstMap.empty
+    ~f:(fun ~key:(src,dst) ~data:hi_paths acc ->
+      let hi_paths =
+        PathMap.fold hi_paths ~init:PathMap.empty
+          ~f:(fun ~key:path ~data:hi_prob acc ->
+            PathMap.add ~key:path ~data:(hi_fraction *. hi_prob) acc) in
+      let paths =
+        match SrcDstMap.find lo_sch (src,dst) with
+        | None -> hi_paths
+        | Some lo_paths ->
+          PathMap.fold lo_paths ~init:hi_paths
+            ~f:(fun ~key:path ~data:lo_prob acc ->
+              let lo_prob = (1. -. hi_fraction) *. lo_prob in
+              let prob = match PathMap.find acc path with
+                | None -> lo_prob
+                | Some p -> lo_prob +. p in
+              PathMap.add ~key:path ~data:prob acc) in
+      SrcDstMap.add ~key:(src,dst) ~data:paths acc) in
+  let sch = SrcDstMap.fold lo_sch ~init:updated_hi
+    ~f:(fun ~key:(src,dst) ~data:lo_paths acc ->
+      match SrcDstMap.find acc (src,dst) with
+      | None -> (* if we hadn't seen this key earlier *)
+        SrcDstMap.add ~key:(src, dst) ~data:lo_paths acc
+      | Some _ -> (* we have already processed it *)
+        acc) in
+  normalize_scheme sch
+
+(* Split a TM into two traffic matrices based on fraction of high priority
+   traffic *)
+let split_demands_pri (dem:demands) (hipri_fraction:float) : demands * demands =
+  SrcDstMap.fold ~init:(SrcDstMap.empty, SrcDstMap.empty)
+    ~f:(fun ~key:(src,dst) ~data:total_dem (hi_acc, low_acc) ->
+      let hi_dem = hipri_fraction *. total_dem in
+      let low_dem = total_dem -. hi_dem in
+      (SrcDstMap.add ~key:(src,dst) ~data:hi_dem hi_acc,
+       SrcDstMap.add ~key:(src,dst) ~data:low_dem low_acc)) dem
+
+(* Return a topology with residual edge capacities after reservation *)
+let reserve_bw (topo:topology) (reservation:float EdgeMap.t) : topology =
+  EdgeMap.fold reservation ~init:topo
+    ~f:(fun ~key:edge ~data:bw acc ->
+      let new_cap = Float.to_int64 (capacity_of_edge acc edge -. bw) in
+      let label = Topology.edge_to_label acc edge in
+      let new_label = Link.create (Link.cost label) new_cap in
+      Link.set_weight new_label (Link.weight label);
+      let src_node, src_port = Net.Topology.edge_src edge in
+      let dst_node, dst_port = Net.Topology.edge_dst edge in
+      let t' = Topology.remove_edge acc edge in
+      let new_topo,_ =
+        Topology.add_edge t' src_node src_port new_label dst_node dst_port in
+      new_topo)
+
+(* Compute a routing scheme for an algorithm and apply budget by pruning the
+   top-k paths. Also, round path weights if nbins is specified. Differentiate
+   hipri an lowpri traffic. *)
+let solve_within_budget_multipri algorithm topo predict actual hipri_fraction : (scheme * float) =
+  (* compute traffic matrices for both priority classes *)
+  let hipri_actual, lowpri_actual = split_demands_pri actual hipri_fraction in
+  let hipri_predict, lowpri_predict = match algorithm with
+    | OptimalMcf -> (hipri_actual, lowpri_actual)
+    | _  -> split_demands_pri predict hipri_fraction in
+
+  (* route high priority traffic using cSPF *)
+  let hipri_scheme,_ = solve_within_budget Cspf topo hipri_predict hipri_actual in
+
+  (* reserve bandwidth for high priority traffic *)
+  let hipri_reserved_bw = traffic_on_edge topo hipri_predict hipri_scheme in
+  let lopri_topo = reserve_bw topo hipri_reserved_bw in
+  let lopri_scheme,solver_time =
+    solve_within_budget algorithm lopri_topo lowpri_predict lowpri_actual in
+  let sch = linearly_combine_schemes hipri_fraction hipri_scheme lopri_scheme in
+  let sch =
+    match algorithm with
+    | OptimalMcf -> sch
+    | _ ->
+      begin
+        let sch = prune_scheme topo sch !Kulfi_Globals.budget in
+        match !Kulfi_Globals.nbins with
+        | None -> sch
+        | Some nbins -> fit_scheme_to_bins sch nbins
+      end in
+  (sch,solver_time)
 
 (* TODO(rjs): Do we count paths that have 0 flow ? *)
 let get_churn (old_scheme:scheme) (new_scheme:scheme) : float =

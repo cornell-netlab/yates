@@ -95,7 +95,7 @@ let solve (t:topology) (d:demands) : scheme =
                       ( (add_or_increment_path oud p scaled_r) , (ofd +. scaled_r) ) ) in
                 ( SrcDstMap.add ~key:(u,v) ~data:new_us_data us,
                   SrcDstMap.add ~key:(u,v) ~data:new_fs_data fs ) ) ) in
-      normalize_scheme unnormalized_scheme flow_sum
+      normalize_scheme_fs unnormalized_scheme flow_sum
     else !prev_scheme in
   prev_scheme := new_scheme;
   new_scheme
