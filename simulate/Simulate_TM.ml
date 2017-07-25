@@ -236,7 +236,8 @@ let reserve_bw (topo:topology) (reservation:float EdgeMap.t) : topology =
 (* Compute a routing scheme for an algorithm and apply budget by pruning the
    top-k paths. Also, round path weights if nbins is specified. Differentiate
    hipri an lowpri traffic. *)
-let solve_within_budget_multipri algorithm topo predict actual hipri_fraction : (scheme * float) =
+let solve_within_budget_multipri algorithm topo predict actual hipri_fraction :
+  (scheme * float) * (scheme * float) =
   (* compute traffic matrices for both priority classes *)
   let hipri_actual, lowpri_actual = split_demands_pri actual hipri_fraction in
   let hipri_predict, lowpri_predict = match algorithm with
@@ -244,25 +245,25 @@ let solve_within_budget_multipri algorithm topo predict actual hipri_fraction : 
     | _  -> split_demands_pri predict hipri_fraction in
 
   (* route high priority traffic using cSPF *)
-  let hipri_scheme,_ = solve_within_budget Cspf topo hipri_predict hipri_actual in
+  let hipri_scheme,hi_stime = solve_within_budget Cspf topo hipri_predict hipri_actual in
 
   (* reserve bandwidth for high priority traffic *)
   let hipri_reserved_bw = traffic_on_edge topo hipri_predict hipri_scheme in
   let lopri_topo = reserve_bw topo hipri_reserved_bw in
-  let lopri_scheme,solver_time =
+  let lopri_scheme,lo_stime =
     solve_within_budget algorithm lopri_topo lowpri_predict lowpri_actual in
-  let sch = linearly_combine_schemes hipri_fraction hipri_scheme lopri_scheme in
-  let sch =
-    match algorithm with
-    | OptimalMcf -> sch
-    | _ ->
-      begin
-        let sch = prune_scheme topo sch !Kulfi_Globals.budget in
-        match !Kulfi_Globals.nbins with
-        | None -> sch
-        | Some nbins -> fit_scheme_to_bins sch nbins
-      end in
-  (sch,solver_time)
+  (* let sch = linearly_combine_schemes hipri_fraction hipri_scheme lopri_scheme in *)
+  (* let sch = *)
+    (* match algorithm with *)
+    (* | OptimalMcf -> sch *)
+    (* | _ -> *)
+      (* begin *)
+        (* let sch = prune_scheme topo sch !Kulfi_Globals.budget in *)
+        (* match !Kulfi_Globals.nbins with *)
+        (* | None -> sch *)
+        (* | Some nbins -> fit_scheme_to_bins sch nbins *)
+      (* end in *)
+  ((hipri_scheme, hi_stime), (lopri_scheme, lo_stime))
 
 (* TODO(rjs): Do we count paths that have 0 flow ? *)
 let get_churn (old_scheme:scheme) (new_scheme:scheme) : float =
