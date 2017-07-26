@@ -162,11 +162,11 @@ let print_configuration (topo:topology) (conf:configuration) (time:int) : unit =
   Hashtbl.Poly.iteri
     bufs
     ~f:(fun ~key:src ~data:buf ->
-	let route_filename = Printf.sprintf "routes/%s_%d" (Frenetic_Packet.string_of_ip (Node.ip (Topology.vertex_to_label topo src))) time in
-	let route_file = Out_channel.create route_filename in
-	Out_channel.output_string route_file (Buffer.contents buf);
-	Out_channel.close route_file;
-	)
+      let route_filename = Printf.sprintf "routes/%s_%d" (Frenetic_Packet.string_of_ip (Node.ip (Topology.vertex_to_label topo src))) time in
+      let route_file = Out_channel.create route_filename in
+      Out_channel.output_string route_file (Buffer.contents buf);
+      Out_channel.close route_file;
+    )
 
 let normalize_scheme_fs (s : scheme) (fs: float SrcDstMap.t) : scheme =
   (* s = a routing scheme, fs = the sum of flow values in each flow_decomp *)
@@ -191,6 +191,13 @@ let normalize_scheme_fs (s : scheme) (fs: float SrcDstMap.t) : scheme =
             PathMap.add ~key:path ~data:normalized_rate acc)
           f_decomp in
       SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc) s
+
+let normalize_scheme_opt (s:scheme) : scheme =
+  let zero_sum =
+    SrcDstMap.fold s ~init:SrcDstMap.empty
+      ~f:(fun ~key:sd ~data:_ acc ->
+        SrcDstMap.add ~key:sd ~data:0. acc) in
+  normalize_scheme_fs s zero_sum
 
 (* Normalize path weights so that the weights sum to 1 *)
 let normalize_paths_prob paths =

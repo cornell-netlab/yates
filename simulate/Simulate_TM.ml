@@ -76,7 +76,7 @@ let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
           SrcDstMap.add ~key:(s,d) ~data:n_pp_map res)) in
   (* normalize scheme *)
   assert (not (SrcDstMap.is_empty agg_scheme));
-  normalize_scheme agg_scheme
+  normalize_scheme_opt  agg_scheme
 
 (* Compute the initial scheme for a TE algorithm *)
 let initial_scheme algorithm topo predict : scheme =
