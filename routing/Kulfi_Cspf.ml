@@ -3,6 +3,7 @@ open Frenetic_Network
 open Net
 open Net.Topology
 
+open Kulfi_Apsp
 open Kulfi_Types
 open Kulfi_Util
 
@@ -14,19 +15,91 @@ let initialize (s:scheme) : unit =
   prev_scheme := s;
   ()
 
-
 let local_recovery = normalization_recovery
 
 (* Keep headroom for unexpected traffic *)
-let max_util = 0.8
+let max_util_cap = 0.8
+
+(* Threshold to tolerate over max utilization *)
+let max_thresh = 1.025
+
+(***********************************************)
+(* Tie-break algorithms *)
+(* Configuring CSPF Tie Breaking - Juniper *)
+(* [http://www.juniper.net/documentation/en_US/junos/topics/usage-guidelines/mpls-configuring-cspf-tie-breaking.html] *)
+(***********************************************)
+module type Tiebreaker = sig
+  val tie_break : (float EdgeMap.t * topology) -> (path List.t) -> path option
+end
+
+module RandomTB : Tiebreaker = struct
+  let tie_break (_) = function
+    | [] -> None
+    | paths ->
+      Some (List.nth_exn paths (Random.int (List.length paths)))
+end
+
+module LeastFillTB : Tiebreaker = struct
+  let tie_break (available_bw, topo) = function
+    | [] -> None
+    | paths ->
+      let _,least_fill_path =
+        List.fold_left paths ~init:(Float.infinity, [])
+          ~f:(fun (acc_fill, acc_path) path ->
+            let max_util =
+              List.fold path ~init:0.0
+                ~f:(fun acc e ->
+                  let avail_cap = EdgeMap.find_exn available_bw e in
+                  let cap = capacity_of_edge topo e in
+                  let util = (cap -. avail_cap) /. cap in
+                  max acc util) in
+            if max_util < acc_fill then
+              (max_util, path)
+            else
+              (acc_fill, acc_path)) in
+      Some least_fill_path
+end
+
+module MostFillTB : Tiebreaker = struct
+  let tie_break (available_bw, topo) = function
+    | [] -> None
+    | paths ->
+      let _,most_fill_path =
+        List.fold_left paths ~init:(Float.neg_infinity, [])
+          ~f:(fun (acc_fill, acc_path) path ->
+            let max_util =
+              List.fold path ~init:0.0
+                ~f:(fun acc e ->
+                  let avail_cap = EdgeMap.find_exn available_bw e in
+                  let cap = capacity_of_edge topo e in
+                  let util = (cap -. avail_cap) /. cap in
+                  max acc util) in
+            if max_util < acc_fill then
+              (acc_fill, acc_path)
+            else
+              (max_util, path)) in
+      Some most_fill_path
+end
+
+(* select the paths with the fewest number of hops *)
+let least_hop_paths = function
+  | [] -> []
+  | paths ->
+    let _,mh_paths =
+      List.fold_left paths ~init:(Int.max_value, [])
+        ~f:(fun (acc_nhop, acc_paths) path ->
+          let nhops = List.length path in
+          if nhops < acc_nhop then
+            (nhops, [path])
+          else if nhops = acc_nhop then
+            (nhops, path::acc_paths)
+          else
+            (acc_nhop, acc_paths)) in
+    mh_paths
 
 (* Find a constrained shortest path from src to dst which has at least `bw`
    unreserved bandwidth *)
 let constrained_shortest_path (topo:topology) (avail_bw:float EdgeMap.t) src dst bw =
-  (* Printf.printf "\n%s -> %s\n" *)
-                (* (Node.name (Net.Topology.vertex_to_label topo src)) *)
-                (* (Node.name (Net.Topology.vertex_to_label topo dst)); *)
-
   if src = dst then [[]]
   else
     let prev_table = Hashtbl.Poly.create () in
@@ -61,9 +134,9 @@ let constrained_shortest_path (topo:topology) (avail_bw:float EdgeMap.t) src dst
                  let new_dist = dist +. weight in
                  let (neighbor, _) = Topology.edge_dst edge in
                  (* Printf.printf "%f %f %f %f %s %s\n" new_dist weight *)
-                   (* (edge_avail_bw/.1e9) (bw/.1e9) *)
-                   (* (Node.name (Net.Topology.vertex_to_label topo vert)) *)
-                   (* (Node.name (Net.Topology.vertex_to_label topo neighbor)); *)
+                 (* (edge_avail_bw/.1e9) (bw/.1e9) *)
+                 (* (Node.name (Net.Topology.vertex_to_label topo vert)) *)
+                 (* (Node.name (Net.Topology.vertex_to_label topo neighbor)); *)
                  let old_dist = Hashtbl.Poly.find_exn dist_table neighbor in
                  (* update paths if needed *)
                  if new_dist < old_dist then
@@ -108,8 +181,8 @@ let constrained_shortest_path (topo:topology) (avail_bw:float EdgeMap.t) src dst
             ~init:[]
             ~f:(fun acc p ->
               (* Printf.printf "Pred(%s) = %s " *)
-                (* (Node.name (Net.Topology.vertex_to_label topo dst)) *)
-                (* (Node.name (Net.Topology.vertex_to_label topo p)); *)
+              (* (Node.name (Net.Topology.vertex_to_label topo dst)) *)
+              (* (Node.name (Net.Topology.vertex_to_label topo p)); *)
               let prev_paths = get_paths p in
               let new_paths =
                 List.map prev_paths
@@ -122,9 +195,6 @@ let constrained_shortest_path (topo:topology) (avail_bw:float EdgeMap.t) src dst
     get_paths dst
     |> List.map ~f:List.rev
 
-let tie_break_random (paths: path List.t) =
-    List.nth_exn paths (Random.int (List.length paths))
-
 let reserve_bw avail_bw path bw =
   List.fold path ~init:avail_bw ~f:(fun acc e ->
     let prev_av_bw = EdgeMap.find_exn acc e in
@@ -132,41 +202,80 @@ let reserve_bw avail_bw path bw =
 
 let solve (topo:topology) (pairs:demands) : scheme =
   let new_scheme =
-    if not (SrcDstMap.is_empty !prev_scheme) then
+    let cmax =
+      if (SrcDstMap.is_empty !prev_scheme) then
+        Float.infinity
+      else
+        congestion_of_paths topo pairs !prev_scheme
+        |> EdgeMap.to_alist
+        |> List.map ~f:snd
+        |> get_max_congestion in
+    (* Printf.printf "\n%f\n" cmax; *)
+    if cmax < max_thresh *. max_util_cap then
       !prev_scheme
     else
+      (* Recompute cSPF paths only if previous routing scheme would lead to
+         exceeding the maximum allowed utilization *)
       let budget = (min !Kulfi_Globals.budget 100) in
       let per_lsp_prob = 1. /. (float_of_int budget) in
       (* Initialize available bandwidths as link capacities *)
       let avail_bw = Topology.fold_edges
           (fun edge acc ->
              let cap = capacity_of_edge topo edge in
-             EdgeMap.add ~key:edge ~data:(0.8 *. cap) acc) topo EdgeMap.empty in
+             EdgeMap.add ~key:edge ~data:(max_util_cap *. cap) acc)
+          topo EdgeMap.empty in
 
-      (* Assigning LSPs src-dst pairs one src-dst pair at a time is inefficient in
-         terms of bin-packing. So assign LSPs for src-dst pairs in round-robin
-         fashion. *)
+      (* Assign LSPs for src-dst pairs in round-robin order. *)
+      (* How CSPF Selects a Path - Juniper *)
+      (* [http://www.juniper.net/documentation/en_US/junos/topics/concept/mpls-cspf-path-selection-method.html] *)
       let (_, routes) =
         List.fold (range 0 budget)
           ~init:(avail_bw, SrcDstMap.empty)
           ~f:(fun (avail_bw, routes) i ->
-              SrcDstMap.fold
-                ~init:(avail_bw, routes)
-                ~f:(fun ~key:(u,v) ~data:d (avail_bw, routes) ->
-                    let per_lsp_demand = d /. (float_of_int budget) in
-                    let uv_path =
-                      constrained_shortest_path topo avail_bw u v per_lsp_demand
-                      |> tie_break_random in
-                    (* TODO: Handle the case when demands are feasible but cSPF is
-                       unable to find paths due to inefficient bin-packing *)
-                    let avail_bw = reserve_bw avail_bw uv_path per_lsp_demand in
-                    let prev_pp_map = match SrcDstMap.find routes (u, v) with
-                      | Some x -> x
-                      | None -> PathMap.empty in
-                    let pp_map =
-                      add_or_increment_path prev_pp_map uv_path per_lsp_prob in
-                    (avail_bw,
-                     SrcDstMap.add ~key:(u,v) ~data:(pp_map) routes)) pairs) in
-      routes in
+            SrcDstMap.fold
+              ~init:(avail_bw, routes)
+              ~f:(fun ~key:(u,v) ~data:d (avail_bw, routes) ->
+                let per_lsp_demand = d *. per_lsp_prob in
+                let uv_path_opt =
+                  constrained_shortest_path topo avail_bw u v per_lsp_demand
+                  |> least_hop_paths
+                  |> RandomTB.tie_break (avail_bw, topo) in
+                match uv_path_opt with
+                | Some uv_path ->
+                  let avail_bw = reserve_bw avail_bw uv_path per_lsp_demand in
+                  let prev_pp_map = match SrcDstMap.find routes (u, v) with
+                    | Some x -> x
+                    | None -> PathMap.empty in
+                  let pp_map =
+                    add_or_increment_path prev_pp_map uv_path per_lsp_prob in
+                  (avail_bw,
+                   SrcDstMap.add ~key:(u,v) ~data:(pp_map) routes)
+                | None ->
+                  (* Couldn't find an LSP. Normalize remaining paths later. *)
+                  (avail_bw, routes)) pairs) in
+      let full_routes =
+        (* Fallback options if cSPF couldn't find paths *)
+        SrcDstMap.fold pairs ~init:routes
+          ~f:(fun ~key:(src,dst) ~data:_ acc ->
+            match SrcDstMap.find routes (src,dst) with
+            | Some _ -> acc
+            | None ->
+              (* If we couldn't find a single LSP for a pair *)
+              begin
+                (* Try using paths already computed in the previous iteration *)
+                match SrcDstMap.find !prev_scheme (src,dst) with
+                | Some pp_map ->
+                  SrcDstMap.add ~key:(src,dst) ~data:pp_map acc
+                | None ->
+                  (* Last resort to find paths *)
+                  let paths = k_shortest_path topo src dst budget in
+                  let prob = 1.0 /. Float.of_int (List.length paths) in
+                  let pp_map =
+                    List.fold_left paths ~init:PathMap.empty
+                      ~f:(fun acc path ->
+                        PathMap.add acc ~key:path ~data:prob) in
+                  SrcDstMap.add ~key:(src,dst) ~data:pp_map acc
+              end) in
+      normalize_scheme full_routes in
   prev_scheme := new_scheme;
   new_scheme

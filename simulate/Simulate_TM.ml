@@ -354,45 +354,12 @@ let get_aggregate_latency (sd_lat_tput_map_map:(throughput LatencyMap.t) SrcDstM
         let agg_tput = prev_agg_tput +. (tput /. (Float.of_int num_iter)) in
         LatencyMap.add ~key:latency ~data:(agg_tput) acc))
 
-let is_int v =
-  let p = (Float.modf v) in
-  let f = Float.Parts.fractional p in
-  let c = Float.classify f in
-  c = Float.Class.Zero
-
-(* assumes l is sorted *)
-let kth_percentile (l:float list) (k:float) : float =
-  let n = List.length l in
-  let x = (Float.of_int n) *. k in
-  (*Printf.printf "%f / %d\n%!" x n;*)
-  if n = 0 then 0. else
-  if is_int x then
-    let i = Int.of_float (Float.round_up x) in
-    let lhs = match (List.nth l i) with
-      | Some f -> f
-      | None -> assert false in
-    let rhs = match List.nth l (min (i+1) (n-1)) with
-      | Some f -> f
-      | None -> assert false in
-    ((lhs +. rhs)/.2.)
-  else
-    let i = Int.of_float x in
-    match (List.nth l i) with
-    | Some f -> f
-    | None -> assert false
-
-let get_mean_congestion (l:float list) =
-  (List.fold_left ~init:0. ~f:( +. )  l) /. (Float.of_int (List.length l))
-
-let get_max_congestion (congestions:float list) : float =
-  List.fold_left ~init:Float.nan ~f:(fun a acc -> Float.max_inan a acc) congestions
-
 let get_num_paths (s:scheme) : float =
-  let count = SrcDstMap.fold s
-    ~init:0
-    ~f:(fun ~key:_ ~data:d acc ->
-      acc + (PathMap.length d)) in
-  Float.of_int count
+let count = SrcDstMap.fold s
+  ~init:0
+  ~f:(fun ~key:_ ~data:d acc ->
+    acc + (PathMap.length d)) in
+Float.of_int count
 
 (* Generate latency percentile based on throughput *)
 let get_latency_percentiles (lat_tput_map : throughput LatencyMap.t)

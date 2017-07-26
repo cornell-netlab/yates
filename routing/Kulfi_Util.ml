@@ -37,25 +37,6 @@ let dump_topology (t:topology) : string =
   Printf.bprintf buf "]\n";
   Buffer.contents buf
 
-let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
-
-let add_or_increment_path (fd : flow_decomp) (p : path) (r : probability) : flow_decomp =
-  let new_value = match PathMap.find fd p with
-    | None -> r
-    | Some prior_value -> prior_value +. r in
-  PathMap.add ~key:p ~data:new_value fd
-
-(* Check if the queried scheme contains all paths from the base scheme *)
-let contains_all_paths (base:scheme) (query:scheme) : bool =
-  SrcDstMap.fold base ~init:true
-    ~f:(fun ~key:uv ~data:base_ppm acc ->
-      match SrcDstMap.find query uv with
-      | None -> Printf.printf "u-v path not in query\n"; base_ppm = PathMap.empty && acc
-      | Some q_ppm ->
-        PathMap.fold base_ppm ~init:acc ~f:(fun ~key:path ~data:_ acc ->
-          match PathMap.find q_ppm path with
-          | None -> false
-          | Some _ -> acc))
 
 (* The following stuff was moved from Kulfi_Mcf.ml to here
    so that it could be used in Kulfi_Ak.ml. It doesn't really
@@ -255,48 +236,6 @@ let get_srcdst_pairs (topo:topology) =
       if u = v then acc else
       (u,v)::acc))
 
-(* Check if all src-dst pairs are connected with given scheme *)
-let all_pairs_connectivity topo hosts scheme : bool =
-  List.fold_left hosts
-    ~init:true
-    ~f:(fun acc u ->
-      List.fold_left hosts
-        ~init:acc
-        ~f:(fun acc v ->
-          if u = v then acc
-          else
-            match SrcDstMap.find scheme (u,v) with
-            | None -> Printf.printf "No route for pair (%s, %s)\n%!"
-             (Node.name (Net.Topology.vertex_to_label topo u))
-             (Node.name (Net.Topology.vertex_to_label topo v)); false
-            | Some paths -> not (PathMap.is_empty paths)  && acc))
-
-
-let paths_are_nonempty (s:scheme) : bool =
-  SrcDstMap.fold s
-    ~init:true
-    (* for every pair of hosts u,v *)
-    ~f:(fun ~key:(u,v) ~data:paths acc ->
-      if u = v then true && acc
-      else
-        PathMap.fold paths
-          ~init:acc
-          (* get the possible paths, and for every path *)
-          ~f:(fun ~key:path ~data:_ acc ->
-            acc && (not (List.is_empty path))))
-
-let probabilities_sum_to_one (s:scheme) : bool =
-  SrcDstMap.fold s
-    ~init:true
-    ~f:(fun ~key:(u,v) ~data:f_decomp acc ->
-      if u = v then acc
-      else
-        let sum_rate =
-          PathMap.fold f_decomp
-            ~init:0.
-            ~f:(fun ~key:path ~data:r acc -> acc +. r) in
-        acc && (sum_rate > 1.-.1e-4) && (sum_rate < 1.+.1e-4) )
-
 
 (* Latency for a path *)
 let get_path_weight (topo:topology) (p:path) : float =
@@ -415,8 +354,138 @@ let rec list_first_n l n =
   | hd::tl -> hd::(list_first_n tl (n-1))
   | [] -> failwith "not enough elements"
 
+let is_int v =
+  let p = (Float.modf v) in
+  let f = Float.Parts.fractional p in
+  let c = Float.classify f in
+  c = Float.Class.Zero
 
-(******************* Routing ****************)
+(* assumes l is sorted *)
+let kth_percentile (l:float list) (k:float) : float =
+  let n = List.length l in
+  let x = (Float.of_int n) *. k in
+  (*Printf.printf "%f / %d\n%!" x n;*)
+  if n = 0 then 0. else
+  if is_int x then
+    let i = Int.of_float (Float.round_up x) in
+    let lhs = match (List.nth l i) with
+      | Some f -> f
+      | None -> assert false in
+    let rhs = match List.nth l (min (i+1) (n-1)) with
+      | Some f -> f
+      | None -> assert false in
+    ((lhs +. rhs)/.2.)
+  else
+    let i = Int.of_float x in
+    match (List.nth l i) with
+    | Some f -> f
+    | None -> assert false
+
+let get_mean_congestion (l:float list) =
+  (List.fold_left ~init:0. ~f:( +. )  l) /. (Float.of_int (List.length l))
+
+let get_max_congestion (congestions:float list) : float =
+  List.fold_left ~init:Float.nan ~f:(fun a acc -> Float.max_inan a acc) congestions
+
+(**************************************************)
+(* Topology helpers *)
+(**************************************************)
+
+(* Find all outgoing edges from a node `src` *)
+let outgoing_edges topo src =
+  let src_neighbors = Topology.neighbors topo src in
+  (* Get all outgoing edges *)
+  let edges = VertexSet.fold src_neighbors ~init:[] ~f:(fun acc vtx ->
+      let es = Topology.find_all_edges topo src vtx in
+      List.rev_append (EdgeSet.elements es) acc) in
+  edges
+
+(* Find all incoming edges to a node `dst` *)
+let incoming_edges topo dst =
+  let dst_neighbors = Topology.neighbors topo dst in
+  (* Get all incoming edges *)
+  let edges = VertexSet.fold dst_neighbors ~init:[] ~f:(fun acc vtx ->
+      let es = Topology.find_all_edges topo vtx dst in
+      List.rev_append (EdgeSet.elements es) acc) in
+  edges
+
+(* Find a host's neighboring switch *)
+let ingress_switch topo host =
+  let label = Topology.vertex_to_label topo host in
+  assert (Node.device label = Node.Host);
+  VertexSet.choose_exn (Topology.neighbors topo host)
+
+
+
+(**************************************************)
+(* Operations on routing scheme *)
+(**************************************************)
+
+let compare_scheme (s1:scheme) (s2:scheme) : int = assert false
+
+let add_or_increment_path (fd : flow_decomp) (p : path) (r : probability) : flow_decomp =
+  let new_value = match PathMap.find fd p with
+    | None -> r
+    | Some prior_value -> prior_value +. r in
+  PathMap.add ~key:p ~data:new_value fd
+
+(* Checks *)
+(* Check if all src-dst pairs are connected with given scheme *)
+let all_pairs_connectivity topo hosts scheme : bool =
+  List.fold_left hosts
+    ~init:true ~f:(fun acc u ->
+      List.fold_left hosts
+        ~init:acc ~f:(fun acc v ->
+          if u = v then acc
+          else
+            match SrcDstMap.find scheme (u,v) with
+            | None -> Printf.printf "No route for pair (%s, %s)\n%!"
+                        (Node.name (Net.Topology.vertex_to_label topo u))
+                        (Node.name (Net.Topology.vertex_to_label topo v));
+              false
+            | Some paths ->
+              not (PathMap.is_empty paths)  && acc))
+
+
+let paths_are_nonempty (s:scheme) : bool =
+  SrcDstMap.fold s
+    ~init:true
+    (* for every pair of hosts u,v *)
+    ~f:(fun ~key:(u,v) ~data:paths acc ->
+      if u = v then true && acc
+      else
+        PathMap.fold paths
+          ~init:acc
+          (* get the possible paths, and for every path *)
+          ~f:(fun ~key:path ~data:_ acc ->
+            acc && (not (List.is_empty path))))
+
+let probabilities_sum_to_one (s:scheme) : bool =
+  SrcDstMap.fold s
+    ~init:true
+    ~f:(fun ~key:(u,v) ~data:f_decomp acc ->
+      if u = v then acc
+      else
+        let sum_rate =
+          PathMap.fold f_decomp
+            ~init:0.
+            ~f:(fun ~key:path ~data:r acc -> acc +. r) in
+        acc && (sum_rate > 1.-.1e-4) && (sum_rate < 1.+.1e-4) )
+
+
+(* Check if the queried scheme contains all paths from the base scheme *)
+let contains_all_paths (base:scheme) (query:scheme) : bool =
+  SrcDstMap.fold base ~init:true
+    ~f:(fun ~key:uv ~data:base_ppm acc ->
+      match SrcDstMap.find query uv with
+      | None -> Printf.printf "u-v path not in query\n"; base_ppm = PathMap.empty && acc
+      | Some q_ppm ->
+        PathMap.fold base_ppm ~init:acc ~f:(fun ~key:path ~data:_ acc ->
+          match PathMap.find q_ppm path with
+          | None -> false
+          | Some _ -> acc))
+
+(* Modifications *)
 (* prune a scheme by limiting number of s-d paths within a given budget *)
 let prune_scheme (t:topology) (s:scheme) (budget:int) : scheme =
   let new_scheme = SrcDstMap.fold s
@@ -433,7 +502,6 @@ let prune_scheme (t:topology) (s:scheme) (budget:int) : scheme =
           List.fold_left top_pp ~init:PathMap.empty ~f:(fun acc (path,prob) ->
               PathMap.add acc ~key:path ~data:(prob /. total_prob)) in
       SrcDstMap.add acc ~key:(src,dst) ~data:pruned_paths) in
-  (*Printf.printf "\nWARN: Disabled scheme check assertions for FFC while pruning\n";*)
   (*assert (probabilities_sum_to_one new_scheme);*)
   (*assert (all_pairs_connectivity t (get_hosts t) new_scheme);*)
   new_scheme
@@ -467,7 +535,11 @@ let fit_scheme_to_bins (s:scheme) (nbins:int) : scheme =
              to_roundup - 1)) in
       SrcDstMap.add acc ~key:(src,dst) ~data:pp_map)
 
-(**************** Failures ************)
+
+(**************************************************)
+(* Helper functions to simulate failures *)
+(**************************************************)
+
 let bidir_failure topo e =
   let e' = reverse_edge_exn topo e in
   EdgeSet.add (EdgeSet.singleton e) e'
@@ -495,7 +567,8 @@ let check_connectivity_after_failure (topo:topology) (fail:failure) : bool =
     |> all_pairs_connectivity topo' hosts
 
 
-(* Compute all possible failure scenarios with num_failures link failing, while not partitioning the network *)
+(* Compute all possible failure scenarios with num_failures link failing,
+   while not partitioning the network *)
 let get_all_possible_failures (topo:topology) (num_failures:int) : (failure List.t) =
   (* List of single link failures *)
   if num_failures = 0 then failwith "Number of failures should be > 0" else
@@ -521,26 +594,38 @@ let get_all_possible_failures (topo:topology) (num_failures:int) : (failure List
                 if check_connectivity_after_failure topo new_failure then new_failure::acc
                 else acc)))
 
-(* Find all outgoing edges from a node `src` *)
-let outgoing_edges topo src =
-  let src_neighbors = Topology.neighbors topo src in
-  (* Get all outgoing edges *)
-  let edges = VertexSet.fold src_neighbors ~init:[] ~f:(fun acc vtx ->
-      let es = Topology.find_all_edges topo src vtx in
-      List.rev_append (EdgeSet.elements es) acc) in
-  edges
 
-(* Find all incoming edges to a node `dst` *)
-let incoming_edges topo dst =
-  let dst_neighbors = Topology.neighbors topo dst in
-  (* Get all incoming edges *)
-  let edges = VertexSet.fold dst_neighbors ~init:[] ~f:(fun acc vtx ->
-      let es = Topology.find_all_edges topo vtx dst in
-      List.rev_append (EdgeSet.elements es) acc) in
-  edges
 
-(* Find a host's neighboring switch *)
-let ingress_switch topo host =
-  let label = Topology.vertex_to_label topo host in
-  assert (Node.device label = Node.Host);
-  VertexSet.choose_exn (Topology.neighbors topo host)
+(*******************************************************************)
+(* Common metric computation *)
+(*******************************************************************)
+
+(* Compute amount of traffic scheduled to be sent on each edge *)
+let traffic_on_edge (t:topology) (d:demands) (s:scheme) : (float EdgeMap.t) =
+  SrcDstMap.fold s ~init:EdgeMap.empty
+    ~f:(fun ~key:(src,dst) ~data:paths acc ->
+      PathMap.fold paths ~init:acc
+        ~f:(fun ~key:path ~data:prob acc ->
+          List.fold_left path ~init:acc
+            ~f:(fun acc e ->
+              let demand =
+                match SrcDstMap.find d (src,dst) with
+                | None -> 0.0
+                | Some x -> x in
+              match EdgeMap.find acc e with
+              | None ->
+                EdgeMap.add ~key:e ~data:(demand *. prob) acc
+              | Some x ->
+                EdgeMap.add ~key:e ~data:((demand *. prob) +. x) acc)))
+
+(* Compute expected link utilization load on links.
+   Expected utilization can be > 1 *)
+let congestion_of_paths (t:topology) (d:demands) (s:scheme) : (float EdgeMap.t) =
+  let sent_on_each_edge = traffic_on_edge t d s in
+  EdgeMap.fold ~init:EdgeMap.empty
+    ~f:(fun ~key:e ~data:amount_sent acc ->
+      EdgeMap.add
+        ~key:e
+        ~data:(amount_sent /. (capacity_of_edge t e))
+        acc) sent_on_each_edge
+
