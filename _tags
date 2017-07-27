@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 134f2da4b5e3a75304fdf142fbec6cd6)
+# DO NOT EDIT (digest: a1f445633be6319d621dea6eb2721277)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -74,25 +74,6 @@ true: annot, bin_annot
 <kulfi/*.ml{,i,y}>: use_controller
 <kulfi/*.ml{,i,y}>: use_routing
 <kulfi/*.ml{,i,y}>: use_util
-# Executable topology
-"topo/TopoProcess.native": package(async)
-"topo/TopoProcess.native": package(core)
-"topo/TopoProcess.native": package(frenetic)
-"topo/TopoProcess.native": package(ocamlgraph)
-"topo/TopoProcess.native": package(ppx_jane)
-"topo/TopoProcess.native": package(sexplib)
-"topo/TopoProcess.native": package(threads)
-"topo/TopoProcess.native": use_routing
-"topo/TopoProcess.native": use_util
-<topo/*.ml{,i,y}>: package(async)
-<topo/*.ml{,i,y}>: package(core)
-<topo/*.ml{,i,y}>: package(frenetic)
-<topo/*.ml{,i,y}>: package(ocamlgraph)
-<topo/*.ml{,i,y}>: package(ppx_jane)
-<topo/*.ml{,i,y}>: package(sexplib)
-<topo/*.ml{,i,y}>: package(threads)
-<topo/*.ml{,i,y}>: use_routing
-<topo/*.ml{,i,y}>: use_util
 # Executable simulator
 "simulate/Simulate_Driver.native": package(async)
 "simulate/Simulate_Driver.native": package(core)
