@@ -162,38 +162,6 @@ let count_paths_through_edge (s:scheme) : (int EdgeMap.t) =
                 | Some x -> x in
         EdgeMap.add ~key:edge ~data:(c+1) acc)))
 
-(*******************************************************************)
-(* Common metric computation *)
-(*******************************************************************)
-
-(* Compute amount of traffic scheduled to be sent on each edge *)
-let traffic_on_edge (t:topology) (d:demands) (s:scheme) : (float EdgeMap.t) =
-  SrcDstMap.fold s ~init:EdgeMap.empty
-    ~f:(fun ~key:(src,dst) ~data:paths acc ->
-      PathMap.fold paths ~init:acc
-        ~f:(fun ~key:path ~data:prob acc ->
-          List.fold_left path ~init:acc
-            ~f:(fun acc e ->
-              let demand =
-                match SrcDstMap.find d (src,dst) with
-                | None -> 0.0
-                | Some x -> x in
-              match EdgeMap.find acc e with
-              | None ->
-                EdgeMap.add ~key:e ~data:(demand *. prob) acc
-              | Some x ->
-                EdgeMap.add ~key:e ~data:((demand *. prob) +. x) acc)))
-
-(* Compute expected link utilization load on links.
-   Expected utilization can be > 1 *)
-let congestion_of_paths (t:topology) (d:demands) (s:scheme) : (float EdgeMap.t) =
-  let sent_on_each_edge = traffic_on_edge t d s in
-  EdgeMap.fold ~init:EdgeMap.empty
-    ~f:(fun ~key:e ~data:amount_sent acc ->
-      EdgeMap.add
-        ~key:e
-        ~data:(amount_sent /. (capacity_of_edge t e))
-        acc) sent_on_each_edge
 
 
 let progress_bar x y l =
