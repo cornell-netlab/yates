@@ -15,7 +15,7 @@ let solve (topo:topology) (_:demands) : scheme =
   if not (SrcDstMap.is_empty !prev_scheme) then !prev_scheme
   else
   let host_set = get_hosts_set topo in
-  let all_ksp = all_pair_k_shortest_path topo (min !Kulfi_Globals.budget 100) host_set in
+  let all_ksp = all_pair_k_shortest_path topo (min !Kulfi_Globals.budget 1000) host_set in
   SrcDstMap.fold
     all_ksp
     ~init:SrcDstMap.empty

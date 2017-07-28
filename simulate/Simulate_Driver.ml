@@ -490,27 +490,32 @@ let compare_scaling_limit algorithms (num_tms:int option) (topology:string)
 let find_ksp_budget_test (topology:string) (demand_file:string)
       (host_file:string) (rtt_file_opt:string option) () =
   Kulfi_Globals.deloop := true;
+  let base_alg = Mcf in
+  let query_alg = Ksp in
   let topo = Parse.from_dotfile topology in
   let edge_weights = set_topo_weights topo rtt_file_opt in
   let original_budget = !Kulfi_Globals.budget in
   let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
   let actual = next_demand actual_ic actual_host_map in
-  let raeke_scheme,_ = solve_within_budget Raeke topo actual actual in
+  initialize_scheme base_alg topo actual;
+  let base_scheme,_ = solve_within_budget base_alg topo actual actual in
   ignore(reset_topo_weights edge_weights topo;);
 
-  store_paths true raeke_scheme topo "./" Raeke original_budget;
-  let rec try_ksp k =
+  store_paths true base_scheme topo "./" base_alg original_budget;
+  let rec try_query k =
     Kulfi_Globals.budget := k;
     Printf.printf "%d\n%!" !Kulfi_Globals.budget;
-    Kulfi_Routing.Ksp.initialize SrcDstMap.empty;
-    let ksp_scheme,_ = solve_within_budget Ksp topo actual actual in
-    store_paths true ksp_scheme topo "./" Ksp k;
-    if contains_all_paths raeke_scheme ksp_scheme then k
+    initialize_scheme query_alg topo actual;
+    let query_scheme,_ = solve_within_budget query_alg topo actual actual in
+    store_paths true query_scheme topo "./" query_alg k;
+    let covered,coverage = find_coverage base_scheme query_scheme in
+    if covered then k
     else
-      try_ksp (k+1) in
+      let _ = Printf.printf "%d : %f\n" k coverage in
+      try_query (k+1) in
 
-  let ksp_budget = try_ksp original_budget in
-  Printf.printf "%d\n%!" ksp_budget;
+  let final_budget = try_query 1 in
+  Printf.printf "Result: %d\n%!" final_budget;
   close_demands actual_ic
 
 

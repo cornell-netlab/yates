@@ -474,16 +474,21 @@ let probabilities_sum_to_one (s:scheme) : bool =
 
 
 (* Check if the queried scheme contains all paths from the base scheme *)
-let contains_all_paths (base:scheme) (query:scheme) : bool =
-  SrcDstMap.fold base ~init:true
-    ~f:(fun ~key:uv ~data:base_ppm acc ->
-      match SrcDstMap.find query uv with
-      | None -> Printf.printf "u-v path not in query\n"; base_ppm = PathMap.empty && acc
-      | Some q_ppm ->
-        PathMap.fold base_ppm ~init:acc ~f:(fun ~key:path ~data:_ acc ->
-          match PathMap.find q_ppm path with
-          | None -> false
-          | Some _ -> acc))
+let find_coverage (base:scheme) (query:scheme) : bool * float =
+  let get_path_set sch : PathSet.t =
+    SrcDstMap.fold sch ~init:PathSet.empty
+      ~f:(fun ~key:uv ~data:ppm acc ->
+        PathMap.fold ppm ~init:acc
+          ~f:(fun ~key:path ~data:prob acc -> PathSet.add acc path)) in
+  let base_paths = get_path_set base in
+  let query_paths = get_path_set query in
+  let diff = PathSet.diff base_paths query_paths in
+  let diff_size = PathSet.length diff in
+  if diff_size = 0 then (true, 100.)
+  else
+    let base_size = Float.of_int (PathSet.length base_paths) in
+    let coverage = Float.((base_size - (of_int diff_size)) / base_size) in
+    (false, coverage)
 
 (* Modifications *)
 (* prune a scheme by limiting number of s-d paths within a given budget *)
