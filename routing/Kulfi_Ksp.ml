@@ -12,23 +12,21 @@ let prev_scheme = ref SrcDstMap.empty
 
 let solve (topo:topology) (_:demands) : scheme =
   let new_scheme =
-  if not (SrcDstMap.is_empty !prev_scheme) then !prev_scheme
-  else
-  let host_set = get_hosts_set topo in
-  let all_ksp = all_pair_k_shortest_path topo (min !Kulfi_Globals.budget 1000) host_set in
-  SrcDstMap.fold
-    all_ksp
-    ~init:SrcDstMap.empty
-    ~f:(fun ~key:(v1,v2) ~data:paths acc ->
-      if (v1 = v2) then acc
-      else
-      let path_map = List.fold_left
-          paths
-          ~init:PathMap.empty
-          ~f:(fun acc path ->
-              let prob = 1.0 /. Float.of_int (List.length paths) in
-              PathMap.add acc ~key:path ~data:prob) in
-      SrcDstMap.add acc ~key:(v1,v2) ~data:path_map) in
+    if not (SrcDstMap.is_empty !prev_scheme) then !prev_scheme
+    else
+      let host_set = get_hosts_set topo in
+      let all_ksp = all_pair_k_shortest_path topo
+                      (min !Kulfi_Globals.budget 1000) host_set in
+      SrcDstMap.fold all_ksp ~init:SrcDstMap.empty
+        ~f:(fun ~key:(u, v) ~data:paths acc ->
+          if u = v then acc
+          else
+            let path_map =
+              List.fold_left paths ~init:PathMap.empty
+                ~f:(fun acc path ->
+                  let prob = 1.0 /. Float.of_int (List.length paths) in
+                  PathMap.add acc ~key:path ~data:prob) in
+            SrcDstMap.add acc ~key:(u, v) ~data:path_map) in
   prev_scheme := new_scheme;
   new_scheme
 

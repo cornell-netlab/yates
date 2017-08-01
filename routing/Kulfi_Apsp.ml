@@ -170,13 +170,12 @@ let get_random_path (i:Topology.vertex) (j:Topology.vertex) (topo:topology)
           curr_v) in
   !e_path
 
-
 (**************************************************************)
 (* k-shortest paths *)
 (**************************************************************)
 
 (* Yen's algorithm to compute k-shortest paths *)
-let k_shortest_path_yen (topo:topology) (s:Topology.vertex) (t:Topology.vertex)
+let k_shortest_paths (topo:topology) (s:Topology.vertex) (t:Topology.vertex)
       (k:int) : path list =
   if s = t then []
   else
@@ -229,6 +228,8 @@ let k_shortest_path_yen (topo:topology) (s:Topology.vertex) (t:Topology.vertex)
                 new_root_path) in
         if PQueue.is_empty bheap then ksp
         else
+          (* Yen's algorithm can generate duplicate spur paths. Avoid
+             duplication when storing k-shortest paths. *)
           let rec find_non_dup () =
             match PQueue.pop bheap with
             | None -> None
@@ -247,78 +248,11 @@ let k_shortest_path_yen (topo:topology) (s:Topology.vertex) (t:Topology.vertex)
 
     yens_explore 1 [shortest_path]
 
-let k_shortest_path (topo:topology) (s:Topology.vertex) (t:Topology.vertex)
-      (k:int) : path list =
-  (* TODO: replace with updated implementation *)
-  if s = t then []
-  else
-    let paths = ref [] in
-    let count = Hashtbl.Poly.create () in
-    Topology.iter_vertexes
-      (fun u -> Hashtbl.Poly.add_exn count u 0;) topo;
-
-    let bheap = (* store paths, priority = cost of path *)
-      PQueue.create
-        ~min_size:(Topology.num_vertexes topo)
-        ~cmp:(fun (dist1,_) (dist2,_) -> compare dist1 dist2) () in
-
-    let _ = PQueue.add_removable bheap (0.0, [s]) in
-    let rec explore () =
-      let cost_path_u = PQueue.pop bheap in
-      match cost_path_u with
-      | None -> ()
-      | Some (cost_u, path_u) ->
-        match List.hd path_u with (* path_u contains vertices in reverse order *)
-        | None -> ()
-        | Some u ->
-          let count_u = Hashtbl.Poly.find_exn count u in
-          let _  = Hashtbl.Poly.set count u (count_u + 1) in
-          if u = t then paths := List.append !paths [path_u];
-          if count_u < k then
-            (* if u = t then explore()
-               else *)
-            let _ =
-              Topology.iter_succ
-                (fun edge ->
-                   let (v,_) = Topology.edge_dst edge in
-                   if !Kulfi_Globals.deloop && (List.mem path_u v ~equal:(=)) then
-                     ()
-                   else (* consider only simple paths *)
-                     let path_v = v::path_u in
-                     let weight = Link.weight (Topology.edge_to_label topo edge) in
-                     let cost_v = cost_u +. weight in
-                     let _ = PQueue.add_removable bheap (cost_v, path_v) in
-                     ()) topo u in
-            explore ()
-          else if u = t then ()
-          else explore () in
-    explore ();
-
-    (* Convert paths from list of nodes to list of edges *)
-    List.fold_left !paths ~init:[]
-      ~f:(fun acc path ->
-        let edge_path =
-          List.fold_left path ~init:([], None)
-            ~f:(fun edges_u v ->
-              let edges, u = edges_u in
-              match u with
-              | None ->
-                (edges, Some v)
-              | Some u ->
-                let edge = Topology.find_edge topo v u in
-                (edge::edges, Some v)) in
-        let p,_ = edge_path in
-        let p' =
-          if !Kulfi_Globals.deloop then
-            Kulfi_Frt.FRT.remove_cycles p
-          else p in
-        p'::acc)
-(* end k-shortest path *)
-
+(* Compute k-shortest paths for every pair of hosts *)
 let all_pair_k_shortest_path (topo:topology) (k:int) hosts =
   VertexSet.fold hosts ~init:SrcDstMap.empty
     ~f:(fun acc src ->
       VertexSet.fold hosts ~init:acc
         ~f:(fun acc dst ->
-          let ksp = k_shortest_path_yen topo src dst k in
+          let ksp = k_shortest_paths topo src dst k in
           SrcDstMap.add acc ~key:(src, dst) ~data:ksp))

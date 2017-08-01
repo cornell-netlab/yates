@@ -268,7 +268,7 @@ let solve (topo:topology) (pairs:demands) : scheme =
                   SrcDstMap.add ~key:(src,dst) ~data:pp_map acc
                 | None ->
                   (* Last resort to find paths *)
-                  let paths = k_shortest_path topo src dst budget in
+                  let paths = k_shortest_paths topo src dst budget in
                   let prob = 1.0 /. Float.of_int (List.length paths) in
                   let pp_map =
                     List.fold_left paths ~init:PathMap.empty
