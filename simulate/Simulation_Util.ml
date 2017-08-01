@@ -104,7 +104,7 @@ let select_local_recovery solver = match solver with
   | Vlb -> Kulfi_Routing.Vlb.local_recovery
 
 let store_paths log_paths scheme topo out_dir algorithm n : unit =
-  if log_paths then
+  if log_paths || n = 0 then
     let _ = match (Sys.file_exists out_dir) with
       | `No -> Unix.mkdir out_dir
       | _ -> () in
