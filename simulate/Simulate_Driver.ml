@@ -554,7 +554,7 @@ let command =
     +> flag "-spf" no_arg ~doc:" run spf"
     +> flag "-vlb" no_arg ~doc:" run vlb"
     +> flag "-all" no_arg ~doc:" run all schemes"
-    +> flag "-deloop" no_arg ~doc:" remove loops in paths"
+    +> flag "-keep-loops" no_arg ~doc:" keep loops in paths"
     +> flag "-limittest" no_arg ~doc:" test at what scale congestion loss starts "
     +> flag "-robust" no_arg ~doc:" perform robustness test - fail all combinations of fail-num links"
     +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
@@ -617,7 +617,7 @@ let command =
     (spf:bool)
     (vlb:bool)
     (all:bool)
-    (deloop:bool)
+    (keep_loops:bool)
     (limittest:bool)
     (robust:bool)
     (scalesyn:bool)
@@ -683,7 +683,7 @@ let command =
       let tot_scale = scale *. syn_scale in
       Printf.printf "Scale factor: %f\n\n" tot_scale;
       ExperimentalData.append_out := appendout;
-      Kulfi_Globals.deloop := deloop;
+      Kulfi_Globals.deloop := not keep_loops;
       Kulfi_Globals.tm_sim_iters  := simtime;
       Kulfi_Globals.flash_recover := flash_recover;
       Kulfi_Globals.gurobi_method := grb_method;
