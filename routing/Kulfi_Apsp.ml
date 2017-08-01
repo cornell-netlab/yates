@@ -4,6 +4,7 @@ open Net
 open Net.Topology
 
 open Kulfi_Types
+open Kulfi_Util
 
 module PQueue = Core_kernel.Heap.Removable
 
@@ -174,8 +175,81 @@ let get_random_path (i:Topology.vertex) (j:Topology.vertex) (topo:topology)
 (* k-shortest paths *)
 (**************************************************************)
 
+(* Yen's algorithm to compute k-shortest paths *)
+let k_shortest_path_yen (topo:topology) (s:Topology.vertex) (t:Topology.vertex)
+      (k:int) : path list =
+  if s = t then []
+  else
+    let bheap =
+      PQueue.create
+        ~min_size:(Topology.num_vertexes topo)
+        ~cmp:(fun (dist1,_) (dist2,_) -> compare dist1 dist2) () in
+    let pq_tokens = Hashtbl.Poly.create () in
+    let rec yens_explore j ksp =
+      if j = k then ksp
+      else
+        let prev_path = List.hd_exn ksp in
+        let _ =
+          List.fold prev_path ~init:[]
+            ~f:(fun root_path spur_edge ->
+              let spur_node,_ = Net.Topology.edge_src spur_edge in
+              let root_path_len = List.length root_path in
+              let restricted_topo =
+                List.fold ksp ~init:topo
+                  ~f:(fun acc path ->
+                    let sub_path =
+                      List.slice path 0 (min root_path_len (List.length path)) in
+                    if root_path = sub_path then
+                      match List.nth path root_path_len with
+                      | None -> acc
+                      | Some e ->
+                        Topology.remove_edge acc e
+                    else
+                      acc) in
+              let restricted_topo =
+                List.fold root_path ~init:restricted_topo
+                  ~f:(fun acc e ->
+                    let root_path_node,_ = Net.Topology.edge_src e in
+                    if root_path_node = spur_node then acc
+                    else Topology.remove_vertex acc root_path_node) in
+
+              let new_root_path = root_path@[spur_edge] in
+              match NetPath.shortest_path restricted_topo spur_node t with
+              | None -> new_root_path
+              | Some p ->
+                let total_path = root_path@p in
+                let path_weight = get_path_weight topo total_path in
+                let new_token =
+                  match Hashtbl.Poly.find pq_tokens total_path with
+                  | None ->
+                    PQueue.add_removable bheap (path_weight, total_path)
+                  | Some token ->
+                    PQueue.update bheap token (path_weight, total_path) in
+                Hashtbl.Poly.set pq_tokens total_path new_token;
+                new_root_path) in
+        if PQueue.is_empty bheap then ksp
+        else
+          let rec find_non_dup () =
+            match PQueue.pop bheap with
+            | None -> None
+            | Some (_, path) ->
+              if List.mem ksp path ~equal:(=) then find_non_dup ()
+              else Some path in
+          match find_non_dup () with
+          | None -> ksp
+          | Some path ->
+            let ksp = path::ksp in
+            yens_explore (j + 1) ksp in
+
+    let shortest_path = match NetPath.shortest_path topo s t with
+      | Some x -> x
+      | _ -> failwith "Couldn't find shortest path" in
+
+    yens_explore 1 [shortest_path]
+
 let k_shortest_path (topo:topology) (s:Topology.vertex) (t:Topology.vertex)
       (k:int) : path list =
+  (* TODO: replace with updated implementation *)
   if s = t then []
   else
     let paths = ref [] in
@@ -246,5 +320,5 @@ let all_pair_k_shortest_path (topo:topology) (k:int) hosts =
     ~f:(fun acc src ->
       VertexSet.fold hosts ~init:acc
         ~f:(fun acc dst ->
-          let ksp = k_shortest_path topo src dst k in
+          let ksp = k_shortest_path_yen topo src dst k in
           SrcDstMap.add acc ~key:(src, dst) ~data:ksp))

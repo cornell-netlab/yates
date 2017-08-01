@@ -246,9 +246,11 @@ let get_path_weight_arr (topo:topology) (p:edge Array.t) =
   Array.foldi p ~init:0.
     ~f:(fun _ acc e -> acc +. Link.weight (Topology.edge_to_label topo e))
 
-
 let rec range i j = if i >= j then [] else i :: (range (i+1) j)
-(************** to string *******)
+
+(***********************************************)
+(* to string *)
+(***********************************************)
 let string_of_vertex (t:topology) v : string =
   Printf.sprintf "%s"
                     (Node.name (Net.Topology.vertex_to_label t v))
@@ -275,15 +277,19 @@ let string_to_edge_map (t:topology) : edge StringMap.t =
 
 let dump_path_prob_set (t:topology) (pps:probability PathMap.t) : string =
   let buf = Buffer.create 101 in
-  PathMap.iteri
-    pps
-    ~f:(fun ~key:path ~data:prob -> Printf.bprintf buf "[%s] @ %f\n" (dump_edges t path) prob);
+  let sorted_paths = PathMap.keys pps
+                     |> List.sort ~cmp:(fun p1 p2 ->
+                       Pervasives.compare
+                         (get_path_weight t p1) (get_path_weight t p2)) in
+  List.iter sorted_paths
+    ~f:(fun path -> let prob = PathMap.find_exn pps path in
+         Printf.bprintf buf "[%s] @ %f\n" (dump_edges t path) prob);
   Buffer.contents buf
 
 let dump_scheme (t:topology) (s:scheme) : string =
   let buf = Buffer.create 101 in
   SrcDstMap.iteri s ~f:(fun ~key:(v1,v2) ~data:pps ->
-                       Printf.bprintf buf "%s -> %s :\n  %s\n"
+                       Printf.bprintf buf "%s -> %s :\n%s\n"
                                       (Node.name (Net.Topology.vertex_to_label t v1))
                                       (Node.name (Net.Topology.vertex_to_label t v2))
                                       (dump_path_prob_set t pps));
