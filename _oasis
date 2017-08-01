@@ -1,5 +1,5 @@
 OASISFormat: 0.4
-OCamlVersion: >= 4.01
+OCamlVersion: >= 4.04.0
 Name:        kulfi
 Version:     0.1
 Synopsis:    Traffic engineering framework.
