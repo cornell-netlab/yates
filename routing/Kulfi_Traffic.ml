@@ -16,10 +16,12 @@ let open_demands (demand_file:string) (host_file:string) (topo:topology) : (inde
       ~f:(fun file ->
         In_channel.fold_lines file ~init:(0,IntMap.empty)
           ~f:(fun (i,m) line ->
-            let n = match (StringMap.find name_map line) with
-              | None -> assert false
-              | Some x -> x in
-            (i+1, (IntMap.add m ~key:i ~data:n)))) in
+            match (StringMap.find name_map line) with
+            | None ->
+              (* Ignore a host in host file if it is not in the topology subgraph  *)
+              (i+1, m)
+            | Some n ->
+              (i+1, (IntMap.add m ~key:i ~data:n)))) in
   (host_map, (In_channel.create demand_file))
 
 let close_demands (ic:In_channel.t) : unit =
@@ -42,11 +44,15 @@ let next_demand ?scale:(scale=1.0) (ic:In_channel.t) (host_map:index_map) : dema
   let demands = ref SrcDstMap.empty in
   for i = 0 to (size-1) do
     for j = 0 to (size-1) do
-      let s = match IntMap.find host_map i with | None -> assert false | Some x -> x in
-      let d = match IntMap.find host_map j with | None -> assert false | Some x -> x in
-      (* Can't demand from yourself *)
-      let v = if i = j then 0.0 else (scale *. Float.of_string (entries.((i*size) + j))) in
-      demands := SrcDstMap.add !demands ~key:(s,d) ~data:v
+      let s = IntMap.find host_map i in
+      let d = IntMap.find host_map j in
+      match (s,d) with
+      | (Some s, Some d) ->
+        (* Can't demand from yourself *)
+        let v = if i = j then 0.0 else (scale *. Float.of_string (entries.((i*size) + j))) in
+        demands := SrcDstMap.add !demands ~key:(s,d) ~data:v
+      | _ -> () (* if i or j-th node in input demand matrix is not in subgraph,
+                   ignore the corresponding (i,j) demand entry *)
     done
   done;
   !demands

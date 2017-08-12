@@ -44,6 +44,38 @@ let parse_rtt_file (rtt_file_opt : string option) : (float StringMap.t) =
           let edge_rtt = Float.of_string entries.(1) in
           StringMap.add ~key:edge_str ~data:edge_rtt acc))
 
+(* Filter nodes from a topology based on nodes specified in subgraph file *)
+let generate_subgraph (subgraph_opt : string option) (topo : topology) : topology =
+  match subgraph_opt with
+  | None -> topo
+  | Some subgraph_file ->
+    let name_vertex_map =
+      VertexSet.fold (Topology.vertexes topo)
+        ~init:StringMap.empty
+        ~f:(fun acc v ->
+          (StringMap.add acc
+             ~key:(Node.name (Net.Topology.vertex_to_label topo v))
+             ~data:v)) in
+    let subgraph_nodes =
+      In_channel.with_file subgraph_file
+        ~f:(fun file ->
+          In_channel.fold_lines file ~init:VertexSet.empty
+            ~f:(fun acc line ->
+              match (StringMap.find name_vertex_map line) with
+              | None ->
+                failwith "Unknown node specified in subgraph"
+              | Some node ->
+                VertexSet.add acc node)) in
+    let to_delete_nodes = VertexSet.diff (Topology.vertexes topo) subgraph_nodes in
+    VertexSet.fold to_delete_nodes ~init:topo ~f:Topology.remove_vertex
+
+(* Parse a topology file and generate the subgraph topology, if subgraph option
+is specified *)
+let parse_topology (topo_file:string) (subgraph_file:string option) =
+  Parse.from_dotfile topo_file
+  |> generate_subgraph subgraph_file
+
+
 (* Set edge weights from the specified RTT file.
  * If RTT of edge is not specified, the set weight = 1 *)
 let set_topo_weights (topo : topology) (rtt_file : string option) =
@@ -135,6 +167,7 @@ let accumulate_vulnerability_stats topology_file topo algorithm scheme  =
 let simulate
     (spec_solvers:solver_type list)
     (topology_file:string)
+    (subgraph_opt:string option)
     (demand_file:string)
     (predict_file:string)
     (host_file:string)
@@ -149,7 +182,7 @@ let simulate
     (log_paths:bool)
     (out_dir:string option) () : unit =
 
-  let topo = Parse.from_dotfile topology_file in
+  let topo = parse_topology topology_file  subgraph_opt in
   let edge_weights = set_topo_weights topo rtt_file_opt in
 
   (* Store results in a directory name =
@@ -412,9 +445,9 @@ let simulate
   (************************************************************************)
 
 (* Estimate max congestion for a given topology, tm, solver and scale*)
-let estimate_max_cong (topology:string) (demand_file:string) (host_file:string)
-    (solver) (scale) : float =
-  let topo = Parse.from_dotfile topology in
+let estimate_max_cong (topo_file:string) (subgraph_file_opt:string option)
+      (demand_file:string) (host_file:string) (solver) (scale) : float =
+  let topo = parse_topology topo_file subgraph_file_opt in
   let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
   let actual = next_demand ~scale:scale actual_ic actual_host_map in
   let cmax = solver topo actual
@@ -427,16 +460,17 @@ let estimate_max_cong (topology:string) (demand_file:string) (host_file:string)
 
 (* For synthetic demands, scale them by multiplying by X/mcf_congestion,
  * where X (= 0.4) is the max congestion we expect to get when run with the new demands *)
-let calculate_syn_scale (topology:string) (demand_file:string) (host_file:string) =
-  let cmax = estimate_max_cong topology demand_file host_file Kulfi_Mcf.solve 1.0 in
+let calculate_syn_scale (topo_file:string) (subgraph_file_opt:string option)
+      (demand_file:string) (host_file:string) =
+  let cmax = estimate_max_cong topo_file subgraph_file_opt demand_file host_file Kulfi_Mcf.solve 1.0 in
   0.4 /. cmax
 
 
-let compare_scaling_limit algorithms (num_tms:int option) (topology:string)
-    (demand_file:string) (host_file:string) (rtt_file_opt:string option)
-    (out_dir:string option) () =
+let compare_scaling_limit algorithms (num_tms:int option) (topo_file:string)
+      (subgraph_file_opt:string option) (demand_file:string) (host_file:string)
+      (rtt_file_opt:string option) (out_dir:string option) () =
   Printf.printf "Scale test\n%!";
-  let split_dot_file_list = String.split_on_chars topology ~on:['/';'.'] in
+  let split_dot_file_list = String.split_on_chars topo_file ~on:['/';'.'] in
   let suffix = List.nth split_dot_file_list (List.length split_dot_file_list -2) in
   let suffix = match suffix with
           | Some x -> x
@@ -448,8 +482,8 @@ let compare_scaling_limit algorithms (num_tms:int option) (topology:string)
   let num_tms = match num_tms with
     | Some x -> x
     | None -> 24 in
-  let norm = calculate_syn_scale topology demand_file host_file in
-  let topo = Parse.from_dotfile topology in
+  let norm = calculate_syn_scale topo_file subgraph_file_opt demand_file host_file in
+  let topo = parse_topology topo_file subgraph_file_opt in
   let edge_weights = set_topo_weights topo rtt_file_opt in
   let buf = Buffer.create 101 in
   List.iter algorithms ~f:(fun algorithm ->
@@ -487,12 +521,12 @@ let compare_scaling_limit algorithms (num_tms:int option) (topology:string)
 
 (* run ksp with increasing budgets until the generated scheme contains all
    paths produced by raecke's algorithm with the original budget *)
-let find_ksp_budget_test (topology:string) (demand_file:string)
-      (host_file:string) (rtt_file_opt:string option) () =
+let find_ksp_budget_test (topo_file:string) (subgraph_file_opt:string option)
+      (demand_file:string) (host_file:string) (rtt_file_opt:string option) () =
   Kulfi_Globals.deloop := true;
   let base_alg = Mcf in
   let query_alg = Ksp in
-  let topo = Parse.from_dotfile topology in
+  let topo = parse_topology topo_file subgraph_file_opt in
   let edge_weights = set_topo_weights topo rtt_file_opt in
   let original_budget = !Kulfi_Globals.budget in
   let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
@@ -580,6 +614,7 @@ let command =
     +> flag "-rseed" (optional int) ~doc:" seed to initialize PRNG"
     +> flag "-num-tms" (optional int) ~doc:" number of TMs (-robust overrides this)"
     +> flag "-rtt-file" (optional string) ~doc:" file containing RTT values to be used as edge weights"
+    +> flag "-subgraph" (optional string) ~doc:" file with subset of switches (the induced subgraph will be used) "
     +> flag "-gurobi-method" (optional_with_default (-1) int)
       ~doc:" solver method used for Gurobi. -1=automatic, 0=primal simplex, 1=dual simplex, 2=barrier, 3=concurrent, 4=deterministic concurrent."
     +> anon ("topology-file" %: string)
@@ -640,6 +675,7 @@ let command =
     (rseed:int option)
     (num_tms:int option)
     (rtt_file:string option)
+    (subgraph_file:string option)
     (grb_method:int)
     (topology_file:string)
     (demand_file:string)
@@ -678,7 +714,7 @@ let command =
          ; if vlb || all        then Some Vlb         else None ] in
       let syn_scale =
         if scalesyn then
-          calculate_syn_scale topology_file demand_file host_file
+          calculate_syn_scale topology_file subgraph_file demand_file host_file
         else 1.0 in
       let tot_scale = scale *. syn_scale in
       Printf.printf "Scale factor: %f\n\n" tot_scale;
@@ -698,14 +734,14 @@ let command =
       if robust then
         Kulfi_Globals.failure_time  := 0;
       if limittest then
-        compare_scaling_limit algorithms num_tms topology_file demand_file
+        compare_scaling_limit algorithms num_tms topology_file subgraph_file demand_file
           host_file rtt_file out ()
 
       else if find_ksp_budget then
-        find_ksp_budget_test topology_file demand_file host_file rtt_file ()
+        find_ksp_budget_test topology_file subgraph_file demand_file host_file rtt_file ()
 
       else
-        simulate algorithms topology_file demand_file predict_file host_file
+        simulate algorithms topology_file subgraph_file demand_file predict_file host_file
           num_tms robust vulnerability tot_scale fail_num is_flash flash_ba
           rtt_file log_paths out ())
 
