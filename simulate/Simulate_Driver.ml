@@ -163,6 +163,36 @@ let accumulate_vulnerability_stats topology_file topo algorithm scheme  =
   fprintf oc "%s\n" (Buffer.contents buf);
   Out_channel.close oc
 
+(* Estimate capacity requirement based on MCF  for a given topology, tm,
+   solver and scale*)
+let estimate_capacity_req (topo:topology) (demand_file:string)
+    (host_file:string) (scale) : int64 EdgeMap.t =
+  let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
+  let actual = next_demand ~scale:scale actual_ic actual_host_map in
+  let utils = Kulfi_Mcf.solve topo actual
+          |> congestion_of_paths topo actual in
+  close_demands actual_ic;
+  EdgeMap.fold utils ~init:EdgeMap.empty
+    ~f:(fun ~key:e ~data:util acc ->
+        let curr_cap = capacity_of_edge topo e in
+        (* Set capacity = 2x required by MCF *)
+        let new_cap = Int64.of_float (curr_cap *. util *. 2.0) in
+        EdgeMap.add ~key:e ~data:new_cap acc)
+
+(* Create a new topology with updated link capacities *)
+let set_link_capacities (topo:topology) (capacities:int64 EdgeMap.t) : topology =
+  EdgeMap.fold capacities ~init:topo
+    ~f:(fun ~key:edge ~data:cap acc ->
+        let label = Topology.edge_to_label acc edge in
+        let new_label = Link.create (Link.cost label) cap in
+        Link.set_weight new_label (Link.weight label);
+        let src_node, src_port = Topology.edge_src edge in
+        let dst_node, dst_port = Topology.edge_dst edge in
+        let t' = Topology.remove_edge acc edge in
+        let new_topo,_ = Topology.add_edge t' src_node src_port new_label
+            dst_node dst_port in
+        new_topo)
+
 (****************** Main Simulation Function ******************)
 let simulate
     (spec_solvers:solver_type list)
@@ -182,7 +212,12 @@ let simulate
     (log_paths:bool)
     (out_dir:string option) () : unit =
 
-  let topo = parse_topology topology_file  subgraph_opt in
+  let topo = parse_topology topology_file subgraph_opt in
+  (*let topo =
+    if false then
+      set_link_capacities topo_t (estimate_capacity_req topo_t demand_file host_file scale)
+    else topo_t in *)
+
   let edge_weights = set_topo_weights topo rtt_file_opt in
 
   (* Store results in a directory name =
