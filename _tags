@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: a1f445633be6319d621dea6eb2721277)
+# DO NOT EDIT (digest: 48f8f321803520854714962d1c0ef8c4)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -95,13 +95,13 @@ true: annot, bin_annot
 <simulate/*.ml{,i,y}>: package(threads)
 <simulate/*.ml{,i,y}>: use_routing
 <simulate/*.ml{,i,y}>: use_util
-# Executable unittest
+# Executable test_runner
 "test/Test.native": package(async)
 "test/Test.native": package(core)
 "test/Test.native": package(frenetic)
 "test/Test.native": package(ocamlgraph)
 "test/Test.native": package(ppx_deriving.std)
-"test/Test.native": package(ppx_inline_test)
+"test/Test.native": package(ppx_inline_test.runner.lib)
 "test/Test.native": package(ppx_jane)
 "test/Test.native": package(sexplib)
 "test/Test.native": package(threads)
@@ -113,7 +113,7 @@ true: annot, bin_annot
 <test/*.ml{,i,y}>: package(frenetic)
 <test/*.ml{,i,y}>: package(ocamlgraph)
 <test/*.ml{,i,y}>: package(ppx_deriving.std)
-<test/*.ml{,i,y}>: package(ppx_inline_test)
+<test/*.ml{,i,y}>: package(ppx_inline_test.runner.lib)
 <test/*.ml{,i,y}>: package(ppx_jane)
 <test/*.ml{,i,y}>: package(sexplib)
 <test/*.ml{,i,y}>: package(threads)
@@ -122,4 +122,4 @@ true: annot, bin_annot
 <test/*.ml{,i,y}>: use_util
 # OASIS_STOP
 <test/*.ml{,i}>: predicate(ppx_driver)
-<test/*.ml{,i}>: pp(ppx-jane -dump-ast -inline-test-lib unittest)
+<test/*.ml{,i}>: pp(ppx-jane -dump-ast -inline-test-lib kulfi)

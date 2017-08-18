@@ -88,14 +88,18 @@ Executable simulator
     routing,
     util
 
-Executable unittest
+Executable test_runner
  Install: false
  Build$: flag(is_native)
  Path:       test
  MainIs:     Test.ml
  CompiledObject: native
  BuildDepends:
-   ppx_inline_test,
+   ppx_inline_test.runner.lib,
    routing,
    simulate,
    util
+
+Test test
+ Command: $test_runner inline-test-runner kulfi
+ TestTools: test_runner

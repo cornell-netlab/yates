@@ -2,7 +2,6 @@
 
 open Test_Routing
 open Test_Stats
-open Ppx_inline_test_lib.Runtime       
 
-let _ = add_evaluator ~f:(fun _ -> Test_result.Success)
-
+let _ =
+  Ppx_inline_test_lib.Runtime.exit ()
