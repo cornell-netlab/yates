@@ -7,7 +7,7 @@ open Simulate_Switch
 open Simulate_TM
 open Simulation_Types
 
-let create_topology_and_demands () =
+let create_3cycle_input () =
   Kulfi_Globals.deloop := true;
   let topo = Parse.from_dotfile "./data/topologies/3cycle.dot" in
   let hosts = get_hosts topo in
@@ -27,6 +27,26 @@ let create_topology_and_demands () =
   (* Printf.printf "# demands = %d\n" (SrcDstMap.length demands); *)
   (* Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo); *)
   (hosts,topo,demands)
+
+let create_6s4h_input () =
+  Kulfi_Globals.deloop := true;
+  let topo = Parse.from_dotfile "./data/topologies/6s4hMultiSwitch.dot" in
+  let hosts = get_hosts topo in
+  let demands =
+    List.fold_left
+      hosts
+      ~init:SrcDstMap.empty
+      ~f:(fun acc u ->
+          List.fold_left
+            hosts
+            ~init:acc
+            ~f:(fun acc v ->
+                let r = if u = v then 0.0 else 536870912. in
+                SrcDstMap.add acc ~key:(u,v) ~data:r)) in
+
+  (hosts,topo,demands)
+
+
 
 
 let test_max_congestion (sch : scheme) (topo : topology) (dem : demands)
@@ -50,7 +70,7 @@ let check_budget (s:scheme) (n:int) : bool =
       acc && (num_paths <= n))
 
 let test_budget_raeke () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Raeke.initialize SrcDstMap.empty;
   let scheme = prune_scheme topo (Kulfi_Raeke.solve topo pairs) 1 in
   all_pairs_connectivity topo hosts scheme &&
@@ -58,14 +78,14 @@ let test_budget_raeke () =
   check_budget scheme 1
 
 let test_budget_mcf () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   let scheme = prune_scheme topo (Kulfi_Mcf.solve topo pairs) 1 in
   all_pairs_connectivity topo hosts scheme &&
   probabilities_sum_to_one scheme &&
   check_budget scheme 1
 
 let test_budget_semimcf_vlb () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Vlb.initialize SrcDstMap.empty;
   let start_scheme = Kulfi_Vlb.solve topo pairs in
   Kulfi_SemiMcf.initialize start_scheme;
@@ -75,7 +95,7 @@ let test_budget_semimcf_vlb () =
   check_budget scheme 1
 
 let test_capped_mcf () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   let scheme = prune_scheme topo (Kulfi_Mcf_Capped.solve topo pairs) 1 in
   all_pairs_connectivity topo hosts scheme &&
   probabilities_sum_to_one scheme &&
@@ -83,7 +103,7 @@ let test_capped_mcf () =
 
 (********** Switch simulator tests ***********)
 let test_fair_share () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   let scheme = Kulfi_Spf.solve topo pairs in
   let v = ref 0.0 in
   let paths = SrcDstMap.fold scheme
@@ -113,7 +133,7 @@ let test_fair_share () =
 
 (********** Routing algorithm tests ***********)
 let test_ac () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_AC.initialize SrcDstMap.empty;
   let scheme = Kulfi_AC.solve topo pairs in
   all_pairs_connectivity topo hosts scheme &&
@@ -121,7 +141,7 @@ let test_ac () =
   test_max_congestion scheme topo pairs Ac (2./.3.)
 
 let test_ak_ksp () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Ksp.initialize SrcDstMap.empty;
   let start_scheme = Kulfi_Ksp.solve topo pairs in
   Kulfi_Ak.initialize start_scheme;
@@ -130,7 +150,7 @@ let test_ak_ksp () =
   probabilities_sum_to_one scheme
 
 let test_ak_mcf () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   let start_scheme = Kulfi_Mcf.solve topo pairs in
   Kulfi_Ak.initialize start_scheme;
   let scheme = Kulfi_Ak.solve topo pairs in
@@ -138,7 +158,7 @@ let test_ak_mcf () =
   probabilities_sum_to_one scheme
 
 let test_ak_raeke () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Raeke.initialize SrcDstMap.empty;
   let start_scheme = Kulfi_Raeke.solve topo pairs in
   Kulfi_Ak.initialize start_scheme;
@@ -147,7 +167,7 @@ let test_ak_raeke () =
   probabilities_sum_to_one scheme
 
 let test_ak_vlb () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Vlb.initialize SrcDstMap.empty;
   let start_scheme = Kulfi_Vlb.solve topo pairs in
   Kulfi_Ak.initialize start_scheme;
@@ -156,7 +176,7 @@ let test_ak_vlb () =
   probabilities_sum_to_one scheme
 
 let test_apsp () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   let paths = Frenetic_Network.NetPath.all_pairs_shortest_paths
       ~topo:topo ~f:(fun _ _ -> true) in
   List.fold_left hosts ~init:true
@@ -170,7 +190,7 @@ let test_apsp () =
                 List.exists paths (fun (_,v1,v2,_) -> v1 = u && v2 = v)))
 
 let test_ecmp () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Ecmp.initialize SrcDstMap.empty;
   let scheme = Kulfi_Ecmp.solve topo pairs in
   probabilities_sum_to_one scheme &&
@@ -178,7 +198,7 @@ let test_ecmp () =
 
 
 let test_edksp () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Edksp.initialize SrcDstMap.empty;
   let scheme = Kulfi_Edksp.solve topo pairs in
   all_pairs_connectivity topo hosts scheme &&
@@ -186,7 +206,7 @@ let test_edksp () =
   test_max_congestion scheme topo pairs Edksp 0.75
 
 let test_ffc () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Ksp.initialize SrcDstMap.empty;
   let start_scheme = Kulfi_Ksp.solve topo pairs in
   Kulfi_Ffc.initialize start_scheme;
@@ -196,7 +216,7 @@ let test_ffc () =
   test_max_congestion scheme topo pairs Ffc 0.75
 
 let test_ffced () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Edksp.initialize SrcDstMap.empty;
   let start_scheme = Kulfi_Edksp.solve topo pairs in
   Kulfi_Ffc.initialize start_scheme;
@@ -206,7 +226,7 @@ let test_ffced () =
   test_max_congestion scheme topo pairs Ffced 0.75
 
 let test_ksp () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Ksp.initialize SrcDstMap.empty;
   let scheme = Kulfi_Ksp.solve topo pairs in
   all_pairs_connectivity topo hosts scheme &&
@@ -214,14 +234,14 @@ let test_ksp () =
   test_max_congestion scheme topo pairs Ksp 0.75
 
 let test_mcf () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   let scheme = Kulfi_Mcf.solve topo pairs in
   all_pairs_connectivity topo hosts scheme &&
   probabilities_sum_to_one scheme &&
   test_max_congestion scheme topo pairs Mcf 0.5
 
 let test_mwmcf () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   let scheme = Kulfi_Mcf.solve topo pairs in
   all_pairs_connectivity topo hosts scheme &&
   probabilities_sum_to_one scheme
@@ -229,14 +249,14 @@ let test_mwmcf () =
 let test_mw () = false
 
 let test_raeke () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Raeke.initialize SrcDstMap.empty;
   let scheme = Kulfi_Raeke.solve topo pairs in
   all_pairs_connectivity topo hosts scheme &&
   probabilities_sum_to_one scheme
 
 let test_semimcf_ac () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_AC.initialize SrcDstMap.empty;
   let start_scheme = Kulfi_AC.solve topo pairs in
   Kulfi_SemiMcf.initialize start_scheme;
@@ -245,7 +265,7 @@ let test_semimcf_ac () =
   probabilities_sum_to_one scheme
 
 let test_semimcf_edksp () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Edksp.initialize SrcDstMap.empty;
   let start_scheme = Kulfi_Edksp.solve topo pairs in
   Kulfi_SemiMcf.initialize start_scheme;
@@ -255,7 +275,7 @@ let test_semimcf_edksp () =
   test_max_congestion scheme topo pairs SemiMcfEdksp 0.50
 
 let test_semimcf_ksp () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Ksp.initialize SrcDstMap.empty;
   let start_scheme = Kulfi_Ksp.solve topo pairs in
   Kulfi_SemiMcf.initialize start_scheme;
@@ -265,7 +285,7 @@ let test_semimcf_ksp () =
   test_max_congestion scheme topo pairs SemiMcfKsp 0.50
 
 let test_semimcf_mcf () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   let start_scheme = Kulfi_Mcf.solve topo pairs in
   Kulfi_SemiMcf.initialize start_scheme;
   let scheme = Kulfi_SemiMcf.solve topo pairs in
@@ -273,7 +293,7 @@ let test_semimcf_mcf () =
   probabilities_sum_to_one scheme
 
 let test_semimcf_raeke () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Raeke.initialize SrcDstMap.empty;
   let start_scheme = Kulfi_Routing.Raeke.solve topo pairs in
   Kulfi_Routing.SemiMcf.initialize start_scheme;
@@ -282,7 +302,7 @@ let test_semimcf_raeke () =
   probabilities_sum_to_one scheme
 
 let test_semimcf_vlb () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Vlb.initialize SrcDstMap.empty;
   let start_scheme = Kulfi_Vlb.solve topo pairs in
   Kulfi_SemiMcf.initialize start_scheme;
@@ -291,7 +311,7 @@ let test_semimcf_vlb () =
   probabilities_sum_to_one scheme
 
 let test_spf () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Spf.initialize SrcDstMap.empty;
   let scheme = Kulfi_Spf.solve topo pairs in
   match hosts with
@@ -307,7 +327,7 @@ let test_spf () =
   | _ -> assert false
 
 let test_vlb () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Vlb.initialize SrcDstMap.empty;
   let scheme = Kulfi_Vlb.solve topo pairs in
   match hosts with
@@ -322,7 +342,7 @@ let test_vlb () =
   | _ -> assert false
 
 let test_vlb2 () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Vlb.initialize SrcDstMap.empty;
   let scheme = Kulfi_Vlb.solve topo pairs in
   List.fold_left hosts ~init:true
@@ -336,10 +356,36 @@ let test_vlb2 () =
                 | Some paths -> not (PathMap.is_empty paths) && acc))
 
 let test_vlb3 () =
-  let (hosts,topo,pairs) = create_topology_and_demands () in
+  let (hosts,topo,pairs) = create_3cycle_input () in
   Kulfi_Vlb.initialize SrcDstMap.empty;
   let scheme = Kulfi_Vlb.solve topo pairs in
   paths_are_nonempty scheme
+
+let test_host_not_in_path () =
+  let (hosts,topo,pairs) = create_6s4h_input () in
+  let check_hosts s =
+    SrcDstMap.fold s ~init:true
+      ~f:(fun ~key:_ ~data:paths acc ->
+          PathMap.fold paths ~init:acc
+            ~f:(fun ~key:path ~data:_ acc ->
+                match path with
+                | [] -> acc
+                | hd::edges ->
+                  List.fold_left ~init:acc ~f:(&&)
+                    (List.map edges
+                       (fun e ->
+                         Node.device (Topology.vertex_to_label topo (fst (Topology.edge_src e))) = Node.Switch)
+                      ))) in
+
+  let spf_scheme = Kulfi_Spf.solve topo pairs in
+  Kulfi_Ecmp.initialize SrcDstMap.empty;
+  let ecmp_scheme = Kulfi_Ecmp.solve topo pairs in
+  Kulfi_Ksp.initialize SrcDstMap.empty;
+  let ksp_scheme = Kulfi_Ksp.solve topo pairs in
+  Kulfi_Vlb.initialize SrcDstMap.empty;
+  let vlb_scheme = Kulfi_Vlb.solve topo pairs in
+  check_hosts spf_scheme && check_hosts ecmp_scheme && check_hosts ksp_scheme
+  && check_hosts vlb_scheme
 
 (******* Declare all tests to be performed ***********)
 
@@ -374,4 +420,5 @@ let%test "budget_mcf" = test_budget_mcf ()
 let%test "budget_semimcf_vlb" = test_budget_semimcf_vlb ()
 
 let%test "fair_share" = test_fair_share ()
+let%test "host_path" = test_host_not_in_path ()
 (* let%test "capped_mcf" = test_capped_mcf () *)

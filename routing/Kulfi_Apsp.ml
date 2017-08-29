@@ -24,25 +24,29 @@ let rec calc_num_paths (i:Topology.vertex) (j:Topology.vertex)
   let neighbors = Topology.neighbors topo i in
   let numpath =
     (* For each neighbor, find the shortest paths through it and check if there
-    is a shortest i-j path *)
+       is a shortest i-j path. *)
     VertexSet.fold neighbors ~init:numpath
       ~f:(fun acc neighbor ->
-        let out_edge = Topology.find_edge topo i neighbor in
-        let wt_in = Link.weight (Topology.edge_to_label topo out_edge) in
-        let d_nj = SrcDstMap.find_exn dist (neighbor,j) in
-        if wt_in +. d_nj = d_ij then
-          (* if it is in a shortest i-j path *)
-          let t_visited,_,_ = SrcDstMap.find_exn acc (neighbor,j) in
-          let numpath =
-            if t_visited then acc
-            else calc_num_paths neighbor j topo dist acc  in
-          let _, np_nj, _ = SrcDstMap.find_exn numpath (neighbor,j) in
-          let _, np_ij, next_hops_ij = SrcDstMap.find_exn numpath (i,j) in
-          (* Extend i-j paths by number of shortest paths through this neighbor *)
-          SrcDstMap.add numpath ~key:(i,j)
-            ~data:(true, np_ij + np_nj,
-                   List.append next_hops_ij [(neighbor, Float.of_int np_nj)])
-        else acc) in
+          let label = Topology.vertex_to_label topo neighbor in
+          if Node.device label = Node.Host && neighbor <> j then acc
+          else
+            (* Neighbor must not be a host, unless it is the destination. *)
+            let out_edge = Topology.find_edge topo i neighbor in
+            let wt_in = Link.weight (Topology.edge_to_label topo out_edge) in
+            let d_nj = SrcDstMap.find_exn dist (neighbor,j) in
+            if wt_in +. d_nj = d_ij then
+              (* if it is in a shortest i-j path *)
+              let t_visited,_,_ = SrcDstMap.find_exn acc (neighbor,j) in
+              let numpath =
+                if t_visited then acc
+                else calc_num_paths neighbor j topo dist acc  in
+              let _, np_nj, _ = SrcDstMap.find_exn numpath (neighbor,j) in
+              let _, np_ij, next_hops_ij = SrcDstMap.find_exn numpath (i,j) in
+              (* Extend i-j paths by number of shortest paths through this neighbor *)
+              SrcDstMap.add numpath ~key:(i,j)
+                ~data:(true, np_ij + np_nj,
+                       List.append next_hops_ij [(neighbor, Float.of_int np_nj)])
+            else acc) in
 
   let _, num_ij_paths, next_hops_ij = SrcDstMap.find_exn numpath (i,j) in
   let path_probs,_ =
@@ -80,8 +84,10 @@ let all_pairs_multi_shortest_path (topo:topology) :
     SrcDstMap.add acc ~key:(src, dst) ~data:weight)
   topo dist_mat in
 
-  let dist_mat_sp = Topology.fold_vertexes
-    (fun k acc ->
+  (* Only switches can be intermediate nodes*)
+  let switches = get_switch_set topo in
+  let dist_mat_sp = VertexSet.fold switches ~init:dist_mat
+    ~f:(fun acc k ->
       Topology.fold_vertexes
         (fun i acc ->
           Topology.fold_vertexes
@@ -93,8 +99,7 @@ let all_pairs_multi_shortest_path (topo:topology) :
               SrcDstMap.add acc ~key:(i, j) ~data:(dik +. dkj)
             else acc)
           topo acc)
-        topo acc)
-    topo dist_mat in
+        topo acc) in
   (* Floyd-Warshall complete *)
 
   (* initialize visited to be true for i,i *)
@@ -175,10 +180,15 @@ let get_random_path (i:Topology.vertex) (j:Topology.vertex) (topo:topology)
 (**************************************************************)
 
 (* Yen's algorithm to compute k-shortest paths *)
-let k_shortest_paths (topo:topology) (s:Topology.vertex) (t:Topology.vertex)
+let k_shortest_paths (full_topo:topology) (s:Topology.vertex) (t:Topology.vertex)
       (k:int) : path list =
   if s = t then []
   else
+    let hosts = get_hosts_set full_topo in
+    let topo = VertexSet.fold hosts ~init:full_topo
+      ~f:(fun acc h ->
+          if s = h || t = h then acc
+          else Topology.remove_vertex acc h) in
     let bheap =
       PQueue.create
         ~min_size:(Topology.num_vertexes topo)

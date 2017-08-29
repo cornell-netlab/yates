@@ -216,6 +216,14 @@ let normalization_recovery (curr_scheme:scheme) (_:topology) (failed_links:failu
     SrcDstMap.add ~key:(src,dst) ~data:renormalized_paths acc) in
   new_scheme
 
+(* Set of switch nodes *)
+let get_switch_set (topo:topology) : VertexSet.t =
+  VertexSet.filter (Topology.vertexes topo)
+  ~f:(fun v ->
+    let label = Topology.vertex_to_label topo v in
+    Node.device label = Node.Switch)
+
+
 (* Set of host nodes *)
 let get_hosts_set (topo:topology) : VertexSet.t =
   VertexSet.filter (Topology.vertexes topo)
@@ -560,7 +568,7 @@ let update_topo_with_failure (t:topology) (f:failure) : topology =
     ~f:(fun acc link -> Topology.remove_edge acc link)
 
 (* Solve SPF *)
-let solve_spf (topo:topology) (d:demands) : scheme =
+let solve_spf (topo:topology) (_:demands) : scheme =
   let device v = let lbl = Topology.vertex_to_label topo v in (Node.device lbl) in
   let apsp = NetPath.all_pairs_shortest_paths ~topo:topo
     ~f:(fun x y ->
