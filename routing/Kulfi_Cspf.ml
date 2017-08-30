@@ -99,9 +99,15 @@ let least_hop_paths = function
 
 (* Find a constrained shortest path from src to dst which has at least `bw`
    unreserved bandwidth *)
-let constrained_shortest_path (topo:topology) (avail_bw:float EdgeMap.t) src dst bw =
+let constrained_shortest_path (full_topo:topology) (avail_bw:float EdgeMap.t) src dst bw =
   if src = dst then [[]]
   else
+    (* Remove other hosts to prevent routing through them *)
+    let hosts = get_hosts_set full_topo in
+    let topo = VertexSet.fold hosts ~init:full_topo
+      ~f:(fun acc h ->
+          if src = h || dst = h then acc
+          else Topology.remove_vertex acc h) in
     let prev_table = Hashtbl.Poly.create () in
     let dist_table = Hashtbl.Poly.create () in
     let pq_tokens = Hashtbl.Poly.create () in
