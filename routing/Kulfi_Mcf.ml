@@ -74,11 +74,31 @@ let conservation_constraints (topo : Topology.t) (d_pairs : demands)
             let constr = Eq (name, net, 0.) in
             constr::acc2) topo acc) d_pairs
 
+let avoid_access_links_constraints (topo : Topology.t) (d_pairs : demands)
+    (init_acc : constrain list) : constrain list =
+  (* Avoid traffic to go through other edge routers or hosts *)
+  let hosts = get_hosts_set topo in
+  let access_links = VertexSet.fold hosts ~init:[]
+      ~f:(fun acc h ->
+          incoming_edges topo h @ outgoing_edges topo h @ acc) in
+  SrcDstMap.fold ~init:init_acc
+    ~f:(fun ~key:(src,dst) ~data:_ acc ->
+        List.fold_left ~init:acc
+          ~f:(fun acc e ->
+              if is_incident e src || is_incident e dst then acc
+              else
+                let name = Printf.sprintf "access-%s-%s_%s"
+                    (name_of_vertex topo src) (name_of_vertex topo dst)
+                    (string_of_edge topo e) in
+                let constr =
+                  Eq (name, (Var (var_name topo e (src,dst))), 0.) in
+                constr::acc) access_links) d_pairs
 
 let lp_of_graph (topo : Topology.t) (demand_pairs : demands) =
-  let cap_constrs = capacity_constraints topo demand_pairs [] in
-  let cap_and_demand = demand_constraints topo demand_pairs cap_constrs in
-  let all_constrs = conservation_constraints topo demand_pairs cap_and_demand in
+  let all_constrs = capacity_constraints topo demand_pairs []
+                  |> demand_constraints topo demand_pairs
+                  |> conservation_constraints topo demand_pairs
+                  |> avoid_access_links_constraints topo demand_pairs in
   (objective, all_constrs)
 
 let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
@@ -275,8 +295,8 @@ let solve (topo:topology) (pairs:demands) : scheme =
       let result = read results 0. [] in
       In_channel.close results; result in
     let ratio, flows = read_results lp_solname in
-    let _ = Sys.remove lp_filename in
-    let _ = Sys.remove lp_solname in
+    (* let _ = Sys.remove lp_filename in *)
+    (* let _ = Sys.remove lp_solname in *)
     let flows_table = Hashtbl.Poly.create () in
 
     (* partition the edge flows based on which commodity they are *)

@@ -6,6 +6,7 @@ open Core
 (* Network *)
 let budget = ref Int.max_value
 let deloop = ref false
+let er_mode = ref false
 let nbins : int option ref = ref None
 
 (* Simulator tweaks *)

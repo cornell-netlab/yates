@@ -60,6 +60,7 @@ let capacity_of_edge topo edge =
   let label = Topology.edge_to_label topo edge in
   let cap = (Int64.to_float (Link.capacity label)) in
   if edge_connects_switches edge topo then cap
+  else if !Kulfi_Globals.er_mode then cap
   else 100. *. cap
 
 let source_routing_configuration_of_scheme (topo:topology) (scm:scheme) (tag_hash: (edge,int) Hashtbl.t) : configuration =
@@ -244,6 +245,9 @@ let get_srcdst_pairs (topo:topology) =
       if u = v then acc else
       (u,v)::acc))
 
+(* check if a vertex u is one of edge e's endpoints *)
+let is_incident (e:Topology.edge) (u:Topology.vertex) : bool =
+  u = (fst (Net.Topology.edge_src e)) || u = (fst (Net.Topology.edge_dst e))
 
 (* Latency for a path *)
 let get_path_weight (topo:topology) (p:path) : float =

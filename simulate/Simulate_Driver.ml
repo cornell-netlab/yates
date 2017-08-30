@@ -630,6 +630,7 @@ let command =
     +> flag "-vulnerability" no_arg ~doc:" perform path vulnerability test "
     +> flag "-log-paths" no_arg ~doc:" store paths caomputed by solvers"
     +> flag "-find-ksp-budget" no_arg ~doc:" find minimum value of k for ksp to be competitive with raecke"
+    +> flag "-er-mode" no_arg ~doc:" Edge router mode: do not scale up host (edge router) -- switch (backbone router) link capacities"
     +> flag "-fail-num" (optional_with_default 1 int) ~doc:" number of links to fail"
     +> flag "-fail-time" (optional_with_default (Int.max_value/100) int)
       ~doc:" simulation time to introduce failure at"
@@ -694,6 +695,7 @@ let command =
     (vulnerability:bool)
     (log_paths:bool)
     (find_ksp_budget:bool)
+    (er_mode:bool)
     (fail_num:int)
     (fail_time:int)
     (lr_delay:int)
@@ -747,14 +749,11 @@ let command =
          ; if semimcfvlb || all       then Some SemiMcfVlb      else None
          ; if spf || all        then Some Spf         else None
          ; if vlb || all        then Some Vlb         else None ] in
-      let syn_scale =
-        if scalesyn then
-          calculate_syn_scale topology_file subgraph_file demand_file host_file
-        else 1.0 in
-      let tot_scale = scale *. syn_scale in
-      Printf.printf "Scale factor: %f\n\n" tot_scale;
+
+      (* Set global configs first *)
       ExperimentalData.append_out := appendout;
       Kulfi_Globals.deloop := not keep_loops;
+      Kulfi_Globals.er_mode := er_mode;
       Kulfi_Globals.tm_sim_iters  := simtime;
       Kulfi_Globals.flash_recover := flash_recover;
       Kulfi_Globals.gurobi_method := grb_method;
@@ -768,6 +767,15 @@ let command =
         max fail_num !(Kulfi_Globals.ffc_max_link_failures);
       if robust then
         Kulfi_Globals.failure_time  := 0;
+
+      (* Compute scaling factor *)
+      let syn_scale =
+        if scalesyn then
+          calculate_syn_scale topology_file subgraph_file demand_file host_file
+        else 1.0 in
+      let tot_scale = scale *. syn_scale in
+      Printf.printf "Scale factor: %f\n\n" tot_scale;
+
       if limittest then
         compare_scaling_limit algorithms num_tms topology_file subgraph_file demand_file
           host_file rtt_file out ()
