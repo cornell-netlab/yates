@@ -22,10 +22,6 @@ let create_3cycle_input () =
             ~f:(fun acc v ->
                 let r = if u = v then 0.0 else 536870912. in
                 SrcDstMap.add acc ~key:(u,v) ~data:r)) in
-
-  (* Printf.printf "# hosts = %d\n" (Topology.VertexSet.length host_set); *)
-  (* Printf.printf "# demands = %d\n" (SrcDstMap.length demands); *)
-  (* Printf.printf "# total vertices = %d\n" (Topology.num_vertexes topo); *)
   (hosts,topo,demands)
 
 let create_6s4h_input () =
@@ -43,11 +39,7 @@ let create_6s4h_input () =
             ~f:(fun acc v ->
                 let r = if u = v then 0.0 else 536870912. in
                 SrcDstMap.add acc ~key:(u,v) ~data:r)) in
-
   (hosts,topo,demands)
-
-
-
 
 let test_max_congestion (sch : scheme) (topo : topology) (dem : demands)
     (algorithm : solver_type) (exp_cmax : float) : bool =
@@ -377,15 +369,22 @@ let test_host_not_in_path () =
                          Node.device (Topology.vertex_to_label topo (fst (Topology.edge_src e))) = Node.Switch)
                       ))) in
 
+  Kulfi_Globals.er_mode := true;
   let spf_scheme = Kulfi_Spf.solve topo pairs in
   Kulfi_Ecmp.initialize SrcDstMap.empty;
   let ecmp_scheme = Kulfi_Ecmp.solve topo pairs in
   Kulfi_Ksp.initialize SrcDstMap.empty;
   let ksp_scheme = Kulfi_Ksp.solve topo pairs in
+  Kulfi_Mcf.initialize SrcDstMap.empty;
+  let mcf_scheme = Kulfi_Mcf.solve topo pairs in
   Kulfi_Vlb.initialize SrcDstMap.empty;
   let vlb_scheme = Kulfi_Vlb.solve topo pairs in
+  (* Keep Raecke at the end, or reset the topology *)
+  Kulfi_Raeke.initialize SrcDstMap.empty;
+  let raeke_scheme = Kulfi_Raeke.solve topo pairs in
+  Kulfi_Globals.er_mode := false;
   check_hosts spf_scheme && check_hosts ecmp_scheme && check_hosts ksp_scheme
-  && check_hosts vlb_scheme
+  && check_hosts mcf_scheme && check_hosts raeke_scheme && check_hosts vlb_scheme
 
 (******* Declare all tests to be performed ***********)
 

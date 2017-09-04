@@ -38,14 +38,25 @@ module RRTs : MW_ALG with type structure = FRT.routing_tree = Kulfi_Mw.Make (MWI
 
 let prev_scheme = ref SrcDstMap.empty
 
-let solve (t:topology) (d:demands) : scheme =
+let solve (topo:topology) (d:demands) : scheme =
   let new_scheme =
     if SrcDstMap.is_empty !prev_scheme then
-      let epsilon = 0.1 in
+      let hosts = get_hosts_set topo in
+      let t =
+        if !Kulfi_Globals.er_mode then
+          (* Avoid traffic to go through other edge routers or hosts *)
+          (* Remove all hosts from topology *)
+          VertexSet.fold hosts ~init:topo
+            ~f:(fun acc h -> Topology.remove_vertex acc h)
+        else topo in
+
       let end_points =
-        VertexSet.filter (Topology.vertexes t)
-          ~f:(fun v -> let label = Topology.vertex_to_label t v in
-               Node.device label = Node.Host) in
+        if !Kulfi_Globals.er_mode then
+          (* Make switches as end-points *)
+          Topology.vertexes t
+        else hosts in
+
+      let epsilon = 0.1 in
       let _,mw_solution,_ = RRTs.hedge_iterations epsilon t d end_points in
       let paths src dst : probability PathMap.t =
         List.fold_left mw_solution
@@ -61,7 +72,7 @@ let solve (t:topology) (d:demands) : scheme =
               else
                 physical_path in
             add_or_increment_path acc physical_path' p) in
-      Topology.VertexSet.fold
+      let endpt_scheme = Topology.VertexSet.fold
         end_points
         ~init:SrcDstMap.empty
         ~f:(fun acc src ->
@@ -72,7 +83,41 @@ let solve (t:topology) (d:demands) : scheme =
               if src <> dst then
                 SrcDstMap.add acc ~key:(src, dst) ~data:(paths src dst)
               else
-                acc))
+                SrcDstMap.add acc ~key:(src, dst) ~data:(PathMap.singleton [] 1.0))) in
+      let sch =
+        if !Kulfi_Globals.er_mode then
+          (* Convert switch-switch scheme to host-host *)
+          VertexSet.fold hosts
+            ~init:SrcDstMap.empty
+            ~f:(fun acc src ->
+                VertexSet.fold hosts
+                  ~init:acc
+                  ~f:(fun acc dst ->
+                      if src <> dst then
+                        let ingress_links = outgoing_edges topo src in
+                        let egress_links = incoming_edges topo dst in
+                        let pps = List.fold_left ingress_links
+                            ~init:PathMap.empty
+                            ~f:(fun pps_acc in_link ->
+                                List.fold_left egress_links ~init:pps_acc
+                                  ~f:(fun pps_acc eg_link ->
+                                      let in_sw = fst (Net.Topology.edge_dst in_link) in
+                                      let eg_sw = fst (Net.Topology.edge_src eg_link) in
+                                      let tmp_pps = SrcDstMap.find endpt_scheme
+                                          (in_sw, eg_sw) in
+                                      match tmp_pps with
+                                      | None -> pps_acc
+                                      | Some tmp_pps ->
+                                        PathMap.fold tmp_pps ~init:pps_acc
+                                          ~f:(fun ~key:sw_path ~data:prob acc ->
+                                              let path = in_link::(sw_path@[eg_link]) in
+                                              add_or_increment_path acc path prob))) in
+                        SrcDstMap.add acc ~key:(src, dst) ~data:pps
+                      else
+                        acc))
+        else
+          endpt_scheme in
+      normalize_scheme sch
     else !prev_scheme in
   prev_scheme := new_scheme;
   new_scheme
