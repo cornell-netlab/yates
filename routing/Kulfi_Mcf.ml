@@ -295,8 +295,8 @@ let solve (topo:topology) (pairs:demands) : scheme =
       let result = read results 0. [] in
       In_channel.close results; result in
     let ratio, flows = read_results lp_solname in
-    (* let _ = Sys.remove lp_filename in *)
-    (* let _ = Sys.remove lp_solname in *)
+    let _ = Sys.remove lp_filename in
+    let _ = Sys.remove lp_solname in
     let flows_table = Hashtbl.Poly.create () in
 
     (* partition the edge flows based on which commodity they are *)

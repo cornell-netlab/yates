@@ -161,6 +161,8 @@ let min_st_cut (topo : Topology.t) (src : Topology.vertex)
  * if k edge-disjoint shortest paths are not possible,
  *  returns k-shortest paths for that pair *)
 let solve_lp (topo:topology) : scheme =
+  (* TODO: handle edge router constrains *)
+  if !Kulfi_Globals.er_mode then failwith "Not implemented" else
   let sd_pairs = get_srcdst_pairs topo in
   List.fold_left sd_pairs ~init:SrcDstMap.empty ~f:(fun acc (src, dst) ->
   (* Iterate over each src-dst pair to find k edge-disjoint shortest paths *)

@@ -247,6 +247,8 @@ let rec new_rand () : float =
 (* Given a topology, returns an oblivious routing scheme with optimal oblivious
    congestion ratio. *)
 let solve (topo:topology) (_:demands) : scheme =
+  (* TODO: handle edge router constrains *)
+  if !Kulfi_Globals.er_mode then failwith "Not implemented" else
   let new_scheme =
     if not (SrcDstMap.is_empty !prev_scheme) then !prev_scheme
     else
