@@ -21,42 +21,47 @@ let rec calc_num_paths (i:Topology.vertex) (j:Topology.vertex)
   let  (_, n, l) = SrcDstMap.find_exn numpath (i,j) in
   let numpath = SrcDstMap.add numpath ~key:(i,j) ~data:(true, n, l) in
   let d_ij = SrcDstMap.find_exn dist (i,j) in
-  let neighbors = Topology.neighbors topo i in
-  let numpath =
-    (* For each neighbor, find the shortest paths through it and check if there
-       is a shortest i-j path. *)
-    VertexSet.fold neighbors ~init:numpath
-      ~f:(fun acc neighbor ->
-          let label = Topology.vertex_to_label topo neighbor in
-          if Node.device label = Node.Host && neighbor <> j then acc
-          else
-            (* Neighbor must not be a host, unless it is the destination. *)
-            let out_edge = Topology.find_edge topo i neighbor in
-            let wt_in = Link.weight (Topology.edge_to_label topo out_edge) in
-            let d_nj = SrcDstMap.find_exn dist (neighbor,j) in
-            if wt_in +. d_nj = d_ij then
-              (* if it is in a shortest i-j path *)
-              let t_visited,_,_ = SrcDstMap.find_exn acc (neighbor,j) in
-              let numpath =
-                if t_visited then acc
-                else calc_num_paths neighbor j topo dist acc  in
-              let _, np_nj, _ = SrcDstMap.find_exn numpath (neighbor,j) in
-              let _, np_ij, next_hops_ij = SrcDstMap.find_exn numpath (i,j) in
-              (* Extend i-j paths by number of shortest paths through this neighbor *)
-              SrcDstMap.add numpath ~key:(i,j)
-                ~data:(true, np_ij + np_nj,
-                       List.append next_hops_ij [(neighbor, Float.of_int np_nj)])
-            else acc) in
+  if d_ij = Float.infinity then
+    SrcDstMap.add numpath ~key:(i,j) ~data:(true, 0, [])
+  else
+    let neighbors = Topology.neighbors topo i in
+    let numpath =
+      (* For each neighbor, find the shortest paths through it and check if
+         there is a shortest i-j path. *)
+      VertexSet.fold neighbors ~init:numpath
+        ~f:(fun acc neighbor ->
+            let label = Topology.vertex_to_label topo neighbor in
+            if Node.device label = Node.Host && neighbor <> j then acc
+            else
+              (* Neighbor must not be a host, unless it is the destination. *)
+              let out_edge = Topology.find_edge topo i neighbor in
+              let wt_in = Link.weight (Topology.edge_to_label topo out_edge) in
+              let d_nj = SrcDstMap.find_exn dist (neighbor,j) in
+              if wt_in +. d_nj = d_ij then
+                (* if it is in a shortest i-j path *)
+                let t_visited,_,_ = SrcDstMap.find_exn acc (neighbor,j) in
+                let numpath =
+                  if t_visited then acc
+                  else calc_num_paths neighbor j topo dist acc  in
+                let _, np_nj, _ = SrcDstMap.find_exn numpath (neighbor,j) in
+                let _, np_ij, next_hops_ij = SrcDstMap.find_exn numpath (i,j) in
+                (* Extend i-j paths by number of shortest paths through this
+                   neighbor *)
+                SrcDstMap.add numpath ~key:(i,j)
+                  ~data:(true, np_ij + np_nj, List.append next_hops_ij
+                           [(neighbor, Float.of_int np_nj)])
+              else acc) in
 
-  let _, num_ij_paths, next_hops_ij = SrcDstMap.find_exn numpath (i,j) in
-  let path_probs,_ =
-    List.fold_left next_hops_ij
-      ~init:([], 0.0)
-      ~f:(fun acc (next_hop, np_h) ->
-        let l, preprob = acc in
-        let n_prob = np_h /. Float.of_int num_ij_paths in
-        (List.append l [(next_hop, preprob +. n_prob)], preprob +. n_prob)) in
-  SrcDstMap.add numpath ~key:(i,j) ~data:(true, num_ij_paths, path_probs)
+    let _, num_ij_paths, next_hops_ij = SrcDstMap.find_exn numpath (i,j) in
+    let path_probs,_ =
+      List.fold_left next_hops_ij
+        ~init:([], 0.0)
+        ~f:(fun acc (next_hop, np_h) ->
+            let l, preprob = acc in
+            let n_prob = np_h /. Float.of_int num_ij_paths in
+            (List.append l [(next_hop, preprob +. n_prob)],
+             preprob +. n_prob)) in
+    SrcDstMap.add numpath ~key:(i,j) ~data:(true, num_ij_paths, path_probs)
 
 
 let all_pairs_multi_shortest_path (topo:topology) :
@@ -144,36 +149,39 @@ let print_mpapsp
 
 
 let get_random_path (i:Topology.vertex) (j:Topology.vertex) (topo:topology)
-      (numpath: (bool * int * (Topology.vertex * float) List.t) SrcDstMap.t) =
-  let p = ref [] in
-  let curr = ref i in
-  let stop_cond = ref false in
-  while not !stop_cond do
-    let _,_,nhop_list = SrcDstMap.find_exn numpath (!curr,j) in
-    let rand = Random.float 1.0 in
-    let chosen_hop,_ = List.fold_left nhop_list
-                         ~init:(i,false)
-                         ~f:(fun acc (nhop, prob) ->
-                           if prob < (rand -. 0.00001) then acc
-                           else let _, found_bool = acc in
-                             if not found_bool then (nhop,true)
-                             else acc) in
-    p := List.append !p [chosen_hop];
-    curr := chosen_hop;
-    stop_cond := if !curr = j then true else false;
-  done;
-  let v_path = !p in
+    (numpath: (bool * int * (Topology.vertex * float) List.t) SrcDstMap.t) : path option =
+  let _,num_path,_ = SrcDstMap.find_exn numpath (i,j) in
+  if num_path = 0 then None
+  else
+    let p = ref [] in
+    let curr = ref i in
+    let stop_cond = ref false in
+    while not !stop_cond do
+      let _,_,nhop_list = SrcDstMap.find_exn numpath (!curr,j) in
+      let rand = Random.float 1.0 in
+      let chosen_hop,_ = List.fold_left nhop_list
+          ~init:(i,false)
+          ~f:(fun acc (nhop, prob) ->
+              if prob < (rand -. 0.00001) then acc
+              else let _, found_bool = acc in
+                if not found_bool then (nhop,true)
+                else acc) in
+      p := List.append !p [chosen_hop];
+      curr := chosen_hop;
+      stop_cond := if !curr = j then true else false;
+    done;
+    let v_path = !p in
 
-  let e_path = ref [] in
-  let _ =
-    List.fold_left v_path
-      ~init:i
-      ~f:(fun last_v curr_v ->
-        if last_v = curr_v then curr_v
-        else let e = Topology.find_edge topo last_v curr_v in
-          e_path := List.append !e_path [e];
-          curr_v) in
-  !e_path
+    let e_path = ref [] in
+    let _ =
+      List.fold_left v_path
+        ~init:i
+        ~f:(fun last_v curr_v ->
+            if last_v = curr_v then curr_v
+            else let e = Topology.find_edge topo last_v curr_v in
+              e_path := List.append !e_path [e];
+              curr_v) in
+    Some !e_path
 
 (**************************************************************)
 (* k-shortest paths *)

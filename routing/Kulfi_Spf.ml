@@ -16,8 +16,12 @@ let solve (topo:topology) (_:demands) : scheme =
     ~f:(fun ~key:(u,v) ~data:_ acc ->
         match (device u, device v) with
         | (Node.Host, Node.Host) ->
-          let rand_path = get_random_path u v topo mpapsp in
-          SrcDstMap.add acc ~key:(u,v) ~data:(PathMap.singleton rand_path 1.0)
+          begin
+            match (get_random_path u v topo mpapsp) with
+            | None -> acc
+            | Some rand_path ->
+              SrcDstMap.add acc ~key:(u,v) ~data:(PathMap.singleton rand_path 1.0)
+          end
         | _ -> acc)
 
 let initialize _ = ()
