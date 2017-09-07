@@ -11,7 +11,8 @@ module PQueue = Core_kernel.Heap.Removable
 (**************************************************************)
 (* All pair multiple shortest paths *)
 (**************************************************************)
-
+let abs_fl (n:float) =
+  if n > 0.0 then n else -.n
 let rec calc_num_paths (i:Topology.vertex) (j:Topology.vertex)
           (topo:topology) (dist: float SrcDstMap.t)
           (numpath: (bool * int * (Topology.vertex * float) List.t) SrcDstMap.t)
@@ -37,7 +38,7 @@ let rec calc_num_paths (i:Topology.vertex) (j:Topology.vertex)
               let out_edge = Topology.find_edge topo i neighbor in
               let wt_in = Link.weight (Topology.edge_to_label topo out_edge) in
               let d_nj = SrcDstMap.find_exn dist (neighbor,j) in
-              if wt_in +. d_nj = d_ij then
+              if (abs_fl (wt_in +. d_nj -. d_ij) < 0.00001) then
                 (* if it is in a shortest i-j path *)
                 let t_visited,_,_ = SrcDstMap.find_exn acc (neighbor,j) in
                 let numpath =
