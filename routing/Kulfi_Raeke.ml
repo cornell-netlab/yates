@@ -1,6 +1,4 @@
 open Core
-open Frenetic_Network
-open Net
 
 open Kulfi_Frt
 open Kulfi_Globals
@@ -101,8 +99,8 @@ let solve (topo:topology) (d:demands) : scheme =
                             ~f:(fun pps_acc in_link ->
                                 List.fold_left egress_links ~init:pps_acc
                                   ~f:(fun pps_acc eg_link ->
-                                      let in_sw = fst (Net.Topology.edge_dst in_link) in
-                                      let eg_sw = fst (Net.Topology.edge_src eg_link) in
+                                      let in_sw = fst (Topology.edge_dst in_link) in
+                                      let eg_sw = fst (Topology.edge_src eg_link) in
                                       let tmp_pps = SrcDstMap.find endpt_scheme
                                           (in_sw, eg_sw) in
                                       match tmp_pps with

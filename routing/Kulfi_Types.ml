@@ -1,15 +1,22 @@
-open Frenetic_Network
-open Net
+open Frenetic.Network
+open Frenetic.Topology
+open Frenetic.Net
 open Core
+
+module Topology = Frenetic_kernel.Network.Net.Topology
+module Node = Frenetic_kernel.Network.Node
+module Link = Frenetic_kernel.Network.Link
+module NetPath = Frenetic_kernel.Network.NetPath
+module Net = Frenetic_kernel.Network.Net
 
 module EdgeSet = Topology.EdgeSet
 module VertexSet = Topology.VertexSet
 
-type topology = Net.Topology.t
+type topology = Topology.t
 
-type edge = Net.Topology.edge [@@ deriving sexp]
+type edge = Topology.edge [@@ deriving sexp]
 
-type vertex = Net.Topology.vertex [@@ deriving sexp]
+type vertex = Topology.vertex [@@ deriving sexp]
 
 type path = edge list [@@ deriving sexp]
 

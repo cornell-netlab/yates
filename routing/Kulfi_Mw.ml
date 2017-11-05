@@ -1,6 +1,4 @@
-open Frenetic_Network
 open Kulfi_Types
-module Topology = Net.Topology
 
 module type MW_INPUT = sig
 
@@ -10,7 +8,7 @@ module type MW_INPUT = sig
 
   (* Gets the next structure (e.g. path) that we are going to augment the
    * flow by, along with the weight of that structure. *)
-  val select_structure : topology -> demands -> Net.Topology.VertexSet.t -> (structure * float)
+  val select_structure : topology -> demands -> Topology.VertexSet.t -> (structure * float)
 
   (* Gets the usages of every edge in the topology. *)
   val usage_of_structure : topology -> demands  -> structure -> (edge * float) list

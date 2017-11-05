@@ -1,5 +1,3 @@
-open Frenetic_Network
-open Net
 open Core
 
 open Kulfi_Globals
@@ -141,7 +139,7 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
     (* Until there is no src-dst path, find a path, determine its bottleneck
        capacity, pull it out and decrement the capacities by the bottleneck.*)
     let rec find_paths path_topo acc_paths =
-      let path_opt = UnitPath.shortest_path path_topo src_id dst_id in
+      let path_opt = NetPath.shortest_path path_topo src_id dst_id in
       match path_opt with
       | None -> acc_paths
       | Some path ->

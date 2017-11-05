@@ -1,17 +1,15 @@
 open Core
 open Async
-open Frenetic_OpenFlow
-open Frenetic_OpenFlow0x01
-open Frenetic_Network
+open Frenetic_kernel.OpenFlow
+open Frenetic_kernel.OpenFlow0x01
 open Message
-open Net
 
 open Kulfi_Routing
 open Kulfi_Traffic
 open Kulfi_Types
 open Kulfi_Util
 
-module Controller = Frenetic_OpenFlow0x01_Plugin.LowLevel
+module Controller = Frenetic_async.OpenFlow0x01_Plugin.LowLevel
 
 (* Global Variables *)
 let port_stats_delay = 1.0
@@ -22,7 +20,7 @@ let verbose s =
   else
     ()
 
-let string_of_stats (sw:switchId) ((time:Int64.t), (ps:Frenetic_OpenFlow.portStats)) : string =
+let string_of_stats (sw:switchId) ((time:Int64.t), (ps:Frenetic_kernel.OpenFlow.portStats)) : string =
   Printf.sprintf
     "time=%Ld, switch=%Ld, port_no=%Ld, \
      rx_packets=%Ld, tx_packets=%Ld, \
@@ -49,7 +47,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
 
   type state =
     { network : (switchId, switch_state) Hashtbl.t;
-      stats : (switchId * portId, (int64 * Frenetic_OpenFlow.portStats) list) Hashtbl.t;
+      stats : (switchId * portId, (int64 * Frenetic_kernel.OpenFlow.portStats) list) Hashtbl.t;
       topo : topology;
       mutable congestion : demand list;
       mutable churn : int list }
@@ -106,7 +104,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
                  "%sswitch %Ld:\n%s"
                  (if acc = "" then "" else acc ^ "\n\n")
                  sw
-                 (Kulfi_Util.intercalate Frenetic_OpenFlow0x01.FlowMod.to_string "\n" st.flows)));
+                 (Kulfi_Util.intercalate Frenetic_kernel.OpenFlow0x01.FlowMod.to_string "\n" st.flows)));
       return () in
 
     let stats sws pts =
@@ -178,7 +176,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
     port_stats_loop ()
 
   let send (sw, x, msg) =
-    let open Frenetic_OpenFlow0x01_Plugin in
+    let open Frenetic_async.OpenFlow0x01_Plugin in
     Controller.send sw x msg >>= function
     | RpcEof -> return ()
     | RpcOk -> return ()
@@ -241,7 +239,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
   let dump_flow_mods (sw_flow_map : (switchId, flowMod list) Hashtbl.t) =
     Hashtbl.iteri sw_flow_map
         ~f:(fun ~key:sw ~data:flows ->
-          Kulfi_Util.intercalate Frenetic_OpenFlow0x01.FlowMod.to_string "\n" flows
+          Kulfi_Util.intercalate Frenetic_kernel.OpenFlow0x01.FlowMod.to_string "\n" flows
           |> Core.printf "%d : %s\n" (Int64.to_int_exn sw))
 
   (* Start controller CLI loop and install flow rules *)
@@ -258,7 +256,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
   (* Source routing using a stack of tags (one per hop) for a path *)
   let start_src topo_fn predict_fn host_fn init_str () =
     (* Parse topology *)
-    let topo = Frenetic_Network.Net.Parse.from_dotfile topo_fn in
+    let topo = Frenetic_kernel.Network.Net.Parse.from_dotfile topo_fn in
     (* Create fabric *)
     let flow_hash,tag_hash = Kulfi_Fabric.create topo in
     (* Open predicted demands *)
@@ -285,7 +283,7 @@ module Make(Solver:Kulfi_Routing.Algorithm) = struct
   (* Route using single tag per path *)
   let start_path topo_fn predict_fn host_fn init_str () =
     (* Parse topology *)
-    let topo = Frenetic_Network.Net.Parse.from_dotfile topo_fn in
+    let topo = Net.Parse.from_dotfile topo_fn in
     (* Open predicted demands *)
     let (predict_host_map, predict_traffic_ic) = open_demands predict_fn host_fn topo in
     (* Helper to generate host configurations *)

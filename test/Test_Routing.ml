@@ -1,6 +1,5 @@
 open Core
-open Frenetic_Network
-open Net
+
 open Kulfi_Types
 open Kulfi_Util
 open Simulate_Switch
@@ -9,7 +8,7 @@ open Simulation_Types
 
 let create_3cycle_input () =
   Kulfi_Globals.deloop := true;
-  let topo = Parse.from_dotfile "./data/topologies/3cycle.dot" in
+  let topo = Net.Parse.from_dotfile "./data/topologies/3cycle.dot" in
   let hosts = get_hosts topo in
   let demands =
     List.fold_left
@@ -26,7 +25,7 @@ let create_3cycle_input () =
 
 let create_6s4h_input () =
   Kulfi_Globals.deloop := true;
-  let topo = Parse.from_dotfile "./data/topologies/6s4hMultiSwitch.dot" in
+  let topo = Net.Parse.from_dotfile "./data/topologies/6s4hMultiSwitch.dot" in
   let hosts = get_hosts topo in
   let demands =
     List.fold_left
@@ -169,7 +168,7 @@ let test_ak_vlb () =
 
 let test_apsp () =
   let (hosts,topo,pairs) = create_3cycle_input () in
-  let paths = Frenetic_Network.NetPath.all_pairs_shortest_paths
+  let paths = NetPath.all_pairs_shortest_paths
       ~topo:topo ~f:(fun _ _ -> true) in
   List.fold_left hosts ~init:true
     ~f:(fun acc u ->

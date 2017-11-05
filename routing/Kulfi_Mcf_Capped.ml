@@ -1,9 +1,7 @@
-open Kulfi_Types
-
-open Frenetic_Network
-open Net
 open Core
+
 open Kulfi_LP_Lang
+open Kulfi_Types
 
 (*
 LP that uses polynomially many binary-valued variables, which solves MCF with a capped number of paths.
@@ -11,10 +9,10 @@ LP that uses polynomially many binary-valued variables, which solves MCF with a 
   * e ranges over edges
   * i ranges from 1 to k (total number of paths allowed in the MCF solution)
   * j ranges from 1 to L (maximum allowable path length)
-An upper bound on the maximum allowable path length is n-1 (if a path has no repeated vertices, 
-it cannot have more than n-1 edges) 
+An upper bound on the maximum allowable path length is n-1 (if a path has no repeated vertices,
+it cannot have more than n-1 edges)
 
-The interpretation of x_{e,i,j}=1 is that edge e belongs to path i, and it constitutes the j-th hop of that path. 
+The interpretation of x_{e,i,j}=1 is that edge e belongs to path i, and it constitutes the j-th hop of that path.
 There are some constraints that ensure that the MIP solution adheres to this interpretation.
 
 (c1) for all i,j:
@@ -59,16 +57,16 @@ Finally, we have non-negative real-valued variables a_{e,i} and b_{i,s,t} denoti
   (The total amount of flow on e doesn't violate its capacity.)
 
  *)
-				 		     
+
 let mk_objective () : arith_exp =
   Var "Z"
 
 
-let range (i:int) (j:int) : (int list) = 
+let range (i:int) (j:int) : (int list) =
   let rec aux n acc =
     if n < i then acc else aux (n-1) (n :: acc)
-  in aux j [] 
-	 
+  in aux j []
+
 
 (*
  (c1) for all i,j:
@@ -89,12 +87,12 @@ let x_var topo e i j =
   let dst,_ = Topology.edge_dst e in
   Printf.sprintf "x_%s--%s_%d_%d"
 		 (name_of_vertex topo dst) (name_of_vertex topo src) i j
-		 
+
 let mk_constraints (topo : Topology.t) (demand_pairs : demands) (k:int) (l:int) : (constrain list) =
 
   let is = (range 1 k) in (* i from 1 to k *)
   let js = (range 1 l) in (* j from 1 to l *)
-  let cs1 =     
+  let cs1 =
        List.fold_left
 	 is
 	 ~init:[]
@@ -103,13 +101,13 @@ let mk_constraints (topo : Topology.t) (demand_pairs : demands) (k:int) (l:int) 
 	       js
 	       ~init:acc
 	       ~f:(fun acc j ->
-		   let xs = 
+		   let xs =
 		     Topology.fold_edges
 		       (fun e acc2 -> let x = x_var topo e i j in Var(x)::acc2) topo [] in
 		   let sum = Sum(xs) in
 		   let (c:constrain) = Leq("c1",sum,1.0) in
 		   c::acc )) in
-		  
+
   cs1
 
 
@@ -117,15 +115,15 @@ let mk_lp (topo : Topology.t) (demand_pairs : demands) (k:int) (l:int) : lp =
   let o = mk_objective () in
   let c = mk_constraints topo demand_pairs k l in
   (o, c)
-	 	 
+
 let solve (topo:topology) (pairs:demands) : scheme =
-  let k = 10 in (* total number of paths allowed in the MCF solution *) 
-  let l = 16 in (* maximum allowable path length *) 
+  let k = 10 in (* total number of paths allowed in the MCF solution *)
+  let l = 16 in (* maximum allowable path length *)
   let lp = mk_lp topo pairs k l in
   Printf.printf "%s" (string_of_lp lp);
   assert false
 
-  
-       
 
-                
+
+
+

@@ -1,7 +1,4 @@
 open Core
-open Frenetic_Network
-open Net
-open Net.Topology
 
 open Kulfi_Types
 open Kulfi_Util
@@ -139,8 +136,8 @@ let print_mpapsp
     Topology.fold_vertexes
     (fun j acc_j ->
       let v,np,pathlist = SrcDstMap.find_exn numpath (i,j) in
-      Printf.printf "%s\t" (Node.name (Net.Topology.vertex_to_label topo i));
-      Printf.printf "%s\t" (Node.name (Net.Topology.vertex_to_label topo j));
+      Printf.printf "%s\t" (Node.name (Topology.vertex_to_label topo i));
+      Printf.printf "%s\t" (Node.name (Topology.vertex_to_label topo j));
       Printf.printf "%B\t" v;
       Printf.printf "%d\t" np;
       Printf.printf "%d\n" (List.length pathlist);
@@ -210,7 +207,7 @@ let k_shortest_paths (full_topo:topology) (s:Topology.vertex) (t:Topology.vertex
         let _ =
           List.fold prev_path ~init:[]
             ~f:(fun root_path spur_edge ->
-              let spur_node,_ = Net.Topology.edge_src spur_edge in
+              let spur_node,_ = Topology.edge_src spur_edge in
               let root_path_len = List.length root_path in
               let restricted_topo =
                 List.fold ksp ~init:topo
@@ -227,7 +224,7 @@ let k_shortest_paths (full_topo:topology) (s:Topology.vertex) (t:Topology.vertex
               let restricted_topo =
                 List.fold root_path ~init:restricted_topo
                   ~f:(fun acc e ->
-                    let root_path_node,_ = Net.Topology.edge_src e in
+                    let root_path_node,_ = Topology.edge_src e in
                     if root_path_node = spur_node then acc
                     else Topology.remove_vertex acc root_path_node) in
 

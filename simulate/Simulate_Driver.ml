@@ -1,6 +1,4 @@
 open Core
-open Frenetic_Network
-open Net
 
 open ExperimentalData
 open Kulfi_Globals
@@ -54,7 +52,7 @@ let generate_subgraph (subgraph_opt : string option) (topo : topology) : topolog
         ~init:StringMap.empty
         ~f:(fun acc v ->
           (StringMap.add acc
-             ~key:(Node.name (Net.Topology.vertex_to_label topo v))
+             ~key:(Node.name (Topology.vertex_to_label topo v))
              ~data:v)) in
     let subgraph_nodes =
       In_channel.with_file subgraph_file
@@ -72,7 +70,7 @@ let generate_subgraph (subgraph_opt : string option) (topo : topology) : topolog
 (* Parse a topology file and generate the subgraph topology, if subgraph option
 is specified *)
 let parse_topology (topo_file:string) (subgraph_file:string option) =
-  Parse.from_dotfile topo_file
+  Net.Parse.from_dotfile topo_file
   |> generate_subgraph subgraph_file
 
 

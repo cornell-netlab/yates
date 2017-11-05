@@ -1,7 +1,4 @@
 open Core
-open Frenetic_Network
-open Net
-open Net.Topology
 
 open Kulfi_Apsp
 open Kulfi_Types

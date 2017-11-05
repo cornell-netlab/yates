@@ -1,7 +1,6 @@
 open Core
-open Frenetic_Network
-open Frenetic_OpenFlow
-open Frenetic_OpenFlow0x01
+open Frenetic_kernel.OpenFlow
+open Frenetic_kernel.OpenFlow0x01
 open Kulfi_Types
 
 val add_paths_from_scheme : scheme -> Tag.t PathMap.t -> Tag.t PathMap.t

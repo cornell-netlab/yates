@@ -1,13 +1,11 @@
 open Core
 open Async
-open Frenetic_Network
-open Net
-open Net.Topology
+
 open Kulfi_Types
 open Kulfi_Util
 
-let drop : Frenetic_OpenFlow0x01.flowMod =
-  let open Frenetic_OpenFlow0x01 in
+let drop : Frenetic_kernel.OpenFlow0x01.flowMod =
+  let open Frenetic_kernel.OpenFlow0x01 in
   let pattern =
     { dlSrc = None;
       dlDst = None;
@@ -36,8 +34,8 @@ let drop : Frenetic_OpenFlow0x01.flowMod =
   ; check_overlap = false
   }
 
-let mk_flow_mod (tag:int) (out:int) : Frenetic_OpenFlow0x01.flowMod =
-  let open Frenetic_OpenFlow0x01 in
+let mk_flow_mod (tag:int) (out:int) : Frenetic_kernel.OpenFlow0x01.flowMod =
+  let open Frenetic_kernel.OpenFlow0x01 in
   let pattern =
     { dlSrc = None;
       dlDst = None;
@@ -71,10 +69,10 @@ let tag_cell = ref 100
 let create (t:topology) =
   let tag_hash = Hashtbl.Poly.create () in
   let flow_hash = Hashtbl.Poly.create () in
-  iter_edges
+  Topology.iter_edges
     (fun edge ->
-      let src, port = edge_src edge in
-      let lbl = vertex_to_label t src in
+      let src, port = Topology.edge_src edge in
+      let lbl = Topology.vertex_to_label t src in
       match Node.device lbl with
         | Node.Switch ->
           begin

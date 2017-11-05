@@ -1,15 +1,11 @@
 open Core
 open Async
-open Frenetic_OpenFlow
-open Frenetic_OpenFlow0x01
-open Frenetic_Network
-open Net
-open Net.Topology
+
 open Kulfi_Types
 open Kulfi_Util
 
-let drop : Frenetic_OpenFlow0x01.flowMod =
-  let open Frenetic_OpenFlow0x01 in
+let drop : Frenetic_kernel.OpenFlow0x01.flowMod =
+  let open Frenetic_kernel.OpenFlow0x01 in
   let pattern =
     { dlSrc = None;
       dlDst = None;
@@ -39,8 +35,8 @@ let drop : Frenetic_OpenFlow0x01.flowMod =
   }
 
 (* match on tag and forward on out port *)
-let mk_flow_mod_fw (tag:int) (out:int) : Frenetic_OpenFlow0x01.flowMod =
-  let open Frenetic_OpenFlow0x01 in
+let mk_flow_mod_fw (tag:int) (out:int) : Frenetic_kernel.OpenFlow0x01.flowMod =
+  let open Frenetic_kernel.OpenFlow0x01 in
   let pattern =
     { dlSrc = None;
       dlDst = None;
@@ -86,7 +82,8 @@ let add_paths_from_scheme (scm:scheme) (path_tag_map:Tag.t PathMap.t) : Tag.t Pa
 
 (* Create flow mods based on path-tag map. Ignore first host-switch edge.
  * For each switch, match on tag and forward *)
-let create_sw_flows_map topo (path_tag_map:Tag.t PathMap.t) : (switchId, flowMod list) Hashtbl.t =
+let create_sw_flows_map topo (path_tag_map:Tag.t PathMap.t) :
+  (Frenetic_kernel.OpenFlow0x01.switchId, Frenetic_kernel.OpenFlow0x01.flowMod list) Hashtbl.t =
   let sw_flow_map = Hashtbl.Poly.create () in
   PathMap.iteri path_tag_map ~f:(fun ~key:path ~data:tag ->
     Core.printf "%d\t%s\n" tag (dump_edges topo path));
@@ -97,8 +94,8 @@ let create_sw_flows_map topo (path_tag_map:Tag.t PathMap.t) : (switchId, flowMod
           (* ignore first edge host->switch *)
           List.iter sw_path ~f:(fun e ->
             (* TODO: remove tag at last hop? *)
-            let sw,port = Net.Topology.edge_src e in
-            let sw_id =  Node.id (vertex_to_label topo sw) in
+            let sw,port = Topology.edge_src e in
+            let sw_id =  Node.id (Topology.vertex_to_label topo sw) in
             let flow_mod = mk_flow_mod_fw tag (Int32.to_int_exn port) in
             match Hashtbl.Poly.find sw_flow_map sw_id with
               | None ->

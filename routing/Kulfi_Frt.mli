@@ -1,5 +1,4 @@
-open Frenetic_Network
-open Net
+open Kulfi_Types
 
 module type FRT_TYPE = sig
 

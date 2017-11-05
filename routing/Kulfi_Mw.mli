@@ -1,7 +1,5 @@
-open Frenetic_Network
-open Net
 open Kulfi_Types
-       
+
 module type MW_INPUT = sig
 
   type structure

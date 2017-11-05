@@ -1,14 +1,12 @@
 open Core
 open Kulfi_Types
-open Frenetic_Network
-open Net
 
 let open_demands (demand_file:string) (host_file:string) (topo:topology) : (index_map * In_channel.t) =
   let name_map =
     VertexSet.fold (Topology.vertexes topo)
     ~init:StringMap.empty
        ~f:(fun acc v ->
-         let n = (Net.Topology.vertex_to_label topo v) in
+         let n = (Topology.vertex_to_label topo v) in
          (StringMap.add acc ~key:(Node.name n) ~data:v )) in
   let (_,host_map) =
     In_channel.with_file

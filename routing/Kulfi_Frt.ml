@@ -1,9 +1,6 @@
 open Core
-open Frenetic_Network
-module Topology = Net.Topology
 
-module VertexSet = Topology.VertexSet
-module EdgeSet = Topology.EdgeSet
+open Kulfi_Types
 
 let () = match !Kulfi_Globals.rand_seed with
   | Some x -> Random.init x

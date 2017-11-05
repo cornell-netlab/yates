@@ -1,6 +1,5 @@
-open Frenetic_Network
-open Net
 open Core
+
 open Kulfi_Globals
 open Kulfi_LP_Lang
 open Kulfi_Types
@@ -25,8 +24,8 @@ end
 module AclinkSet = Set.Make(AclinkOrd)
 
 let link_of (e : edge) : aclink =
-  let v1 = (fst (Net.Topology.edge_src e)) in
-  let v2 = (fst (Net.Topology.edge_dst e)) in
+  let v1 = (fst (Topology.edge_src e)) in
+  let v2 = (fst (Topology.edge_dst e)) in
   VertexSet.add (VertexSet.singleton v1) v2
 
 let edges_of (topo : topology) (l : aclink) : EdgeSet.t =

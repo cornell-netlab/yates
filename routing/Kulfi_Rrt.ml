@@ -2,9 +2,6 @@ open Kulfi_Mw
 open Kulfi_Frt
 open Kulfi_Types
 
-open Frenetic_Network
-open Net          
-
 (* multiplicative weights input *)
 module MWInput : MW_INPUT with type structure = FRT.routing_tree = struct
 

@@ -1,9 +1,8 @@
 open Core
-open Frenetic_Network
-open Net
-open Kulfi_Util
+
 open Kulfi_Traffic
 open Kulfi_Types
+open Kulfi_Util
 open Simulation_Util
 
 (********************************************************************)

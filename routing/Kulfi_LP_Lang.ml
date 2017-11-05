@@ -1,6 +1,5 @@
 open Core
-open Frenetic_Network
-open Net
+open Kulfi_Types
 
 (* This is stripped down to cover only what we'll need for MCF *)
 

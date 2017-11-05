@@ -1,6 +1,5 @@
-open Frenetic_Network
-open Net
 open Core
+
 open Kulfi_Types
 
 let () = match !Kulfi_Globals.rand_seed with

@@ -1,6 +1,4 @@
 open Core
-open Frenetic_Network
-open Net
 
 open Kulfi_Types
 
@@ -18,21 +16,21 @@ let dump_edges (t:topology) (es:path) : string =
   intercalate
     (fun e ->
      Printf.sprintf "(%s,%s)"
-          (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_src e))))
-          (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_dst e))))) ", "  es
+          (Node.name (Topology.vertex_to_label t (fst (Topology.edge_src e))))
+          (Node.name (Topology.vertex_to_label t (fst (Topology.edge_dst e))))) ", "  es
 
 let dump_topology (t:topology) : string =
   let buf = Buffer.create 101 in
   Printf.bprintf buf "V: [ ";
   Topology.iter_vertexes
     (fun v ->
-      Printf.bprintf buf "%s " (Node.name (Net.Topology.vertex_to_label t v)))
+      Printf.bprintf buf "%s " (Node.name (Topology.vertex_to_label t v)))
     t;
   Printf.bprintf buf "]\nE: [ ";
   Topology.iter_edges
     (fun e -> Printf.bprintf buf "(%s,%s) "
-      (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_src e))))
-      (Node.name (Net.Topology.vertex_to_label t (fst (Net.Topology.edge_dst e)))))
+      (Node.name (Topology.vertex_to_label t (fst (Topology.edge_src e))))
+      (Node.name (Topology.vertex_to_label t (fst (Topology.edge_dst e)))))
     t;
   Printf.bprintf buf "]\n";
   Buffer.contents buf
@@ -144,7 +142,7 @@ let print_configuration (topo:topology) (conf:configuration) (time:int) : unit =
   Hashtbl.Poly.iteri
     bufs
     ~f:(fun ~key:src ~data:buf ->
-      let route_filename = Printf.sprintf "routes/%s_%d" (Frenetic_Packet.string_of_ip (Node.ip (Topology.vertex_to_label topo src))) time in
+      let route_filename = Printf.sprintf "routes/%s_%d" (Frenetic_kernel.Packet.string_of_ip (Node.ip (Topology.vertex_to_label topo src))) time in
       let route_file = Out_channel.create route_filename in
       Out_channel.output_string route_file (Buffer.contents buf);
       Out_channel.close route_file;
@@ -247,7 +245,7 @@ let get_srcdst_pairs (topo:topology) =
 
 (* check if a vertex u is one of edge e's endpoints *)
 let is_incident (e:Topology.edge) (u:Topology.vertex) : bool =
-  u = (fst (Net.Topology.edge_src e)) || u = (fst (Net.Topology.edge_dst e))
+  u = (fst (Topology.edge_src e)) || u = (fst (Topology.edge_dst e))
 
 (* Latency for a path *)
 let get_path_weight (topo:topology) (p:path) : float =
@@ -265,12 +263,12 @@ let rec range i j = if i >= j then [] else i :: (range (i+1) j)
 (***********************************************)
 let string_of_vertex (t:topology) v : string =
   Printf.sprintf "%s"
-                    (Node.name (Net.Topology.vertex_to_label t v))
+                    (Node.name (Topology.vertex_to_label t v))
 
 let string_of_edge (t:topology) (e:edge) : string =
   Printf.sprintf "(%s,%s)"
-                    (string_of_vertex t (fst (Net.Topology.edge_src e)))
-                    (string_of_vertex  t (fst (Net.Topology.edge_dst e)))
+                    (string_of_vertex t (fst (Topology.edge_src e)))
+                    (string_of_vertex  t (fst (Topology.edge_dst e)))
 
 let edge_to_string_map (t:topology) : string EdgeMap.t =
   let edge_list = EdgeSet.elements (Topology.edges t) in
@@ -302,8 +300,8 @@ let dump_scheme (t:topology) (s:scheme) : string =
   let buf = Buffer.create 101 in
   SrcDstMap.iteri s ~f:(fun ~key:(v1,v2) ~data:pps ->
                        Printf.bprintf buf "%s -> %s :\n%s\n"
-                                      (Node.name (Net.Topology.vertex_to_label t v1))
-                                      (Node.name (Net.Topology.vertex_to_label t v2))
+                                      (Node.name (Topology.vertex_to_label t v1))
+                                      (Node.name (Topology.vertex_to_label t v2))
                                       (dump_path_prob_set t pps));
   Buffer.contents buf
 
@@ -312,8 +310,8 @@ let dump_demands (t:topology) (d:demands) : string =
   SrcDstMap.iteri d
   ~f:(fun ~key:(src,dst) ~data:dem ->
     Printf.bprintf buf "(%s,%s) : %f\n"
-                     (Node.name (Net.Topology.vertex_to_label t src))
-                     (Node.name (Net.Topology.vertex_to_label t dst))
+                     (Node.name (Topology.vertex_to_label t src))
+                     (Node.name (Topology.vertex_to_label t dst))
   dem;);
   Buffer.contents buf
 
@@ -458,8 +456,8 @@ let all_pairs_connectivity topo hosts scheme : bool =
           else
             match SrcDstMap.find scheme (u,v) with
             | None -> Printf.printf "No route for pair (%s, %s)\n%!"
-                        (Node.name (Net.Topology.vertex_to_label topo u))
-                        (Node.name (Net.Topology.vertex_to_label topo v));
+                        (Node.name (Topology.vertex_to_label topo u))
+                        (Node.name (Topology.vertex_to_label topo v));
               false
             | Some paths ->
               not (PathMap.is_empty paths)  && acc))

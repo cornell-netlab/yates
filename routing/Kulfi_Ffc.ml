@@ -1,9 +1,7 @@
-open Frenetic_Network
-open Net
 open Core
 
-open Kulfi_LP_Lang
 open Kulfi_Globals
+open Kulfi_LP_Lang
 open Kulfi_Types
 open Kulfi_Util
 

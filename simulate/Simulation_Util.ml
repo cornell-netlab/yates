@@ -1,6 +1,4 @@
 open Core
-open Frenetic_Network
-open Net
 
 open Kulfi_Types
 open Kulfi_Util
@@ -127,17 +125,17 @@ let get_src_dst_for_path (p:path) =
   if p = [] then None
   else
     let src,_ = List.hd_exn p
-                |> Net.Topology.edge_src in
+                |> Topology.edge_src in
     let dst,_ = list_last p
-                |> Net.Topology.edge_dst in
+                |> Topology.edge_dst in
     Some (src, dst)
 
 (* Return src and dst for a given path (edge array) *)
 let get_src_dst_for_path_arr (p:edge Array.t) =
   if Array.length p = 0 then None
   else
-    let src,_ = Net.Topology.edge_src p.(0) in
-    let dst,_ = Net.Topology.edge_dst p.((Array.length p)-1) in
+    let src,_ = Topology.edge_src p.(0) in
+    let dst,_ = Topology.edge_dst p.((Array.length p)-1) in
     Some (src, dst)
 
 

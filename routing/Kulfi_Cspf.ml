@@ -1,7 +1,4 @@
 open Core
-open Frenetic_Network
-open Net
-open Net.Topology
 
 open Kulfi_Apsp
 open Kulfi_Types
@@ -141,8 +138,8 @@ let constrained_shortest_path (full_topo:topology) (avail_bw:float EdgeMap.t) sr
                  let (neighbor, _) = Topology.edge_dst edge in
                  (* Printf.printf "%f %f %f %f %s %s\n" new_dist weight *)
                  (* (edge_avail_bw/.1e9) (bw/.1e9) *)
-                 (* (Node.name (Net.Topology.vertex_to_label topo vert)) *)
-                 (* (Node.name (Net.Topology.vertex_to_label topo neighbor)); *)
+                 (* (Node.name (Topology.vertex_to_label topo vert)) *)
+                 (* (Node.name (Topology.vertex_to_label topo neighbor)); *)
                  let old_dist = Hashtbl.Poly.find_exn dist_table neighbor in
                  (* update paths if needed *)
                  if new_dist < old_dist then
@@ -187,8 +184,8 @@ let constrained_shortest_path (full_topo:topology) (avail_bw:float EdgeMap.t) sr
             ~init:[]
             ~f:(fun acc p ->
               (* Printf.printf "Pred(%s) = %s " *)
-              (* (Node.name (Net.Topology.vertex_to_label topo dst)) *)
-              (* (Node.name (Net.Topology.vertex_to_label topo p)); *)
+              (* (Node.name (Topology.vertex_to_label topo dst)) *)
+              (* (Node.name (Topology.vertex_to_label topo p)); *)
               let prev_paths = get_paths p in
               let new_paths =
                 List.map prev_paths

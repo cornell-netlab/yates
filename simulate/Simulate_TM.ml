@@ -1,6 +1,4 @@
 open Core
-open Frenetic_Network
-open Net
 
 open AutoTimer
 open Kulfi_Types
