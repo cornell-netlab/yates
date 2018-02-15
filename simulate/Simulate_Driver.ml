@@ -40,7 +40,7 @@ let parse_rtt_file (rtt_file_opt : string option) : (float StringMap.t) =
           let entries = Array.of_list (String.split line ~on:' ') in
           let edge_str = entries.(0) in
           let edge_rtt = Float.of_string entries.(1) in
-          StringMap.add ~key:edge_str ~data:edge_rtt acc))
+          StringMap.set ~key:edge_str ~data:edge_rtt acc))
 
 (* Filter nodes from a topology based on nodes specified in subgraph file *)
 let generate_subgraph (subgraph_opt : string option) (topo : topology) : topology =
@@ -51,7 +51,7 @@ let generate_subgraph (subgraph_opt : string option) (topo : topology) : topolog
       VertexSet.fold (Topology.vertexes topo)
         ~init:StringMap.empty
         ~f:(fun acc v ->
-          (StringMap.add acc
+          (StringMap.set acc
              ~key:(Node.name (Topology.vertex_to_label topo v))
              ~data:v)) in
     let subgraph_nodes =
@@ -89,7 +89,7 @@ let set_topo_weights (topo : topology) (rtt_file : string option) =
       | None -> begin
           let wt = 1. in (* default weight if unspecified *)
           set_weight topo edge wt;
-          StringMap.add ~key:edge_str ~data:wt acc
+          StringMap.set ~key:edge_str ~data:wt acc
       end)
 
 (* Calculate a demand matrix equal to max (envelope) of all TMs *)
@@ -107,7 +107,7 @@ let calculate_demand_envelope (topo:topology) (predict_file:string)
           let env_sd = match SrcDstMap.find acc (s,d) with
             | None -> 0.
             | Some x -> x in
-          SrcDstMap.add ~key:(s,d) ~data:(max env_sd pred) acc)) in
+          SrcDstMap.set ~key:(s,d) ~data:(max env_sd pred) acc)) in
   close_demands predict_ic;
   envelope
 
@@ -135,7 +135,7 @@ let accumulate_vulnerability_stats topology_file topo algorithm scheme  =
                   | Some x -> x
                   | None -> 0 in
               (* normalize by num_paths*)
-              EdgeMap.add ~key:e ~data:(e_count+(mult/num_paths)) acc
+              EdgeMap.set~key:e ~data:(e_count+(mult/num_paths)) acc
             else acc)) in
         EdgeMap.fold count_edge_usage ~init:acc
           ~f:(fun ~key:e ~data:vuln_score acc ->
@@ -143,7 +143,7 @@ let accumulate_vulnerability_stats topology_file topo algorithm scheme  =
               match IntMap.find acc vuln_score with
               | Some x -> x
               | None -> 0. in
-            IntMap.add ~key:vuln_score ~data:(count+.1.) acc)) in
+            IntMap.set ~key:vuln_score ~data:(count+.1.) acc)) in
 
   let buf = Buffer.create 101 in
   Printf.bprintf buf "\n\n%s\n" solver_name;
@@ -175,7 +175,7 @@ let estimate_capacity_req (topo:topology) (demand_file:string)
         let curr_cap = capacity_of_edge topo e in
         (* Set capacity = 2x required by MCF *)
         let new_cap = Int64.of_float (curr_cap *. util *. 2.0) in
-        EdgeMap.add ~key:e ~data:new_cap acc)
+        EdgeMap.set ~key:e ~data:new_cap acc)
 
 (* Create a new topology with updated link capacities *)
 let set_link_capacities (topo:topology) (capacities:int64 EdgeMap.t) : topology =
@@ -587,7 +587,7 @@ let find_ksp_budget_test (topo_file:string) (subgraph_file_opt:string option)
 
 
 let command =
-  Command.basic
+  Command.basic_spec
     ~summary:"Simulate run of routing strategies"
     Command.Spec.(
     empty

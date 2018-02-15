@@ -19,7 +19,7 @@ let add_record (d:'a experimental_data) (id:string) (r:'a) : unit =
     | None -> []
     | Some x -> x in
   let entries' = List.append entries [r] in
-  d.records <- StringMap.add ~key:id ~data:entries' d.records
+  d.records <- StringMap.set ~key:id ~data:entries' d.records
 
 let to_string (d:'a experimental_data) (header:string) (fn:'a -> string) : string =
   StringMap.fold

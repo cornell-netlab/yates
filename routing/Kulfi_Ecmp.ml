@@ -57,8 +57,8 @@ let solve_thresh (topo:topology) (_:demands) : scheme =
             let path_dist =
               List.fold_left selected_paths ~init: PathMap.empty
                 ~f:(fun acc p ->
-                  PathMap.add ~key:p ~data:prob acc) in
-            SrcDstMap.add ~key:(u,v) ~data:path_dist acc) in
+                  PathMap.set ~key:p ~data:prob acc) in
+            SrcDstMap.set ~key:(u,v) ~data:path_dist acc) in
   prev_scheme := new_scheme;
   new_scheme
 
@@ -83,8 +83,8 @@ let solve (topo:topology) (_:demands) : scheme =
               List.fold_left paths
                 ~init: PathMap.empty
                 ~f:( fun acc path ->
-                  PathMap.add acc ~key:path ~data:prob;) in
-            SrcDstMap.add acc ~key:(u, v) ~data: path_dist
+                  PathMap.set acc ~key:path ~data:prob;) in
+            SrcDstMap.set acc ~key:(u, v) ~data: path_dist
           else
             acc) in
   prev_scheme := new_scheme;

@@ -76,7 +76,7 @@ let add_paths_from_scheme (scm:scheme) (path_tag_map:Tag.t PathMap.t) : Tag.t Pa
         begin
           let tag = !tag_cell in
           incr tag_cell;
-          PathMap.add acc ~key:path ~data:tag
+          PathMap.set acc ~key:path ~data:tag
         end
       | Some _ -> acc))
 

@@ -3,7 +3,7 @@ open Core
 open Kulfi_Types
 open Kulfi_Util
 
-module PQueue = Core_kernel.Heap.Removable
+module PQueue = Core_kernel.Heap
 
 (**************************************************************)
 (* All pair multiple shortest paths *)
@@ -17,10 +17,10 @@ let rec calc_num_paths (i:Topology.vertex) (j:Topology.vertex)
   (* Count the number of shortest i-j paths, and store the corresponding next
      hop nodes *)
   let  (_, n, l) = SrcDstMap.find_exn numpath (i,j) in
-  let numpath = SrcDstMap.add numpath ~key:(i,j) ~data:(true, n, l) in
+  let numpath = SrcDstMap.set numpath ~key:(i,j) ~data:(true, n, l) in
   let d_ij = SrcDstMap.find_exn dist (i,j) in
   if d_ij = Float.infinity then
-    SrcDstMap.add numpath ~key:(i,j) ~data:(true, 0, [])
+    SrcDstMap.set numpath ~key:(i,j) ~data:(true, 0, [])
   else
     let neighbors = Topology.neighbors topo i in
     let numpath =
@@ -45,7 +45,7 @@ let rec calc_num_paths (i:Topology.vertex) (j:Topology.vertex)
                 let _, np_ij, next_hops_ij = SrcDstMap.find_exn numpath (i,j) in
                 (* Extend i-j paths by number of shortest paths through this
                    neighbor *)
-                SrcDstMap.add numpath ~key:(i,j)
+                SrcDstMap.set numpath ~key:(i,j)
                   ~data:(true, np_ij + np_nj, List.append next_hops_ij
                            [(neighbor, Float.of_int np_nj)])
               else acc) in
@@ -59,7 +59,7 @@ let rec calc_num_paths (i:Topology.vertex) (j:Topology.vertex)
             let n_prob = np_h /. Float.of_int num_ij_paths in
             (List.append l [(next_hop, preprob +. n_prob)],
              preprob +. n_prob)) in
-    SrcDstMap.add numpath ~key:(i,j) ~data:(true, num_ij_paths, path_probs)
+    SrcDstMap.set numpath ~key:(i,j) ~data:(true, num_ij_paths, path_probs)
 
 
 let all_pairs_multi_shortest_path (topo:topology) :
@@ -72,7 +72,7 @@ let all_pairs_multi_shortest_path (topo:topology) :
           let dist =
             if i = j then 0.0
             else Float.infinity in
-          SrcDstMap.add acc ~key:(i, j) ~data:dist)
+          SrcDstMap.set acc ~key:(i, j) ~data:dist)
         topo
         acc)
     topo
@@ -84,7 +84,7 @@ let all_pairs_multi_shortest_path (topo:topology) :
     let src,_ = Topology.edge_src e in
     let dst,_ = Topology.edge_dst e in
     let weight = Link.weight (Topology.edge_to_label topo e) in
-    SrcDstMap.add acc ~key:(src, dst) ~data:weight)
+    SrcDstMap.set acc ~key:(src, dst) ~data:weight)
   topo dist_mat in
 
   (* Only switches can be intermediate nodes*)
@@ -99,7 +99,7 @@ let all_pairs_multi_shortest_path (topo:topology) :
             let dik = SrcDstMap.find_exn acc (i,k)  in
             let dkj = SrcDstMap.find_exn acc (k,j)  in
             if (dik +. dkj < dij) then
-              SrcDstMap.add acc ~key:(i, j) ~data:(dik +. dkj)
+              SrcDstMap.set acc ~key:(i, j) ~data:(dik +. dkj)
             else acc)
           topo acc)
         topo acc) in
@@ -114,7 +114,7 @@ let all_pairs_multi_shortest_path (topo:topology) :
               (* if i == j, then visited is true, and num_paths = 1 *)
               let visited = (i = j) in
               let num_paths = if (i = j) then 1 else 0 in
-              SrcDstMap.add acc ~key:(i, j) ~data:(visited, num_paths, []))
+              SrcDstMap.set acc ~key:(i, j) ~data:(visited, num_paths, []))
            topo acc)
       topo SrcDstMap.empty in
 
@@ -271,4 +271,4 @@ let all_pair_k_shortest_path (topo:topology) (k:int) hosts =
       VertexSet.fold hosts ~init:acc
         ~f:(fun acc dst ->
           let ksp = k_shortest_paths topo src dst k in
-          SrcDstMap.add acc ~key:(src, dst) ~data:ksp))
+          SrcDstMap.set acc ~key:(src, dst) ~data:ksp))

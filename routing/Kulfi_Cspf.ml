@@ -4,7 +4,7 @@ open Kulfi_Apsp
 open Kulfi_Types
 open Kulfi_Util
 
-module PQueue = Core_kernel.Heap.Removable
+module PQueue = Core_kernel.Heap
 
 let prev_scheme = ref SrcDstMap.empty
 
@@ -201,7 +201,7 @@ let constrained_shortest_path (full_topo:topology) (avail_bw:float EdgeMap.t) sr
 let reserve_bw avail_bw path bw =
   List.fold path ~init:avail_bw ~f:(fun acc e ->
     let prev_av_bw = EdgeMap.find_exn acc e in
-    EdgeMap.add ~key:e ~data:(prev_av_bw -. bw) acc)
+    EdgeMap.set ~key:e ~data:(prev_av_bw -. bw) acc)
 
 let solve (topo:topology) (pairs:demands) : scheme =
   let new_scheme =
@@ -225,7 +225,7 @@ let solve (topo:topology) (pairs:demands) : scheme =
       let avail_bw = Topology.fold_edges
           (fun edge acc ->
              let cap = capacity_of_edge topo edge in
-             EdgeMap.add ~key:edge ~data:(max_util_cap *. cap) acc)
+             EdgeMap.set ~key:edge ~data:(max_util_cap *. cap) acc)
           topo EdgeMap.empty in
 
       (* Assign LSPs for src-dst pairs in round-robin order. *)
@@ -252,7 +252,7 @@ let solve (topo:topology) (pairs:demands) : scheme =
                   let pp_map =
                     add_or_increment_path prev_pp_map uv_path per_lsp_prob in
                   (avail_bw,
-                   SrcDstMap.add ~key:(u,v) ~data:(pp_map) routes)
+                   SrcDstMap.set ~key:(u,v) ~data:(pp_map) routes)
                 | None ->
                   (* Couldn't find an LSP. Normalize remaining paths later. *)
                   (avail_bw, routes)) pairs) in
@@ -268,7 +268,7 @@ let solve (topo:topology) (pairs:demands) : scheme =
                 (* Try using paths already computed in the previous iteration *)
                 match SrcDstMap.find !prev_scheme (src,dst) with
                 | Some pp_map ->
-                  SrcDstMap.add ~key:(src,dst) ~data:pp_map acc
+                  SrcDstMap.set ~key:(src,dst) ~data:pp_map acc
                 | None ->
                   (* Last resort to find paths *)
                   let paths = k_shortest_paths topo src dst budget in
@@ -276,8 +276,8 @@ let solve (topo:topology) (pairs:demands) : scheme =
                   let pp_map =
                     List.fold_left paths ~init:PathMap.empty
                       ~f:(fun acc path ->
-                        PathMap.add acc ~key:path ~data:prob) in
-                  SrcDstMap.add ~key:(src,dst) ~data:pp_map acc
+                        PathMap.set acc ~key:path ~data:prob) in
+                  SrcDstMap.set ~key:(src,dst) ~data:pp_map acc
               end) in
       normalize_scheme full_routes in
   prev_scheme := new_scheme;

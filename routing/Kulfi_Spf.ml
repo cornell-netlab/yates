@@ -18,7 +18,7 @@ let solve (topo:topology) (_:demands) : scheme =
             match (get_random_path u v topo mpapsp) with
             | None -> acc
             | Some rand_path ->
-              SrcDstMap.add acc ~key:(u,v) ~data:(PathMap.singleton rand_path 1.0)
+              SrcDstMap.set acc ~key:(u,v) ~data:(PathMap.singleton rand_path 1.0)
           end
         | _ -> acc)
 

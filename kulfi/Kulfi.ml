@@ -17,7 +17,7 @@ let main algo topo_fn actual_fn predicted_fn hosts_fn init_str src_routing () =
   | Raeke -> let module C = Kulfi_Controller.Make(Kulfi_Raeke) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
 
 let kulfi_main_cmd =
-  Command.basic
+  Command.basic_spec
     ~summary:"Run the Kulfi SDN controller"
     Command.Spec.(
       empty

@@ -127,7 +127,7 @@ let data_plane_fault_constraints (pmap : path_uid_map)
                   let edge_is_safe = not (EdgeSet.mem failed_links edge) in
                   up && edge_is_safe) in
               let residual_paths = List.filter ~f:(is_tunnel_up failure_scen) paths in
-              SrcDstMap.add ~key:(src,dst) ~data:residual_paths path_acc) in
+              SrcDstMap.set ~key:(src,dst) ~data:residual_paths path_acc) in
       grantedbw_constraints pmap emap topo d residual_path_set acc)
 
 
@@ -217,7 +217,7 @@ let initialize (s:scheme) : unit =
   let b = SrcDstMap.fold s
     ~init:SrcDstMap.empty
     ~f:(fun ~key:(u,v) ~data:pp_map acc ->
-       SrcDstMap.add ~key:(u,v) ~data:(PathMap.keys pp_map) acc) in
+       SrcDstMap.set ~key:(u,v) ~data:(PathMap.keys pp_map) acc) in
   state_base_path_set := b;
   ()
 
@@ -241,8 +241,8 @@ let ffc_mcf (topo:topology) (d:demands) (base_path_set : (path List.t) SrcDstMap
             List.fold_left path_list ~init:acc ~f:(fun (umap,pmap,emap) path ->
                   let id = fresh_uid () in
                   (*Printf.printf "\npath %d\t%d : " id (List.length path);*)
-                  let umap' = UidMap.add ~key:id ~data:(u,v,path) umap in
-                  let pmap' = PathMap.add ~key:path ~data:id pmap in
+                  let umap' = UidMap.set ~key:id ~data:(u,v,path) umap in
+                  let pmap' = PathMap.set ~key:path ~data:id pmap in
                   (* get the edges in the path *)
                   (* This assertion fails because we have some paths with no edges *)
                   assert (not (List.is_empty path));
@@ -251,7 +251,7 @@ let ffc_mcf (topo:topology) (d:demands) (base_path_set : (path List.t) SrcDstMap
                           | None -> [id]
                           | Some ids -> id::ids in
                               (*Printf.printf "%s " (string_of_edge topo e) ;*)
-                              EdgeMap.add ~key:e ~data:ids emap) in
+                              EdgeMap.set ~key:e ~data:ids emap) in
                   (umap',pmap',emap'))
           end) in
 

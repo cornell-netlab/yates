@@ -36,29 +36,27 @@ type demand_model =
 (* Updates all demands in the matrix to be random integers in [0,limit) *)
 let update_random matrix =
   let host_array, demand_array = matrix in
-  Array.iteri (fun i _ ->
-      Array.iteri (fun j _ ->
+  Array.iteri host_array (fun i _ ->
+      Array.iteri host_array (fun j _ ->
         demand_array.(i).(j) <-
           (if i = j then 0 else
              let d = power_law () in
              Int.of_float d))
-        host_array)
-    host_array;
+        );
   matrix
 
 (* For each entry, with probability prob, add a random amount in
    [-diff_amt, diff_amt]. Demands have a max of limit *)
 let update_sparse matrix prob diff_amt =
   let host_array, demand_array = matrix in
-  Array.iteri (fun i _ ->
-      Array.iteri (fun j _ ->
+  Array.iteri host_array (fun i _ ->
+      Array.iteri host_array (fun j _ ->
           if Random.float 1.0 > prob then ()
           else if i = j then ()
           else
             let new_dem = power_law () in
             demand_array.(i).(j) <- (Int.of_float new_dem))
-        host_array)
-    host_array;
+        );
   matrix
 
 let update model =
@@ -73,13 +71,12 @@ let create_power_law hosts =
   let host_array = Array.of_list hosts in
   let num_hosts = List.length hosts in
   let demand_array = Array.make_matrix num_hosts num_hosts 0 in
-  Array.iteri (fun i _ ->
-      Array.iteri (fun j _ ->
+  Array.iteri host_array (fun i _ ->
+      Array.iteri host_array (fun j _ ->
           if i = j then () else
             let d = power_law () in
             demand_array.(i).(j) <- Int.of_float d)
-        host_array)
-    host_array;
+        );
   Static ((host_array, demand_array))
 
 (* Given a list of hosts, makes a demand matrix initialized to random demands *)
@@ -105,12 +102,11 @@ let create_periodic hosts limit period =
   let host_array = Array.of_list hosts in
   let num_hosts = List.length hosts in
   let demand_array = Array.make_matrix num_hosts num_hosts (0., 0.) in
-  Array.iteri (fun i _ ->
-      Array.iteri (fun j _ ->
+  Array.iteri host_array (fun i _ ->
+      Array.iteri host_array (fun j _ ->
           if i = j then () else
             demand_array.(i).(j) <- (random_sinusoid ()))
-        host_array)
-    host_array;
+        );
   Periodic (freq_factor, 0, (host_array, demand_array))
 
 let get_demands model =
@@ -118,27 +114,25 @@ let get_demands model =
   | Static ((hosts, ds))
   | IIDRandom ((hosts, ds)) | SparseDiff (_,_,(hosts,ds)) ->
     let lst = ref [] in
-    Array.iteri (fun i h_i ->
-        Array.iteri (fun j h_j ->
+    Array.iteri  hosts (fun i h_i ->
+        Array.iteri hosts (fun j h_j ->
             let d = ds.(i).(j) in
             if i = j || d = 0 then () else
               lst := (hosts.(i), hosts.(j), float d)::(!lst))
-          hosts)
-      hosts;
+          );
     !lst
   | Periodic (freq,time,(hosts, demand_fns)) ->
     let lst = ref [] in
-    Array.iteri (fun i h_i ->
-        Array.iteri (fun j h_j ->
+    Array.iteri hosts (fun i h_i ->
+        Array.iteri hosts (fun j h_j ->
             if i = j then () else
               let (phase,amp) = demand_fns.(i).(j) in
               let t = float time in
               let d = phase *. Float.sin (freq *. (t +. phase)) in
               if d = 0. then () else
                 lst := (hosts.(i), hosts.(j), d)::(!lst))
-          hosts)
-      hosts;
+          );
     !lst
 
 let demand_list_to_map (demand_list:(host * host * float) list) : Kulfi_Types.demands =
-  List.fold_left ~init:SrcDstMap.empty ~f:(fun acc (u,v,r) -> SrcDstMap.add acc ~key:(u,v) ~data:r) demand_list
+  List.fold_left ~init:SrcDstMap.empty ~f:(fun acc (u,v,r) -> SrcDstMap.set acc ~key:(u,v) ~data:r) demand_list

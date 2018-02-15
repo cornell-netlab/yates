@@ -444,12 +444,11 @@ struct
     let name_of_node topo vert =
       let vert_label = Topology.vertex_to_label topo vert in
       let prefix = match Node.device vert_label with
-        | Node.Switch -> 's'
-        | Node.Host -> 'h'
-        | Node.Middlebox -> 'm' in
+        | Node.Switch -> "s"
+        | Node.Host -> "h"
+        | Node.Middlebox -> "m" in
       let name = Node.name vert_label in
-      let new_name = String.copy name in
-      new_name.[0] <- prefix;
+      let new_name = prefix ^ String.drop_prefix name 1 in
       new_name
 
     let vertex_to_dot topo vert level highlight =

@@ -22,8 +22,8 @@ let solve (topo:topology) (_:demands) : scheme =
               List.fold_left paths ~init:PathMap.empty
                 ~f:(fun acc path ->
                   let prob = 1.0 /. Float.of_int (List.length paths) in
-                  PathMap.add acc ~key:path ~data:prob) in
-            SrcDstMap.add acc ~key:(u, v) ~data:path_map) in
+                  PathMap.set acc ~key:path ~data:prob) in
+            SrcDstMap.set acc ~key:(u, v) ~data:path_map) in
   prev_scheme := new_scheme;
   new_scheme
 

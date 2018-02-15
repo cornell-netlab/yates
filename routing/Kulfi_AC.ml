@@ -231,7 +231,7 @@ let ac_lp_of_graph (topo : Topology.t) =
                 let dem =
                   if u = v then 0.
                   else 1. in
-                SrcDstMap.add v_acc ~key:(u,v) ~data:dem)) in
+                SrcDstMap.set v_acc ~key:(u,v) ~data:dem)) in
   let routing_constrs = routing_constraints topo demand_pairs in
   let ac_lp_constrs = ac_lp_constraints topo demand_pairs in
   (objective, routing_constrs@ac_lp_constrs)

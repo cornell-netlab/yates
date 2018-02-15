@@ -20,7 +20,7 @@ let create_3cycle_input () =
             ~init:acc
             ~f:(fun acc v ->
                 let r = if u = v then 0.0 else 536870912. in
-                SrcDstMap.add acc ~key:(u,v) ~data:r)) in
+                SrcDstMap.set acc ~key:(u,v) ~data:r)) in
   (hosts,topo,demands)
 
 let create_6s4h_input () =
@@ -37,7 +37,7 @@ let create_6s4h_input () =
             ~init:acc
             ~f:(fun acc v ->
                 let r = if u = v then 0.0 else 536870912. in
-                SrcDstMap.add acc ~key:(u,v) ~data:r)) in
+                SrcDstMap.set acc ~key:(u,v) ~data:r)) in
   (hosts,topo,demands)
 
 let test_max_congestion (sch : scheme) (topo : topology) (dem : demands)
@@ -107,7 +107,7 @@ let test_fair_share () =
                 | Some x -> acc
                 | None ->
                   v := !v +. 1.0;
-                  PathMap.add acc ~key:p ~data:!v)) in
+                  PathMap.set acc ~key:p ~data:!v)) in
   assert (PathMap.length paths = 7);
   (*PathMap.iter paths ~f:(fun ~key:p ~data:v -> Printf.printf "%f " v);*)
   let fs_paths = fair_share_at_edge 20.0 paths in

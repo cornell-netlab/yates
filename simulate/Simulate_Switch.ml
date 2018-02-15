@@ -15,12 +15,12 @@ let fair_share_at_edge (capacity:float) (in_flows: float PathMap.t) : (float Pat
       ~f:(fun acc (p,d) ->
         let (curr_share, spare_cap, n_rem_flows) = acc in
         if d *. (Float.of_int n_rem_flows) <= spare_cap then
-          let new_share = PathMap.add curr_share ~key:p ~data:d in
+          let new_share = PathMap.set curr_share ~key:p ~data:d in
           (new_share, spare_cap -. d, n_rem_flows - 1)
         else
           let fs = (spare_cap /. (Float.of_int n_rem_flows)) in
           if is_nan fs then assert false;
-          let new_share = PathMap.add curr_share ~key:p ~data:fs in
+          let new_share = PathMap.set curr_share ~key:p ~data:fs in
           (new_share, spare_cap -. fs, n_rem_flows - 1)) in
   fair_share
 

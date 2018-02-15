@@ -79,9 +79,9 @@ let solve (topo:topology) (d:demands) : scheme =
             ~init:acc
             ~f:(fun acc dst ->
               if src <> dst then
-                SrcDstMap.add acc ~key:(src, dst) ~data:(paths src dst)
+                SrcDstMap.set acc ~key:(src, dst) ~data:(paths src dst)
               else
-                SrcDstMap.add acc ~key:(src, dst) ~data:(PathMap.singleton [] 1.0))) in
+                SrcDstMap.set acc ~key:(src, dst) ~data:(PathMap.singleton [] 1.0))) in
       let sch =
         if !Kulfi_Globals.er_mode then
           (* Convert switch-switch scheme to host-host *)
@@ -110,7 +110,7 @@ let solve (topo:topology) (d:demands) : scheme =
                                           ~f:(fun ~key:sw_path ~data:prob acc ->
                                               let path = in_link::(sw_path@[eg_link]) in
                                               add_or_increment_path acc path prob))) in
-                        SrcDstMap.add acc ~key:(src, dst) ~data:pps
+                        SrcDstMap.set acc ~key:(src, dst) ~data:pps
                       else
                         acc))
         else

@@ -38,7 +38,7 @@ let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
             begin
             let sch = solver topo' envelope in
             assert (not (SrcDstMap.is_empty sch));
-            (EdgeMap.add ~key:e ~data:sch acc, handled_edges)
+            (EdgeMap.set ~key:e ~data:sch acc, handled_edges)
             end
           else (acc, handled_edges)
         else (acc, handled_edges)) in
@@ -70,8 +70,8 @@ let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
               let acc_prob = match PathMap.find acc_paths path with
                 | None -> 0.
                 | Some x -> x in
-              PathMap.add ~key:path ~data:(acc_prob +. f_prob) acc_paths) in
-          SrcDstMap.add ~key:(s,d) ~data:n_pp_map res)) in
+              PathMap.set ~key:path ~data:(acc_prob +. f_prob) acc_paths) in
+          SrcDstMap.set ~key:(s,d) ~data:n_pp_map res)) in
   (* normalize scheme *)
   assert (not (SrcDstMap.is_empty agg_scheme));
   normalize_scheme_opt  agg_scheme
@@ -184,7 +184,7 @@ let linearly_combine_schemes hi_fraction hi_sch lo_sch =
       let hi_paths =
         PathMap.fold hi_paths ~init:PathMap.empty
           ~f:(fun ~key:path ~data:hi_prob acc ->
-            PathMap.add ~key:path ~data:(hi_fraction *. hi_prob) acc) in
+            PathMap.set ~key:path ~data:(hi_fraction *. hi_prob) acc) in
       let paths =
         match SrcDstMap.find lo_sch (src,dst) with
         | None -> hi_paths
@@ -195,13 +195,13 @@ let linearly_combine_schemes hi_fraction hi_sch lo_sch =
               let prob = match PathMap.find acc path with
                 | None -> lo_prob
                 | Some p -> lo_prob +. p in
-              PathMap.add ~key:path ~data:prob acc) in
-      SrcDstMap.add ~key:(src,dst) ~data:paths acc) in
+              PathMap.set ~key:path ~data:prob acc) in
+      SrcDstMap.set ~key:(src,dst) ~data:paths acc) in
   let sch = SrcDstMap.fold lo_sch ~init:updated_hi
     ~f:(fun ~key:(src,dst) ~data:lo_paths acc ->
       match SrcDstMap.find acc (src,dst) with
       | None -> (* if we hadn't seen this key earlier *)
-        SrcDstMap.add ~key:(src, dst) ~data:lo_paths acc
+        SrcDstMap.set ~key:(src, dst) ~data:lo_paths acc
       | Some _ -> (* we have already processed it *)
         acc) in
   normalize_scheme sch
@@ -213,8 +213,8 @@ let split_demands_pri (dem:demands) (hipri_fraction:float) : demands * demands =
     ~f:(fun ~key:(src,dst) ~data:total_dem (hi_acc, low_acc) ->
       let hi_dem = hipri_fraction *. total_dem in
       let low_dem = total_dem -. hi_dem in
-      (SrcDstMap.add ~key:(src,dst) ~data:hi_dem hi_acc,
-       SrcDstMap.add ~key:(src,dst) ~data:low_dem low_acc)) dem
+      (SrcDstMap.set ~key:(src,dst) ~data:hi_dem hi_acc,
+       SrcDstMap.set ~key:(src,dst) ~data:low_dem low_acc)) dem
 
 (* Return a topology with residual edge capacities after reservation *)
 let reserve_bw (topo:topology) (reservation:float EdgeMap.t) : topology =
@@ -309,7 +309,7 @@ let get_path_prob_demand_map (s:scheme) (d:demands) : (probability * demand) Pat
         ~f:(fun ~key:path ~data:prob acc ->
           match PathMap.find acc path with
             | None ->
-                PathMap.add ~key:path ~data:(prob, demand) acc
+                PathMap.set ~key:path ~data:(prob, demand) acc
             | Some x ->
                 if List.is_empty path then acc
                 else failwith "Duplicate paths should not be present"))
@@ -350,7 +350,7 @@ let get_aggregate_latency (sd_lat_tput_map_map:(throughput LatencyMap.t) SrcDstM
                         | None -> 0.0
                         | Some x -> x in
         let agg_tput = prev_agg_tput +. (tput /. (Float.of_int num_iter)) in
-        LatencyMap.add ~key:latency ~data:(agg_tput) acc))
+        LatencyMap.set ~key:latency ~data:(agg_tput) acc))
 
 let get_num_paths (s:scheme) : float =
 let count = SrcDstMap.fold s
@@ -367,7 +367,7 @@ let get_latency_percentiles (lat_tput_map : throughput LatencyMap.t)
     ~f:(fun ~key:latency ~data:tput acc ->
       let lat_percentile_map,sum_tput = acc in
       let sum_tput' = sum_tput +. tput in
-      (LatencyMap.add ~key:latency ~data:(sum_tput' /. agg_dem)
+      (LatencyMap.set ~key:latency ~data:(sum_tput' /. agg_dem)
       lat_percentile_map, sum_tput')) in
   latency_percentiles
 
@@ -417,7 +417,7 @@ let update_flash_demand topo sink dem flash_t per_src_flash_factor total_t: dema
           let sd_dem =
             SrcDstMap.find_exn dem (src,sink)
             |> flash_demand_t per_src_flash_factor (Float.of_int flash_t) total_t in
-          SrcDstMap.add ~key:(src,sink) ~data:sd_dem acc)
+          SrcDstMap.set ~key:(src,sink) ~data:sd_dem acc)
 
 (* find the destination for flash crowd *)
 let pick_flash_sinks (topo:topology) (iters:int) =
@@ -648,7 +648,7 @@ let simulate_tm (start_scheme:scheme)
                       | Some v -> v in
                     let traf_first_link =
                       (path_arr, 1, (prob *. sd_demand))::sched_traf_first_link in
-                    EdgeMap.add ~key:first_link ~data:traf_first_link acc) in
+                    EdgeMap.set ~key:first_link ~data:traf_first_link acc) in
 
           (* if no (s-d) path, then entire demand is dropped due to failure *)
           (* if no (s-d) key, then entire demand is dropped due to failure *)
@@ -743,7 +743,7 @@ let simulate_tm (start_scheme:scheme)
                               match SrcDstMap.find dlvd_map (src,dst) with
                               | None -> 0.0
                               | Some x -> x in
-                            let new_dlvd = SrcDstMap.add dlvd_map
+                            let new_dlvd = SrcDstMap.set dlvd_map
                                 ~key:(src,dst)
                                 ~data:(prev_sd_dlvd +. flow_fair_share) in
 
@@ -757,10 +757,10 @@ let simulate_tm (start_scheme:scheme)
                               match LatencyMap.find prev_sd_ltm path_latency with
                               | None -> 0.0
                               | Some x -> x in
-                            let new_sd_ltm = LatencyMap.add prev_sd_ltm
+                            let new_sd_ltm = LatencyMap.set prev_sd_ltm
                                 ~key:path_latency
                                 ~data:(prev_sd_tput_for_latency +. flow_fair_share) in
-                            let new_ltm_map = SrcDstMap.add ltm_map
+                            let new_ltm_map = SrcDstMap.set ltm_map
                                 ~key:(src,dst)
                                 ~data:new_sd_ltm in
                             (nit,
@@ -777,7 +777,7 @@ let simulate_tm (start_scheme:scheme)
                             let traf_next_link =
                               (path,dist+1,flow_fair_share)::sched_traf_next_link in
                             let new_nit =
-                              EdgeMap.add ~key:next_link ~data:traf_next_link nit in
+                              EdgeMap.set ~key:next_link ~data:traf_next_link nit in
                             (new_nit,
                              dlvd_map,
                              ltm_map)) in
@@ -790,7 +790,7 @@ let simulate_tm (start_scheme:scheme)
                           match (EdgeMap.find curr_lutil_map e) with
                           | None -> []
                           | Some x -> x in
-                        EdgeMap.add curr_lutil_map
+                        EdgeMap.set curr_lutil_map
                           ~key:e
                           ~data:(forwarded_by_link::curr_lutil_e)
                       end
@@ -840,7 +840,7 @@ let simulate_tm (start_scheme:scheme)
       SrcDstMap.fold final_network_state.delivered
         ~init:SrcDstMap.empty
         ~f:(fun ~key:sd ~data:dlvd acc ->
-            SrcDstMap.add acc
+            SrcDstMap.set acc
               ~key:sd
               ~data:(dlvd /. (Float.of_int num_iterations) /. !agg_dem));
 
@@ -851,7 +851,7 @@ let simulate_tm (start_scheme:scheme)
       EdgeMap.fold final_network_state.utilization
         ~init:EdgeMap.empty
         ~f:(fun ~key:e ~data:util_list acc ->
-            EdgeMap.add acc
+            EdgeMap.set acc
               ~key:e
               ~data:((average_list util_list) /. (capacity_of_edge topo e),
                      (max_list util_list)    /. (capacity_of_edge topo e)));

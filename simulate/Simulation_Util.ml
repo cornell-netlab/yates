@@ -158,7 +158,7 @@ let count_paths_through_edge (s:scheme) : (int EdgeMap.t) =
         let c = match EdgeMap.find acc edge with
                 | None -> 0
                 | Some x -> x in
-        EdgeMap.add ~key:edge ~data:(c+1) acc)))
+        EdgeMap.set ~key:edge ~data:(c+1) acc)))
 
 
 

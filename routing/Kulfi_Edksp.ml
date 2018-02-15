@@ -265,10 +265,10 @@ let solve_lp (topo:topology) : scheme =
         let path_map = List.fold_left ksp ~init:PathMap.empty
                          ~f:(fun acc2 path ->
                            let prob = 1.0 /. num_paths in
-                           PathMap.add acc2 ~key:path ~data:prob) in
-        SrcDstMap.add ~key:(src,dst) ~data:path_map acc
+                           PathMap.set acc2 ~key:path ~data:prob) in
+        SrcDstMap.set ~key:(src,dst) ~data:path_map acc
     | Some x ->
-        SrcDstMap.add ~key:(src,dst) ~data:x acc)
+        SrcDstMap.set ~key:(src,dst) ~data:x acc)
 
 let solve (topo:topology) (_:demands) : scheme =
   let new_scheme =

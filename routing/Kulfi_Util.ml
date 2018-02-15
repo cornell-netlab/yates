@@ -79,8 +79,8 @@ let source_routing_configuration_of_scheme (topo:topology) (scm:scheme) (tag_has
                           Printf.printf "Couldn't find %s\n" (dump_edges topo [edge]);
                           99
                         | Some t -> t)) in
-                  TagsMap.add acc ~key:tags ~data:prob) in
-          SrcDstMap.add acc ~key:(src,dst) ~data:tags)
+                  TagsMap.set acc ~key:tags ~data:prob) in
+          SrcDstMap.set acc ~key:(src,dst) ~data:tags)
 
 let path_routing_configuration_of_scheme (topo:topology) (scm:scheme) (path_tag_map: int PathMap.t) : configuration =
   SrcDstMap.fold scm
@@ -91,8 +91,8 @@ let path_routing_configuration_of_scheme (topo:topology) (scm:scheme) (path_tag_
           let tag_prob_map = PathMap.fold path_prob_map ~init:TagsMap.empty
             ~f:(fun ~key:path ~data:prob acc ->
               let tag = PathMap.find_exn path_tag_map path in
-              TagsMap.add acc ~key:([tag]) ~data:prob) in
-          SrcDstMap.add acc ~key:(src,dst) ~data:tag_prob_map)
+              TagsMap.set acc ~key:([tag]) ~data:prob) in
+          SrcDstMap.set acc ~key:(src,dst) ~data:tag_prob_map)
 
 
 let bprint_tags (buf:Buffer.t) (tag_dist:probability TagsMap.t) : unit =
@@ -114,7 +114,7 @@ let bprint_configuration (topo:topology) (bufs:(Topology.vertex,Buffer.t) Hashtb
 	  | None -> 0
           | Some x -> x
         in
-     VertexMap.add acc ~key:src ~data:(count+1);
+     VertexMap.set acc ~key:src ~data:(count+1);
      ) in
   SrcDstMap.iteri
     conf
@@ -168,15 +168,15 @@ let normalize_scheme_fs (s : scheme) (fs: float SrcDstMap.t) : scheme =
                 default_value
               else
                 rate /. sum_rate in
-            PathMap.add ~key:path ~data:normalized_rate acc)
+            PathMap.set ~key:path ~data:normalized_rate acc)
           f_decomp in
-      SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc) s
+      SrcDstMap.set ~key:(u,v) ~data:normalized_f_decomp acc) s
 
 let normalize_scheme_opt (s:scheme) : scheme =
   let zero_sum =
     SrcDstMap.fold s ~init:SrcDstMap.empty
       ~f:(fun ~key:sd ~data:_ acc ->
-        SrcDstMap.add ~key:sd ~data:0. acc) in
+        SrcDstMap.set ~key:sd ~data:0. acc) in
   normalize_scheme_fs s zero_sum
 
 (* Normalize path weights so that the weights sum to 1 *)
@@ -190,13 +190,13 @@ let normalize_paths_prob paths =
           1. /. (Float.of_int (PathMap.length paths))
         else
           prob /. total_prob in
-      PathMap.add ~key:path ~data:new_prob acc)
+      PathMap.set ~key:path ~data:new_prob acc)
 
 (* Normalize path weights for the routing scheme *)
 let normalize_scheme sch =
   SrcDstMap.fold sch ~init:SrcDstMap.empty
     ~f:(fun ~key:(src,dst) ~data:paths acc ->
-      SrcDstMap.add ~key:(src,dst) ~data:(normalize_paths_prob paths) acc)
+      SrcDstMap.set ~key:(src,dst) ~data:(normalize_paths_prob paths) acc)
 
 (* Modify routing scheme by normalizing path probabilites while avoiding failed links *)
 let normalization_recovery (curr_scheme:scheme) (_:topology) (failed_links:failure) (_:demands) : scheme =
@@ -212,7 +212,7 @@ let normalization_recovery (curr_scheme:scheme) (_:topology) (failed_links:failu
         valid && edge_is_safe) in
     let n_paths = PathMap.filteri ~f:(fun ~key:p ~data:_ -> is_path_alive p) paths in
     let renormalized_paths = normalize_paths_prob n_paths in
-    SrcDstMap.add ~key:(src,dst) ~data:renormalized_paths acc) in
+    SrcDstMap.set ~key:(src,dst) ~data:renormalized_paths acc) in
   new_scheme
 
 (* Set of switch nodes *)
@@ -276,14 +276,14 @@ let edge_to_string_map (t:topology) : string EdgeMap.t =
   ~init:EdgeMap.empty
   ~f:(fun acc e ->
     let edge_str = (string_of_edge t e) in
-    EdgeMap.add acc ~key:e ~data:edge_str)
+    EdgeMap.set acc ~key:e ~data:edge_str)
 
 
 let string_to_edge_map (t:topology) : edge StringMap.t =
   let edge_list = EdgeSet.elements (Topology.edges t) in
   List.fold_left edge_list
   ~init:StringMap.empty
-  ~f:(fun acc e -> StringMap.add acc ~key:(string_of_edge t e) ~data:e)
+  ~f:(fun acc e -> StringMap.set acc ~key:(string_of_edge t e) ~data:e)
 
 let dump_path_prob_set (t:topology) (pps:probability PathMap.t) : string =
   let buf = Buffer.create 101 in
@@ -443,7 +443,7 @@ let add_or_increment_path (fd : flow_decomp) (p : path) (r : probability) : flow
   let new_value = match PathMap.find fd p with
     | None -> r
     | Some prior_value -> prior_value +. r in
-  PathMap.add ~key:p ~data:new_value fd
+  PathMap.set ~key:p ~data:new_value fd
 
 (* Checks *)
 (* Check if all src-dst pairs are connected with given scheme *)
@@ -521,8 +521,8 @@ let prune_scheme (t:topology) (s:scheme) (budget:int) : scheme =
           let top_pp = list_first_n sorted_pp budget in
           let total_prob = List.fold_left top_pp ~init:0.0 ~f:(fun acc (_,prob) -> acc +. prob) in
           List.fold_left top_pp ~init:PathMap.empty ~f:(fun acc (path,prob) ->
-              PathMap.add acc ~key:path ~data:(prob /. total_prob)) in
-      SrcDstMap.add acc ~key:(src,dst) ~data:pruned_paths) in
+              PathMap.set acc ~key:path ~data:(prob /. total_prob)) in
+      SrcDstMap.set acc ~key:(src,dst) ~data:pruned_paths) in
   (*assert (probabilities_sum_to_one new_scheme);*)
   (*assert (all_pairs_connectivity t (get_hosts t) new_scheme);*)
   new_scheme
@@ -539,7 +539,7 @@ let fit_scheme_to_bins (s:scheme) (nbins:int) : scheme =
             (* (prob * nbins) -> get ceiling and remainder *)
             let int_prob = Float.to_int scaled_prob in
             let rem_prob = scaled_prob -. (Float.of_int int_prob) in
-            (PathMap.add path_acc ~key:path ~data:(int_prob, rem_prob),
+            (PathMap.set path_acc ~key:path ~data:(int_prob, rem_prob),
              int_prob_acc + int_prob)) in
       let num_paths_to_roundup = nbins - sum_int_probs in
       let sorted_by_rem_prob =
@@ -552,9 +552,9 @@ let fit_scheme_to_bins (s:scheme) (nbins:int) : scheme =
               if to_roundup > 0 then int_prob + 1
               else int_prob in
             let prob = Float.(of_int int_prob / of_int nbins) in
-            (PathMap.add path_acc ~key:path ~data:prob,
+            (PathMap.set path_acc ~key:path ~data:prob,
              to_roundup - 1)) in
-      SrcDstMap.add acc ~key:(src,dst) ~data:pp_map)
+      SrcDstMap.set acc ~key:(src,dst) ~data:pp_map)
 
 
 (**************************************************)
@@ -577,7 +577,7 @@ let solve_spf (topo:topology) (_:demands) : scheme =
           (match (device x, device y) with | (Node.Host,Node.Host) -> true | _ -> false)
     ) in
   List.fold_left apsp ~init:SrcDstMap.empty ~f:(fun acc (c,v1,v2,p) ->
-    SrcDstMap.add acc ~key:(v1,v2) ~data:( PathMap.singleton p 1.0) )
+    SrcDstMap.set acc ~key:(v1,v2) ~data:( PathMap.singleton p 1.0) )
 
 
 (* check all-pairs connectivity after failure *)
@@ -635,9 +635,9 @@ let traffic_on_edge (t:topology) (d:demands) (s:scheme) : (float EdgeMap.t) =
                 | Some x -> x in
               match EdgeMap.find acc e with
               | None ->
-                EdgeMap.add ~key:e ~data:(demand *. prob) acc
+                EdgeMap.set ~key:e ~data:(demand *. prob) acc
               | Some x ->
-                EdgeMap.add ~key:e ~data:((demand *. prob) +. x) acc)))
+                EdgeMap.set ~key:e ~data:((demand *. prob) +. x) acc)))
 
 (* Compute expected link utilization load on links.
    Expected utilization can be > 1 *)
@@ -645,7 +645,7 @@ let congestion_of_paths (t:topology) (d:demands) (s:scheme) : (float EdgeMap.t) 
   let sent_on_each_edge = traffic_on_edge t d s in
   EdgeMap.fold ~init:EdgeMap.empty
     ~f:(fun ~key:e ~data:amount_sent acc ->
-      EdgeMap.add
+      EdgeMap.set
         ~key:e
         ~data:(amount_sent /. (capacity_of_edge t e))
         acc) sent_on_each_edge

@@ -188,9 +188,9 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
             List.fold_left
               paths
               ~init:(PathMap.empty,0.)
-              ~f:(fun (acc,sum_acc) (path,scalar) -> (PathMap.add acc path scalar, sum_acc +. scalar) ) in
-          let new_us = SrcDstMap.add us ~key:(s_v,t_v) ~data:p in
-          let new_fs = SrcDstMap.add fs ~key:(s_v,t_v) ~data:sum_rate in
+              ~f:(fun (acc,sum_acc) (path,scalar) -> (PathMap.set acc path scalar, sum_acc +. scalar) ) in
+          let new_us = SrcDstMap.set us ~key:(s_v,t_v) ~data:p in
+          let new_fs = SrcDstMap.set fs ~key:(s_v,t_v) ~data:sum_rate in
           (new_us, new_fs)) in
       (* Now normalize the values in the scheme so that they sum to 1 for each source-dest pair *)
   SrcDstMap.fold ~init:(SrcDstMap.empty)
@@ -209,9 +209,9 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
                   else
                     rate /. sum_rate in
 
-                PathMap.add ~key:path ~data:normalized_rate acc)
+                PathMap.set ~key:path ~data:normalized_rate acc)
             f_decomp in
-        SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc) unnormalized_scheme
+        SrcDstMap.set ~key:(u,v) ~data:normalized_f_decomp acc) unnormalized_scheme
 
 let rec new_rand () : float =
   let rand = (Random.float 1.0) in

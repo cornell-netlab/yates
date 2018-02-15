@@ -25,7 +25,7 @@ let solve (topo:topology) (d:demands) : scheme =
           match get_random_path v1 v2 topo mpapsp with
           | None -> acc
           | Some rand_path ->
-            SrcDstMap.add acc ~key:(v1,v2) ~data:rand_path) in
+            SrcDstMap.set acc ~key:(v1,v2) ~data:rand_path) in
 
   let find_path src dst = SrcDstMap.find_exn spf_table (src,dst) in
 
@@ -62,7 +62,7 @@ let solve (topo:topology) (d:demands) : scheme =
     ~f:(fun ~key:(v1,v2) ~data:_ acc ->
       match (device v1, device v2) with
       | (Node.Host,Node.Host) ->
-        SrcDstMap.add acc ~key:(v1,v2) ~data:( vlb_pps v1 v2 )
+        SrcDstMap.set acc ~key:(v1,v2) ~data:( vlb_pps v1 v2 )
       | _ -> acc
     ) in
   (* Printf.printf "%s\n" (dump_scheme topo scheme); *)

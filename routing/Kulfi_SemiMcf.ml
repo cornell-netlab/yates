@@ -166,13 +166,13 @@ let scheme_and_flows flows umap : (scheme * float SrcDstMap.t) =
            contains an unrecognized UID, throw an error. *)
         | Some (u,v,path) -> (* u = source, v = destination, p = path *)
           let new_us_data = match SrcDstMap.find us (u,v) with
-            | None -> let pm = PathMap.empty in PathMap.add ~key:path ~data:flow_val pm
+            | None -> let pm = PathMap.empty in PathMap.set ~key:path ~data:flow_val pm
             | Some pm -> add_or_increment_path pm path flow_val in
           let new_fs_data = match SrcDstMap.find fs (u,v) with
             | None -> flow_val
             | Some fv -> fv +. flow_val in
-          let new_us = SrcDstMap.add ~key:(u,v) ~data:new_us_data us in
-          let new_fs = SrcDstMap.add ~key:(u,v) ~data:new_fs_data fs in
+          let new_us = SrcDstMap.set ~key:(u,v) ~data:new_us_data us in
+          let new_fs = SrcDstMap.set ~key:(u,v) ~data:new_fs_data fs in
           (new_us,new_fs) )  in
   (unnormalized_scheme, flow_sum)
 
@@ -196,8 +196,8 @@ let normalize (unnormalized_scheme:scheme) (flow_sum:float SrcDstMap.t) : scheme
                    default_value
                  else
                    rate /. sum_rate in
-               PathMap.add ~key:path ~data:normalized_rate acc) f_decomp in
-             SrcDstMap.add ~key:(u,v) ~data:normalized_f_decomp acc)
+               PathMap.set ~key:path ~data:normalized_rate acc) f_decomp in
+             SrcDstMap.set ~key:(u,v) ~data:normalized_f_decomp acc)
 
 let initialize (s:scheme) : unit =
   ignore (if (SrcDstMap.is_empty s) then
@@ -205,7 +205,7 @@ let initialize (s:scheme) : unit =
           else ());
   let b = SrcDstMap.fold s ~init:SrcDstMap.empty
             ~f:(fun ~key:(u,v) ~data:pp_map acc ->
-              SrcDstMap.add ~key:(u,v)
+              SrcDstMap.set ~key:(u,v)
                 ~data:(List.map ~f:fst (PathMap.to_alist pp_map)) acc) in
   state_base_path_set := b;
   ()
@@ -234,8 +234,8 @@ let restricted_mcf (topo:topology) (d:demands)
               ~f:(fun (umap,pmap,emap) path ->
                 let id = fresh_uid () in
                 (*Printf.printf "\npath %d\t%d : " id (List.length path);*)
-                let umap' = UidMap.add ~key:id ~data:(u,v,path) umap in
-                let pmap' = PathMap.add ~key:path ~data:id pmap in
+                let umap' = UidMap.set ~key:id ~data:(u,v,path) umap in
+                let pmap' = PathMap.set ~key:path ~data:id pmap in
                 (* get the edges in the path *)
                 (* This assertion fails because we have some paths with no edges *)
                 assert (not (List.is_empty path));
@@ -248,7 +248,7 @@ let restricted_mcf (topo:topology) (d:demands)
                         | None -> [id]
                         | Some ids -> id::ids in
                       (*Printf.printf "%s " (string_of_edge topo e) ;*)
-                      EdgeMap.add ~key:e ~data:ids emap) in
+                      EdgeMap.set ~key:e ~data:ids emap) in
                 (umap',pmap',emap'))
           end) in
 
@@ -284,7 +284,7 @@ let local_recovery (_:scheme) (topo:topology) (failed_links:failure)
         let n_paths = List.fold_left path_list
                         ~init:[]
                         ~f:(fun acc p -> if (is_path_alive p) then p::acc else acc) in
-        SrcDstMap.add ~key:(src,dst) ~data:n_paths acc) in
+        SrcDstMap.set ~key:(src,dst) ~data:n_paths acc) in
   (* If there is no path in base set for a u-v pair, then MCF produces an
    * empty scheme. To avoid this, we set u-v demand = 0  *)
   let new_demands =
@@ -294,7 +294,7 @@ let local_recovery (_:scheme) (topo:topology) (failed_links:failure)
         let uv_dem = if (List.length bpset) = 0
           then 0.
           else SrcDstMap.find_exn d (u,v) in
-        SrcDstMap.add ~key:(u,v) ~data:uv_dem acc) in
+        SrcDstMap.set ~key:(u,v) ~data:uv_dem acc) in
   let new_scheme = restricted_mcf topo new_demands new_base_path_set in
   new_scheme
 
@@ -332,7 +332,7 @@ let local_recovery (_:scheme) (topo:topology) (failed_links:failure)
 			let xids = match (EdgeMap.find emap e ) with
 			  | None -> ids
 			  | Some newids -> List.sort Pervasives.compare (newids @ ids) in
-			UidMap.add ~key:id ~data:xids pxmap) in
+			UidMap.set ~key:id ~data:xids pxmap) in
 		(pxmap')) end) in
 
   let rec remove_dups lst = match lst with

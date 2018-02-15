@@ -27,7 +27,7 @@ module MWInput : MW_INPUT with type structure = scheme = struct
 	let ratio = dmd /. (capacity_of_edge topo e) in
 	Float.max_inan acc ratio ) ) in *)
     let spf_scheme = List.fold_left apsp ~init:SrcDstMap.empty ~f:(fun acc (c,v1,v2,p) ->
-      SrcDstMap.add acc ~key:(v1,v2) ~data:( PathMap.singleton p 1. ) ) in
+      SrcDstMap.set acc ~key:(v1,v2) ~data:( PathMap.singleton p 1. ) ) in
     (spf_scheme, 1.)
 
 
@@ -45,7 +45,7 @@ module MWInput : MW_INPUT with type structure = scheme = struct
               let new_usage = match EdgeMap.find acc e with
                 | None -> y
                 | Some z -> z +. y in
-              EdgeMap.add acc ~key:e ~data:new_usage) ) ) in
+              EdgeMap.set acc ~key:e ~data:new_usage) ) ) in
     EdgeMap.to_alist usage_map
 
   let set_weight topo edge w =
@@ -91,8 +91,8 @@ let solve (t:topology) (d:demands) : scheme =
                     ~f:(fun ~key:p ~data:r (oud,ofd) ->
                       let scaled_r = coeff *. r in
                       ( (add_or_increment_path oud p scaled_r) , (ofd +. scaled_r) ) ) in
-                ( SrcDstMap.add ~key:(u,v) ~data:new_us_data us,
-                  SrcDstMap.add ~key:(u,v) ~data:new_fs_data fs ) ) ) in
+                ( SrcDstMap.set ~key:(u,v) ~data:new_us_data us,
+                  SrcDstMap.set ~key:(u,v) ~data:new_fs_data fs ) ) ) in
       normalize_scheme_fs unnormalized_scheme flow_sum
     else !prev_scheme in
   prev_scheme := new_scheme;

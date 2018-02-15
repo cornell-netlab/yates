@@ -41,7 +41,7 @@ let path_update (p:path) (rate:float) (f:flow) : flow =
                                                match EdgeMap.find f e with
                                                | None -> assert false
                                                | Some demand -> demand in
-                                             EdgeMap.add ~key:e ~data:(old_rate +. rate) acc ) p
+                                             EdgeMap.set ~key:e ~data:(old_rate +. rate) acc ) p
 
 (*
 let apply_to_each_edge (mcf:mc_flow) (fcn:float -> float) : mc_flow =
@@ -49,9 +49,9 @@ let apply_to_each_edge (mcf:mc_flow) (fcn:float -> float) : mc_flow =
     ~f:(fun ~key:(u,v) ~data:(edge_map) acc ->
         let new_edge_map = EdgeMap.fold ~init:EdgeMap.empty
                           ~f:(fun ~key:e ~data:x acc ->
-                              EdgeMap.add ~key:e ~data:(fcn x) acc)
+                              EdgeMap.set ~key:e ~data:(fcn x) acc)
 	                  edge_map in
-	SrcDstMap.add ~key:(u,v) ~data:new_edge_map acc
+	SrcDstMap.set ~key:(u,v) ~data:new_edge_map acc
     ) mcf
 *)
 
@@ -60,9 +60,9 @@ let apply_on_each_edge (mcf:mc_flow) (fcn:edge -> float -> float) : mc_flow =
     ~f:(fun ~key:(u,v) ~data:(edge_map) acc ->
         let new_edge_map = EdgeMap.fold ~init:EdgeMap.empty
                           ~f:(fun ~key:e ~data:x acc ->
-                              EdgeMap.add ~key:e ~data:(fcn e x) acc)
+                              EdgeMap.set ~key:e ~data:(fcn e x) acc)
 	                  edge_map in
-	SrcDstMap.add ~key:(u,v) ~data:new_edge_map acc
+	SrcDstMap.set ~key:(u,v) ~data:new_edge_map acc
     ) mcf
 
 let solve (topo:topology) (d:demands) : scheme =
@@ -70,8 +70,8 @@ let solve (topo:topology) (d:demands) : scheme =
   ignore (if (SrcDstMap.is_empty !prev_scheme) then failwith "Kulfi_Ak must be initialized with a non-empty scheme" else ());
   (* First build HashMaps, keyed by edges, containing the
      values f(e), f_i(e), from the pseudocode. *)
-  let f' = Topology.fold_edges (fun edge acc -> EdgeMap.add acc ~key:edge ~data:0.0 ) topo EdgeMap.empty in
-  let f_i' = SrcDstMap.fold ~init:SrcDstMap.empty ~f:(fun ~key:(u,v) ~data:_ acc -> SrcDstMap.add ~key:(u,v) ~data:f' acc) !prev_scheme in
+  let f' = Topology.fold_edges (fun edge acc -> EdgeMap.set acc ~key:edge ~data:0.0 ) topo EdgeMap.empty in
+  let f_i' = SrcDstMap.fold ~init:SrcDstMap.empty ~f:(fun ~key:(u,v) ~data:_ acc -> SrcDstMap.set ~key:(u,v) ~data:f' acc) !prev_scheme in
 
   (* populate f,f_i according to what we saw in the last scheme *)
   let (f,f_i) =
@@ -92,7 +92,7 @@ let solve (topo:topology) (d:demands) : scheme =
                 let f_i'' = let f = match SrcDstMap.find f_i (u,v) with
                               | None -> assert false
                               | Some f -> f in
-                            SrcDstMap.add ~key:(u,v) ~data:(path_update p (r*.x) f) f_i in
+                            SrcDstMap.set ~key:(u,v) ~data:(path_update p (r*.x) f) f_i in
                 (f'', f_i''))) in
 
   (* recompute mu, RouteMetric line 1 *)
@@ -203,7 +203,7 @@ let solve (topo:topology) (d:demands) : scheme =
 	    EdgeMap.fold
 	      ~init:EdgeMap.empty
 	      ~f:(fun ~key:e ~data:x acc ->
-		  EdgeMap.add acc ~key:e ~data:(x *. scale_factor) ) ff in
+		  EdgeMap.set acc ~key:e ~data:(x *. scale_factor) ) ff in
 	  let new_lb =
 	    EdgeMap.fold
 	      ~init:EdgeMap.empty
@@ -213,19 +213,19 @@ let solve (topo:topology) (d:demands) : scheme =
 			    | Some y -> y
 		  in
 		  let subtrahand = (delta /. d_i) *. fie in
-		  EdgeMap.add acc ~key:e ~data:(x -. subtrahand)
+		  EdgeMap.set acc ~key:e ~data:(x -. subtrahand)
 	      ) lb in
 	  let new_ub =
 	    path_update p ( Float.neg delta ) ub in
 	  let new_ff =
 	    path_update p delta scaled_ff in
 	  let new_fd =
-	    PathMap.add ~key:p ~data:delta fd in
+	    PathMap.set ~key:p ~data:delta fd in
 	  reroute new_target new_ff new_fd new_lb new_ub
 	else (* matches if (target >. 0.) && ( List.length p ) > 0 *)
 	  fd
       in
-      SrcDstMap.add ~key:(u,v) ~data:(reroute initial_target fi ( find_or_die
+      SrcDstMap.set ~key:(u,v) ~data:(reroute initial_target fi ( find_or_die
       !prev_scheme (u,v) ) dmi dpi ) new_path_map
     ) !prev_scheme
   in
