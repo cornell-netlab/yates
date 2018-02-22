@@ -1,9 +1,9 @@
 OASISFormat: 0.4
 OCamlVersion: >= 4.05.0
-Name:        kulfi
+Name:        yates
 Version:     0.1
 Synopsis:    Traffic engineering framework.
-Authors:     Kulfi team
+Authors:     YATES team
 License:     LGPL-3.0
 Plugins:     META (0.4), StdFiles (0.4), DevFiles (0.4)
 
@@ -65,11 +65,11 @@ Library simulate
     routing,
     util
 
-Executable kulfi
+Executable yates
   Install: False
   Build$: flag(is_native)
-  Path:   kulfi
-  MainIs: Kulfi.ml
+  Path:   yates
+  MainIs: Yates.ml
   CompiledObject: native
   BuildDepends:
     controller,
@@ -101,5 +101,5 @@ Executable test_runner
    util
 
 Test test
- Command: $test_runner inline-test-runner kulfi
+ Command: $test_runner inline-test-runner yates
  TestTools: test_runner

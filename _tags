@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 48f8f321803520854714962d1c0ef8c4)
+# DO NOT EDIT (digest: 04b1ccf2b3cd292539bbe5ed6cba5245)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -51,29 +51,29 @@ true: annot, bin_annot
 <controller/*.ml{,i,y}>: use_util
 # Library simulate
 "simulate/simulate.cmxs": use_simulate
-# Executable kulfi
-"kulfi/Kulfi.native": package(async)
-"kulfi/Kulfi.native": package(core)
-"kulfi/Kulfi.native": package(frenetic)
-"kulfi/Kulfi.native": package(frenetic.async)
-"kulfi/Kulfi.native": package(ocamlgraph)
-"kulfi/Kulfi.native": package(ppx_jane)
-"kulfi/Kulfi.native": package(sexplib)
-"kulfi/Kulfi.native": package(threads)
-"kulfi/Kulfi.native": use_controller
-"kulfi/Kulfi.native": use_routing
-"kulfi/Kulfi.native": use_util
-<kulfi/*.ml{,i,y}>: package(async)
-<kulfi/*.ml{,i,y}>: package(core)
-<kulfi/*.ml{,i,y}>: package(frenetic)
-<kulfi/*.ml{,i,y}>: package(frenetic.async)
-<kulfi/*.ml{,i,y}>: package(ocamlgraph)
-<kulfi/*.ml{,i,y}>: package(ppx_jane)
-<kulfi/*.ml{,i,y}>: package(sexplib)
-<kulfi/*.ml{,i,y}>: package(threads)
-<kulfi/*.ml{,i,y}>: use_controller
-<kulfi/*.ml{,i,y}>: use_routing
-<kulfi/*.ml{,i,y}>: use_util
+# Executable yates
+"yates/Yates.native": package(async)
+"yates/Yates.native": package(core)
+"yates/Yates.native": package(frenetic)
+"yates/Yates.native": package(frenetic.async)
+"yates/Yates.native": package(ocamlgraph)
+"yates/Yates.native": package(ppx_jane)
+"yates/Yates.native": package(sexplib)
+"yates/Yates.native": package(threads)
+"yates/Yates.native": use_controller
+"yates/Yates.native": use_routing
+"yates/Yates.native": use_util
+<yates/*.ml{,i,y}>: package(async)
+<yates/*.ml{,i,y}>: package(core)
+<yates/*.ml{,i,y}>: package(frenetic)
+<yates/*.ml{,i,y}>: package(frenetic.async)
+<yates/*.ml{,i,y}>: package(ocamlgraph)
+<yates/*.ml{,i,y}>: package(ppx_jane)
+<yates/*.ml{,i,y}>: package(sexplib)
+<yates/*.ml{,i,y}>: package(threads)
+<yates/*.ml{,i,y}>: use_controller
+<yates/*.ml{,i,y}>: use_routing
+<yates/*.ml{,i,y}>: use_util
 # Executable simulator
 "simulate/Simulate_Driver.native": package(async)
 "simulate/Simulate_Driver.native": package(core)

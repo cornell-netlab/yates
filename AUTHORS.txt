@@ -1,8 +1,8 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: b225c4fcc03cc6ddaab92964612347e3) *)
+(* DO NOT EDIT (digest: 84722821c2ecc51bde100519917c86c3) *)
 
-Authors of kulfi:
+Authors of yates:
 
-* Kulfi team
+* YATES team
 
 (* OASIS_STOP *)
