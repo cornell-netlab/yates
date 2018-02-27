@@ -1,11 +1,6 @@
 open Core
 
 open ExperimentalData
-open Yates_Globals
-open Yates_Routing
-open Yates_Traffic
-open Yates_Types
-open Yates_Util
 open RunningStat
 open Simulate_Demands
 open Simulate_Exps
@@ -13,6 +8,11 @@ open Simulate_Failure
 open Simulate_TM
 open Simulation_Types
 open Simulation_Util
+open Yates_Globals
+open Yates_Routing
+open Yates_Traffic
+open Yates_Types
+open Yates_Util
 
 (* Set weight of a specified edge *)
 let set_weight topo edge wt : unit =
@@ -152,7 +152,7 @@ let accumulate_vulnerability_stats topology_file topo algorithm scheme  =
   IntMap.iteri vuln_score_count ~f:(fun ~key:n ~data:c ->
     Printf.bprintf buf "%f : %f\n" ((Float.of_int n) /. (Float.of_int mult))
     (c /.  tot_count));
-  let out_dir = "./expData/" in
+  let out_dir = "./data/results/" in
   let _ =
     match (Sys.file_exists out_dir) with
     | `No -> Unix.mkdir out_dir
@@ -219,7 +219,7 @@ let simulate
   let edge_weights = set_topo_weights topo rtt_file_opt in
 
   (* Store results in a directory name =
-     topology name or provided name in expData *)
+     topology name or provided name in data/results/ *)
   let output_dir = match out_dir with
     | Some x -> x
     | None ->
@@ -230,7 +230,7 @@ let simulate
       match suffix with
       | Some x -> x
       | None -> "default" in
-  let abs_out_dir = "./expData/" ^ output_dir ^ "/" in
+  let abs_out_dir = "./data/results/" ^ output_dir ^ "/" in
 
   (************************************************************)
   (********* Create records to store statisitics **************)
@@ -546,7 +546,7 @@ let compare_scaling_limit algorithms (num_tms:int option) (topo_file:string)
         (solver_to_string algorithm) i (1. /. cmax) );
       close_demands actual_ic);
 
-  let dir = "./expData/" ^ out_dir ^ "/" in
+  let dir = "./data/results/" ^ out_dir ^ "/" in
   let _ = match (Sys.file_exists dir) with | `No -> Unix.mkdir dir | _ -> () in
   let oc = Out_channel.create (dir ^ file_name) in
   fprintf oc "%s\n" (Buffer.contents buf);
@@ -643,7 +643,7 @@ let command =
     +> flag "-budget" (optional_with_default (Int.max_value/100) int) ~doc:" max paths between each pair of hosts"
     +> flag "-nbins" (optional int) ~doc:" number of bins to round path weights into"
     +> flag "-scale" (optional_with_default 1. float) ~doc:" scale demands by this factor"
-    +> flag "-out" (optional string) ~doc:" name of directory in expData to store results"
+    +> flag "-out" (optional string) ~doc:" name of directory in data/results to store results"
     +> flag "-appendout" no_arg ~doc:" append to results file instead of over-writing"
     +> flag "-rseed" (optional int) ~doc:" seed to initialize PRNG"
     +> flag "-num-tms" (optional int) ~doc:" number of TMs (-robust overrides this)"

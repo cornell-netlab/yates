@@ -1,8 +1,0 @@
-(* OASIS_START *)
-(* DO NOT EDIT (digest: 84722821c2ecc51bde100519917c86c3) *)
-
-Authors of yates:
-
-* YATES team
-
-(* OASIS_STOP *)

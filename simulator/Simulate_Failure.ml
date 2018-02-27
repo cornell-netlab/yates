@@ -1,9 +1,9 @@
 open Core
 
+open Simulation_Util
 open Yates_Traffic
 open Yates_Types
 open Yates_Util
-open Simulation_Util
 
 (********************************************************************)
 (**************** Generate various failure scenarios ****************)

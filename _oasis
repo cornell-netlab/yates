@@ -59,8 +59,8 @@ Library simulate
   Modules:
     Simulate_Switch
   BuildDepends:
-    ocamlgraph,
     frenetic,
+    ocamlgraph,
     ppx_deriving.std,
     routing,
     util
@@ -82,8 +82,8 @@ Executable simulator
   MainIs: Yates_simulator.ml
   CompiledObject: native
   BuildDepends:
-    ocamlgraph,
     frenetic,
+    ocamlgraph,
     ppx_deriving.std,
     routing,
     util

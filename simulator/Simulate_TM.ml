@@ -1,11 +1,11 @@
 open Core
 
 open AutoTimer
-open Yates_Types
-open Yates_Util
 open Simulate_Switch
 open Simulation_Types
 open Simulation_Util
+open Yates_Types
+open Yates_Util
 (***********************************************************)
 (* Simulate one traffic matrix and generate statistics *)
 (***********************************************************)

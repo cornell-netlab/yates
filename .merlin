@@ -1,7 +1,6 @@
 S controller
 S kulfi
-S routing/**
-S simulate/**
+S lib/**
 S test
 S topo
 S util

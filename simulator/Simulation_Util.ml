@@ -1,8 +1,8 @@
 open Core
 
+open Simulation_Types
 open Yates_Types
 open Yates_Util
-open Simulation_Types
 
 (**************************************************************)
 (* Helper functions for simulator *)

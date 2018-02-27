@@ -16,13 +16,15 @@
 *.dat
 _build
 _tags
+configure
 data/demands/abilene
+data/results/
 experiments/testbed/results
 fftout
 gurobi.log
 INSTALL.txt
-kernel/.tmp_versions
-kernel/modkulfi.mod.c
+end_host/kernel/.tmp_versions
+end_host/kernel/modyates.mod.c
 META
 myocamlbuild.ml
 prediction/bin
