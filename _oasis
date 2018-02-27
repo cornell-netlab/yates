@@ -55,7 +55,7 @@ Library controller
    util
 
 Library simulate
-  Path: simulate
+  Path: simulator
   Modules:
     Simulate_Switch
   BuildDepends:
@@ -78,8 +78,8 @@ Executable yates_controller
 Executable simulator
   Install: False
   Build$: flag(is_native)
-  Path:   simulate
-  MainIs: Simulate_Driver.ml
+  Path:   simulator
+  MainIs: Yates_simulator.ml
   CompiledObject: native
   BuildDepends:
     ocamlgraph,
