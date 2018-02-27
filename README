@@ -1,29 +1,4 @@
-The top-level directory structure of the Kulfi is as follows:
 
- agent/
-   End host program to communicate with controller and kernel module
+# YATES - Yet Another Traffic Engineering System
 
- controller/
-   OpenFlow controller that manages network forwarding paths and
-   monitors network load
-
- data/
-   Topology and traffic matrices data
-
- experiments/
-   Scripts and data to configure and run experiments
-
- kernel/
-   Linux netfilter module that implements randomization at end points
-
- routing/
-   Implementations of different routing and rate adaptation schemes
-
- simulate/
-   Programs to simulate routing and visualize outputs
-
- test/
-   Unit and regresssion tests
-
- util/
-   Helper functions for experiments (e.g., record time, etc.)
+YATES is a software framework that enables rapid prototyping and evaluation of trafffic engineering systems.
