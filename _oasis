@@ -12,7 +12,7 @@ AlphaFeatures: ocamlbuild_more_args
 BuildTools: ocamlbuild
 
 Library routing
-  Path: routing
+  Path: lib/routing
   Modules:
     Yates_Routing,
     Yates_Traffic
