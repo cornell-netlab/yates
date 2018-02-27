@@ -1,11 +1,11 @@
 open Core
 
 open ExperimentalData
-open Kulfi_Globals
-open Kulfi_Routing
-open Kulfi_Traffic
-open Kulfi_Types
-open Kulfi_Util
+open Yates_Globals
+open Yates_Routing
+open Yates_Traffic
+open Yates_Types
+open Yates_Util
 open RunningStat
 open Simulate_Demands
 open Simulate_Exps
@@ -120,7 +120,7 @@ let accumulate_vulnerability_stats topology_file topo algorithm scheme  =
   let suffix = match suffix with
           | Some x -> x
           | None -> "default" in
-  let file_name = suffix ^ "_b" ^ (string_of_int !Kulfi_Globals.budget) ^ ".vscore" in
+  let file_name = suffix ^ "_b" ^ (string_of_int !Yates_Globals.budget) ^ ".vscore" in
   let vuln_score_count = SrcDstMap.fold scheme
       ~init:IntMap.empty
       ~f:(fun ~key:(s,d) ~data:path_prob_map acc ->
@@ -167,7 +167,7 @@ let estimate_capacity_req (topo:topology) (demand_file:string)
     (host_file:string) (scale) : int64 EdgeMap.t =
   let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
   let actual = next_demand ~scale:scale actual_ic actual_host_map in
-  let utils = Kulfi_Mcf.solve topo actual
+  let utils = Yates_Mcf.solve topo actual
           |> congestion_of_paths topo actual in
   close_demands actual_ic;
   EdgeMap.fold utils ~init:EdgeMap.empty
@@ -495,7 +495,7 @@ let estimate_max_cong (topo_file:string) (subgraph_file_opt:string option)
  * where X (= 0.4) is the max congestion we expect to get when run with the new demands *)
 let calculate_syn_scale (topo_file:string) (subgraph_file_opt:string option)
       (demand_file:string) (host_file:string) =
-  let cmax = estimate_max_cong topo_file subgraph_file_opt demand_file host_file Kulfi_Mcf.solve 1.0 in
+  let cmax = estimate_max_cong topo_file subgraph_file_opt demand_file host_file Yates_Mcf.solve 1.0 in
   0.4 /. cmax
 
 
@@ -556,12 +556,12 @@ let compare_scaling_limit algorithms (num_tms:int option) (topo_file:string)
    paths produced by raecke's algorithm with the original budget *)
 let find_ksp_budget_test (topo_file:string) (subgraph_file_opt:string option)
       (demand_file:string) (host_file:string) (rtt_file_opt:string option) () =
-  Kulfi_Globals.deloop := true;
+  Yates_Globals.deloop := true;
   let base_alg = Mcf in
   let query_alg = Ksp in
   let topo = parse_topology topo_file subgraph_file_opt in
   let edge_weights = set_topo_weights topo rtt_file_opt in
-  let original_budget = !Kulfi_Globals.budget in
+  let original_budget = !Yates_Globals.budget in
   let (actual_host_map, actual_ic) = open_demands demand_file host_file topo in
   let actual = next_demand actual_ic actual_host_map in
   initialize_scheme base_alg topo actual;
@@ -570,8 +570,8 @@ let find_ksp_budget_test (topo_file:string) (subgraph_file_opt:string option)
 
   store_paths true base_scheme topo "./" base_alg original_budget;
   let rec try_query k =
-    Kulfi_Globals.budget := k;
-    Printf.printf "%d\n%!" !Kulfi_Globals.budget;
+    Yates_Globals.budget := k;
+    Printf.printf "%d\n%!" !Yates_Globals.budget;
     initialize_scheme query_alg topo actual;
     let query_scheme,_ = solve_within_budget query_alg topo actual actual in
     store_paths true query_scheme topo "./" query_alg k;
@@ -750,21 +750,21 @@ let command =
 
       (* Set global configs first *)
       ExperimentalData.append_out := appendout;
-      Kulfi_Globals.deloop := not keep_loops;
-      Kulfi_Globals.er_mode := er_mode;
-      Kulfi_Globals.tm_sim_iters  := simtime;
-      Kulfi_Globals.flash_recover := flash_recover;
-      Kulfi_Globals.gurobi_method := grb_method;
-      Kulfi_Globals.budget := budget;
-      Kulfi_Globals.nbins := nbins;
-      Kulfi_Globals.failure_time := fail_time;
-      Kulfi_Globals.rand_seed := rseed;
-      Kulfi_Globals.local_recovery_delay := lr_delay;
-      Kulfi_Globals.global_recovery_delay := gr_delay;
-      Kulfi_Globals.ffc_max_link_failures :=
-        max fail_num !(Kulfi_Globals.ffc_max_link_failures);
+      Yates_Globals.deloop := not keep_loops;
+      Yates_Globals.er_mode := er_mode;
+      Yates_Globals.tm_sim_iters  := simtime;
+      Yates_Globals.flash_recover := flash_recover;
+      Yates_Globals.gurobi_method := grb_method;
+      Yates_Globals.budget := budget;
+      Yates_Globals.nbins := nbins;
+      Yates_Globals.failure_time := fail_time;
+      Yates_Globals.rand_seed := rseed;
+      Yates_Globals.local_recovery_delay := lr_delay;
+      Yates_Globals.global_recovery_delay := gr_delay;
+      Yates_Globals.ffc_max_link_failures :=
+        max fail_num !(Yates_Globals.ffc_max_link_failures);
       if robust then
-        Kulfi_Globals.failure_time  := 0;
+        Yates_Globals.failure_time  := 0;
 
       (* Compute scaling factor *)
       let syn_scale =

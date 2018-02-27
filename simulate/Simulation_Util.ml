@@ -1,7 +1,7 @@
 open Core
 
-open Kulfi_Types
-open Kulfi_Util
+open Yates_Types
+open Yates_Util
 open Simulation_Types
 
 (**************************************************************)
@@ -40,22 +40,22 @@ let solver_to_string (s:solver_type) : string =
   | OptimalMcf -> "optimalmcf"
 
 let select_algorithm solver = match solver with
-  | Ac -> Kulfi_Routing.Ac.solve
+  | Ac -> Yates_Routing.Ac.solve
   | AkEcmp
   | AkKsp
   | AkMcf
   | AkRaeke
-  | AkVlb -> Kulfi_Routing.Ak.solve
-  | Cspf -> Kulfi_Routing.Cspf.solve
-  | Ecmp -> Kulfi_Routing.Ecmp.solve
-  | Edksp -> Kulfi_Routing.Edksp.solve
+  | AkVlb -> Yates_Routing.Ak.solve
+  | Cspf -> Yates_Routing.Cspf.solve
+  | Ecmp -> Yates_Routing.Ecmp.solve
+  | Edksp -> Yates_Routing.Edksp.solve
   | Ffc
-  | Ffced -> Kulfi_Routing.Ffc.solve
-  | Ksp -> Kulfi_Routing.Ksp.solve
-  | Mcf -> Kulfi_Routing.Mcf.solve
-  | MwMcf -> Kulfi_Routing.MwMcf.solve
-  | OptimalMcf -> Kulfi_Routing.Mcf.solve
-  | Raeke -> Kulfi_Routing.Raeke.solve
+  | Ffced -> Yates_Routing.Ffc.solve
+  | Ksp -> Yates_Routing.Ksp.solve
+  | Mcf -> Yates_Routing.Mcf.solve
+  | MwMcf -> Yates_Routing.MwMcf.solve
+  | OptimalMcf -> Yates_Routing.Mcf.solve
+  | Raeke -> Yates_Routing.Raeke.solve
   | SemiMcfAc
   | SemiMcfEcmp
   | SemiMcfEdksp
@@ -66,27 +66,27 @@ let select_algorithm solver = match solver with
   | SemiMcfMcfFTEnv
   | SemiMcfRaeke
   | SemiMcfRaekeFT
-  | SemiMcfVlb -> Kulfi_Routing.SemiMcf.solve
-  | Spf -> Kulfi_Routing.Spf.solve
-  | Vlb -> Kulfi_Routing.Vlb.solve
+  | SemiMcfVlb -> Yates_Routing.SemiMcf.solve
+  | Spf -> Yates_Routing.Spf.solve
+  | Vlb -> Yates_Routing.Vlb.solve
 
 let select_local_recovery solver = match solver with
-  | Ac -> Kulfi_Routing.Ac.local_recovery
+  | Ac -> Yates_Routing.Ac.local_recovery
   | AkEcmp
   | AkKsp
   | AkMcf
   | AkRaeke
-  | AkVlb -> Kulfi_Routing.Ak.local_recovery
-  | Cspf -> Kulfi_Routing.Cspf.local_recovery
-  | Ecmp -> Kulfi_Routing.Ecmp.local_recovery
-  | Edksp -> Kulfi_Routing.Edksp.local_recovery
+  | AkVlb -> Yates_Routing.Ak.local_recovery
+  | Cspf -> Yates_Routing.Cspf.local_recovery
+  | Ecmp -> Yates_Routing.Ecmp.local_recovery
+  | Edksp -> Yates_Routing.Edksp.local_recovery
   | Ffc
-  | Ffced -> Kulfi_Routing.Ffc.local_recovery
-  | Ksp -> Kulfi_Routing.Ksp.local_recovery
-  | Mcf -> Kulfi_Routing.Mcf.local_recovery
-  | MwMcf -> Kulfi_Routing.MwMcf.local_recovery
+  | Ffced -> Yates_Routing.Ffc.local_recovery
+  | Ksp -> Yates_Routing.Ksp.local_recovery
+  | Mcf -> Yates_Routing.Mcf.local_recovery
+  | MwMcf -> Yates_Routing.MwMcf.local_recovery
   | OptimalMcf -> failwith "No local recovery for optimal mcf"
-  | Raeke -> Kulfi_Routing.Raeke.local_recovery
+  | Raeke -> Yates_Routing.Raeke.local_recovery
   | SemiMcfAc
   | SemiMcfEcmp
   | SemiMcfEdksp
@@ -97,9 +97,9 @@ let select_local_recovery solver = match solver with
   | SemiMcfMcfFTEnv
   | SemiMcfRaeke
   | SemiMcfRaekeFT
-  | SemiMcfVlb -> Kulfi_Routing.SemiMcf.local_recovery
-  | Spf -> Kulfi_Routing.Spf.local_recovery
-  | Vlb -> Kulfi_Routing.Vlb.local_recovery
+  | SemiMcfVlb -> Yates_Routing.SemiMcf.local_recovery
+  | Spf -> Yates_Routing.Spf.local_recovery
+  | Vlb -> Yates_Routing.Vlb.local_recovery
 
 let store_paths log_paths scheme topo out_dir algorithm n : unit =
   if log_paths || n = 0 then

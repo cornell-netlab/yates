@@ -17,7 +17,7 @@
 #include <caml/alloc.h>
 #include <caml/fail.h>
 
-CAMLprim value kulfi_gettime() {
+CAMLprim value yates_gettime() {
   CAMLparam0();
 
   CAMLlocal1(res);

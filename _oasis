@@ -14,8 +14,8 @@ BuildTools: ocamlbuild
 Library routing
   Path: routing
   Modules:
-    Kulfi_Routing,
-    Kulfi_Traffic
+    Yates_Routing,
+    Yates_Traffic
   BuildDepends:
    ocamlgraph,
    threads,
@@ -32,7 +32,7 @@ Library util
       -lrt
   Modules:
     RunningStat,
-    Kulfi_Time
+    Yates_Time
 BuildDepends:
     async,
     core,
@@ -41,9 +41,9 @@ BuildDepends:
 Library controller
   Path: controller
   Modules:
-    Kulfi_Controller
+    Yates_Controller
   InternalModules:
-    Kulfi_Fabric
+    Yates_Fabric
   BuildDepends:
    async,
    frenetic,

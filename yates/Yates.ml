@@ -1,24 +1,24 @@
 open Core
 open Async
 open Command
-open Kulfi_Types
+open Yates_Types
 
 type solver_type = | Mcf | Vlb | Ecmp | Ksp | Spf | Raeke  | Ak | Smcf
 
 let main algo topo_fn actual_fn predicted_fn hosts_fn init_str src_routing () =
   match algo with
-  | Mcf -> let module C = Kulfi_Controller.Make(Kulfi_Mcf) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
-  | Vlb -> let module C = Kulfi_Controller.Make(Kulfi_Vlb) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
-  | Ecmp -> let module C = Kulfi_Controller.Make(Kulfi_Ecmp) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
-  | Ksp -> let module C = Kulfi_Controller.Make(Kulfi_Ksp) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
-  | Spf -> let module C = Kulfi_Controller.Make(Kulfi_Spf) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
-  | Ak -> let module C = Kulfi_Controller.Make(Kulfi_Ak) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
-  | Smcf -> let module C = Kulfi_Controller.Make(Kulfi_SemiMcf) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
-  | Raeke -> let module C = Kulfi_Controller.Make(Kulfi_Raeke) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
+  | Mcf -> let module C = Yates_Controller.Make(Yates_Mcf) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
+  | Vlb -> let module C = Yates_Controller.Make(Yates_Vlb) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
+  | Ecmp -> let module C = Yates_Controller.Make(Yates_Ecmp) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
+  | Ksp -> let module C = Yates_Controller.Make(Yates_Ksp) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
+  | Spf -> let module C = Yates_Controller.Make(Yates_Spf) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
+  | Ak -> let module C = Yates_Controller.Make(Yates_Ak) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
+  | Smcf -> let module C = Yates_Controller.Make(Yates_SemiMcf) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
+  | Raeke -> let module C = Yates_Controller.Make(Yates_Raeke) in C.start topo_fn actual_fn hosts_fn init_str src_routing ()
 
 let kulfi_main_cmd =
   Command.basic_spec
-    ~summary:"Run the Kulfi SDN controller"
+    ~summary:"Run the Yates SDN controller"
     Command.Spec.(
       empty
       +> flag "-src" no_arg ~doc:" use source routing"
@@ -54,7 +54,7 @@ let kulfi_main_cmd =
       (actual_fn:string)
       (predicted_fn:string)
       (host_fn:string) () ->
-     ignore(Kulfi_Globals.budget := match budget with | None -> Int.max_value | Some x -> x);
+     ignore(Yates_Globals.budget := match budget with | None -> Int.max_value | Some x -> x);
      let algorithm =
        if ak then Spf
        else if ecmp then Ecmp

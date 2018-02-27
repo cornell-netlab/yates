@@ -1,5 +1,5 @@
 (* Experiments that we want to run with the Simulator *)
-open Kulfi_Types
+open Yates_Types
 
 type iter_vs_time = { iteration : int ; time : float; time_dev : float; }
 

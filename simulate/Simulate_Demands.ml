@@ -1,8 +1,8 @@
 open Core
 
-open Kulfi_Types
+open Yates_Types
 
-let () = match !Kulfi_Globals.rand_seed with
+let () = match !Yates_Globals.rand_seed with
   | Some x -> Random.init x
   | None -> Random.self_init ~allow_in_tests:true ()
 
@@ -134,5 +134,5 @@ let get_demands model =
           );
     !lst
 
-let demand_list_to_map (demand_list:(host * host * float) list) : Kulfi_Types.demands =
+let demand_list_to_map (demand_list:(host * host * float) list) : Yates_Types.demands =
   List.fold_left ~init:SrcDstMap.empty ~f:(fun acc (u,v,r) -> SrcDstMap.set acc ~key:(u,v) ~data:r) demand_list

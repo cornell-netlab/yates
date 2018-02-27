@@ -1,8 +1,8 @@
 open Core
 
 open AutoTimer
-open Kulfi_Types
-open Kulfi_Util
+open Yates_Types
+open Yates_Util
 open Simulate_Switch
 open Simulation_Types
 open Simulation_Util
@@ -33,7 +33,7 @@ let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
             ~init:topo
             ~f:(fun acc link -> Topology.remove_edge acc link) in
           (* consider only the failures which do not partition the network *)
-          let spf_scheme = Kulfi_Spf.solve topo' SrcDstMap.empty in
+          let spf_scheme = Yates_Spf.solve topo' SrcDstMap.empty in
           if all_pairs_connectivity topo' hosts spf_scheme then
             begin
             let sch = solver topo' envelope in
@@ -80,42 +80,42 @@ let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
 let initial_scheme algorithm topo predict : scheme =
   match algorithm with
   | SemiMcfAc ->
-    let _ = Kulfi_Routing.Ac.initialize SrcDstMap.empty in
-    Kulfi_Routing.Ac.solve topo SrcDstMap.empty
+    let _ = Yates_Routing.Ac.initialize SrcDstMap.empty in
+    Yates_Routing.Ac.solve topo SrcDstMap.empty
   | AkEcmp
   | SemiMcfEcmp ->
-    let _ = Kulfi_Routing.Ecmp.initialize SrcDstMap.empty in
-    Kulfi_Routing.Ecmp.solve topo SrcDstMap.empty
+    let _ = Yates_Routing.Ecmp.initialize SrcDstMap.empty in
+    Yates_Routing.Ecmp.solve topo SrcDstMap.empty
   | Ffced
   | SemiMcfEdksp ->
-    let _ = Kulfi_Routing.Edksp.initialize SrcDstMap.empty in
-    Kulfi_Routing.Edksp.solve topo SrcDstMap.empty
+    let _ = Yates_Routing.Edksp.initialize SrcDstMap.empty in
+    Yates_Routing.Edksp.solve topo SrcDstMap.empty
   | AkKsp
   | Ffc
   | SemiMcfKsp ->
-    let _ = Kulfi_Routing.Ksp.initialize SrcDstMap.empty in
-    Kulfi_Routing.Ksp.solve topo SrcDstMap.empty
+    let _ = Yates_Routing.Ksp.initialize SrcDstMap.empty in
+    Yates_Routing.Ksp.solve topo SrcDstMap.empty
   | SemiMcfKspFT ->
-    let _ = Kulfi_Routing.Ksp.initialize SrcDstMap.empty in
-    all_failures_envelope Kulfi_Routing.Ksp.solve topo SrcDstMap.empty
+    let _ = Yates_Routing.Ksp.initialize SrcDstMap.empty in
+    all_failures_envelope Yates_Routing.Ksp.solve topo SrcDstMap.empty
   | AkMcf
   | SemiMcfMcf ->
-    Kulfi_Routing.Mcf.solve topo predict
+    Yates_Routing.Mcf.solve topo predict
   | SemiMcfMcfEnv ->
-    Kulfi_Routing.Mcf.solve topo !demand_envelope
+    Yates_Routing.Mcf.solve topo !demand_envelope
   | SemiMcfMcfFTEnv ->
-    all_failures_envelope Kulfi_Routing.Mcf.solve topo !demand_envelope
+    all_failures_envelope Yates_Routing.Mcf.solve topo !demand_envelope
   | AkRaeke
   | SemiMcfRaeke ->
-    let _ = Kulfi_Routing.Raeke.initialize SrcDstMap.empty in
-    Kulfi_Routing.Raeke.solve topo SrcDstMap.empty
+    let _ = Yates_Routing.Raeke.initialize SrcDstMap.empty in
+    Yates_Routing.Raeke.solve topo SrcDstMap.empty
   | SemiMcfRaekeFT ->
-    let _ = Kulfi_Routing.Raeke.initialize SrcDstMap.empty in
-    all_failures_envelope Kulfi_Routing.Raeke.solve topo SrcDstMap.empty
+    let _ = Yates_Routing.Raeke.initialize SrcDstMap.empty in
+    all_failures_envelope Yates_Routing.Raeke.solve topo SrcDstMap.empty
   | AkVlb
   | SemiMcfVlb ->
-    let _ = Kulfi_Routing.Vlb.initialize SrcDstMap.empty in
-    Kulfi_Routing.Vlb.solve topo SrcDstMap.empty
+    let _ = Yates_Routing.Vlb.initialize SrcDstMap.empty in
+    Yates_Routing.Vlb.solve topo SrcDstMap.empty
   | _ -> SrcDstMap.empty
 
 (* Initialize a TE algorithm *)
@@ -123,21 +123,21 @@ let initialize_scheme algorithm topo predict : unit =
   let start_scheme = initial_scheme algorithm topo predict in
   let pruned_scheme =
     if SrcDstMap.is_empty start_scheme then start_scheme
-    else prune_scheme topo start_scheme !Kulfi_Globals.budget in
+    else prune_scheme topo start_scheme !Yates_Globals.budget in
   match algorithm with
-  | Ac -> Kulfi_Routing.Ac.initialize SrcDstMap.empty
+  | Ac -> Yates_Routing.Ac.initialize SrcDstMap.empty
   | AkEcmp
   | AkKsp
   | AkMcf
   | AkRaeke
-  | AkVlb -> Kulfi_Routing.Ak.initialize pruned_scheme
-  | Cspf -> Kulfi_Routing.Cspf.initialize SrcDstMap.empty
-  | Ecmp -> Kulfi_Routing.Ecmp.initialize SrcDstMap.empty
-  | Edksp -> Kulfi_Routing.Edksp.initialize SrcDstMap.empty
+  | AkVlb -> Yates_Routing.Ak.initialize pruned_scheme
+  | Cspf -> Yates_Routing.Cspf.initialize SrcDstMap.empty
+  | Ecmp -> Yates_Routing.Ecmp.initialize SrcDstMap.empty
+  | Edksp -> Yates_Routing.Edksp.initialize SrcDstMap.empty
   | Ffc
-  | Ffced -> Kulfi_Routing.Ffc.initialize pruned_scheme
-  | Ksp -> Kulfi_Routing.Ksp.initialize SrcDstMap.empty
-  | Raeke -> Kulfi_Routing.Raeke.initialize SrcDstMap.empty
+  | Ffced -> Yates_Routing.Ffc.initialize pruned_scheme
+  | Ksp -> Yates_Routing.Ksp.initialize SrcDstMap.empty
+  | Raeke -> Yates_Routing.Raeke.initialize SrcDstMap.empty
   | SemiMcfAc
   | SemiMcfEcmp
   | SemiMcfEdksp
@@ -148,8 +148,8 @@ let initialize_scheme algorithm topo predict : unit =
   | SemiMcfMcfFTEnv
   | SemiMcfRaeke
   | SemiMcfRaekeFT
-  | SemiMcfVlb -> Kulfi_Routing.SemiMcf.initialize pruned_scheme
-  | Vlb -> Kulfi_Routing.Vlb.initialize SrcDstMap.empty
+  | SemiMcfVlb -> Yates_Routing.SemiMcf.initialize pruned_scheme
+  | Vlb -> Yates_Routing.Vlb.initialize SrcDstMap.empty
   | _ -> ()
 
 (* Compute a routing scheme for an algorithm and apply budget by pruning the
@@ -158,7 +158,7 @@ let solve_within_budget algorithm topo predict actual : (scheme * float) =
   let at = make_auto_timer () in
   start at;
   let solve = select_algorithm algorithm in
-  let budget = !Kulfi_Globals.budget in
+  let budget = !Yates_Globals.budget in
   let sch = match algorithm with
     | OptimalMcf ->
       (* Use actual demands for Optimal, without any budget restriction *)
@@ -167,7 +167,7 @@ let solve_within_budget algorithm topo predict actual : (scheme * float) =
         prune_scheme topo (solve topo predict) budget in
   stop at;
   let sch =
-    match !Kulfi_Globals.nbins with
+    match !Yates_Globals.nbins with
     | None -> sch
     | Some nbins ->
       begin
@@ -256,8 +256,8 @@ let solve_within_budget_multipri algorithm topo predict actual hipri_fraction :
     (* | OptimalMcf -> sch *)
     (* | _ -> *)
       (* begin *)
-        (* let sch = prune_scheme topo sch !Kulfi_Globals.budget in *)
-        (* match !Kulfi_Globals.nbins with *)
+        (* let sch = prune_scheme topo sch !Yates_Globals.budget in *)
+        (* match !Yates_Globals.nbins with *)
         (* | None -> sch *)
         (* | Some nbins -> fit_scheme_to_bins sch nbins *)
       (* end in *)
@@ -461,7 +461,7 @@ let simulate_tm (start_scheme:scheme)
   * *)
   let local_debug = false in
   (* Number of timesteps to simulate *)
-  let num_iterations = !Kulfi_Globals.tm_sim_iters in
+  let num_iterations = !Yates_Globals.tm_sim_iters in
   (* wait for network to reach steady state *)
   let steady_state_time = 0 in
   (* wait for in-flight pkts to be delivered at the end *)
@@ -469,11 +469,11 @@ let simulate_tm (start_scheme:scheme)
   (* Timestamp at which failures, if any, are introduced *)
   let failure_time =
     if (EdgeSet.is_empty fail_edges) ||
-       (!Kulfi_Globals.failure_time > num_iterations)
+       (!Yates_Globals.failure_time > num_iterations)
     then Int.max_value/100
-    else !Kulfi_Globals.failure_time + steady_state_time in
-  let local_recovery_delay = !Kulfi_Globals.local_recovery_delay in
-  let global_recovery_delay = !Kulfi_Globals.global_recovery_delay in
+    else !Yates_Globals.failure_time + steady_state_time in
+  let local_recovery_delay = !Yates_Globals.local_recovery_delay in
+  let global_recovery_delay = !Yates_Globals.global_recovery_delay in
   let agg_dem = ref 0. in
   let agg_sink_dem = ref 0. in
   let recovery_churn = ref 0. in
@@ -567,7 +567,7 @@ let simulate_tm (start_scheme:scheme)
                           sch
                         end
                       | _ ->
-                        if !Kulfi_Globals.flash_recover then
+                        if !Yates_Globals.flash_recover then
                           (select_local_recovery algorithm) current_state.scheme
                             topo failed_links pred'
                         else current_state.scheme in

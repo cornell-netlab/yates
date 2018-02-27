@@ -1,6 +1,6 @@
 open Core
-open Kulfi_Util
-open Kulfi_Types
+open Yates_Util
+open Yates_Types
 
 type solver_type =
   | Ac | Cspf | Ecmp | Edksp | Ksp | Mcf | MwMcf | Raeke | Spf | Vlb

@@ -1,5 +1,5 @@
 open Core
-open Kulfi_Types
+open Yates_Types
 
 let is_nan x =
   Float.classify x = Float.Class.Nan
