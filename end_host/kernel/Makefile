@@ -12,14 +12,14 @@ SRCS=dsfield.c\
 	 vlan.c\
 	 proc/routes.c\
 	 proc/stats.c\
-	 kulfi_mod.c
+	 yates_mod.c
 
 OBJS = $(SRCS:.c=.o)
-#CFLAGS_kulfi_mod.o := -DDEBUG
+#CFLAGS_yates_mod.o := -DDEBUG
 #CFLAGS_routes.o := -DDEBUG
 
-obj-m += modkulfi.o
-modkulfi-objs += $(OBJS) kulfi_mod.o
+obj-m += modyates.o
+modyates-objs += $(OBJS) yates_mod.o
 
 all: 
 	@echo target=$@ ccflags-y=${ccflags-y} CFLAGS=${CFLAGS}
@@ -32,7 +32,7 @@ clean:
 	${CC} ${CFLAGS} ${DEFS} $< -o $@  
 
 reinstall: clean all
-	@ if lsmod | grep "modkulfi" &> /dev/null ; then \
-		sudo rmmod modkulfi; \
+	@ if lsmod | grep "modyates" &> /dev/null ; then \
+		sudo rmmod modyates; \
 	fi
-	sudo insmod modkulfi.ko
+	sudo insmod modyates.ko

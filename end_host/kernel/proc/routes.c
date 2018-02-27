@@ -14,7 +14,7 @@ ssize_t read_proc_routes(struct file *file, char *buf, size_t count, loff_t *dat
     }
 
     if (bytes_to_read == 0){
-        pr_debug("reached end of /proc/kulfi\n");
+        pr_debug("reached end of /proc/yates\n");
     }
 
     if(copy_to_user(buf, proc_routes_data, bytes_to_read)){
@@ -105,7 +105,7 @@ void process_proc(void){
         routing_table_set(new_routing_table, ip, stk_list);
     }
 
-    // Update routing table; 
+    // Update routing table;
     rcu_assign_pointer(routing_table, new_routing_table);
     spin_unlock_irqrestore(&rt_lock, flags);
 
@@ -149,7 +149,7 @@ int open_proc_routes(struct inode *inode, struct file *file){
 }
 
 void create_new_routes_proc_entry(struct proc_dir_entry * proc_routes_entry) {
-    proc_routes_entry = proc_create(KULFI_PROC,0666,NULL, &routes_file_fops);
+    proc_routes_entry = proc_create(YATES_PROC,0666,NULL, &routes_file_fops);
     if(!proc_routes_entry)
     {
         pr_debug("Error creating routes proc entry");
@@ -162,5 +162,5 @@ void create_new_routes_proc_entry(struct proc_dir_entry * proc_routes_entry) {
 
 void delete_routes_proc_entry(void) {
     pr_debug("Deleting routes proc entry\n");
-    remove_proc_entry(KULFI_PROC, NULL);
+    remove_proc_entry(YATES_PROC, NULL);
 }

@@ -25,7 +25,7 @@ const struct file_operations proc_file_fops = {
 };
 
 void create_new_stats_proc_entry(struct proc_dir_entry * proc_entry) {
-    proc_entry = proc_create(KULFI_STATS,0666,NULL, &proc_file_fops);
+    proc_entry = proc_create(YATES_STATS,0666,NULL, &proc_file_fops);
     if(!proc_entry)
     {
         pr_debug("Error creating proc entry");
@@ -38,7 +38,7 @@ void create_new_stats_proc_entry(struct proc_dir_entry * proc_entry) {
 
 void delete_stats_proc_entry(void) {
     pr_debug("Deleting stats proc entry\n");
-    remove_proc_entry(KULFI_STATS, NULL);
+    remove_proc_entry(YATES_STATS, NULL);
 }
 
 void stats_entry_del(struct stats_entry *ste){

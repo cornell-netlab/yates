@@ -12,7 +12,7 @@
 #include "../routing_table.h"
 
 #define MAX_ROUTES_SIZE 40960
-#define KULFI_PROC "kulfi"
+#define YATES_PROC "yates"
 
 extern char proc_routes_data[MAX_ROUTES_SIZE];
 

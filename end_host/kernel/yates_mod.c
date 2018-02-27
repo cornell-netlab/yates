@@ -3,7 +3,7 @@
 #include "flow_table.h"
 #include "ip.h"
 #include "helper.h"
-#include "kulfi_mod.h"
+#include "yates_mod.h"
 #include "routing_table.h"
 #include "vlan.h"
 #include "proc/routes.h"
@@ -246,7 +246,7 @@ int init_module()
     // Create a routing table [dst_ip, list_of_stacks]
     routing_table = routing_table_create(4096);
 
-    // Create a proc file to read routing table from kulfi
+    // Create a proc file to read routing table from yates
     create_new_routes_proc_entry(routes_proc_entry);
     create_new_stats_proc_entry(stats_proc_entry);
 

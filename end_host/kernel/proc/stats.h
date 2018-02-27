@@ -12,7 +12,7 @@
 #include <linux/net.h>
 #include <linux/slab.h>
 
-#define KULFI_STATS "kulfi_stats"
+#define YATES_STATS "yates_stats"
 
 struct stats_entry {
     u32 dst_ip;

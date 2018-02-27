@@ -4,7 +4,7 @@ import os
 import socket
 import argparse
 """
-End host agent for Kulfi. Runs a server to listen and respond to messsages from Kulfi controller.
+End host agent for Yates. Runs a server to listen and respond to messsages from Yates controller.
 Messages can be of two types:
 	1. Update routes
 	2. Get stats
@@ -58,16 +58,16 @@ def parse_args():
                         default=7890,
                         help='The port on the controller to connect to')
     parser.add_argument('-r', '--routes', type=str, action='store', dest='routesfile',
-                        default='/proc/kulfi',
+                        default='/proc/yates,
                         help='the file to write the route table to')
     parser.add_argument('-s', '--stats', type=str, action='store', dest='statsfile',
-                        default='/proc/kulfi_stats',
+                        default='/proc/yates_stats',
                         help='the file to write the route table to')
     return parser.parse_args()
 
 if __name__ == '__main__':
     if not os.getuid() == 0:
-        print "WARNING: Please run as sudo to talk to Kulfi kernel module"
+        print "WARNING: Please run as sudo to talk to Yates kernel module"
 
     args = parse_args()
     fetch(args.ip, args.port, args.routesfile, args.statsfile)
