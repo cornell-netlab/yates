@@ -150,7 +150,7 @@ let lp_of_ffc_maps (pmap:path_uid_map)
 (* Generate a LP file with unique name *)
 let rec new_rand () : float =
   let rand = (Random.float 1.0) in
-  let try_fn = (Printf.sprintf "lp/ffc_%f.lp" rand) in
+  let try_fn = (Printf.sprintf "/tmp/ffc_%f.lp" rand) in
   match Sys.file_exists try_fn with
       `Yes -> new_rand ()
        | _ -> rand
@@ -159,8 +159,8 @@ let rec new_rand () : float =
 let solve_ffc_lp (pmap:int PathMap.t) (emap:int list EdgeMap.t) (topo:topology) (d:demands) (base_path_set : (path List.t) SrcDstMap.t) : (float * (int * float) list)=
     let lp = lp_of_ffc_maps pmap emap topo d base_path_set in
     let rand = new_rand () in
-    let lp_filename = (Printf.sprintf "lp/ffc_%f.lp" rand) in
-    let lp_solname = (Printf.sprintf "lp/ffc_%f.sol" rand) in
+    let lp_filename = (Printf.sprintf "/tmp/ffc_%f.lp" rand) in
+    let lp_solname = (Printf.sprintf "/tmp/ffc_%f.sol" rand) in
     serialize_max_lp lp lp_filename;
 
     let gurobi_in = Unix.open_process_in

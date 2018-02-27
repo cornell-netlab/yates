@@ -88,7 +88,7 @@ let edksp_lp_of_st (topo : Topology.t) (src : Topology.vertex) (dst : Topology.v
 
 let rec new_rand () : float =
   let rand = (Random.float 1.0) in
-  let try_fn = (Printf.sprintf "lp/edksp_%f.lp" rand) in
+  let try_fn = (Printf.sprintf "/tmp/edksp_%f.lp" rand) in
   match Sys.file_exists try_fn with
       `Yes -> new_rand ()
        | _ -> rand
@@ -123,8 +123,8 @@ let min_st_cut (topo : Topology.t) (src : Topology.vertex)
     |> conservation_constraints_st topo src dst
     |> max_st_flow topo src dst in
   let rand = new_rand () in
-  let lp_filename = (Printf.sprintf "lp/cut_%f.lp" rand) in
-  let lp_solname = (Printf.sprintf "lp/cut_%f.sol" rand) in
+  let lp_filename = (Printf.sprintf "/tmp/cut_%f.lp" rand) in
+  let lp_solname = (Printf.sprintf "/tmp/cut_%f.sol" rand) in
   serialize_max_lp (objective, all_constrs) lp_filename;
   let method_str = (Int.to_string !gurobi_method) in
   let gurobi_in = Unix.open_process_in
@@ -177,8 +177,8 @@ let solve_lp (topo:topology) : scheme =
       (!Yates_Globals.budget) in
   let lp = edksp_lp_of_st topo src dst max_budget in
   let rand = new_rand () in
-  let lp_filename = (Printf.sprintf "lp/edksp_%f.lp" rand) in
-  let lp_solname = (Printf.sprintf "lp/edksp_%f.sol" rand) in
+  let lp_filename = (Printf.sprintf "/tmp/edksp_%f.lp" rand) in
+  let lp_solname = (Printf.sprintf "/tmp/edksp_%f.sol" rand) in
   serialize_lp lp lp_filename;
 
   let method_str = (Int.to_string !gurobi_method) in

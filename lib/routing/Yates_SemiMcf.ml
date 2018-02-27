@@ -83,7 +83,7 @@ let lp_of_maps (pmap:path_uid_map) (emap:edge_uidlist_map) (topo:topology)
 
 let rec new_rand () : float =
   let rand = (Random.float 1.0) in
-  let try_fn = (Printf.sprintf "lp/semimcf_%f.lp" rand) in
+  let try_fn = (Printf.sprintf "/tmp/semimcf_%f.lp" rand) in
   match Sys.file_exists try_fn with
     `Yes -> new_rand ()
   | _ -> rand
@@ -98,8 +98,8 @@ let solve_lp (pmap:int PathMap.t) (emap:int list EdgeMap.t) (topo:topology)
   : (float * (int * float) list)=
   let lp = lp_of_maps pmap emap topo d base_path_set in
   let rand = new_rand () in
-  let lp_filename = (Printf.sprintf "lp/semimcf_%f.lp" rand) in
-  let lp_solname = (Printf.sprintf "lp/semimcf_%f.sol" rand) in
+  let lp_filename = (Printf.sprintf "/tmp/semimcf_%f.lp" rand) in
+  let lp_solname = (Printf.sprintf "/tmp/semimcf_%f.sol" rand) in
   serialize_lp lp lp_filename;
 
   let gurobi_in = Unix.open_process_in

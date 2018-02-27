@@ -238,7 +238,7 @@ let ac_lp_of_graph (topo : Topology.t) =
 
 let rec new_rand () : float =
   let rand = (Random.float 1.0) in
-  let try_fn = (Printf.sprintf "lp/ac_%f.lp" rand) in
+  let try_fn = (Printf.sprintf "/tmp/ac_%f.lp" rand) in
   match Sys.file_exists try_fn with
     `Yes -> new_rand ()
   | _ -> rand
@@ -259,8 +259,8 @@ let solve (topo:topology) (_:demands) : scheme =
 
       let lp = ac_lp_of_graph topo in
       let rand = new_rand () in
-      let lp_filename = (Printf.sprintf "lp/ac_%f.lp" rand) in
-      let lp_solname = (Printf.sprintf "lp/ac_%f.sol" rand) in
+      let lp_filename = (Printf.sprintf "/tmp/ac_%f.lp" rand) in
+      let lp_solname = (Printf.sprintf "/tmp/ac_%f.sol" rand) in
       serialize_lp lp lp_filename;
 
       let method_str = (Int.to_string !gurobi_method) in
