@@ -39,7 +39,7 @@ BuildDepends:
     threads
 
 Library controller
-  Path: controller
+  Path: lib/controller
   Modules:
     Yates_Controller
   InternalModules:
@@ -65,11 +65,11 @@ Library simulate
     routing,
     util
 
-Executable yates
+Executable yates_controller
   Install: False
   Build$: flag(is_native)
-  Path:   yates
-  MainIs: Yates.ml
+  Path:   controller
+  MainIs: Yates_controller.ml
   CompiledObject: native
   BuildDepends:
     controller,
