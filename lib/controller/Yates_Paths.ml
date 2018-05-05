@@ -1,8 +1,8 @@
 open Core
 open Async
 
-open Yates_Types
-open Yates_Util
+open Yates_types.Types
+open Yates_routing.Util
 
 let drop : Frenetic_kernel.OpenFlow0x01.flowMod =
   let open Frenetic_kernel.OpenFlow0x01 in

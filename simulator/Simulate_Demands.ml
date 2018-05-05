@@ -1,14 +1,16 @@
 open Core
 
-open Yates_Types
+open Frenetic.Net
+open Yates_routing
+open Yates_types.Types
 
-let () = match !Yates_Globals.rand_seed with
+let () = match !Globals.rand_seed with
   | Some x -> Random.init x
   | None -> Random.self_init ~allow_in_tests:true ()
 
 let pi = 4.0 *. Float.atan 1.0
 
-type host = Topology.vertex
+type host = Net.Topology.vertex
 
 (* First array maps integer indices to the corresponding hosts; second
    array stores the actual demands *)
@@ -134,5 +136,5 @@ let get_demands model =
           );
     !lst
 
-let demand_list_to_map (demand_list:(host * host * float) list) : Yates_Types.demands =
+let demand_list_to_map (demand_list:(host * host * float) list) : demands =
   List.fold_left ~init:SrcDstMap.empty ~f:(fun acc (u,v,r) -> SrcDstMap.set acc ~key:(u,v) ~data:r) demand_list

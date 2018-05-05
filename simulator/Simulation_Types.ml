@@ -1,6 +1,6 @@
 open Core
-open Yates_Util
-open Yates_Types
+open Yates_routing
+open Yates_types.Types
 
 type solver_type =
   | Ac | Cspf | Ecmp | Edksp | Ksp | Mcf | MwMcf | Raeke | Spf | Vlb

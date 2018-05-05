@@ -1,4 +1,4 @@
-open Yates_Types
+open Yates_types.Types
 
 module type Algorithm = sig
     val solve : topology -> demands -> scheme
@@ -6,7 +6,7 @@ module type Algorithm = sig
     val local_recovery : scheme -> topology -> failure -> demands -> scheme
 end
 
-module Ac : Algorithm
+module AC : Algorithm
 
 module Ak : Algorithm
 

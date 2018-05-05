@@ -1,0 +1,19 @@
+opam-version: "1.2"
+available: [ ocaml-version >= "4.06.0" ]
+version: "1.0.0"
+maintainer: "Praveen Kumar <praveenk@cs.cornell.edu>"
+authors: "Praveen Kumar <praveenk@cs.cornell.edu>, Chris Yu <christoy@cs.cmu.edu>, Yang Yuan <yy528@cornell.edu>, Nate Foster <jnfoster@cs.cornell.edu>, Robert Kleinberg <rdk@cs.cornell.edu>, and Robert Soulé <robert.soule@usi.ch>"
+homepage: "https://www.cs.cornell.edu/~praveenk/yates/yates"
+bug-reports: "https://github.com/cornell-netlab/yates/issues"
+dev-repo: "https://github.com/cornell-netlab/yates.git"
+
+build: ["jbuilder" "build" "-p" name "-j" jobs]
+build-doc: ["jbuilder" "build" "@doc" "-p" name "-j" jobs]
+build-test: ["jbuilder" "runtest" "-p" name "-j" jobs]
+
+depends: [
+  "cppo"
+  "jbuilder" {>="1.0+beta13"}
+  "odoc"
+  "frenetic" {>= "5.0.3"}
+]

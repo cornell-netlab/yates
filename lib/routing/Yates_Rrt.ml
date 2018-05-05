@@ -1,6 +1,6 @@
+open Yates_types.Types
 open Yates_Mw
 open Yates_Frt
-open Yates_Types
 
 (* multiplicative weights input *)
 module MWInput : MW_INPUT with type structure = FRT.routing_tree = struct

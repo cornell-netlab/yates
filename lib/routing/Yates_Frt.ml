@@ -1,8 +1,8 @@
 open Core
 
-open Yates_Types
+open Yates_types.Types
 
-let () = match !Yates_Globals.rand_seed with
+let () = match !Globals.rand_seed with
   | Some x -> Random.init x
   | None -> Random.self_init ~allow_in_tests:true ()
 
@@ -91,79 +91,79 @@ struct
 
   let permute lst =
     let tagged_lst = List.map lst ~f:(fun v -> (v, Random.bits ())) in
-    let sorted = List.sort tagged_lst ~cmp:(fun (_,t1) (_,t2) -> compare t1 t2) in
+    let sorted = List.sort tagged_lst ~compare:(fun (_,t1) (_,t2) -> compare t1 t2) in
     List.map sorted ~f:fst
 
   let make_frt_tree (topo : Topology.t) : frt_tree =
     let open Topology in
-        let vertices = Topology.fold_vertexes (fun v acc -> v::acc) topo [] in
-        let permuted_vs = permute vertices in
-        let permuted_sets = List.map permuted_vs ~f:(fun v -> (v, VertexSet.empty)) in
-        let rand_float = Random.float 1.0 in
-        let beta = exp (rand_float *. (log 2.0)) in
-        let paths_list = NetPath.all_pairs_shortest_paths ~topo:topo
-            ~f:(fun x y -> true) in
-        let vlist_table = Hashtbl.Poly.create () ~size:8 in
-        let max_diameter = List.fold_left paths_list ~init:0. ~f:(fun acc (c,v1,v2,p) ->
-          Hashtbl.add_exn vlist_table (v1,v2) (c,p);
-          max acc c) in
+    let vertices = Topology.fold_vertexes (fun v acc -> v::acc) topo [] in
+    let permuted_vs = permute vertices in
+    let permuted_sets = List.map permuted_vs ~f:(fun v -> (v, VertexSet.empty)) in
+    let rand_float = Random.float 1.0 in
+    let beta = exp (rand_float *. (log 2.0)) in
+    let paths_list = NetPath.all_pairs_shortest_paths ~topo:topo
+        ~f:(fun x y -> true) in
+    let vlist_table = Hashtbl.Poly.create () ~size:8 in
+    let max_diameter = List.fold_left paths_list ~init:0. ~f:(fun acc (c,v1,v2,p) ->
+        Hashtbl.add_exn vlist_table (v1,v2) (c,p);
+        max acc c) in
 
-        let dist v1 v2 =
-          let c,_ =
-	    try Hashtbl.find_exn vlist_table (v1,v2)
-            with Not_found ->
-	      failwith (Printf.sprintf "No distance between %s and %s\n"
-			  (Node.name (vertex_to_label topo v1))
-			  (Node.name (vertex_to_label topo v2))) in
-	  c in
+    let dist v1 v2 =
+      let c,_ =
+        try Hashtbl.find_exn vlist_table (v1,v2)
+        with Not_found_s _ ->
+          failwith (Printf.sprintf "No distance between %s and %s\n"
+                      (Node.name (vertex_to_label topo v1))
+                      (Node.name (vertex_to_label topo v2))) in
+      c in
 
-          (* Given a cluster of vertices, performs one iteration of
-             the cut decomposition.*)
-          let rec level_decomp (i : int) (cluster : cut_decomp) : cut_decomp =
-            match cluster with
-              | Node (_,_,_) -> failwith "shouldn't get here"
-              | Leaf (center, cluster_vs) ->
-                let beta_i = (2.0 ** (float (i -1))) *. beta in
-                let find_first_within radius v permutation =
-                  let rec search l acc = match l with
-                    | [] -> failwith "find_first_within"
-                    | (h, set)::t ->
-                      if (dist h v) <= radius then
-                        let new_hd = (h, VertexSet.add set v) in
-                        List.rev_append t (new_hd::acc)
-                      else search t ((h, set)::acc) in
-                  List.rev (search permutation []) in
+    (* Given a cluster of vertices, performs one iteration of
+       the cut decomposition.*)
+    let rec level_decomp (i : int) (cluster : cut_decomp) : cut_decomp =
+      match cluster with
+      | Node (_,_,_) -> failwith "shouldn't get here"
+      | Leaf (center, cluster_vs) ->
+        let beta_i = (2.0 ** (float (i -1))) *. beta in
+        let find_first_within radius v permutation =
+          let rec search l acc = match l with
+            | [] -> failwith "find_first_within"
+            | (h, set)::t ->
+              if (dist h v) <= radius then
+                let new_hd = (h, VertexSet.add set v) in
+                List.rev_append t (new_hd::acc)
+              else search t ((h, set)::acc) in
+          List.rev (search permutation []) in
 
-                (* For all nodes in the current cluster, assign them to
-                   the first node in the permutation that is closer than
-                   beta_i. *)
-                let partition = VertexSet.fold cluster_vs ~init:permuted_sets ~f:(fun p_acc next_v ->
-                  find_first_within beta_i next_v p_acc) in
+        (* For all nodes in the current cluster, assign them to
+           the first node in the permutation that is closer than
+           beta_i. *)
+        let partition = VertexSet.fold cluster_vs ~init:permuted_sets ~f:(fun p_acc next_v ->
+            find_first_within beta_i next_v p_acc) in
 
-                (* Remove all empty clusters *)
-                let filtered = List.filter partition ~f:(fun (_,set) ->
-                  not (VertexSet.is_empty set)) in
+        (* Remove all empty clusters *)
+        let filtered = List.filter partition ~f:(fun (_,set) ->
+            not (VertexSet.is_empty set)) in
 
-                (* Convert subsets into tree nodes, and catch the case where
-                   a cluster is a singleton. *)
-                let children = List.map filtered ~f:(fun (v,set) ->
-                  if VertexSet.length set = 1 then Single (set)
-                  else Leaf (v,set)) in
+        (* Convert subsets into tree nodes, and catch the case where
+           a cluster is a singleton. *)
+        let children = List.map filtered ~f:(fun (v,set) ->
+            if VertexSet.length set = 1 then Single (set)
+            else Leaf (v,set)) in
 
-                (* Recursively make all the lower levels. *)
-                let mapped_children = List.map children ~f:(fun c ->
-                  level_decomp (i-1) c) in
-                Node (center, cluster_vs, mapped_children)
-              | Single (v) -> Single (v) in
+        (* Recursively make all the lower levels. *)
+        let mapped_children = List.map children ~f:(fun c ->
+            level_decomp (i-1) c) in
+        Node (center, cluster_vs, mapped_children)
+      | Single (v) -> Single (v) in
 
-          let head = match permuted_vs with h::t -> h
-            | [] -> failwith "no vertices in topology" in
-          let initial_set = List.fold_left vertices ~init:VertexSet.empty
-	    ~f:(fun acc x -> VertexSet.add acc x) in
-          let initial_tree = Leaf (head, initial_set) in
-          let initial_i = snd (Float.frexp max_diameter) - 1 in
-          let decomp = level_decomp initial_i initial_tree in
-          (decomp, vlist_table)
+    let head = match permuted_vs with h::t -> h
+                                    | [] -> failwith "no vertices in topology" in
+    let initial_set = List.fold_left vertices ~init:VertexSet.empty
+        ~f:(fun acc x -> VertexSet.add acc x) in
+    let initial_tree = Leaf (head, initial_set) in
+    let initial_i = snd (Float.frexp max_diameter) - 1 in
+    let decomp = level_decomp initial_i initial_tree in
+    (decomp, vlist_table)
 
     let check_tree_no_leaves ((tree,_) : frt_tree) : bool =
       let rec check tr =
@@ -178,18 +178,18 @@ struct
     let check_tree_laminar ((tree,_) : frt_tree) : bool =
       let rec check tr =
         let open Topology in
-            match tr with
-              | Single (_) -> true
-              | Leaf (_,_) -> true
-              | Node (_,set,children) ->
-                let result1 = List.fold_left children ~init:true
-		  ~f:(fun acc c -> acc && match c with
-                  | Single (set2) -> Topology.VertexSet.is_subset set2 set
-                  | Leaf (_,set2) -> Topology.VertexSet.is_subset set2 set
-                  | Node (_,set2,_) -> Topology.VertexSet.is_subset set2 set) in
-                result1 && (List.fold_left children ~init:true ~f:(fun acc x ->
-		  acc && check x)) in
-        check tree
+        match tr with
+        | Single (_) -> true
+        | Leaf (_,_) -> true
+        | Node (_,set,children) ->
+          let result1 = List.fold_left children ~init:true
+              ~f:(fun acc c -> acc && match c with
+                | Single (set2) -> Topology.VertexSet.is_subset set2 set
+                | Leaf (_,set2) -> Topology.VertexSet.is_subset set2 set
+                | Node (_,set2,_) -> Topology.VertexSet.is_subset set2 set) in
+          result1 && (List.fold_left children ~init:true ~f:(fun acc x ->
+              acc && check x)) in
+      check tree
 
     let get_cluster (c : cut_decomp) =
       match c with
@@ -200,18 +200,18 @@ struct
     let check_all_nodes_present ((tree,_) : frt_tree) : bool =
       let rec check tr =
         let open Topology in
-            match tr with
-              | Single (v) -> true
-              | Leaf (_,set) -> true
-              | Node (_,set,children) ->
-                let child_verts = List.fold_left children ~init:VertexSet.empty
-		  ~f:(fun acc next ->
-                    let child_set = get_cluster next in
-                    VertexSet.union acc child_set) in
-                let locally_equal = VertexSet.equal child_verts set in
-                locally_equal && (List.fold_left children ~init:true
-				    ~f:(fun acc x -> acc && check x)) in
-        check tree
+        match tr with
+        | Single (v) -> true
+        | Leaf (_,set) -> true
+        | Node (_,set,children) ->
+          let child_verts = List.fold_left children ~init:VertexSet.empty
+              ~f:(fun acc next ->
+                  let child_set = get_cluster next in
+                  VertexSet.union acc child_set) in
+          let locally_equal = VertexSet.equal child_verts set in
+          locally_equal && (List.fold_left children ~init:true
+                              ~f:(fun acc x -> acc && check x)) in
+      check tree
 
     let cluster_contains (c : cut_decomp) (v : Topology.vertex) =
       Topology.VertexSet.mem (get_cluster c) v
@@ -266,7 +266,7 @@ struct
             TreeRTNode (center, endpts, new_children) in
 
       let endpt_set = List.fold_left endpoints ~init:Topology.VertexSet.empty
-	~f:(fun acc x -> Topology.VertexSet.add acc x ) in
+          ~f:(fun acc x -> Topology.VertexSet.add acc x ) in
       let rt_no_paths = make_tree_downward tree_metric endpt_set in
 
       let usage_table = Hashtbl.Poly.create () ~size:8 in
@@ -286,7 +286,7 @@ struct
             if VertexSet.mem vertex_set neighbor then acc
             else
               let edge1 = try (Some (Topology.find_edge orig_topo v neighbor))
-                with Not_found -> None in
+                with Not_found_s _ -> None in
               add_opt edge1 acc) in
         VertexSet.fold  vertex_set ~init:EdgeSet.empty ~f:add_neighbor_edges in
 
@@ -299,9 +299,9 @@ struct
           let path_up = shortest_path c_center center in
           let boundary_edges = edges_in_boundary c_set in
           let usage = EdgeSet.fold boundary_edges ~init:Int64.zero
-	    ~f:(fun acc edge ->
-            let cap = Link.capacity (Topology.edge_to_label orig_topo edge) in
-            Int64.(+) acc cap)  in
+              ~f:(fun acc edge ->
+                  let cap = Link.capacity (Topology.edge_to_label orig_topo edge) in
+                  Int64.(+) acc cap)  in
 
           (* Adds a given amount of usage to both an edge and its inverse. *)
           let add_usage amount edge =
@@ -324,14 +324,14 @@ struct
           subtree::acc) in
         let init = if root_children = [] then set else VertexSet.empty in
         let reduced_set = List.fold_left root_children ~init:init
-	  ~f:(fun acc child ->
-          let RTNode (_,c_set,_) = child in
-          Topology.VertexSet.union c_set acc) in
+            ~f:(fun acc child ->
+                let RTNode (_,c_set,_) = child in
+                Topology.VertexSet.union c_set acc) in
         RTNode (center, reduced_set, root_children) in
 
       let routing_tree = map_and_compute_usage rt_no_paths in
       let usage_vec = Hashtbl.fold usage_table ~init:[]
-	~f:(fun ~key:k ~data:v acc ->
+          ~f:(fun ~key:k ~data:v acc ->
           let cap = Link.capacity (Topology.edge_to_label orig_topo k) in
           (k,(Int64.to_float v) /. (Int64.to_float cap))::acc) in
       (usage_vec, tree_table, routing_tree)
@@ -405,7 +405,7 @@ struct
         get_path_halves (u,tbl,src_subtree) src dst
       else
         let path_up = construct_path_up tree src in
-	let path_down = construct_path_down tree dst in
+        let path_down = construct_path_down tree dst in
         (path_up, path_down)
 
     let get_path routing_tree src dst =
@@ -439,7 +439,7 @@ struct
           next_level::(levels next_level) in
       let all_levels = [frt_tree]::(levels [frt_tree]) in
       List.map all_levels ~f:(fun level ->
-	List.map level ~f:(fun node -> get_cluster node))
+          List.map level ~f:(fun node -> get_cluster node))
 
     let name_of_node topo vert =
       let vert_label = Topology.vertex_to_label topo vert in
@@ -479,7 +479,7 @@ struct
     let edges_in_tree (_, table, _) =
       Hashtbl.fold table ~init:EdgeSet.empty ~f:(fun ~key:_ ~data:path acc ->
         List.fold_left path ~init:acc ~f:(fun acc_set edge ->
-	  EdgeSet.add acc_set edge))
+              EdgeSet.add acc_set edge))
 
     let vertices_in_tree (_,_,tr) =
       let level_table = Hashtbl.Poly.create () ~size:8 in
@@ -492,7 +492,7 @@ struct
             else
               Hashtbl.add_exn level_table center level in
           List.fold_left children ~init:(VertexSet.singleton center)
-	    ~f:(fun acc next ->
+            ~f:(fun acc next ->
               let child_verts = get_verts next (level + 1) in
               VertexSet.union child_verts acc) in
       let set = get_verts tr 0 in
@@ -520,7 +520,7 @@ struct
     let write_dot2 topo rrt filename =
       let tree_edges = edges_in_tree rrt in
       let tree_verts = EdgeSet.fold tree_edges ~init: VertexSet.empty
-	~f:(fun acc edge ->
+        ~f:(fun acc edge ->
           let src,_ = Topology.edge_src edge in
           let dst,_ = Topology.edge_dst edge in
           let acc2 = VertexSet.add acc src in

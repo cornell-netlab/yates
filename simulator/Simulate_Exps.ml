@@ -1,5 +1,5 @@
 (* Experiments that we want to run with the Simulator *)
-open Yates_Types
+open Yates_types.Types
 
 type iter_vs_time = { iteration : int ; time : float; time_dev : float; }
 

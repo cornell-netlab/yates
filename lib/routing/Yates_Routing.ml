@@ -1,4 +1,4 @@
-open Yates_Types
+open Yates_types.Types
 
 module type Algorithm = sig
   val solve : topology -> demands -> scheme
@@ -6,28 +6,28 @@ module type Algorithm = sig
   val local_recovery : scheme -> topology -> failure -> demands -> scheme
 end
 
-module Ac = Yates_AC
+module AC = AC
 
-module Ak = Yates_Ak
+module Ak = Ak
 
-module Cspf  = Yates_Cspf
+module Cspf  = Cspf
 
-module Ecmp = Yates_Ecmp
+module Ecmp = Ecmp
 
-module Edksp = Yates_Edksp
+module Edksp = Edksp
 
-module Ffc = Yates_Ffc
+module Ffc = Ffc
 
-module Ksp = Yates_Ksp
+module Ksp = Ksp
 
-module Mcf = Yates_Mcf
+module Mcf = Mcf
 
-module MwMcf = Yates_MwMcf
+module MwMcf = MwMcf
 
-module Raeke = Yates_Raeke
+module Raeke = Raeke
 
-module SemiMcf = Yates_SemiMcf
+module SemiMcf = SemiMcf
 
-module Spf = Yates_Spf
+module Spf = Spf
 
-module Vlb = Yates_Vlb
+module Vlb = Vlb

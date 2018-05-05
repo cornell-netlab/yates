@@ -1,11 +1,11 @@
 open Core
 
-open AutoTimer
 open Simulate_Switch
 open Simulation_Types
 open Simulation_Util
-open Yates_Types
-open Yates_Util
+open Yates_routing.Util
+open Yates_types.Types
+open Yates_utils
 (***********************************************************)
 (* Simulate one traffic matrix and generate statistics *)
 (***********************************************************)
@@ -33,7 +33,7 @@ let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
             ~init:topo
             ~f:(fun acc link -> Topology.remove_edge acc link) in
           (* consider only the failures which do not partition the network *)
-          let spf_scheme = Yates_Spf.solve topo' SrcDstMap.empty in
+          let spf_scheme = Yates_routing.Spf.solve topo' SrcDstMap.empty in
           if all_pairs_connectivity topo' hosts spf_scheme then
             begin
             let sch = solver topo' envelope in
@@ -80,42 +80,42 @@ let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
 let initial_scheme algorithm topo predict : scheme =
   match algorithm with
   | SemiMcfAc ->
-    let _ = Yates_Routing.Ac.initialize SrcDstMap.empty in
-    Yates_Routing.Ac.solve topo SrcDstMap.empty
+    let _ = Yates_routing.AC.initialize SrcDstMap.empty in
+    Yates_routing.AC.solve topo SrcDstMap.empty
   | AkEcmp
   | SemiMcfEcmp ->
-    let _ = Yates_Routing.Ecmp.initialize SrcDstMap.empty in
-    Yates_Routing.Ecmp.solve topo SrcDstMap.empty
+    let _ = Yates_routing.Ecmp.initialize SrcDstMap.empty in
+    Yates_routing.Ecmp.solve topo SrcDstMap.empty
   | Ffced
   | SemiMcfEdksp ->
-    let _ = Yates_Routing.Edksp.initialize SrcDstMap.empty in
-    Yates_Routing.Edksp.solve topo SrcDstMap.empty
+    let _ = Yates_routing.Edksp.initialize SrcDstMap.empty in
+    Yates_routing.Edksp.solve topo SrcDstMap.empty
   | AkKsp
   | Ffc
   | SemiMcfKsp ->
-    let _ = Yates_Routing.Ksp.initialize SrcDstMap.empty in
-    Yates_Routing.Ksp.solve topo SrcDstMap.empty
+    let _ = Yates_routing.Ksp.initialize SrcDstMap.empty in
+    Yates_routing.Ksp.solve topo SrcDstMap.empty
   | SemiMcfKspFT ->
-    let _ = Yates_Routing.Ksp.initialize SrcDstMap.empty in
-    all_failures_envelope Yates_Routing.Ksp.solve topo SrcDstMap.empty
+    let _ = Yates_routing.Ksp.initialize SrcDstMap.empty in
+    all_failures_envelope Yates_routing.Ksp.solve topo SrcDstMap.empty
   | AkMcf
   | SemiMcfMcf ->
-    Yates_Routing.Mcf.solve topo predict
+    Yates_routing.Mcf.solve topo predict
   | SemiMcfMcfEnv ->
-    Yates_Routing.Mcf.solve topo !demand_envelope
+    Yates_routing.Mcf.solve topo !demand_envelope
   | SemiMcfMcfFTEnv ->
-    all_failures_envelope Yates_Routing.Mcf.solve topo !demand_envelope
+    all_failures_envelope Yates_routing.Mcf.solve topo !demand_envelope
   | AkRaeke
   | SemiMcfRaeke ->
-    let _ = Yates_Routing.Raeke.initialize SrcDstMap.empty in
-    Yates_Routing.Raeke.solve topo SrcDstMap.empty
+    let _ = Yates_routing.Raeke.initialize SrcDstMap.empty in
+    Yates_routing.Raeke.solve topo SrcDstMap.empty
   | SemiMcfRaekeFT ->
-    let _ = Yates_Routing.Raeke.initialize SrcDstMap.empty in
-    all_failures_envelope Yates_Routing.Raeke.solve topo SrcDstMap.empty
+    let _ = Yates_routing.Raeke.initialize SrcDstMap.empty in
+    all_failures_envelope Yates_routing.Raeke.solve topo SrcDstMap.empty
   | AkVlb
   | SemiMcfVlb ->
-    let _ = Yates_Routing.Vlb.initialize SrcDstMap.empty in
-    Yates_Routing.Vlb.solve topo SrcDstMap.empty
+    let _ = Yates_routing.Vlb.initialize SrcDstMap.empty in
+    Yates_routing.Vlb.solve topo SrcDstMap.empty
   | _ -> SrcDstMap.empty
 
 (* Initialize a TE algorithm *)
@@ -123,21 +123,21 @@ let initialize_scheme algorithm topo predict : unit =
   let start_scheme = initial_scheme algorithm topo predict in
   let pruned_scheme =
     if SrcDstMap.is_empty start_scheme then start_scheme
-    else prune_scheme topo start_scheme !Yates_Globals.budget in
+    else prune_scheme topo start_scheme !Yates_routing.Globals.budget in
   match algorithm with
-  | Ac -> Yates_Routing.Ac.initialize SrcDstMap.empty
+  | Ac -> Yates_routing.AC.initialize SrcDstMap.empty
   | AkEcmp
   | AkKsp
   | AkMcf
   | AkRaeke
-  | AkVlb -> Yates_Routing.Ak.initialize pruned_scheme
-  | Cspf -> Yates_Routing.Cspf.initialize SrcDstMap.empty
-  | Ecmp -> Yates_Routing.Ecmp.initialize SrcDstMap.empty
-  | Edksp -> Yates_Routing.Edksp.initialize SrcDstMap.empty
+  | AkVlb -> Yates_routing.Ak.initialize pruned_scheme
+  | Cspf -> Yates_routing.Cspf.initialize SrcDstMap.empty
+  | Ecmp -> Yates_routing.Ecmp.initialize SrcDstMap.empty
+  | Edksp -> Yates_routing.Edksp.initialize SrcDstMap.empty
   | Ffc
-  | Ffced -> Yates_Routing.Ffc.initialize pruned_scheme
-  | Ksp -> Yates_Routing.Ksp.initialize SrcDstMap.empty
-  | Raeke -> Yates_Routing.Raeke.initialize SrcDstMap.empty
+  | Ffced -> Yates_routing.Ffc.initialize pruned_scheme
+  | Ksp -> Yates_routing.Ksp.initialize SrcDstMap.empty
+  | Raeke -> Yates_routing.Raeke.initialize SrcDstMap.empty
   | SemiMcfAc
   | SemiMcfEcmp
   | SemiMcfEdksp
@@ -148,26 +148,26 @@ let initialize_scheme algorithm topo predict : unit =
   | SemiMcfMcfFTEnv
   | SemiMcfRaeke
   | SemiMcfRaekeFT
-  | SemiMcfVlb -> Yates_Routing.SemiMcf.initialize pruned_scheme
-  | Vlb -> Yates_Routing.Vlb.initialize SrcDstMap.empty
+  | SemiMcfVlb -> Yates_routing.SemiMcf.initialize pruned_scheme
+  | Vlb -> Yates_routing.Vlb.initialize SrcDstMap.empty
   | _ -> ()
 
 (* Compute a routing scheme for an algorithm and apply budget by pruning the
    top-k paths. Also, round path weights if nbins is specified. *)
 let solve_within_budget algorithm topo predict actual : (scheme * float) =
-  let at = make_auto_timer () in
-  start at;
+  let at = AutoTimer.make_auto_timer () in
+  AutoTimer.start at;
   let solve = select_algorithm algorithm in
-  let budget = !Yates_Globals.budget in
+  let budget = !Yates_routing.Globals.budget in
   let sch = match algorithm with
     | OptimalMcf ->
       (* Use actual demands for Optimal, without any budget restriction *)
       solve topo actual
     | _ ->
         prune_scheme topo (solve topo predict) budget in
-  stop at;
+  AutoTimer.stop at;
   let sch =
-    match !Yates_Globals.nbins with
+    match !Yates_routing.Globals.nbins with
     | None -> sch
     | Some nbins ->
       begin
@@ -176,7 +176,7 @@ let solve_within_budget algorithm topo predict actual : (scheme * float) =
         | _ -> fit_scheme_to_bins sch nbins
       end in
   (*assert (probabilities_sum_to_one sch);*)
-  (sch, (get_time_in_seconds at))
+  (sch, (AutoTimer.get_time_in_seconds at))
 
 let linearly_combine_schemes hi_fraction hi_sch lo_sch =
   let updated_hi = SrcDstMap.fold hi_sch ~init:SrcDstMap.empty
@@ -256,8 +256,8 @@ let solve_within_budget_multipri algorithm topo predict actual hipri_fraction :
     (* | OptimalMcf -> sch *)
     (* | _ -> *)
       (* begin *)
-        (* let sch = prune_scheme topo sch !Yates_Globals.budget in *)
-        (* match !Yates_Globals.nbins with *)
+        (* let sch = prune_scheme topo sch !Yates_routing.Globals.budget in *)
+        (* match !Yates_routing.Globals.nbins with *)
         (* | None -> sch *)
         (* | Some nbins -> fit_scheme_to_bins sch nbins *)
       (* end in *)
@@ -461,7 +461,7 @@ let simulate_tm (start_scheme:scheme)
   * *)
   let local_debug = false in
   (* Number of timesteps to simulate *)
-  let num_iterations = !Yates_Globals.tm_sim_iters in
+  let num_iterations = !Yates_routing.Globals.tm_sim_iters in
   (* wait for network to reach steady state *)
   let steady_state_time = 0 in
   (* wait for in-flight pkts to be delivered at the end *)
@@ -469,11 +469,11 @@ let simulate_tm (start_scheme:scheme)
   (* Timestamp at which failures, if any, are introduced *)
   let failure_time =
     if (EdgeSet.is_empty fail_edges) ||
-       (!Yates_Globals.failure_time > num_iterations)
+       (!Yates_routing.Globals.failure_time > num_iterations)
     then Int.max_value/100
-    else !Yates_Globals.failure_time + steady_state_time in
-  let local_recovery_delay = !Yates_Globals.local_recovery_delay in
-  let global_recovery_delay = !Yates_Globals.global_recovery_delay in
+    else !Yates_routing.Globals.failure_time + steady_state_time in
+  let local_recovery_delay = !Yates_routing.Globals.local_recovery_delay in
+  let global_recovery_delay = !Yates_routing.Globals.global_recovery_delay in
   let agg_dem = ref 0. in
   let agg_sink_dem = ref 0. in
   let recovery_churn = ref 0. in
@@ -567,7 +567,7 @@ let simulate_tm (start_scheme:scheme)
                           sch
                         end
                       | _ ->
-                        if !Yates_Globals.flash_recover then
+                        if !Yates_routing.Globals.flash_recover then
                           (select_local_recovery algorithm) current_state.scheme
                             topo failed_links pred'
                         else current_state.scheme in

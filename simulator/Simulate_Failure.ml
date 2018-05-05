@@ -1,9 +1,9 @@
 open Core
 
 open Simulation_Util
-open Yates_Traffic
-open Yates_Types
-open Yates_Util
+open Yates_routing.Traffic
+open Yates_routing.Util
+open Yates_types.Types
 
 (********************************************************************)
 (**************** Generate various failure scenarios ****************)
@@ -38,7 +38,7 @@ let rec get_max_util_failure (topo:topology) (num_fail:int) (utils: congestion E
   let sorted_edge_utils = utils
       |> EdgeMap.to_alist
       |> List.filter ~f:(fun (e,_) -> edge_connects_switches e topo)
-      |> List.sort ~cmp:(fun x y -> Float.compare (snd y) (snd x)) in
+      |> List.sort ~compare:(fun x y -> Float.compare (snd y) (snd x)) in
 
   (*let _ = List.iter sorted_edge_utils ~f:(fun (e,c) -> Printf.printf "%s : %f\n%!" (string_of_edge topo e) c;) in*)
   let max_util_links_set,_ = List.fold_left sorted_edge_utils
@@ -55,7 +55,7 @@ let rec get_max_util_failure (topo:topology) (num_fail:int) (utils: congestion E
   max_util_links_set
 
 let get_spf_util_based_failure (topo:topology) (actual:demands) (alpha:float) : failure =
-  Yates_Routing.Spf.solve topo SrcDstMap.empty
+  Yates_routing.Spf.solve topo SrcDstMap.empty
     |> congestion_of_paths topo actual
     |> get_util_based_failure_scenario topo alpha
 
@@ -65,7 +65,7 @@ let rec get_spf_max_util_link (topo:topology) (actual:demands) (num_fail:int) : 
   if num_fail = 0 then EdgeSet.empty
   else
     let max_util_link =
-      Yates_Routing.Spf.solve topo SrcDstMap.empty
+      Yates_routing.Spf.solve topo SrcDstMap.empty
       |> congestion_of_paths topo actual
       |> get_max_util_failure topo 1 in
     let topo' = update_topo_with_failure topo max_util_link in
@@ -104,11 +104,11 @@ let rec get_test_failure_scenario (topo:topology) (actual:demands) (iter_pos:flo
 
   let iter_pos = min 1. iter_pos in
   let sorted_edge_utils =
-    Yates_Routing.Spf.solve topo SrcDstMap.empty
+    Yates_routing.Spf.solve topo SrcDstMap.empty
     |> congestion_of_paths topo actual
     |> EdgeMap.to_alist
     |> List.filter ~f:(fun (e,_) -> edge_connects_switches e topo)
-    |> List.sort ~cmp:(fun x y -> Float.compare (snd y) (snd x)) in
+    |> List.sort ~compare:(fun x y -> Float.compare (snd y) (snd x)) in
   (*let _ = List.iter sorted_edge_utils ~f:(fun (e,c) -> Printf.printf "%s : %f\n%!" (string_of_edge topo e) c;) in*)
   let f_sel_pos = ((Float.of_int (List.length sorted_edge_utils - 1))) *. iter_pos in
   let sel_pos = Int.of_float (Float.round_down f_sel_pos) in
