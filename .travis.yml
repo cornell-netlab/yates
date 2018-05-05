@@ -10,3 +10,4 @@ script:
 - eval `opam config env`
 - opam pin add --yes --no-action $PACKAGE .
 - opam install --yes --deps-only $PACKAGE
+- make
