@@ -8,5 +8,5 @@ script:
 - sudo apt-get install -qq opam
 - opam init --auto-setup --compiler=4.06.0
 - eval `opam config env`
-- opam pin add --no-action $PACKAGE .
+- opam pin add --yes --no-action $PACKAGE .
 - opam install --yes --deps-only $PACKAGE
