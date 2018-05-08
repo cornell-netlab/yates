@@ -17,6 +17,7 @@
 *.symvers
 _build
 _tags
+.merlin
 configure
 data/demands/
 data/prediction/bin

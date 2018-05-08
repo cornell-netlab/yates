@@ -1,16 +1,30 @@
 open Core
 
 open Apsp
-open Util
 open Yates_types.Types
 
+(***************)
+(* local state *)
+(***************)
 let prev_scheme = ref SrcDstMap.empty
 
+
+(***********************)
+(* algorithm interface *)
+(***********************)
+
+(* Initialization not needed *)
+let initialize _ : unit = ()
+
+(* Recovery: normalization recovery *)
+let local_recovery = Util.normalization_recovery
+
+(* Solve: Uniform distributoin over k-shortest paths *)
 let solve (topo:topology) (_:demands) : scheme =
   let new_scheme =
     if not (SrcDstMap.is_empty !prev_scheme) then !prev_scheme
     else
-      let host_set = get_hosts_set topo in
+      let host_set = Util.get_hosts_set topo in
       let all_ksp = all_pair_k_shortest_path topo
           (min !Globals.budget 1000) host_set in
       SrcDstMap.fold all_ksp ~init:SrcDstMap.empty
@@ -25,9 +39,3 @@ let solve (topo:topology) (_:demands) : scheme =
               SrcDstMap.set acc ~key:(u, v) ~data:path_map) in
   prev_scheme := new_scheme;
   new_scheme
-
-let initialize (s:scheme) : unit =
-  prev_scheme := s;
-  ()
-
-let local_recovery = normalization_recovery

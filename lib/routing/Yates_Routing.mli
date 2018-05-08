@@ -1,9 +1,9 @@
 open Yates_types.Types
 
 module type Algorithm = sig
-    val solve : topology -> demands -> scheme
     val initialize : scheme -> unit
     val local_recovery : scheme -> topology -> failure -> demands -> scheme
+    val solve : topology -> demands -> scheme
 end
 
 module AC : Algorithm
