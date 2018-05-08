@@ -1,3 +1,6 @@
+
+[![Build Status](https://travis-ci.org/cornell-netlab/yates.svg?branch=master)](https://travis-ci.org/cornell-netlab/yates)
+
 [<img src= "http://www.cs.cornell.edu/~praveenk/yates/img/yates-logo.png" width=50%>](http://www.cs.cornell.edu/~praveenk/yates/yates)
 
 ## [Yet Another Traffic Engineering System](http://www.cs.cornell.edu/~praveenk/yates/yates)
