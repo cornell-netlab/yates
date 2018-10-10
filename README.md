@@ -21,8 +21,8 @@ YATES is a software framework that enables rapid prototyping and evaluation of t
 
 3. Install the basic required OCaml dependencies. The list of dependencies can be generated as:
     ```
-    opam install jbuilder
-    jbuilder external-lib-deps --missing @install
+    opam install dune
+    dune external-lib-deps --missing @install
     ```
     Install these dependencies using Opam. For example, to install Frenetic,
     ```
