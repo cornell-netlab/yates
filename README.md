@@ -34,7 +34,7 @@ YATES is a software framework that enables rapid prototyping and evaluation of t
     make && make install
     ```
     
-For more details and complete install, please read the [installation guide](http://www.cs.cornell.edu/~praveenk/yates/installation/).
+For more details and complete install, please read the [installation guide](https://cornell-netlab.github.io/yates/installation/).
 
 
 ### Using YATES
@@ -44,16 +44,16 @@ An example run that evaluates performance of ECMP with Internet2's Abilene backb
       data/demands/actual/abilene.txt data/demands/predicted/abilene.txt \
       data/hosts/abilene.hosts -ecmp
 ```
-The [usage page](http://www.cs.cornell.edu/~praveenk/yates/tutorial/) describes how to use YATES to evaluate TE systems in more detail.
+The [usage page](https://cornell-netlab.github.io/yates/tutorial/) describes how to use YATES to evaluate TE systems in more detail.
 
 ### Extending YATES
-If you would like to use YATES to prototype new TE system(s), please see an example on [extending YATES](http://www.cs.cornell.edu/~praveenk/yates/extending/).
+If you would like to use YATES to prototype new TE system(s), please see an example on [extending YATES](https://cornell-netlab.github.io/yates/extending/).
 
 
 
 ## Credits
 
-See the [list of initial contributors here](http://www.cs.cornell.edu/~praveenk/yates/yates#members).
+See the [list of initial contributors here](https://cornell-netlab.github.io/yates/#members).
 
 
 ## License
