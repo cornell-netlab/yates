@@ -36,7 +36,7 @@
     
     
       
-        <title>Extending YATES - YATES</title>
+        <title>Reproducing results with YATES - SOSR 2018</title>
       
     
     
@@ -451,135 +451,9 @@
               
                 
                 
-                <h1 id="extending-yates">Extending YATES</h1>
-<p>One of the primary objectives of YATES is to enable rapid prototyping of TE
-systems. This page will demonstrate how to implement a new TE algorithm with
-YATES.</p>
+                <h1 id="reproduce">Reproducing results with YATES</h1>
+<p>This page shows how to replicate the results from our SOSR 2018 paper.</p>
 <hr />
-<h2 id="example-valiant-load-balancing-vlb">Example: Valiant Load Balancing (VLB)</h2>
-<p><strong>VLB</strong>: Suppose we want to implement a TE system based on <a href="http://yuba.stanford.edu/vlb/">Valiant Load
-Balancing (VLB)</a> with YATES, and compare it with
-other TE approaches.  Essentially, VLB routes traffic by forwarding flows from
-a source to a destination through random intermediate nodes. It takes the
-shortest paths to route from source to intermediate nodes, and from
-intermediate nodes to the destination.</p>
-<h3 id="background">Background</h3>
-<p>Most functionality for implementing TE algorithms in YATES resides in
-<a href="https://github.com/cornell-netlab/yates/tree/master/lib/routing"><code>lib/routing</code></a>.
-A TE algorithm module has the following interface:</p>
-<div class="codehilite"><pre><span></span><span class="k">module</span> <span class="k">type</span> <span class="nc">Algorithm</span> <span class="o">=</span> <span class="k">sig</span>
-  <span class="c">(* Main function that computes the new routing scheme *)</span>
-  <span class="k">val</span> <span class="n">solve</span> <span class="o">:</span> <span class="n">topology</span> <span class="o">-&gt;</span> <span class="n">demands</span> <span class="o">-&gt;</span> <span class="n">scheme</span>
-
-  <span class="c">(* Optionally, initialize a TE module with a routing scheme *)</span>
-  <span class="k">val</span> <span class="n">initialize</span> <span class="o">:</span> <span class="n">scheme</span> <span class="o">-&gt;</span> <span class="kt">unit</span>
-
-  <span class="c">(* Optionally, augment the TE algorithm with a way to handle failures *)</span>
-  <span class="k">val</span> <span class="n">local_recovery</span> <span class="o">:</span> <span class="n">scheme</span> <span class="o">-&gt;</span> <span class="n">topology</span> <span class="o">-&gt;</span> <span class="n">failure</span> <span class="o">-&gt;</span> <span class="n">demands</span> <span class="o">-&gt;</span> <span class="n">scheme</span>
-<span class="k">end</span>
-</pre></div>
-
-
-<p>This interface uses types defined in <a href="https://github.com/cornell-netlab/yates/blob/master/lib/types/Types.ml"><code>lib/types/</code></a>.
-The most essential function in this interface is the  <code>solve</code> function. <code>solve</code>
-computes a routing scheme (of type <code>scheme</code>) given a topology (of type
-<code>topology</code>) and traffic matrices (of type <code>demands</code>). A routing <code>scheme</code> is a
-mapping from source-destination pairs to a probability distribution over paths
-between those pairs.</p>
-<div class="codehilite"><pre><span></span><span class="c">(* Map from source-destination pair to it&#39;s required bandwidth *)</span>
-<span class="k">type</span> <span class="n">demands</span> <span class="o">=</span> <span class="kt">float</span> <span class="nn">SrcDstMap</span><span class="p">.</span><span class="n">t</span>
-
-<span class="c">(* Map from source-destination pair to a probability distribution over paths *)</span>
-<span class="k">type</span> <span class="n">scheme</span> <span class="o">=</span> <span class="o">(</span><span class="kt">float</span> <span class="nn">PathMap</span><span class="p">.</span><span class="n">t</span><span class="o">)</span> <span class="nn">SrcDstMap</span><span class="p">.</span><span class="n">t</span>
-</pre></div>
-
-
-<p>The weight (or probability) of path <em>p</em> in the distribution represents the
-relative fraction of the source-destination traffic that should be sent over
-<em>p</em>.</p>
-<hr />
-<h3 id="implementation">Implementation</h3>
-<p>We start with writing a YATES TE module (<a href="https://github.com/cornell-netlab/yates/blob/master/lib/routing/Vlb.ml"><code>Vlb.ml</code></a>) that implements the interface shown above.</p>
-<p>The <a href="https://github.com/cornell-netlab/yates/blob/master/lib/routing/Vlb.ml#L13"><code>solve</code></a>
-function for VLB first pre-computes all-pair shortest paths for every pair of nodes using existing implementations provided in YATES.</p>
-<div class="codehilite"><pre><span></span><span class="c">(* All shortest paths for all node pairs *)</span>
-<span class="k">let</span> <span class="n">mpapsp</span> <span class="o">=</span> <span class="n">all_pairs_multi_shortest_path</span> <span class="n">topo</span> <span class="k">in</span>
-
-<span class="c">(* Get one shortest path per node pair *)</span>
-<span class="k">let</span> <span class="n">spf_table</span> <span class="o">=</span> <span class="nn">SrcDstMap</span><span class="p">.</span><span class="n">fold</span> <span class="n">mpapsp</span> <span class="o">~</span><span class="n">init</span><span class="o">:</span><span class="nn">SrcDstMap</span><span class="p">.</span><span class="n">empty</span>
-  <span class="o">~</span><span class="n">f</span><span class="o">:(</span><span class="k">fun</span> <span class="o">~</span><span class="n">key</span><span class="o">:(</span><span class="n">v1</span><span class="o">,</span><span class="n">v2</span><span class="o">)</span> <span class="o">~</span><span class="n">data</span><span class="o">:_</span> <span class="n">acc</span> <span class="o">-&gt;</span>
-      <span class="k">match</span> <span class="n">get_random_path</span> <span class="n">v1</span> <span class="n">v2</span> <span class="n">topo</span> <span class="n">mpapsp</span> <span class="k">with</span>
-      <span class="o">|</span> <span class="nc">None</span> <span class="o">-&gt;</span> <span class="n">acc</span>
-      <span class="o">|</span> <span class="nc">Some</span> <span class="n">rand_path</span> <span class="o">-&gt;</span>
-        <span class="nn">SrcDstMap</span><span class="p">.</span><span class="n">set</span> <span class="n">acc</span> <span class="o">~</span><span class="n">key</span><span class="o">:(</span><span class="n">v1</span><span class="o">,</span><span class="n">v2</span><span class="o">)</span> <span class="o">~</span><span class="n">data</span><span class="o">:</span><span class="n">rand_path</span><span class="o">)</span> <span class="k">in</span>
-
-<span class="c">(* Returns a shortest path from a given source to a given destination *)</span>
-<span class="k">let</span> <span class="n">find_path</span> <span class="n">src</span> <span class="n">dst</span> <span class="o">=</span> <span class="nn">SrcDstMap</span><span class="p">.</span><span class="n">find_exn</span> <span class="n">spf_table</span> <span class="o">(</span><span class="n">src</span><span class="o">,</span><span class="n">dst</span><span class="o">)</span> <span class="k">in</span>
-</pre></div>
-
-
-<p>Then, we iterate over the pairs of source-destination nodes and for each
-pair, we compute the set of paths through all possible detour nodes, and
-create a probability distribution over these paths, assigning uniform
-probability for each path.</p>
-<div class="codehilite"><pre><span></span><span class="c">(* A function that computes the shortest path through a given detour node.</span>
-<span class="c">   It returns the concatenation of shortest src -&gt; det and det -&gt; dst nodes. *)</span>
-<span class="k">let</span> <span class="n">route_thru_detour</span> <span class="n">src</span> <span class="n">det</span> <span class="n">dst</span> <span class="o">=</span>
-  <span class="n">remove_cycles</span> <span class="o">(</span><span class="n">find_path</span> <span class="n">src</span> <span class="n">det</span> <span class="o">@</span> <span class="n">find_path</span> <span class="n">det</span> <span class="n">dst</span><span class="o">)</span> <span class="k">in</span>
-
-<span class="c">(* Compute uniform probability distribution over paths through every possible</span>
-<span class="c">   intermediate node for a given source and destination. *)</span>
-<span class="k">let</span> <span class="n">vlb_pps</span> <span class="n">src</span> <span class="n">dst</span> <span class="o">=</span>
-  <span class="c">(* Find paths through all possible detours *)</span>
-  <span class="k">let</span> <span class="o">(</span><span class="n">paths</span><span class="o">,</span> <span class="n">num_detours</span><span class="o">)</span> <span class="o">=</span>
-    <span class="nn">Topology</span><span class="p">.</span><span class="n">fold_vertexes</span>
-      <span class="o">(</span><span class="k">fun</span> <span class="n">v</span> <span class="o">(</span><span class="n">p_acc</span><span class="o">,</span> <span class="n">ns_acc</span><span class="o">)</span> <span class="o">-&gt;</span>
-         <span class="k">match</span> <span class="n">device</span> <span class="n">v</span> <span class="k">with</span>
-         <span class="o">|</span> <span class="nn">Node</span><span class="p">.</span><span class="nc">Switch</span> <span class="o">-&gt;</span>
-           <span class="c">(* Only route through switches *)</span>
-           <span class="o">((</span><span class="n">route_thru_detour</span> <span class="n">src</span> <span class="n">v</span> <span class="n">dst</span><span class="o">)::</span><span class="n">p_acc</span><span class="o">,</span> <span class="n">ns_acc</span> <span class="o">+.</span> <span class="mi">1</span><span class="o">.)</span>
-         <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span>
-           <span class="o">(</span><span class="n">p_acc</span><span class="o">,</span> <span class="n">ns_acc</span><span class="o">)</span> <span class="o">)</span> <span class="n">topo</span> <span class="o">(</span><span class="bp">[]</span><span class="o">,</span> <span class="mi">0</span><span class="o">.)</span> <span class="k">in</span>
-  <span class="c">(* Generate uniform probability distribution *)</span>
-  <span class="nn">List</span><span class="p">.</span><span class="n">fold_left</span> <span class="n">paths</span> <span class="o">~</span><span class="n">init</span><span class="o">:</span><span class="nn">PathMap</span><span class="p">.</span><span class="n">empty</span> <span class="o">~</span><span class="n">f</span><span class="o">:(</span><span class="k">fun</span> <span class="n">acc</span> <span class="n">path</span> <span class="o">-&gt;</span>
-      <span class="n">add_or_increment_path</span> <span class="n">acc</span> <span class="n">path</span> <span class="o">(</span><span class="mi">1</span><span class="o">.</span><span class="mi">0</span> <span class="o">/.</span> <span class="n">num_detours</span><span class="o">))</span> <span class="k">in</span>
-</pre></div>
-
-
-<p>Finally, we create a routing scheme that maps each
-source-destination pair to its corresponding distribution over paths.</p>
-<div class="codehilite"><pre><span></span><span class="c">(* Folding over mpapsp just to get all src-dst pairs *)</span>
-<span class="nn">SrcDstMap</span><span class="p">.</span><span class="n">fold</span> <span class="n">mpapsp</span> <span class="o">~</span><span class="n">init</span><span class="o">:</span><span class="nn">SrcDstMap</span><span class="p">.</span><span class="n">empty</span> <span class="o">~</span><span class="n">f</span><span class="o">:(</span><span class="k">fun</span> <span class="o">~</span><span class="n">key</span><span class="o">:(</span><span class="n">v1</span><span class="o">,</span><span class="n">v2</span><span class="o">)</span> <span class="o">~</span><span class="n">data</span><span class="o">:_</span> <span class="n">acc</span> <span class="o">-&gt;</span>
-    <span class="k">match</span> <span class="o">(</span><span class="n">device</span> <span class="n">v1</span><span class="o">,</span> <span class="n">device</span> <span class="n">v2</span><span class="o">)</span> <span class="k">with</span>
-    <span class="o">|</span> <span class="o">(</span><span class="nn">Node</span><span class="p">.</span><span class="nc">Host</span><span class="o">,</span> <span class="nn">Node</span><span class="p">.</span><span class="nc">Host</span><span class="o">)</span> <span class="o">-&gt;</span>
-      <span class="nn">SrcDstMap</span><span class="p">.</span><span class="n">set</span> <span class="n">acc</span> <span class="o">~</span><span class="n">key</span><span class="o">:(</span><span class="n">v1</span><span class="o">,</span><span class="n">v2</span><span class="o">)</span> <span class="o">~</span><span class="n">data</span><span class="o">:(</span><span class="n">vlb_pps</span> <span class="n">v1</span> <span class="n">v2</span><span class="o">)</span>
-    <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">acc</span><span class="o">)</span>
-</pre></div>
-
-
-<p>See <a href="https://github.com/cornell-netlab/yates/blob/master/lib/routing/Vlb.ml"><code>lib/routing/Vlb.ml</code></a>
-for the complete implementation.</p>
-<p>To make the YATES simulator aware of the new TE algorithm, we need to perform a
-few more steps. We create an interface <a href="https://github.com/cornell-netlab/yates/blob/master/lib/routing/Vlb.mli"><code>Vlb.mli</code></a> for the new VLB module.
-This interface is basically the same as we showed earlier.
-We create an identifier <code>Vlb</code> for this module by adding it to <a href="https://github.com/cornell-netlab/yates/blob/master/lib/routing/Yates_Routing.ml#L33"><code>Yates_Routing.ml</code></a> and <a href="https://github.com/cornell-netlab/yates/blob/master/lib/routing/Yates_Routing.mli#L33"><code>Yates_Routing.mli</code></a>. The VLB routing module is now ready. For use within the simulator, we would also need to add VLB as a solver type (see <a href="https://github.com/cornell-netlab/yates/blob/master/simulator/Simulation_Types.ml">here</a>) and define any <a href="https://github.com/cornell-netlab/yates/blob/master/simulator/Simulation_Util.ml#L7">helper functions</a> and a <a href="https://github.com/cornell-netlab/yates/blob/master/simulator/Yates_simulator.ml#L621">CLI flag</a>.
-This new TE system can be used by simply specifying it's flag in the YATES CLI.
-For example, to compare ECMP and VLB on the example Abilene topology, we can
-run:</p>
-<div class="codehilite"><pre><span></span>$ make <span class="o">&amp;&amp;</span> make install
-$ yates data/topologies/abilene.dot <span class="se">\</span>
-  data/demands/actual/abilene.txt data/demands/predicted/abilene.txt <span class="se">\</span>
-  data/hosts/abilene.hosts -ecmp -vlb
-</pre></div>
-                
-                  
-                
-              
-              
-                
-
-
-              
             </article>
           </div>
         </div>
