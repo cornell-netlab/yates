@@ -3,7 +3,7 @@
 
 [<img src= "http://www.cs.cornell.edu/~praveenk/yates/img/yates-logo.png" width=50%>](http://www.cs.cornell.edu/~praveenk/yates/yates)
 
-## [Yet Another Traffic Engineering System](http://www.cs.cornell.edu/~praveenk/yates/yates)
+## [Yet Another Traffic Engineering System](https://cornell-netlab.github.io/yates/)
 
 YATES is a software framework that enables rapid prototyping and evaluation of traffic engineering systems. It is open source under a GNU LGPLv3 license.
 ## Getting started
