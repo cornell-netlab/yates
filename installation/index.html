@@ -31,22 +31,22 @@
       
         <meta name="lang:search.tokenizer" content="[\s\-]+">
       
-      <link rel="shortcut icon" href="./img/favicon.ico">
+      <link rel="shortcut icon" href="../img/favicon.ico">
       <meta name="generator" content="mkdocs-0.17.3, mkdocs-material-2.7.3">
     
     
       
-      <title>YATES</title>
+        <title>Installation - YATES</title>
       
     
     
-      <link rel="stylesheet" href="./assets/stylesheets/application.8d40d89b.css">
+      <link rel="stylesheet" href="../assets/stylesheets/application.8d40d89b.css">
       
-        <link rel="stylesheet" href="./assets/stylesheets/application-palette.6079476c.css">
+        <link rel="stylesheet" href="../assets/stylesheets/application-palette.6079476c.css">
       
     
     
-      <script src="./assets/javascripts/modernizr.1aa3b519.js"></script>
+      <script src="../assets/javascripts/modernizr.1aa3b519.js"></script>
     
     
       <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
@@ -57,9 +57,9 @@
       <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     
     
-      <link rel="stylesheet" href="./stylesheets/extra.css">
+      <link rel="stylesheet" href="../stylesheets/extra.css">
     
-      <link rel="stylesheet" href="./stylesheets/fonts/postmaster.ttf.woff">
+      <link rel="stylesheet" href="../stylesheets/fonts/postmaster.ttf.woff">
     
     
   </head>
@@ -97,7 +97,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="drawer"></label>
     
-      <a href="#yet-another-traffic-engineering-system" tabindex="1" class="md-skip">
+      <a href="#installation" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -111,11 +111,11 @@
 
       <!-- Link to home -->
       <div class="md-flex__cell md-flex__cell--shrink">
-        <a href="yates.html"
+        <a href="../yates.html"
             title="YATES"
             class="md-header-nav__button md-logo">
           
-            <img src="./img/yates-logo.png"
+            <img src="../img/yates-logo.png"
                 width="100" height="36" />
           
         </a>
@@ -137,7 +137,7 @@
                 YATES
               </span>
               <span class="md-header-nav__topic">
-                Home
+                Installation
               </span>
             
           
@@ -225,7 +225,7 @@
   <label class="md-nav__title md-nav__title--site" for="drawer">
     <span class="md-nav__button md-logo">
       
-        <img src="./img/yates-logo.png" width="48" height="48">
+        <img src="../img/yates-logo.png" width="48" height="48">
       
     </span>
     YATES
@@ -259,6 +259,18 @@
       
       
 
+
+  <li class="md-nav__item">
+    <a href=".." title="Home" class="md-nav__link">
+      Home
+    </a>
+  </li>
+
+    
+      
+      
+      
+
   
 
 
@@ -270,11 +282,11 @@
     
     
       <label class="md-nav__link md-nav__link--active" for="toc">
-        Home
+        Installation
       </label>
     
-    <a href="." title="Home" class="md-nav__link md-nav__link--active">
-      Home
+    <a href="./" title="Installation" class="md-nav__link md-nav__link--active">
+      Installation
     </a>
     
       
@@ -286,17 +298,52 @@
   
     <label class="md-nav__title" for="toc">Table of contents</label>
     <ul class="md-nav__list" data-md-scrollfix>
-      
+       
         <li class="md-nav__item">
-  <a href="#overview" title="Overview" class="md-nav__link">
-    Overview
+  <a href="#vm" title="Virtual Machine" class="md-nav__link">
+    Virtual Machine
+  </a>
+  
+</li>
+ 
+        <li class="md-nav__item">
+  <a href="#source" title="Build from source" class="md-nav__link">
+    Build from source
+  </a>
+  
+</li>
+
+        <li class="md-nav__item">
+  <a href="#quickstart" title="Quickstart" class="md-nav__link">
+    Quickstart
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#papers" title="Papers" class="md-nav__link">
-    Papers
+  <a href="#requirements" title="Requirements" class="md-nav__link">
+    Requirements
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#download" title="Download" class="md-nav__link">
+    Download
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setup-and-build" title="Setup and build" class="md-nav__link">
+    Setup and build
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verify" title="Verify" class="md-nav__link">
+    Verify
   </a>
   
 </li>
@@ -309,18 +356,6 @@
   
 </nav>
     
-  </li>
-
-    
-      
-      
-      
-
-
-  <li class="md-nav__item">
-    <a href="installation/" title="Installation" class="md-nav__link">
-      Installation
-    </a>
   </li>
 
     
@@ -349,7 +384,7 @@
 
 
   <li class="md-nav__item">
-    <a href="tutorial/" title="Tutorial" class="md-nav__link">
+    <a href="../tutorial/" title="Tutorial" class="md-nav__link">
       Tutorial
     </a>
   </li>
@@ -361,7 +396,7 @@
 
 
   <li class="md-nav__item">
-    <a href="extending/" title="Extending YATES" class="md-nav__link">
+    <a href="../extending/" title="Extending YATES" class="md-nav__link">
       Extending YATES
     </a>
   </li>
@@ -393,15 +428,50 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#overview" title="Overview" class="md-nav__link">
-    Overview
+  <a href="#vm" title="Virtual Machine" class="md-nav__link">
+    Virtual Machine
+  </a>
+  
+</li>
+ 
+        <li class="md-nav__item">
+  <a href="#source" title="Build from source" class="md-nav__link">
+    Build from source
+  </a>
+  
+</li>
+
+        <li class="md-nav__item">
+  <a href="#quickstart" title="Quickstart" class="md-nav__link">
+    Quickstart
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#papers" title="Papers" class="md-nav__link">
-    Papers
+  <a href="#requirements" title="Requirements" class="md-nav__link">
+    Requirements
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#download" title="Download" class="md-nav__link">
+    Download
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setup-and-build" title="Setup and build" class="md-nav__link">
+    Setup and build
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verify" title="Verify" class="md-nav__link">
+    Verify
   </a>
   
 </li>
@@ -423,47 +493,159 @@
               
                 
                 
-                <h1 id="yet-another-traffic-engineering-system">Yet Another Traffic Engineering System</h1>
-<h2 id="overview">Overview</h2>
-<p><span class=yates>YATES</span> &nbsp; is a software framework that enables
-rapid prototyping and evaluation of traffic engineering systems. YATES comes
-with two backends: a network simulator that calculates congestion, throughput,
-loss, latency, etc., and an SDN-based implementation that can be used to
-validate results obtained via simulation and also provides an easy path to
-deployment.</p>
-<table>
-<thead>
-<tr>
-<th align="center">Topology</th>
-<th align="center"></th>
-<th align="left">Traffic Matrices</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td align="center"><img src="img/topology.png"  align="middle" alt="" style="width: 120%;"/></td>
-<td align="center"><font size=24>+</font></td>
-<td align="left"><img src="img/matrix.png"  align="middle" alt="" style="width: 70%;"/></td>
-</tr>
-</tbody>
-</table>
-<div align=center class=yates>
-<font size=20>&darr;</font>
-<img src="img/compute.svg" align="center" alt="analyze" style="width:5%"/>
-<font size=5>YATES</font>
-<font size=20>&darr;</font>
-</div>
-
-<p align="center">
-<img src="img/result.png"  align="middle" alt="Performance Analysis" style="width: 50%;opacity:0.8;filter:alpha(opacity=80);"/></br>
-<b>Performance metrics</b>
-</p>
+                <h1 id="installation">Installation</h1>
+<p>This page describes the process to get YATES running. There are two options:</p>
+<ul>
+ <li> <a href="#vm">use a pre-built VM</a>, or </li>
+ <li> <a href="#source">install YATES from source</a>.</li>
+</ul>
 
 <hr />
-<h2 id="papers">Papers</h2>
+<h2 id="vm">Pre-built Virtual Machine</h2>
+To get started with YATES, download the <a href="https://drive.google.com/open?id=11gRWUM5qXDsQE_zwL0dHg89aIUnj1p-g">YATES VM image (3.9 GB)</a>. Then proceed to import the VM on your machine:
+<ol>
+    <li>Start <a href="https://www.virtualbox.org/wiki/Downloads">VirtualBox</a> on your host machine.</li>
+    <li>Import YATES VM by selecting "File" -> "Import Appliance", and selecting the downloaded VM image.</li>
+    <li>Allocate the VM as much RAM as possible (at
+	least 2GB). A single processor should suffice (recommended: 2).</li>
+    <li>You may need to turn on virtualization extensions in your BIOS to enable 64-bit virtualization.</li>
+    <li> When the VM starts up, the <code>yates</code> user should be automatically logged in. (username: <code>yates</code>, password: <code>yates</code>).</li>
+    <li> Open a terminal and verify that YATES is installed:
+<div class="codehilite"><pre><span></span>yates -h
+</pre></div> </li>
+</ol>
+<p>You can skip the rest of the instructions on this page and follow the <a href="../tutorial/">tutorial</a> to use YATES.</p>
+<p>Note that the VM doesn't include Gurobi which is required to run TE algorithms that rely on LP optimization. You will need to install Gurobi manually if you plan to use such TE systems. See <a href="#gurobi">instructions</a>.</p>
+
+<hr />
+<h2 id="source">Build from source</h2>
+
+<h3 id="quickstart">Quickstart</h3>
+
+<p>Here's a list of commands to get you quickly started with a YATES installation.
+For more details, read the following sections.</p>
+<div class="codehilite"><pre><span></span><span class="nb">export</span> <span class="nv">OPAMYES</span><span class="o">=</span><span class="m">1</span>
+<span class="nb">export</span> <span class="nv">OPAMVERBOSE</span><span class="o">=</span><span class="m">1</span>
+sudo apt update -qq
+sudo apt install -qq git ocaml ocaml-native-compilers camlp4-extra opam m4
+opam init
+opam update
+opam switch 4.06.0
+<span class="nb">eval</span> <span class="sb">`</span>opam config env<span class="sb">`</span>
+opam install dune
+git clone https://github.com/cornell-netlab/yates.git
+<span class="nb">cd</span> yates
+opam pin add --yes --no-action yates .
+opam install --yes --deps-only yates
+make <span class="o">&amp;&amp;</span> make install
+</pre></div>
+
+
+<p>If there's an error with the above set of commands, please read the
+following step-by-step guide. Else, skip to <a href="#verify">verification</a>.</p>
+<hr />
+<h2 id="requirements">Requirements</h2>
+<p>YATES requires the following to be installed on the system.</p>
 <ul>
-<li>Praveen Kumar, Chris Yu, Yang Yuan, Nate Foster, Robert Kleinberg, and Robert Soulé. <strong><a href="http://www.cs.cornell.edu/~praveenk/papers/yates-sosr18.pdf">YATES: Rapid Prototyping for Traffic Engineering Systems</a></strong>. In <em>ACM SIGCOMM Symposium on Software-Defined Networking Research (SOSR), Los Angeles, CA</em>, March 2018.</li>
+<li><a href="https://ocaml.org/docs/install.html">OCaml (&gt;= 4.06.0)</a> and the OCaml package manager <a href="https://ocaml.org/docs/install.html#OPAM">Opam</a>. Install these using:</li>
 </ul>
+<div class="codehilite"><pre><span></span>sudo apt update -qq
+sudo apt install -qq ocaml ocaml-native-compilers camlp4-extra opam m4
+</pre></div>
+
+
+<p>and switch to the 4.06.0 compiler as:</p>
+<div class="codehilite"><pre><span></span>opam init --auto-setup --compiler<span class="o">=</span>4.06.0
+<span class="nb">eval</span> <span class="sb">`</span>opam config env<span class="sb">`</span>
+</pre></div>
+
+
+<p>If you had a version of OCaml already installed, then make sure you are using the correct compiler version for YATES.</p>
+<div class="codehilite"><pre><span></span>ocaml --version
+</pre></div>
+
+
+<p>If not, update the compiler version:</p>
+<div class="codehilite"><pre><span></span>opam update
+opam switch 4.06.0
+<span class="nb">eval</span> <span class="sb">`</span>opam config env<span class="sb">`</span>
+</pre></div>
+
+
+<ul>
+<li>YATES uses the <a href="https://github.com/ocaml/dune">Dune</a> build system. Install it using Opam:</li>
+</ul>
+<div class="codehilite"><pre><span></span>opam install dune
+</pre></div>
+
+
+<ul id="gurobi">
+<li>[Optional but recommended] YATES uses the <a href="http://www.gurobi.com/">Gurobi Optimizer</a> to solve linear
+    programs (LP). So, if you are planning to use a TE system that needs to
+    solve an LP, <a href="http://www.gurobi.com/downloads/user/gurobi-optimizer">install Gurobi</a>.
+    Gurobi offers a <a href="http://www.gurobi.com/academia/for-universities">free academic license</a>.
+    Follow the <a href="http://www.gurobi.com/documentation/8.0/quickstart_linux/software_installation_guid.html#section:Installation">Software Installation Guide</a> for instructions on installing Gurobi and setting up a license.
+    Finally, make sure that <code>gurobi_cl</code> is in <code>$PATH</code> and you have a valid license.</li>
+</ul>
+<div class="codehilite"><pre><span></span>gurobi_cl --license
+</pre></div>
+
+
+<hr />
+<h2 id="download">Download</h2>
+<p>Get the latest source code for YATES from GitHub:</p>
+<div class="codehilite"><pre><span></span>git clone https://github.com/cornell-netlab/yates.git
+</pre></div>
+
+
+<hr />
+<h2 id="setup-and-build">Setup and build</h2>
+<ul>
+<li>Go to newly created <code>yates</code> directory and run the following command to generate
+the list of dependencies for YATES:</li>
+</ul>
+<div class="codehilite"><pre><span></span><span class="nb">cd</span> yates
+jbuilder external-lib-deps --missing @install
+</pre></div>
+
+
+<p>Install the dependencies these using <code>opam</code>. For instance, to install Frenetic,
+run:</p>
+<div class="codehilite"><pre><span></span>opam install frenetic
+</pre></div>
+
+
+<ul>
+<li>You can also install the dependencies in a more automated way using <code>opam</code> as:</li>
+</ul>
+<div class="codehilite"><pre><span></span><span class="nb">cd</span> yates
+opam pin add --yes --no-action yates .
+opam install --yes --deps-only yates
+</pre></div>
+
+
+<ul>
+<li>Once the dependencies have been installed, build and install YATES as:</li>
+</ul>
+<div class="codehilite"><pre><span></span>make <span class="o">&amp;&amp;</span> make install
+</pre></div>
+
+
+<p>This will generate and install two binaries:</p>
+<ol>
+<li><code>yates</code>: the YATES simulator and</li>
+<li><code>yates.ctrl</code>: the YATES SDN controller.</li>
+</ol>
+<hr />
+<h2 id="verify">Verify</h2>
+<p>Finally, verify that YATES was successfully installed by running:</p>
+<div class="codehilite"><pre><span></span>yates -h
+</pre></div>
+
+
+<p>and</p>
+<div class="codehilite"><pre><span></span>yates.ctrl -h
+</pre></div>
                 
                   
                 
@@ -512,10 +694,29 @@ deployment.</p>
 
         <!-- Link to previous page -->
         
+          <a href=".."
+              title="Home"
+              class="md-flex md-footer-nav__link md-footer-nav__link--prev"
+              rel="prev">
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-back
+                    md-footer-nav__button"></i>
+            </div>
+            <div class="md-flex__cell md-flex__cell--stretch
+                  md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Previous
+                </span>
+                Home
+              </span>
+            </div>
+          </a>
+        
 
         <!-- Link to next page -->
         
-          <a href="installation/" title="Installation"
+          <a href="../tutorial/" title="Tutorial"
               class="md-flex md-footer-nav__link md-footer-nav__link--next"
               rel="next">
             <div class="md-flex__cell md-flex__cell--stretch
@@ -524,7 +725,7 @@ deployment.</p>
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                Installation
+                Tutorial
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">
@@ -541,9 +742,9 @@ deployment.</p>
       
     </div>
     
-      <script src="./assets/javascripts/application.b438e6c5.js"></script>
+      <script src="../assets/javascripts/application.b438e6c5.js"></script>
       
-      <script>app.initialize({version:"0.17.3",url:{base:"."}})</script>
+      <script>app.initialize({version:"0.17.3",url:{base:".."}})</script>
       
     
     

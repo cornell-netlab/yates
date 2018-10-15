@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>YATES: Yet Another Traffic Engineering System</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9gVQ4dYFwwWSjIDZnLEWnxCjeSWFphJiwGPXr1jddIhOegiu1FwO5qRGvFXOdJZ4" crossorigin="anonymous">
+    <script async src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script async src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.bundle.min.js"></script>
+    <script async src="https://cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.4.1/jquery.easing.min.js"></script>
+    <link href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
+    <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
+    <!-- Custom fonts for this template -->
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,500,700" rel="stylesheet" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Merriweather+Sans:400,500,700" rel="stylesheet" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,500,700" rel="stylesheet" type="text/css">
+    <!-- Custom styles for this template -->
+    <link href="css/style.css" rel="stylesheet">
+    <link rel="shortcut icon" href="https://www.cornell.edu/favicon.ico" />
+  </head>
+
+  <body id="page-top">
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg bg-secondary fixed-top text-uppercase" id="mainNav">
+      <div class="container">
+        <a class="navbar-brand js-scroll-trigger" href="#page-top"><div class=yates>YATES</div></a>
+        <button class="navbar-toggler navbar-toggler-right text-uppercase bg-primary text-dark rounded" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+          Menu
+          <i class="fa fa-bars"></i>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarResponsive">
+          <ul class="navbar-nav ml-auto">
+            <li class="nav-item mx-0 mx-lg-1">
+              <a class="nav-link py-3 px-0 px-lg-3 rounded js-scroll-trigger" href="#overview">Overview</a>
+            </li>
+            <li class="nav-item mx-0 mx-lg-1">
+              <a class="nav-link py-3 px-0 px-lg-3 rounded js-scroll-trigger" href="#members">Members</a>
+            </li>
+            <li class="nav-item mx-0 mx-lg-1">
+              <a class="nav-link py-3 px-0 px-lg-3 rounded js-scroll-trigger" href="#publications">Publications</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Header -->
+    <header class="masthead bg-primary text-dark text-center">
+        <div class=yates-large>YATES</div>
+        <h2 class="font-weight-light mb-0">a framework for rapid prototyping of traffic engineering systems</h2> <br>
+        <ul class="list-inline mb-0">
+            <li class="list-inline-item">
+                <a class="btn btn-lg btn-secondary" href="https://www.cs.cornell.edu/~praveenk/papers/yates-sosr18.pdf" target="_blank"> Paper » </a> </li>
+            <li class="list-inline-item">
+                <a class="btn btn-lg btn-success" href="https://www.cs.cornell.edu/~praveenk/yates/installation" target="_blank"> Tutorial » </a> </li>
+            <li class="list-inline-item">
+                <a class="btn btn-lg btn-warning" href="https://www.github.com/cornell-netlab/yates" target="_blank"> GitHub » </a> </li>
+        </ul>
+    </header>
+
+    <!-- Overview Section -->
+    <section class="overview" id="overview">
+        <div class="container">
+            <h2 class="text-secondary">Overview</h2>
+            <hr>
+            <div class="row">
+                <div class="col-lg-6 ml-auto">
+                    <p>
+                        <span class=yates>YATES</span> is a software framework that
+                        makes it possible to rapidly prototype and evaluate the
+                        performance of traffic engineering systems. It provides
+                        including tools for modeling topologies, routing schemes,
+                        demands, prediction algorithms, and failures.  YATES comes
+                        with two backends:
+                        <ul>
+                            <li>a network simulator that can estimate metrics such
+                                as link utilization, throughput, loss, latency,
+                                etc., and </li>
+                            <li> an SDN-based implementation that can be used to
+                                validate results obtained via simulation and also provides
+                                an easy path to deployment.</li>
+                        </ul>
+                    </p>
+                </div>
+                <div class="col-lg-6 mr-auto">
+
+  <div class="card-header" align=center><h5>Modular Interface</h5></div>
+  <div class="card-body">
+<table class="table">
+  <tbody>
+    <tr>
+      <td> \(T\) = Topologies </td>
+      <td> \(P\) = Paths </td>
+      <td> \(H\) = Hosts </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table">
+  <tbody>
+    <tr>
+      <th scope="row">Demands</th>
+      <td> \( D \in (H \times H) \to \mathbb{R} \) </td>
+    </tr>
+    <tr>
+      <th scope="row">Routing Scheme</th>
+      <td> \( S \in (H \times H \times P) \to [0, 1] \) </td>
+    </tr>
+     <tr>
+      <th scope="row">Algorithm</th>
+      <td> \( A \in (T \times D \times S) \to S \) </td>
+    </tr>
+   
+   </tbody>
+</table>
+  <hr>
+
+
+  </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section class="bg-primary text-dark mb-0" id="members">
+        <div class="container">
+            <h2 class="text-secondary">Members</h2>
+            <hr>
+            <div class="row">
+                <div class="col-sm-6">
+                    <h4><img src="img/cornell-logo.png" alt="Cornell" style="height: 55px" /> Cornell</h4>
+                    <ul>
+                        <li><a href="https://www.cs.cornell.edu/~jnfoster/">Nate Foster</a> (Faculty)</li>
+                        <li><a href="https://www.cs.cornell.edu/~rdk/">Robert Kleinberg</a> (Faculty)</li>
+                        <li><a href="https://www.cs.cornell.edu/~praveenk/">Praveen Kumar</a> (PhD student)</li>
+                        <li><a href="https://www.callowbird.com">Yang Yuan</a> (PhD student)</li>
+                    </ul>
+                </div>
+
+                <div class="col-sm-6">
+                    <h4><img src="img/cmu-logo.png" alt="CMU" style="height: 55px" /> CMU</h4>
+                    <ul>
+                        <li><a href="https://www.cs.cmu.edu/~christoy/">Chris Yu</a> (PhD student)</li>
+                    </ul>
+                    <h4><img src="img/usi-logo.png" alt="USI" style="height: 55px" /> USI Lugano</h4>
+                    <ul>
+                        <li><a href="https://www.inf.usi.ch/faculty/soule/">Robert Soule</a> (Faculty)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+
+
+    <!-- Publications Section -->
+    <section class="overview" id="publications">
+      <div class="container">
+        <h2 class="text-secondary">Publications</h2>
+        <hr>
+        <div class="row">
+            <div class="col-lg-12 ml-auto">
+                <p><a name="yates"></a>
+                    Praveen Kumar, Chris Yu, Yang Yuan, Nate Foster, Robert Kleinberg, and Robert Soulé.
+                    <b>YATES: Rapid Prototyping for Traffic Engineering Systems</b>.
+                    In <em>ACM SIGCOMM Symposium on Software-Defined Networking
+                        Research (SOSR), Los Angeles, CA</em>, March 2018.
+                    [&nbsp;<a href=" https://www.cs.cornell.edu/~praveenk/papers/yates-sosr18.pdf ">conference version</a>&nbsp;| 
+                    <a href=" https://www.cs.cornell.edu/~praveenk/talks/2018-03-YATES-SOSR.pdf ">slides</a>&nbsp;]
+                </p>
+                <p><a name="smore"></a>
+                    Praveen Kumar, Yang Yuan, Chris Yu, Nate Foster, Robert Kleinberg, Petr Lapukhov, Chiun Lin Lim, and Robert Soulé.
+                    <b>Semi-Oblivious Traffic Engineering: The Road Not Taken</b>.
+                    In <em>USENIX Symposium on Networked Systems Design and
+                        Implementation (NSDI), Renton, WA</em>, April 2018.
+                    [&nbsp;<a href=" https://www.cs.cornell.edu/~praveenk/papers/smore-nsdi18.pdf ">conference version</a>&nbsp;|
+                    <a href="https://www.cs.cornell.edu/~praveenk/talks/2018-04-SMORE-NSDI.pdf ">slides</a>&nbsp;]
+                </p>
+                 <p><a name="smore-anrw"></a>
+                    Praveen Kumar, Yang Yuan, Chris Yu, Nate Foster, Robert Kleinberg, Petr Lapukhov, Chiun Lin Lim, and Robert Soulé.
+                    <b>Semi-Oblivious Traffic Engineering with SMORE</b>.
+                    In <em>ACM, IRTF & ISOC Applied Networking Research Workshop (ANRW), Montreal, Quebec, Canada</em>, July 2018.
+                    [&nbsp;<a href=" https://www.cs.cornell.edu/~praveenk/papers/smore-anrw18.pdf ">extended abstract</a>&nbsp;|
+                    <a href="https://www.cs.cornell.edu/~praveenk/talks/2018-07-SMORE-ANRW.pdf ">slides</a>&nbsp;]
+                </p>
+ 
+            </div>
+        </div>
+    </div>
+    </section>
+
+
+    
+    <!-- Footer -->
+    <footer class="footer text-center">
+      <div class="container">
+        <div class="row">
+          <div class="col-md-4 mb-5 mb-lg-0">
+          </div>
+          <div class="col-md-4 mb-5 mb-lg-0">
+              <h4 class="text-white mb-4"><span class=yates>YATES</span> on GitHub</h4>
+            <ul class="list-inline mb-0">
+              <li class="list-inline-item">
+                <a class="btn btn-outline-light btn-social text-center rounded-circle" href="https://www.github.com/cornell-netlab/yates">
+                  <i class="fa fa-fw fa-github"></i>
+                </a>
+              </li>
+            </ul>
+          </div>
+          <div class="col-md-4">
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Scroll to Top Button (Only visible on small and extra-small screen sizes) -->
+    <div class="scroll-to-top d-lg-none position-fixed ">
+      <a class="js-scroll-trigger d-block text-center text-white rounded" href="#page-top">
+        <i class="fa fa-chevron-up"></i>
+      </a>
+    </div>
+
+
+    <script src="js/style.min.js"></script>
+
+  </body>
+
+</html>

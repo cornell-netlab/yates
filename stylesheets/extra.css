@@ -1,0 +1,25 @@
+.md-footer-nav {
+  background-color: #eeeeee;
+  color: black;
+}
+
+.md-footer-nav__direction {
+  color: #444444;
+}
+
+@font-face {
+    font-family: 'Postmaster';
+    src:url('fonts/Postmaster.ttf.woff') format('woff'),
+        url('fonts/Postmaster.ttf.svg#Postmaster') format('svg'),
+        url('fonts/Postmaster.ttf.eot'),
+        url('fonts/Postmaster.ttf.eot?#iefix') format('embedded-opentype'); 
+    font-weight: normal;
+    font-style: normal;
+}
+
+.yates {
+  color: #4499ff;
+  font-family: 'Postmaster';
+}
+
+

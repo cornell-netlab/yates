@@ -1,0 +1,729 @@
+
+
+
+
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <meta http-equiv="x-ua-compatible" content="ie=edge">
+      
+      
+      
+      
+        <meta name="lang:clipboard.copy" content="Copy to clipboard">
+      
+        <meta name="lang:clipboard.copied" content="Copied to clipboard">
+      
+        <meta name="lang:search.language" content="en">
+      
+        <meta name="lang:search.pipeline.stopwords" content="True">
+      
+        <meta name="lang:search.pipeline.trimmer" content="True">
+      
+        <meta name="lang:search.result.none" content="No matching documents">
+      
+        <meta name="lang:search.result.one" content="1 matching document">
+      
+        <meta name="lang:search.result.other" content="# matching documents">
+      
+        <meta name="lang:search.tokenizer" content="[\s\-]+">
+      
+      <link rel="shortcut icon" href="../img/favicon.ico">
+      <meta name="generator" content="mkdocs-0.17.3, mkdocs-material-2.7.3">
+    
+    
+      
+        <title>Tutorial - YATES</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/application.8d40d89b.css">
+      
+        <link rel="stylesheet" href="../assets/stylesheets/application-palette.6079476c.css">
+      
+    
+    
+      <script src="../assets/javascripts/modernizr.1aa3b519.js"></script>
+    
+    
+      <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+      
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web:300,400,400i,700|Droid+Sans+Mono">
+        <style>body,input{font-family:"Titillium Web","Helvetica Neue",Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"Droid Sans Mono","Courier New",Courier,monospace}</style>
+      
+      <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+      <link rel="stylesheet" href="../stylesheets/fonts/postmaster.ttf.woff">
+    
+    
+  </head>
+  
+    
+    
+    <body dir="ltr" data-md-color-primary="white" data-md-color-accent="pink">
+  
+    <svg class="md-svg">
+      <defs>
+        
+        
+          <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448"
+    viewBox="0 0 416 448" id="github">
+  <path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19-18.125
+        8.5-18.125-8.5-10.75-19-3.125-20.5 3.125-20.5 10.75-19 18.125-8.5
+        18.125 8.5 10.75 19 3.125 20.5zM320 304q0 10-3.125 20.5t-10.75
+        19-18.125 8.5-18.125-8.5-10.75-19-3.125-20.5 3.125-20.5 10.75-19
+        18.125-8.5 18.125 8.5 10.75 19 3.125 20.5zM360
+        304q0-30-17.25-51t-46.75-21q-10.25 0-48.75 5.25-17.75 2.75-39.25
+        2.75t-39.25-2.75q-38-5.25-48.75-5.25-29.5 0-46.75 21t-17.25 51q0 22 8
+        38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0
+        37.25-1.75t35-7.375 30.5-15 20.25-25.75 8-38.375zM416 260q0 51.75-15.25
+        82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5-41.75
+        1.125q-19.5 0-35.5-0.75t-36.875-3.125-38.125-7.5-34.25-12.875-30.25-20.25-21.5-28.75q-15.5-30.75-15.5-82.75
+        0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25
+        30.875q36.75-8.75 77.25-8.75 37 0 70 8 26.25-20.5
+        46.75-30.25t47.25-9.75q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34
+        99.5z" />
+</svg>
+        
+      </defs>
+    </svg>
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="search" autocomplete="off">
+    <label class="md-overlay" data-md-component="overlay" for="drawer"></label>
+    
+      <a href="#basic-tutorial" tabindex="1" class="md-skip">
+        Skip to content
+      </a>
+    
+    
+      <!-- Application header -->
+<header class="md-header" data-md-component="header">
+
+  <!-- Top-level navigation -->
+  <nav class="md-header-nav md-grid">
+    <div class="md-flex">
+
+      <!-- Link to home -->
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <a href="../yates.html"
+            title="YATES"
+            class="md-header-nav__button md-logo">
+          
+            <img src="../img/yates-logo.png"
+                width="100" height="36" />
+          
+        </a>
+      </div>
+
+      <!-- Button to toggle drawer -->
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--menu md-header-nav__button"
+            for="drawer"></label>
+      </div>
+
+      <!-- Header title -->
+      <div class="md-flex__cell md-flex__cell--stretch">
+        <div class="md-flex__ellipsis md-header-nav__title"
+            data-md-component="title">
+          
+            
+              <span class="md-header-nav__topic">
+                YATES
+              </span>
+              <span class="md-header-nav__topic">
+                Tutorial
+              </span>
+            
+          
+        </div>
+      </div>
+
+      <!-- Button to open search dialogue -->
+      <div class="md-flex__cell md-flex__cell--shrink">
+        
+          
+            <label class="md-icon md-icon--search md-header-nav__button"
+                for="search"></label>
+
+            <!-- Search interface -->
+            
+<div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="query" data-md-state="active">
+      <label class="md-icon md-search__icon" for="search"></label>
+      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
+        &#xE5CD;
+      </button>
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="result">
+          <div class="md-search-result__meta">
+            Type to start searching
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+          
+        
+      </div>
+
+      <!-- Repository containing source -->
+      
+        <div class="md-flex__cell md-flex__cell--shrink">
+          <div class="md-header-nav__source">
+            
+
+
+  
+
+
+  <a href="https://github.com/cornell-netlab/yates" title="Go to repository" class="md-source" data-md-source="github">
+    
+      <div class="md-source__icon">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <use xlink:href="#github" width="24" height="24"></use>
+        </svg>
+      </div>
+    
+    <div class="md-source__repository">
+      YATES
+    </div>
+  </a>
+
+          </div>
+        </div>
+      
+    </div>
+  </nav>
+</header>
+    
+    <div class="md-container">
+      
+        
+      
+      
+      <main class="md-main">
+        <div class="md-main__inner md-grid" data-md-component="container">
+          
+            
+              <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    <nav class="md-nav md-nav--primary" data-md-level="0">
+  <label class="md-nav__title md-nav__title--site" for="drawer">
+    <span class="md-nav__button md-logo">
+      
+        <img src="../img/yates-logo.png" width="48" height="48">
+      
+    </span>
+    YATES
+  </label>
+  
+    <div class="md-nav__source">
+      
+
+
+  
+
+
+  <a href="https://github.com/cornell-netlab/yates" title="Go to repository" class="md-source" data-md-source="github">
+    
+      <div class="md-source__icon">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <use xlink:href="#github" width="24" height="24"></use>
+        </svg>
+      </div>
+    
+    <div class="md-source__repository">
+      YATES
+    </div>
+  </a>
+
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href=".." title="Home" class="md-nav__link">
+      Home
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../installation/" title="Installation" class="md-nav__link">
+      Installation
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+  
+
+
+  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-3" type="checkbox" id="nav-3" checked>
+    
+    <label class="md-nav__link" for="nav-3">
+      Documentation
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-3">
+        Documentation
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+  
+
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="toc">
+    
+      
+    
+    
+      <label class="md-nav__link md-nav__link--active" for="toc">
+        Tutorial
+      </label>
+    
+    <a href="./" title="Tutorial" class="md-nav__link md-nav__link--active">
+       Tutorial
+    </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#getting-started" title="Getting Started" class="md-nav__link">
+    Getting Started
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#inputs" title="Inputs" class="md-nav__link">
+    Inputs
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#basic-usage" title="Basic Usage" class="md-nav__link">
+    Basic Usage
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparing-te-systems" title="Comparing TE systems" class="md-nav__link">
+    Comparing TE systems
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#operational-constraints" title="Operational Constraints" class="md-nav__link">
+    Operational Constraints
+  </a>
+  
+</li>
+   
+        
+          <li class="md-nav__item">
+  <a href="#comparing-robustness" title="Comparing Robustness" class="md-nav__link">
+Comparing Robustness
+  </a>
+  
+</li>
+      
+          <li class="md-nav__item">
+  <a href="#more-options" title="More Options" class="md-nav__link">
+    More Options
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../extending/" title="Extending YATES" class="md-nav__link">
+      Extending YATES
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#getting-started" title="Getting Started" class="md-nav__link">
+    Getting Started
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#inputs" title="Inputs" class="md-nav__link">
+    Inputs
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#basic-usage" title="Basic Usage" class="md-nav__link">
+    Basic Usage
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparing-te-systems" title="Comparing TE systems" class="md-nav__link">
+    Comparing TE systems
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#operational-constraints" title="Operational Constraints" class="md-nav__link">
+    Operational Constraints
+  </a>
+  
+</li>
+         
+          <li class="md-nav__item">
+  <a href="#comparing-robustness" title="Comparing Robustness" class="md-nav__link">
+Comparing Robustness
+  </a>
+  
+</li>
+
+          <li class="md-nav__item">
+  <a href="#more-options" title="More Options" class="md-nav__link">
+    More Options
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          <div class="md-content">
+            <article class="md-content__inner md-typeset">
+              
+                
+                
+                <h1 id="basic-tutorial">Tutorial</h1>
+<h2 id="getting-started">Getting Started</h2>
+<p>This section will show the basic usage of YATES using some TE algorithms,
+topologies and example demand traffic matrices already included with YATES.</p>
+<hr />
+<h3 id="inputs">Inputs</h3>
+<p>At the minimum, YATES needs the following inputs:</p>
+<ul>
+<li><b>Topology</b>: A topology is represented as a graph and expressed using the <a href="https://en.wikipedia.org/wiki/DOT_(graph_description_language)">DOT file format</a> in YATES.
+    For illustration, we will use Abilene's backbone network topology. Our example topology is represented in DOT format as
+    <a href="https://github.com/cornell-netlab/yates/blob/master/data/topologies/abilene.dot"><code>data/topologies/abilene.dot</code></a>.</li>
+<li><b>Demands</b>: These are represented as a list (timeseries) of traffic matrices (TMs). Each TM represents the bandwidth requirement from a source to a destination
+    at a given time. YATES expects TMs as a single file (example: <a href="https://github.com/cornell-netlab/yates/blob/master/data/demands/actual/abilene.txt"><code>data/demands/actual/abilene.txt</code></a>),
+    with each line corresponding to one TM. Each line represents the rows of the TM concatenated together. To identify which entry in the TM corresponds to a particular source and
+    destination node pair, we also need to provide a mapping from rows/columns in the TM to the corresponding end-points in the topology
+    (example: <a href="https://github.com/cornell-netlab/yates/blob/master/data/hosts/abilene.hosts"><code>data/hosts/abilene.hosts</code></a>.
+    The line number of each node in this file is its index in the rows/columns of a TM). YATES supports specifying two timeseries for demands: one representing the operator's predicted
+    demands, while the other representing the actual value of demands that occur in practice.
+</li>
+</ul>
+<hr />
+<h3 id="basic-usage">Basic Usage</h3>
+<p>The following command shows how to run the YATES simulator for the above
+mentioned inputs and evaluates the performance of Equal-Cost Multi-Path (ECMP)
+based TE:</p>
+<div class="codehilite"><pre><span></span><span class="c1"># yates &lt;topology&gt; &lt;actual-demands&gt; &lt;predicted-demands&gt; &lt;host-mapping&gt; \</span>
+<span class="c1">#  [parameters for evaluation such as TE algorithms, budget etc.]</span>
+yates data/topologies/abilene.dot <span class="se">\</span>
+  data/demands/actual/abilene.txt data/demands/predicted/abilene.txt <span class="se">\</span>
+  data/hosts/abilene.hosts -ecmp
+</pre></div>
+
+
+<p><img alt="ECMP screenshot" src="../img/ecmp.gif" /></p>
+<p>The simulator will iterate over all the TMs in the specified demands file and generate
+a summary of the performance statistics in <code>data/results/&lt;topology&gt;</code>, which is
+<code>data/results/abilene</code> in this case. For
+instance, <code>data/results/abilene/MaxCongestionVsIterations.dat</code> will list the
+maximum link congestion for each TM when using ECMP.</p>
+<hr />
+<h3 id="comparing-te-systems">Comparing TE systems</h3>
+<p>To compare multiple TE algorithms in the same run, they can be specified
+together as command line flags. For example, to compare ECMP, k-shortest paths
+(KSP) and multi-commodity flow based TE (MCF) using the same topologies and
+demands, we can run the following:</p>
+<div class="codehilite"><pre><span></span><span class="c1"># yates &lt;topology&gt; &lt;actual-demands&gt; &lt;predicted-demands&gt; &lt;host-mapping&gt; \</span>
+<span class="c1">#  [parameters for evaluation such as TE algorithms, budget etc.]</span>
+yates data/topologies/abilene.dot <span class="se">\</span>
+  data/demands/actual/abilene.txt data/demands/predicted/abilene.txt <span class="se">\</span>
+  data/hosts/abilene.hosts -ecmp -ksp -mcf
+</pre></div>
+Note that you need to have Gurobi installed to run MCF. If you don't have Gurobi installed, skip the <code>-mcf</code> flag:
+
+<div class="codehilite"><pre><span></span><span class="c1"># yates &lt;topology&gt; &lt;actual-demands&gt; &lt;predicted-demands&gt; &lt;host-mapping&gt; \</span>
+<span class="c1">#  [parameters for evaluation such as TE algorithms, budget etc.]</span>
+yates data/topologies/abilene.dot <span class="se">\</span>
+  data/demands/actual/abilene.txt data/demands/predicted/abilene.txt <span class="se">\</span>
+  data/hosts/abilene.hosts -ecmp -ksp
+</pre></div>
+
+<p>YATES will iterate over the sequence of TE algorithms and generate performance
+statistics with each TE algorithm in the same output directory as earlier.</p>
+<p><img alt="comparison screenshot" src="../img/ecmpkspmcf.gif" /></p>
+<hr />
+<h3 id="operational-constraints">Operational Constraints</h3>
+<p>YATES allows users to specify various operational constraints while evaluating
+the performance of TE algorithms. For example, one can constrain TE algorithms
+to use up to a specified maximum number of paths between every
+source-destination pair. The following command sets this path budget to 4:</p>
+<div class="codehilite"><pre><span></span>yates <span class="o">[</span>... CLI arguments ...<span class="o">]</span> -budget <span class="m">4</span>
+</pre></div>
+For instance, to run the previous comparison with a path budget of 4, we can run:
+<div class="codehilite"><pre><span></span>yates data/topologies/abilene.dot <span class="se">\</span>
+  data/demands/actual/abilene.txt data/demands/predicted/abilene.txt <span class="se">\</span>
+  data/hosts/abilene.hosts -ecmp -ksp -mcf -budget <span class="m">4</span>
+</span>
+</pre></div>
+
+<hr />
+<h3 id="comparing-robustness">Comparing Robustness</h3>
+<p>YATES can be used to simulate failures in the network and measure the robustness to TE systems to the failures.
+It allows specifying different (optional) mechanisms in which TE systems can react to failures, and records various performance statistics.
+Let's consider the same topology (abilene) again, and let's say we are interested in the case when each link is equally likely to fail. We
+can conduct an experiment in which we fail a unique link in the topology in each iteration, and measure the performance as follows:</p>
+<div class="codehilite"><pre><span></span>yates data/topologies/abilene.dot <span class="se">\</span>
+  data/demands/actual/abilene.txt data/demands/predicted/abilene.txt <span class="se">\</span>
+  data/hosts/abilene.hosts -spf -ecmp -ksp -budget <span class="m">4</span> -fail-num <span class="m">1</span> -robust
+</span>
+</pre></div>
+<p>This compared three TE systems: shortest path first (SPF), ECMP and k-shortest path (KSP) without allowing the systems to reach to failures.
+As a result, some fraction of traffic was dropped. This can be seen in <code>data/results/abilene/TotalThroughputVsIterations.dat</code> and
+<code>data/results/abilene/FailureLossVsIterations.dat</code> which show the fraction of total demand was successfully delivered or dropped due
+to failures, respectively.</p>
+
+<p>TE systems can implement different ways to handle failures in the network. To illustrate one such approach, we can implement "local"
+recovery: when link failure(s) occur, we remove the paths containing the failed link(s) and re-distribute traffic over the remaining paths unaffected by failures in proportion to their original weights.
+YATES already implements this form of recovery. To enable this recovery to kick-in immediately on failures in the previous experiment, we can perform the following:</p>
+<div class="codehilite"><pre><span></span>yates data/topologies/abilene.dot <span class="se">\</span>
+  data/demands/actual/abilene.txt data/demands/predicted/abilene.txt <span class="se">\</span>
+  data/hosts/abilene.hosts -spf -ecmp -ksp -budget <span class="m">4</span> -fail-num <span class="m">1</span> -robust <span class="se">\</span>
+   -lr-delay <span class="m">0</span>
+</span>
+</pre></div>
+
+<hr />
+<h3 id="more-options">More Options</h3>
+<p>YATES supports a lot of other options to specify different TE systems and
+generate different kinds of workloads and operational scenarios. See the help
+in CLI for the exhaustive list.</p>
+<div class="codehilite"><pre><span></span>yates -h
+</pre></div>
+                
+                  
+                
+              
+              
+                
+
+
+              
+            </article>
+          </div>
+        </div>
+      </main>
+      
+        <!--
+  Copyright (c) 2016-2018 Martin Donath <martin.donath@squidfunk.com>
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to
+  deal in the Software without restriction, including without limitation the
+  rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+  sell copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+  IN THE SOFTWARE.
+-->
+
+
+
+<!-- Application footer -->
+<footer class="md-footer">
+
+  <!-- Link to previous and/or next page -->
+  
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+
+        <!-- Link to previous page -->
+        
+          <a href="../installation/"
+              title="Installation"
+              class="md-flex md-footer-nav__link md-footer-nav__link--prev"
+              rel="prev">
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-back
+                    md-footer-nav__button"></i>
+            </div>
+            <div class="md-flex__cell md-flex__cell--stretch
+                  md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Previous
+                </span>
+                Installation
+              </span>
+            </div>
+          </a>
+        
+
+        <!-- Link to next page -->
+        
+          <a href="../extending/" title="Extending YATES"
+              class="md-flex md-footer-nav__link md-footer-nav__link--next"
+              rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch
+                  md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Next
+                </span>
+                Extending YATES
+              </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-forward
+                    md-footer-nav__button"></i>
+            </div>
+          </a>
+        
+      </nav>
+    </div>
+  
+
+</footer>
+      
+    </div>
+    
+      <script src="../assets/javascripts/application.b438e6c5.js"></script>
+      
+      <script>app.initialize({version:"0.17.3",url:{base:".."}})</script>
+      
+    
+    
+      
+        <script>!function(e,a,t,n,o,c,i){e.GoogleAnalyticsObject=o,e.ga=e.ga||function(){(e.ga.q=e.ga.q||[]).push(arguments)},e.ga.l=1*new Date,c=a.createElement(t),i=a.getElementsByTagName(t)[0],c.async=1,c.src="https://www.google-analytics.com/analytics.js",i.parentNode.insertBefore(c,i)}(window,document,"script",0,"ga"),ga("create","UA-56799372-1","auto"),ga("set","anonymizeIp",!0),ga("send","pageview");var links=document.getElementsByTagName("a");if(Array.prototype.map.call(links,function(e){e.host!=document.location.host&&e.addEventListener("click",function(){var a=e.getAttribute("data-md-action")||"follow";ga("send","event","outbound",a,e.href)})}),document.forms.search){var query=document.forms.search.query;query.addEventListener("blur",function(){if(this.value){var e=document.location.pathname;ga("send","pageview",e+"?q="+this.value)}})}</script>
+      
+    
+  </body>
+</html>
