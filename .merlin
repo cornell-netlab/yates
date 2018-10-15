@@ -1,9 +1,0 @@
-S controller
-S kulfi
-S lib/**
-S test
-S topo
-S util
-B _build/*
-PKG core frenetic lwt ppx_jane ppx_deriving.make ppx_inline_test
-FLG -ppx 'ppx-jane -as-ppx -inline-test-lib bap'
