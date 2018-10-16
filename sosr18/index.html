@@ -352,29 +352,25 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#example-valiant-load-balancing-vlb" title="Example: Valiant Load Balancing (VLB)" class="md-nav__link">
-    Example: Valiant Load Balancing (VLB)
+  <a href="#congestion" title="Congestion Analysis" class="md-nav__link">
+      Congestion Analysis
   </a>
   
-    <nav class="md-nav">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#background" title="Background" class="md-nav__link">
-    Background
+<li class="md-nav__item">
+  <a href="#overheads" title="Overheads" class="md-nav__link">
+      Overheads
   </a>
+
+</li>
+        <li class="md-nav__item">
+  <a href="#robustness" title="Robustness Analysis" class="md-nav__link">
+      Robustness Analysis
+  </a>
+
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#implementation" title="Implementation" class="md-nav__link">
-    Implementation
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
+
+       
   
 </li>
       
@@ -413,31 +409,33 @@
   
     <label class="md-nav__title" for="toc">Table of contents</label>
     <ul class="md-nav__list" data-md-scrollfix>
-      
+       
         <li class="md-nav__item">
-  <a href="#example-valiant-load-balancing-vlb" title="Example: Valiant Load Balancing (VLB)" class="md-nav__link">
-    Example: Valiant Load Balancing (VLB)
+  <a href="#setup" title="Setup" class="md-nav__link">
+      Setup
   </a>
-  
-    <nav class="md-nav">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#background" title="Background" class="md-nav__link">
-    Background
+
+</li>
+        <li class="md-nav__item">
+  <a href="#congestion" title="Congestion Analysis" class="md-nav__link">
+      Congestion Analysis
   </a>
+
+</li>
+        <li class="md-nav__item">
+  <a href="#overheads" title="Overheads" class="md-nav__link">
+      Overheads
+  </a>
+
+</li>
+        <li class="md-nav__item">
+  <a href="#robustness" title="Robustness Analysis" class="md-nav__link">
+      Robustness Analysis
+  </a>
+
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#implementation" title="Implementation" class="md-nav__link">
-    Implementation
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -510,6 +508,46 @@ The output will for the first run will be generated in
 <code>data/results/att-hops/MaxCongestionVsIterations.dat</code>, while that
 for the second run will be generated in
 <code>data/results/att-rtt/MaxCongestionVsIterations.dat</code>.
+
+<hr />
+<h3 id="overheads">Overheads</h3>
+<p>Figure 6 illustrates the overheads of MCF-based TE compared to ECMP in terms
+    of latency and path churn:</p>
+To replicate this result, we can invoke YATES as:
+<div class="codehilite"><pre><span></span>yates data/topologies/AttMpls.dot data/demands/AttMpls.txt <span class="se">\</span>
+data/demands/AttMpls.txt data/hosts/AttMpls.hosts -ecmp -mcf <span class="se">\</span>
+-num-tms 24 -budget 4 -simtime 100 -scalesyn -scale 1 -rtt-file <span class="se">\</span>
+data/rtt/AttMpls.rtt -out overheads
+</pre></div>
+This will generate the results in <code>data/results/overheads</code>
+directory. The latency distribution statistics are recorded in 
+<code>data/results/overheads/LatencyDistributionVsIterations.dat</code>, while
+the data for path churn is recorded in
+<code>data/results/overheads/TMChurnVsIterations.dat</code>.
+
+<hr />
+<h3 id="robustness">Robustness Analysis</h3>
+Next, we compare the robustness of two approaches: FFC and KSP+MCF. To
+reproduce this scenario where KSP+MCF runs without any recovery mechanism, invoke YATES as:
+<div class="codehilite"><pre><span></span>yates data/topologies/AttMpls.dot data/demands/AttMpls.txt
+data/demands/AttMpls.txt data/hosts/AttMpls.hosts -semimcfksp <span class="se">\</span>
+-robust -fail-num 1 -budget 2 -simtime 100 -scalesyn -scale 1.5 -rtt-file <span class="se">\</span>
+data/rtt/AttMpls.rtt -out robust_no_rec
+</pre></div>
+YATES will iterate over all single-link failure scenarios and it will record the normalized throughput in
+<code>data/results/robust_no_rec/TotalThroughputVsIterations.dat</code>.
+Next, we implement a recovery mechanism for KSP+MCF in which whenever a link
+failures, we stop using the affected paths and redistribute traffic over
+remaining paths from a source to destination. We also run FFC with this
+recovery mechanism, as FFC is designed to handle failures. To reproduce this scenario,
+invoke YATES as:
+<div class="codehilite"><pre><span></span>yates data/topologies/AttMpls.dot data/demands/AttMpls.txt
+data/demands/AttMpls.txt data/hosts/AttMpls.hosts -ffced -semimcfksp <span class="se">\</span>
+-robust -fail-num 1 -budget 2 -simtime 100 -scalesyn -scale 1.5 -rtt-file <span class="se">\</span>
+data/rtt/AttMpls.rtt -lr-delay 0 -out robust_rec
+</pre></div>
+This will generate the statistics on normalized throughput here:
+<code>data/results/robust_rec/TotalThroughputVsIterations.dat</code>.
             </article>
           </div>
         </div>
@@ -582,12 +620,6 @@ for the second run will be generated in
       <script src="../assets/javascripts/application.b438e6c5.js"></script>
       
       <script>app.initialize({version:"0.17.3",url:{base:".."}})</script>
-      
-    
-    
-      
-        <script>!function(e,a,t,n,o,c,i){e.GoogleAnalyticsObject=o,e.ga=e.ga||function(){(e.ga.q=e.ga.q||[]).push(arguments)},e.ga.l=1*new Date,c=a.createElement(t),i=a.getElementsByTagName(t)[0],c.async=1,c.src="https://www.google-analytics.com/analytics.js",i.parentNode.insertBefore(c,i)}(window,document,"script",0,"ga"),ga("create","UA-56799372-1","auto"),ga("set","anonymizeIp",!0),ga("send","pageview");var links=document.getElementsByTagName("a");if(Array.prototype.map.call(links,function(e){e.host!=document.location.host&&e.addEventListener("click",function(){var a=e.getAttribute("data-md-action")||"follow";ga("send","event","outbound",a,e.href)})}),document.forms.search){var query=document.forms.search.query;query.addEventListener("blur",function(){if(this.value){var e=document.location.pathname;ga("send","pageview",e+"?q="+this.value)}})}</script>
-      
-    
+   
   </body>
 </html>
