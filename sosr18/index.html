@@ -311,6 +311,13 @@
     </a>
   </li>
 
+  <li class="md-nav__item">
+    <a href="../extending/" title="Extending YATES" class="md-nav__link">
+       Extending YATES
+    </a>
+  </li>
+
+
         
           
           
@@ -327,11 +334,11 @@
     
     
       <label class="md-nav__link md-nav__link--active" for="toc">
-        Extending YATES
+        Reproducing results
       </label>
     
-    <a href="./" title="Extending YATES" class="md-nav__link md-nav__link--active">
-      Extending YATES
+    <a href="./" title="Reproducing results" class="md-nav__link md-nav__link--active">
+        Reproducing results
     </a>
     
       
@@ -454,6 +461,55 @@
                 <h1 id="reproduce">Reproducing results with YATES</h1>
 <p>This page shows how to replicate the results from our SOSR 2018 paper.</p>
 <hr />
+<h3 id="setup">Setup</h3>
+<p>The running example in the paper uses <a
+        href="http://www.topology-zoo.org/maps/AttMpls.jpg">AT&T topology</a>
+    from the <a href="http://www.topology-zoo.org/">Internet Topology Zoo.</a>
+    To experiment with the topology, we need the following inputs:
+</p>
+<ul>
+<li><b>Topology</b>: The topology is represented in DOT format as
+    <a href="https://github.com/cornell-netlab/yates/blob/master/data/topologies/AttMpls.dot"><code>data/topologies/AttMpls.dot</code></a>.</li>
+<li><b>Demands</b>: We use traffic matrices generated using YATES's
+    implementation of gravity
+    models. We will use the same traffic matrices for actual and predicted:
+    <a href="https://github.com/cornell-netlab/yates/blob/master/data/demands/AttMpls.txt"><code>data/demands/AttMpls.txt</code></a>.
+    And the mapping between topology and the traffic matrices is supplied in 
+    <a
+        href="https://github.com/cornell-netlab/yates/blob/master/data/hosts/AttMpls.hosts"><code>data/hosts/AttMpls.hosts</code></a>.
+</li>
+</ul>
+<hr />
+<h3 id="congestion">Congestion Analysis</h3>
+<p>Figure 4 in the paper compares the following TE algorithms in terms of maximum
+    congestion:
+</p>
+<ul>
+<li> Equal-Cost Multi Path (ECMP) using 1 as link weights.</li>
+<li> Constrained Shortest Path (CSPF) using 1 as link weights.</li>
+<li> Constrained Shortest Path (CSPF) using link RTT as link weight.</li>
+<li> k-shortest path for selecting a static set of paths (using link RTT as link weight)and using a restricted
+    version of MCF for dynamically tuning path weights (KSP+MCF). </li>
+</ul>
+
+<p>To run the experiments using 1 as link weights, run YATES with the following
+    arguments:</p>
+<div class="codehilite"><pre><span></span>yates data/topologies/AttMpls.dot data/demands/AttMpls.txt <span class="se">\</span>
+data/demands/AttMpls.txt data/hosts/AttMpls.hosts -ecmp -cspf <span class="se">\</span>
+-num-tms 24 -budget 4 -simtime 100 -scalesyn -scale 1 -out att-hops
+</pre></div>
+<p>To run the experiments using link RTTs as link weights, run YATES with the following
+    arguments:</p>
+<div class="codehilite"><pre><span></span>yates data/topologies/AttMpls.dot data/demands/AttMpls.txt <span class="se">\</span>
+data/demands/AttMpls.txt data/hosts/AttMpls.hosts -cspf -semimcfksp <span class="se">\</span>
+-num-tms 24 -budget 4 -simtime 100 -scalesyn -scale 1 -rtt-file <span class="se">\</span>
+data/rtt/AttMpls.rtt -out att-rtt
+</pre></div>
+
+The output will for the first run will be generated in
+<code>data/results/att-hops/MaxCongestionVsIterations.dat</code>, while that
+for the second run will be generated in
+<code>data/results/att-rtt/MaxCongestionVsIterations.dat</code>.
             </article>
           </div>
         </div>
