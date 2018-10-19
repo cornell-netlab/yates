@@ -521,6 +521,10 @@ To get started with YATES, download the <a href="https://drive.google.com/open?i
     <li> Open a terminal and verify that YATES is installed:
 <div class="codehilite"><pre><span></span>yates -h
 </pre></div> </li>
+    <li> [Optional] To get the latest version of YATES, perform the following:
+<div class="codehilite"><pre><span></span>cd ~/yates/ <span class="o">&amp;&amp;</span> git pull <span class="o">&amp;&amp;</span> make <span class="o">&amp;&amp;</span> make install
+</pre></div>
+    </li>
 </ol>
 <p>You can skip the rest of the instructions on this page and follow the <a href="../tutorial/">tutorial</a> to use YATES.</p>
 <p>Note that the VM doesn't include Gurobi which is required to run TE algorithms that rely on LP optimization. You will need to install Gurobi manually if you plan to use such TE systems. See <a href="#gurobi">instructions</a>.</p>
