@@ -513,7 +513,7 @@ for the second run will be generated in
 <h3 id="overheads">Overheads</h3>
 <p>Figure 6 illustrates the overheads of MCF-based TE compared to ECMP in terms
     of latency and path churn:</p>
-To replicate this result, we can invoke YATES as:
+To perform a similar analysis, we can invoke YATES as:
 <div class="codehilite"><pre><span></span>yates data/topologies/AttMpls.dot data/demands/AttMpls.txt <span class="se">\</span>
 data/demands/AttMpls.txt data/hosts/AttMpls.hosts -ecmp -mcf <span class="se">\</span>
 -num-tms 24 -budget 4 -simtime 100 -scalesyn -scale 1 -rtt-file <span class="se">\</span>
@@ -524,7 +524,7 @@ directory. The latency distribution statistics are recorded in
 <code>data/results/overheads/LatencyDistributionVsIterations.dat</code>, while
 the data for path churn is recorded in
 <code>data/results/overheads/TMChurnVsIterations.dat</code>.
-
+We can see that MCF-based approach has higher latency and path churn.
 <hr />
 <h3 id="robustness">Robustness Analysis</h3>
 Next, we compare the robustness of two approaches: FFC and KSP+MCF. To

@@ -553,7 +553,10 @@ yates data/topologies/abilene.dot <span class="se">\</span>
 a summary of the performance statistics in <code>data/results/&lt;topology&gt;</code>, which is
 <code>data/results/abilene</code> in this case. For
 instance, <code>data/results/abilene/MaxCongestionVsIterations.dat</code> will list the
-maximum link congestion for each TM when using ECMP.</p>
+maximum link congestion (congestion or utilization of each link is the amount
+of traffic going over the link divided by the capacity of the link) for each TM when using ECMP.
+The format of all output files is almost the same - tab-separated columns with
+headers describing the meaning of each column.</p>
 <hr />
 <h3 id="comparing-te-systems">Comparing TE systems</h3>
 <p>To compare multiple TE algorithms in the same run, they can be specified
