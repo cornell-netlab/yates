@@ -499,9 +499,9 @@ data/demands/AttMpls.txt data/hosts/AttMpls.hosts -ecmp -cspf <span class="se">\
 <p>To run the experiments using link RTTs as link weights, run YATES with the following
     arguments:</p>
 <div class="codehilite"><pre><span></span>yates data/topologies/AttMpls.dot data/demands/AttMpls.txt <span class="se">\</span>
-data/demands/AttMpls.txt data/hosts/AttMpls.hosts -cspf -semimcfksp <span class="se">\</span>
--num-tms 24 -budget 4 -simtime 100 -scalesyn -scale 1 -rtt-file <span class="se">\</span>
-data/rtt/AttMpls.rtt -out att-rtt
+  data/demands/AttMpls.txt data/hosts/AttMpls.hosts -cspf -semimcfksp <span class="se">\</span>
+  -num-tms 24 -budget 4 -simtime 100 -scalesyn -scale 1 -rtt-file <span class="se">\</span>
+  data/rtt/AttMpls.rtt -out att-rtt
 </pre></div>
 
 The output will for the first run will be generated in
@@ -512,19 +512,17 @@ for the second run will be generated in
 <hr />
 <h3 id="overheads">Overheads</h3>
 <p>Figure 6 illustrates the overheads of MCF-based TE compared to ECMP in terms
-    of latency and path churn:</p>
-To perform a similar analysis, we can invoke YATES as:
+    of latency and path churn. To perform a similar analysis, we can invoke YATES as:</p>
 <div class="codehilite"><pre><span></span>yates data/topologies/AttMpls.dot data/demands/AttMpls.txt <span class="se">\</span>
-data/demands/AttMpls.txt data/hosts/AttMpls.hosts -ecmp -mcf <span class="se">\</span>
--num-tms 24 -budget 4 -simtime 100 -scalesyn -scale 1 -rtt-file <span class="se">\</span>
-data/rtt/AttMpls.rtt -out overheads
+  data/demands/AttMpls.txt data/hosts/AttMpls.hosts -ecmp -mcf <span class="se">\</span>
+  -num-tms 24 -budget 4 -simtime 100 -scalesyn -scale 1 -rtt-file <span class="se">\</span>
+  data/rtt/AttMpls.rtt -out overheads
 </pre></div>
 This will generate the results in <code>data/results/overheads</code>
-directory. The latency distribution statistics are recorded in 
+directory. The latency distribution statistics for each TE system and traffic matrix are recorded in 
 <code>data/results/overheads/LatencyDistributionVsIterations.dat</code>, while
-the data for path churn is recorded in
-<code>data/results/overheads/TMChurnVsIterations.dat</code>.
-We can see that MCF-based approach has higher latency and path churn.
+the data for path churn is recorded in <code>data/results/overheads/TMChurnVsIterations.dat</code>.
+From the analysis, we can see that MCF-based approach has higher latency and path churn.
 <hr />
 <h3 id="robustness">Robustness Analysis</h3>
 Next, we compare the robustness of two approaches: FFC and KSP+MCF. To
@@ -542,9 +540,9 @@ remaining paths from a source to destination. We also run FFC with this
 recovery mechanism, as FFC is designed to handle failures. To reproduce this scenario,
 invoke YATES as:
 <div class="codehilite"><pre><span></span>yates data/topologies/AttMpls.dot data/demands/AttMpls.txt
-data/demands/AttMpls.txt data/hosts/AttMpls.hosts -ffced -semimcfksp <span class="se">\</span>
--robust -fail-num 1 -budget 2 -simtime 100 -scalesyn -scale 1.5 -rtt-file <span class="se">\</span>
-data/rtt/AttMpls.rtt -lr-delay 0 -out robust_rec
+  data/demands/AttMpls.txt data/hosts/AttMpls.hosts -ffced -semimcfksp <span class="se">\</span>
+  -robust -fail-num 1 -budget 2 -simtime 100 -scalesyn -scale 1.5 -rtt-file <span class="se">\</span>
+  data/rtt/AttMpls.rtt -lr-delay 0 -out robust_rec
 </pre></div>
 This will generate the statistics on normalized throughput here:
 <code>data/results/robust_rec/TotalThroughputVsIterations.dat</code>.
