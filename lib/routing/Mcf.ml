@@ -235,62 +235,49 @@ let solve (topo:topology) (pairs:demands) : scheme =
   let rand = new_rand () in
   let lp_filename = (Printf.sprintf "/tmp/mcf_%f.lp" rand) in
   let lp_solname = (Printf.sprintf "/tmp/mcf_%f.sol" rand) in
+  (* serialize LP and send to Gurobi *)
   serialize_lp lp lp_filename;
+  call_gurobi lp_filename lp_solname;
 
-  let method_str = (Int.to_string !Globals.gurobi_method) in
-  let gurobi_in = Unix.open_process_in
-      ("gurobi_cl Method=" ^ method_str ^ " OptimalityTol=1e-9 ResultFile=" ^ lp_solname ^ " " ^ lp_filename) in
-  let time_str = "Solved in [0-9]+ iterations and \\([0-9.e+-]+\\) seconds" in
-  let time_regex = Str.regexp time_str in
-  let rec read_output gurobi solve_time =
-    try
-      let line = In_channel.input_line_exn gurobi in
-      if Str.string_match time_regex line 0 then
-        let num_seconds = Float.of_string (Str.matched_group 1 line) in
-          read_output gurobi num_seconds
-        else
-          read_output gurobi solve_time
-      with
-        End_of_file -> solve_time in
-    let _ = read_output gurobi_in 0. in
-    ignore (Unix.close_process_in gurobi_in);
-
-    (* read back all the edge flows from the .sol file *)
-    let read_results input =
-      let results = In_channel.create input in
-      let result_str = "^f_\\([a-zA-Z0-9]+\\)--\\([a-zA-Z0-9]+\\)_" ^
-                       "\\([a-zA-Z0-9]+\\)--\\([a-zA-Z0-9]+\\) \\([0-9.e+-]+\\)$"
-      in
-      let regex = Str.regexp result_str in
-      let rec read inp opt_z flows =
-        let line = try In_channel.input_line_exn inp
-          with End_of_file -> "" in
-        if line = "" then (opt_z,flows)
-        else
-          let new_z, new_flows =
-            if line.[0] = '#' then (opt_z, flows)
-            else if line.[0] = 'Z' then
-              let ratio_str = Str.string_after line 2 in
-              let ratio = Float.of_string ratio_str in
-              (ratio *. demand_divisor /. cap_divisor, flows)
-            else
-              (if Str.string_match regex line 0 then
-                 let vertex s = Topology.vertex_to_label topo
-                     (Hashtbl.Poly.find_exn name_table s) in
-                 let dem_src = vertex (Str.matched_group 1 line) in
-                 let dem_dst = vertex (Str.matched_group 2 line) in
-                 let edge_src = vertex (Str.matched_group 3 line) in
-                 let edge_dst = vertex (Str.matched_group 4 line) in
-                 let flow_amt = Float.of_string (Str.matched_group 5 line) in
-                 if flow_amt = 0. then (opt_z, flows)
-                 else
-                   let tup = (dem_src, dem_dst, flow_amt, edge_src, edge_dst) in
-                   (opt_z, (tup::flows))
-               else (opt_z, flows)) in
-          read inp new_z new_flows in
-
+  (* read back all the edge flows from the .sol file *)
+  let read_results input =
+    (* start read_results fn *)
+    let results = In_channel.create input in
+    let result_str = "^f_\\([a-zA-Z0-9]+\\)--\\([a-zA-Z0-9]+\\)_" ^
+                     "\\([a-zA-Z0-9]+\\)--\\([a-zA-Z0-9]+\\) \\([0-9.e+-]+\\)$" in
+    let regex = Str.regexp result_str in
+    let rec read inp opt_z flows =
+      (* start read fn *)
+      let line = try In_channel.input_line_exn inp
+        with End_of_file -> "" in
+      if line = "" then (opt_z,flows)
+      else
+        let new_z, new_flows =
+          if line.[0] = '#' then (opt_z, flows)
+          else if line.[0] = 'Z' then
+            let ratio_str = Str.string_after line 2 in
+            let ratio = Float.of_string ratio_str in
+            (ratio *. demand_divisor /. cap_divisor, flows)
+          else
+            (if Str.string_match regex line 0 then
+               let vertex s = Topology.vertex_to_label topo
+                   (Hashtbl.Poly.find_exn name_table s) in
+               let dem_src = vertex (Str.matched_group 1 line) in
+               let dem_dst = vertex (Str.matched_group 2 line) in
+               let edge_src = vertex (Str.matched_group 3 line) in
+               let edge_dst = vertex (Str.matched_group 4 line) in
+               let flow_amt = Float.of_string (Str.matched_group 5 line) in
+               if flow_amt = 0. then (opt_z, flows)
+               else
+                 let tup = (dem_src, dem_dst, flow_amt, edge_src, edge_dst) in
+                 (opt_z, (tup::flows))
+             else (opt_z, flows)) in
+        read inp new_z new_flows in
+        (* end read fn *)
       let result = read results 0. [] in
       In_channel.close results; result in
+      (* end read_results fn *)
+
     let ratio, flows = read_results lp_solname in
     let _ = Sys.remove lp_filename in
     let _ = Sys.remove lp_solname in
