@@ -260,25 +260,10 @@ let solve (topo:topology) (_:demands) : scheme =
       let rand = new_rand () in
       let lp_filename = (Printf.sprintf "/tmp/ac_%f.lp" rand) in
       let lp_solname = (Printf.sprintf "/tmp/ac_%f.sol" rand) in
-      serialize_lp lp lp_filename;
 
-      let method_str = (Int.to_string !Globals.gurobi_method) in
-      let gurobi_in = Unix.open_process_in
-          ("gurobi_cl Method=" ^ method_str ^ " OptimalityTol=1e-9 ResultFile=" ^ lp_solname ^ " " ^ lp_filename) in
-      let time_str = "Solved in [0-9]+ iterations and \\([0-9.e+-]+\\) seconds" in
-      let time_regex = Str.regexp time_str in
-      let rec read_output gurobi solve_time =
-        try
-          let line = In_channel.input_line_exn gurobi in
-          if Str.string_match time_regex line 0 then
-            let num_seconds = Float.of_string (Str.matched_group 1 line) in
-            read_output gurobi num_seconds
-          else
-            read_output gurobi solve_time
-        with
-          End_of_file -> solve_time in
-      let _ = read_output gurobi_in 0. in
-      ignore (Unix.close_process_in gurobi_in);
+      (* Serialize LP and call Gurobi *)
+      serialize_lp lp lp_filename;
+      call_gurobi lp_filename lp_solname;
 
       (* read back all the edge flows from the .sol file *)
       let read_results input =

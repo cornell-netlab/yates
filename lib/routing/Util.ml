@@ -659,10 +659,16 @@ let congestion_of_paths (t:topology) (d:demands) (s:scheme) : (float EdgeMap.t) 
 (*******************************************************************)
 (* External LP solvers - Gurobi *)
 (*******************************************************************)
-let call_gurobi (lp_filename:string) (lp_solname:string) =
+(* start gurobi with an LP *)
+let gurobi_process (lp_filename:string) (lp_solname:string) =
   let method_str = (Int.to_string !Globals.gurobi_method) in
-  let gurobi_in = Unix.open_process_in
-      ("gurobi_cl Method=" ^ method_str ^ " OptimalityTol=1e-9 ResultFile=" ^ lp_solname ^ " " ^ lp_filename) in
+  Unix.open_process_in ("gurobi_cl Method=" ^ method_str ^
+                        " OptimalityTol=1e-9 ResultFile=" ^ lp_solname ^
+                        " " ^ lp_filename)
+
+(* call gurobi and wait for completion *)
+let call_gurobi (lp_filename:string) (lp_solname:string) =
+  let gurobi_in = gurobi_process lp_filename lp_solname in
   let time_str = "Solved in [0-9]+ iterations and \\([0-9.e+-]+\\) seconds" in
   let time_regex = Str.regexp time_str in
   let rec read_output gurobi solve_time =
@@ -677,5 +683,3 @@ let call_gurobi (lp_filename:string) (lp_solname:string) =
       End_of_file -> solve_time in
   let _ = read_output gurobi_in 0. in
   ignore (Unix.close_process_in gurobi_in);
-
-
