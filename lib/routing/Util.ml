@@ -682,4 +682,10 @@ let call_gurobi (lp_filename:string) (lp_solname:string) =
     with
       End_of_file -> solve_time in
   let _ = read_output gurobi_in 0. in
-  ignore (Unix.close_process_in gurobi_in);
+  let status = Unix.close_process_in gurobi_in in
+  match status with
+  | Error exit_or_signal ->
+    begin
+      failwith("Please check that Gurobi is installed (gurobi_cl is in $PATH) and that you have a valid license.");
+    end
+  | _ -> ();
