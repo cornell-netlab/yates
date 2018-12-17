@@ -594,44 +594,45 @@ let find_ksp_budget_test (topo_file:string) (subgraph_file_opt:string option)
 let command =
   Command.basic_spec
     ~summary:"Simulate run of routing strategies"
+    ~readme:(fun () -> "See https://cornell-netlab.github.io/yates/ for more details.")
     Command.Spec.(
     empty
-    +> flag "-ac" no_arg ~doc:" run ac"
-    +> flag "-akecmp" no_arg ~doc:" run ak+ecmp"
-    +> flag "-akksp" no_arg ~doc:" run ak+ksp"
-    +> flag "-akmcf" no_arg ~doc:" run ak+mcf"
-    +> flag "-akraeke" no_arg ~doc:" run ak+raeke"
-    +> flag "-akvlb" no_arg ~doc:" run ak+vlb"
-    +> flag "-cspf" no_arg ~doc:" run cspf"
-    +> flag "-ecmp" no_arg ~doc:" run ecmp"
-    +> flag "-edksp" no_arg ~doc:" run edge-disjoint ksp"
-    +> flag "-ffc" no_arg ~doc:" run FFC with KSP base path set"
-    +> flag "-ffced" no_arg ~doc:" run FFC with Edge-disjoint KSP base path set"
-    +> flag "-ksp" no_arg ~doc:" run ksp"
-    +> flag "-mcf" no_arg ~doc:" run mcf"
-    +> flag "-mwmcf" no_arg ~doc:" run mwmcf"
-    +> flag "-optimalmcf" no_arg ~doc:" run optimal mcf"
-    +> flag "-raeke" no_arg ~doc:" run raeke"
-    +> flag "-semimcfac" no_arg ~doc:" run semi mcf+ac"
-    +> flag "-semimcfecmp" no_arg ~doc:" run semi mcf+ecmp"
-    +> flag "-semimcfedksp" no_arg ~doc:" run semi mcf+edksp"
-    +> flag "-semimcfksp" no_arg ~doc:" run semi mcf+ksp"
-    +> flag "-semimcfkspft" no_arg ~doc:" run semi mcf+ksp with joint failure opt"
-    +> flag "-semimcfmcf" no_arg ~doc:" run semi mcf+mcf"
-    +> flag "-semimcfmcfenv" no_arg ~doc:" run semi mcf+mcf with envelope"
-    +> flag "-semimcfmcfftenv" no_arg ~doc:" run semi mcf+mcf with envelope and joint failure opt"
-    +> flag "-semimcfraeke" no_arg ~doc:" run semi mcf+raeke"
-    +> flag "-semimcfraekeft" no_arg ~doc:" run semi mcf+raeke with joint failure opt"
-    +> flag "-semimcfvlb" no_arg ~doc:" run semi mcf+vlb"
-    +> flag "-spf" no_arg ~doc:" run spf"
-    +> flag "-vlb" no_arg ~doc:" run vlb"
+    +> flag "-ac" no_arg ~doc:" run ac (Applegate-Cohen's optimal oblivious TE)"
+    +> flag "-akecmp" no_arg ~doc:" run ak+ecmp (ECMP for path selection + multiplicative weights for rate adaptaion)"
+    +> flag "-akksp" no_arg ~doc:" run ak+ksp (k-shortest paths for path selection + multiplicative weights for rate adaptaion)"
+    +> flag "-akmcf" no_arg ~doc:" run ak+mcf (multi-commodity flow for path selection + multiplicative weights for rate adaptaion)"
+    +> flag "-akraeke" no_arg ~doc:" run ak+raeke (Raecke's oblivious routing for path selection + multiplicative weights for rate adaptaion)"
+    +> flag "-akvlb" no_arg ~doc:" run ak+vlb (Valiant load balancing for path selection + multiplicative weights for rate adaptaion)"
+    +> flag "-cspf" no_arg ~doc:" run cspf (Constrained Shortest Paths First)"
+    +> flag "-ecmp" no_arg ~doc:" run ecmp (Equal-Cost Multi Path)"
+    +> flag "-edksp" no_arg ~doc:" run ed-ksp (Edge-disjoint k-shortest paths)"
+    +> flag "-ffc" no_arg ~doc:" run FFC with k-shortest paths as base path set"
+    +> flag "-ffced" no_arg ~doc:" run FFC with Edge-disjoint k-shortest paths as base path set"
+    +> flag "-ksp" no_arg ~doc:" run ksp (k-shortest paths)"
+    +> flag "-mcf" no_arg ~doc:" run mcf (multi-commodity flow that minimizes max. link utilization)"
+    +> flag "-mwmcf" no_arg ~doc:" run mwmcf (multi-commodity flow using multiplicative weights)"
+    +> flag "-optimalmcf" no_arg ~doc:" run optimal mcf (Optimal multi-commodity flow based TE which doesn't have any operational constraints)"
+    +> flag "-raeke" no_arg ~doc:" run raeke (Raecke's oblivious routing)"
+    +> flag "-semimcfac" no_arg ~doc:" run semi mcf+ac (Applegate-Cohen's oblivious routing for path selection + restricted MCF for rate adaptation)"
+    +> flag "-semimcfecmp" no_arg ~doc:" run semi mcf+ecmp (ECMP for path selection + restricted MCF for rate adaptation)"
+    +> flag "-semimcfedksp" no_arg ~doc:" run semi mcf+edksp (Edge-disjoint k-shortest paths for path selection + restricted MCF for rate adaptation)"
+    +> flag "-semimcfksp" no_arg ~doc:" run semi mcf+ksp (k-shortest paths for path selection + restricted MCF for rate adaptation)"
+    +> flag "-semimcfkspft" no_arg ~doc:" run semi mcf+ksp with joint failure opt (k-shortest paths with fault tolerance for path selection + restricted MCF for rate adaptation)"
+    +> flag "-semimcfmcf" no_arg ~doc:" run semi mcf+mcf (MCF for path selection + restricted MCF for rate adaptation)"
+    +> flag "-semimcfmcfenv" no_arg ~doc:" run semi mcf+mcf with envelope (MCF with demand envelope for path selection + restricted MCF for rate adaptation)"
+    +> flag "-semimcfmcfftenv" no_arg ~doc:" run semi mcf+mcf with envelope and joint failure opt (MCF with demand envelope and fault tolerance for path selection + restricted MCF for rate adaptation)"
+    +> flag "-semimcfraeke" no_arg ~doc:" run semi mcf+raeke (Raecke's oblivious routing for path selection + restricted MCF for rate adaptation)"
+    +> flag "-semimcfraekeft" no_arg ~doc:" run semi mcf+raeke with joint failure opt (Raecke's oblivious routing with fault tolerance for path selection + restricted MCF for rate adaptation)"
+    +> flag "-semimcfvlb" no_arg ~doc:" run semi mcf+vlb (Valiant load balancing for path selection + restricted MCF for rate adaptation)"
+    +> flag "-spf" no_arg ~doc:" run spf (Shortest paths first)"
+    +> flag "-vlb" no_arg ~doc:" run vlb (Valiant Load Balancing)"
     +> flag "-all" no_arg ~doc:" run all schemes"
     +> flag "-keep-loops" no_arg ~doc:" keep loops in paths"
-    +> flag "-limittest" no_arg ~doc:" test at what scale congestion loss starts "
+    +> flag "-limittest" no_arg ~doc:" test at what scale factor for demand matrices does atleast one link is saturated"
     +> flag "-robust" no_arg ~doc:" perform robustness test - fail all combinations of fail-num links"
     +> flag "-scalesyn" no_arg ~doc:" scale synthetic demands to achieve max congestion 1"
-    +> flag "-vulnerability" no_arg ~doc:" perform path vulnerability test "
-    +> flag "-log-paths" no_arg ~doc:" store paths caomputed by solvers"
+    +> flag "-vulnerability" no_arg ~doc:" perform path vulnerability test (assign score to each link depending on how critical it is for connectivity when using a TE system) "
+    +> flag "-log-paths" no_arg ~doc:" store paths computed by solvers"
     +> flag "-find-ksp-budget" no_arg ~doc:" find minimum value of k for ksp to be competitive with raecke"
     +> flag "-er-mode" no_arg ~doc:" Edge router mode: do not scale up host (edge router) -- switch (backbone router) link capacities"
     +> flag "-fail-num" (optional_with_default 1 int) ~doc:" number of links to fail"
@@ -641,11 +642,11 @@ let command =
       ~doc:" delay between failure and local recovery"
     +> flag "-gr-delay" (optional_with_default (Int.max_value/100) int)
       ~doc:" delay between failure and global recovery"
-    +> flag "-is-flash" no_arg ~doc:" simulate flash or not"
-    +> flag "-flash-ba" (optional_with_default 0. float) ~doc:" fraction of total traffic to add as flash"
+    +> flag "-is-flash" no_arg ~doc:" simulate flash crowds or not"
+    +> flag "-flash-ba" (optional_with_default 0. float) ~doc:" fraction of total traffic to add as flash crowd"
     +> flag "-flash-recover" no_arg ~doc:" perform local recovery for flash"
     +> flag "-simtime" (optional_with_default 500 int) ~doc:" time steps to simulate each TM"
-    +> flag "-budget" (optional_with_default (Int.max_value/100) int) ~doc:" max paths between each pair of hosts"
+    +> flag "-budget" (optional_with_default (Int.max_value/100) int) ~doc:" max number of paths allowed between each pair of hosts"
     +> flag "-nbins" (optional int) ~doc:" number of bins to round path weights into"
     +> flag "-scale" (optional_with_default 1. float) ~doc:" scale demands by this factor"
     +> flag "-out" (optional string) ~doc:" name of directory in data/results to store results"
@@ -653,7 +654,7 @@ let command =
     +> flag "-rseed" (optional int) ~doc:" seed to initialize PRNG"
     +> flag "-num-tms" (optional int) ~doc:" number of TMs (-robust overrides this)"
     +> flag "-rtt-file" (optional string) ~doc:" file containing RTT values to be used as edge weights"
-    +> flag "-subgraph" (optional string) ~doc:" file with subset of switches (the induced subgraph will be used) "
+    +> flag "-subgraph" (optional string) ~doc:" file with a subset of switches (the induced subgraph will be used for analysis) "
     +> flag "-gurobi-method" (optional_with_default (-1) int)
       ~doc:" solver method used for Gurobi. -1=automatic, 0=primal simplex, 1=dual simplex, 2=barrier, 3=concurrent, 4=deterministic concurrent."
     +> anon ("topology-file" %: string)
@@ -778,7 +779,7 @@ let command =
             calculate_syn_scale topology_file subgraph_file demand_file host_file
           else 1.0 in
         let tot_scale = scale *. syn_scale in
-        Printf.printf "Scale factor: %f\n\n" tot_scale;
+        (* Printf.printf "Scale factor: %f\n\n" tot_scale; *)
 
         if limittest then
           compare_scaling_limit algorithms num_tms topology_file subgraph_file
@@ -798,7 +799,6 @@ let command =
           exit 1
         end)
 
-
-let main = Command.run command
+let main = Command.run ~version:"0.1" command
 
 let _ = main
