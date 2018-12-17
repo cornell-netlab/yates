@@ -686,6 +686,6 @@ let call_gurobi (lp_filename:string) (lp_solname:string) =
   match status with
   | Error exit_or_signal ->
     begin
-      failwith("Please check that Gurobi is installed (gurobi_cl is in $PATH) and that you have a valid license.");
+      failwith("Failed to run Gurobi. Please check that Gurobi is installed (gurobi_cl is in $PATH) and that you have a valid license.");
     end
   | _ -> ();

@@ -160,7 +160,7 @@ let accumulate_vulnerability_stats topology_file topo algorithm scheme  =
   fprintf oc "%s\n" (Buffer.contents buf);
   Out_channel.close oc
 
-(* Estimate capacity requirement based on MCF  for a given topology, tm,
+(* Estimate capacity requirement based on MCF for a given topology, tm,
    solver and scale*)
 let estimate_capacity_req (topo:topology) (demand_file:string)
     (host_file:string) (scale) : int64 EdgeMap.t =
@@ -208,6 +208,12 @@ let simulate
     (rtt_file_opt:string option)
     (log_paths:bool)
     (out_dir:string option) () : unit =
+
+  validate_files_exist ([ "topology", Some topology_file;
+                          "demand (real)", Some demand_file;
+                          "demand (predicted)", Some predict_file;
+                          "host map", Some host_file;
+                          "RTT", rtt_file_opt]);
 
   let topo = parse_topology topology_file subgraph_opt in
   (*let topo =
@@ -655,97 +661,97 @@ let command =
     +> anon ("predict-file" %: string)
     +> anon ("host-file" %: string)
   ) (fun
-    (ac:bool)
-    (akecmp:bool)
-    (akksp:bool)
-    (akmcf:bool)
-    (akraeke:bool)
-    (akvlb:bool)
-    (cspf:bool)
-    (ecmp:bool)
-    (edksp:bool)
-    (ffc:bool)
-    (ffced:bool)
-    (ksp:bool)
-    (mcf:bool)
-    (mwmcf:bool)
-    (optimalmcf:bool)
-    (raeke:bool)
-    (semimcfac:bool)
-    (semimcfecmp:bool)
-    (semimcfedksp:bool)
-    (semimcfksp:bool)
-    (semimcfkspft:bool)
-    (semimcfmcf:bool)
-    (semimcfmcfenv:bool)
-    (semimcfmcfftenv:bool)
-    (semimcfraeke:bool)
-    (semimcfraekeft:bool)
-    (semimcfvlb:bool)
-    (spf:bool)
-    (vlb:bool)
-    (all:bool)
-    (keep_loops:bool)
-    (limittest:bool)
-    (robust:bool)
-    (scalesyn:bool)
-    (vulnerability:bool)
-    (log_paths:bool)
-    (find_ksp_budget:bool)
-    (er_mode:bool)
-    (fail_num:int)
-    (fail_time:int)
-    (lr_delay:int)
-    (gr_delay:int)
-    (is_flash:bool)
-    (flash_ba:float)
-    (flash_recover:bool)
-    (simtime:int)
-    (budget:int)
-    (nbins:int option)
-    (scale:float)
-    (out:string option)
-    (appendout:bool)
-    (rseed:int option)
-    (num_tms:int option)
-    (rtt_file:string option)
-    (subgraph_file:string option)
-    (grb_method:int)
-    (topology_file:string)
-    (demand_file:string)
-    (predict_file:string)
-    (host_file:string) () ->
+      (ac:bool)
+      (akecmp:bool)
+      (akksp:bool)
+      (akmcf:bool)
+      (akraeke:bool)
+      (akvlb:bool)
+      (cspf:bool)
+      (ecmp:bool)
+      (edksp:bool)
+      (ffc:bool)
+      (ffced:bool)
+      (ksp:bool)
+      (mcf:bool)
+      (mwmcf:bool)
+      (optimalmcf:bool)
+      (raeke:bool)
+      (semimcfac:bool)
+      (semimcfecmp:bool)
+      (semimcfedksp:bool)
+      (semimcfksp:bool)
+      (semimcfkspft:bool)
+      (semimcfmcf:bool)
+      (semimcfmcfenv:bool)
+      (semimcfmcfftenv:bool)
+      (semimcfraeke:bool)
+      (semimcfraekeft:bool)
+      (semimcfvlb:bool)
+      (spf:bool)
+      (vlb:bool)
+      (all:bool)
+      (keep_loops:bool)
+      (limittest:bool)
+      (robust:bool)
+      (scalesyn:bool)
+      (vulnerability:bool)
+      (log_paths:bool)
+      (find_ksp_budget:bool)
+      (er_mode:bool)
+      (fail_num:int)
+      (fail_time:int)
+      (lr_delay:int)
+      (gr_delay:int)
+      (is_flash:bool)
+      (flash_ba:float)
+      (flash_recover:bool)
+      (simtime:int)
+      (budget:int)
+      (nbins:int option)
+      (scale:float)
+      (out:string option)
+      (appendout:bool)
+      (rseed:int option)
+      (num_tms:int option)
+      (rtt_file:string option)
+      (subgraph_file:string option)
+      (grb_method:int)
+      (topology_file:string)
+      (demand_file:string)
+      (predict_file:string)
+      (host_file:string) () ->
       let algorithms =
         List.filter_map ~f:(fun x -> x)
-         [ if ac || all         then Some Ac          else None
-         ; if akecmp            then Some AkEcmp      else None
-         ; if akksp             then Some AkKsp       else None
-         ; if akmcf             then Some AkMcf       else None
-         ; if akraeke           then Some AkRaeke     else None
-         ; if akvlb             then Some AkVlb       else None
-         ; if cspf || all       then Some Cspf        else None
-         ; if ecmp || all       then Some Ecmp        else None
-         ; if edksp || all      then Some Edksp       else None
-         ; if ffc || all        then Some Ffc         else None
-         ; if ffced || all      then Some Ffced       else None
-         ; if ksp || all        then Some Ksp         else None
-         ; if mcf || all        then Some Mcf         else None
-         ; if mwmcf             then Some MwMcf       else None
-         ; if optimalmcf || all then Some OptimalMcf  else None
-         ; if raeke || all      then Some Raeke       else None
-         ; if semimcfac || all        then Some SemiMcfAc     else None
-         ; if semimcfecmp || all      then Some SemiMcfEcmp     else None
-         ; if semimcfedksp || all     then Some SemiMcfEdksp      else None
-         ; if semimcfksp || all       then Some SemiMcfKsp      else None
-         ; if semimcfkspft            then Some SemiMcfKspFT    else None
-         ; if semimcfmcf              then Some SemiMcfMcf  else None
-         ; if semimcfmcfenv || all    then Some SemiMcfMcfEnv   else None
-         ; if semimcfmcfftenv || all  then Some SemiMcfMcfFTEnv else None
-         ; if semimcfraeke || all     then Some SemiMcfRaeke    else None
-         ; if semimcfraekeft || all   then Some SemiMcfRaekeFT  else None
-         ; if semimcfvlb || all       then Some SemiMcfVlb      else None
-         ; if spf || all        then Some Spf         else None
-         ; if vlb || all        then Some Vlb         else None ] in
+          [ if ac || all         then Some Ac          else None
+          ; if akecmp            then Some AkEcmp      else None
+          ; if akksp             then Some AkKsp       else None
+          ; if akmcf             then Some AkMcf       else None
+          ; if akraeke           then Some AkRaeke     else None
+          ; if akvlb             then Some AkVlb       else None
+          ; if cspf || all       then Some Cspf        else None
+          ; if ecmp || all       then Some Ecmp        else None
+          ; if edksp || all      then Some Edksp       else None
+          ; if ffc || all        then Some Ffc         else None
+          ; if ffced || all      then Some Ffced       else None
+          ; if ksp || all        then Some Ksp         else None
+          ; if mcf || all        then Some Mcf         else None
+          ; if mwmcf             then Some MwMcf       else None
+          ; if optimalmcf || all then Some OptimalMcf  else None
+          ; if raeke || all      then Some Raeke       else None
+          ; if semimcfac || all        then Some SemiMcfAc     else None
+          ; if semimcfecmp || all      then Some SemiMcfEcmp     else None
+          ; if semimcfedksp || all     then Some SemiMcfEdksp      else None
+          ; if semimcfksp || all       then Some SemiMcfKsp      else None
+          ; if semimcfkspft            then Some SemiMcfKspFT    else None
+          ; if semimcfmcf              then Some SemiMcfMcf  else None
+          ; if semimcfmcfenv || all    then Some SemiMcfMcfEnv   else None
+          ; if semimcfmcfftenv || all  then Some SemiMcfMcfFTEnv else None
+          ; if semimcfraeke || all     then Some SemiMcfRaeke    else None
+          ; if semimcfraekeft || all   then Some SemiMcfRaekeFT  else None
+          ; if semimcfvlb || all       then Some SemiMcfVlb      else None
+          ; if spf || all        then Some Spf         else None
+          ; if vlb || all        then Some Vlb         else None ] in
 
       (* Set global configs first *)
       ExperimentalData.append_out := appendout;
@@ -762,28 +768,36 @@ let command =
       Yates_routing.Globals.global_recovery_delay := gr_delay;
       Yates_routing.Globals.ffc_max_link_failures :=
         max fail_num !(Yates_routing.Globals.ffc_max_link_failures);
-      if robust then
-        Yates_routing.Globals.failure_time  := 0;
+      try
+        if robust then
+          Yates_routing.Globals.failure_time  := 0;
 
-      (* Compute scaling factor *)
-      let syn_scale =
-        if scalesyn then
-          calculate_syn_scale topology_file subgraph_file demand_file host_file
-        else 1.0 in
-      let tot_scale = scale *. syn_scale in
-      Printf.printf "Scale factor: %f\n\n" tot_scale;
+        (* Compute scaling factor *)
+        let syn_scale =
+          if scalesyn then
+            calculate_syn_scale topology_file subgraph_file demand_file host_file
+          else 1.0 in
+        let tot_scale = scale *. syn_scale in
+        Printf.printf "Scale factor: %f\n\n" tot_scale;
 
-      if limittest then
-        compare_scaling_limit algorithms num_tms topology_file subgraph_file demand_file
-          host_file rtt_file out ()
+        if limittest then
+          compare_scaling_limit algorithms num_tms topology_file subgraph_file
+            demand_file host_file rtt_file out ()
 
-      else if find_ksp_budget then
-        find_ksp_budget_test topology_file subgraph_file demand_file host_file rtt_file ()
+        else if find_ksp_budget then
+          find_ksp_budget_test topology_file subgraph_file demand_file
+            host_file rtt_file ()
 
-      else
-        simulate algorithms topology_file subgraph_file demand_file predict_file host_file
-          num_tms robust vulnerability tot_scale fail_num is_flash flash_ba
-          rtt_file log_paths out ())
+        else
+          simulate algorithms topology_file subgraph_file demand_file
+            predict_file host_file num_tms robust vulnerability tot_scale
+            fail_num is_flash flash_ba rtt_file log_paths out ()
+      with _ as e ->
+        begin
+          Format.printf "The following exception occured:\n %s\n" (Exn.to_string e);
+          exit 1
+        end)
+
 
 let main = Command.run command
 

@@ -161,6 +161,17 @@ let count_paths_through_edge (s:scheme) : (int EdgeMap.t) =
         EdgeMap.set ~key:edge ~data:(c+1) acc)))
 
 
-
 let progress_bar x y l =
   "[" ^ (String.make (x*l/y) '#') ^ (String.make (l-1-x*l/y) ' ') ^ "]"
+
+(* Failure handling *)
+
+let validate_files_exist (files: (string * string option) list) : unit =
+  List.iter files ~f:(fun (name, file_opt) ->
+      match file_opt with
+      | Some f -> begin
+          match Sys.file_exists f with
+          | `Yes -> ()
+          | _ -> raise (Not_found_s (sexp_of_string (Printf.sprintf "Input file for %s not found at %s. Please check that the file exists and you have read permissions." name f)))
+          end
+      | None -> ())
