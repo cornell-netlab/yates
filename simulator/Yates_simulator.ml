@@ -597,35 +597,35 @@ let command =
     ~readme:(fun () -> "See https://cornell-netlab.github.io/yates/ for more details.")
     Command.Spec.(
     empty
-    +> flag "-ac" no_arg ~doc:" run ac (Applegate-Cohen's optimal oblivious TE)"
-    +> flag "-akecmp" no_arg ~doc:" run ak+ecmp (ECMP for path selection + multiplicative weights for rate adaptaion)"
-    +> flag "-akksp" no_arg ~doc:" run ak+ksp (k-shortest paths for path selection + multiplicative weights for rate adaptaion)"
-    +> flag "-akmcf" no_arg ~doc:" run ak+mcf (multi-commodity flow for path selection + multiplicative weights for rate adaptaion)"
-    +> flag "-akraeke" no_arg ~doc:" run ak+raeke (Raecke's oblivious routing for path selection + multiplicative weights for rate adaptaion)"
-    +> flag "-akvlb" no_arg ~doc:" run ak+vlb (Valiant load balancing for path selection + multiplicative weights for rate adaptaion)"
-    +> flag "-cspf" no_arg ~doc:" run cspf (Constrained Shortest Paths First)"
-    +> flag "-ecmp" no_arg ~doc:" run ecmp (Equal-Cost Multi Path)"
-    +> flag "-edksp" no_arg ~doc:" run ed-ksp (Edge-disjoint k-shortest paths)"
-    +> flag "-ffc" no_arg ~doc:" run FFC with k-shortest paths as base path set"
-    +> flag "-ffced" no_arg ~doc:" run FFC with Edge-disjoint k-shortest paths as base path set"
-    +> flag "-ksp" no_arg ~doc:" run ksp (k-shortest paths)"
-    +> flag "-mcf" no_arg ~doc:" run mcf (multi-commodity flow that minimizes max. link utilization)"
-    +> flag "-mwmcf" no_arg ~doc:" run mwmcf (multi-commodity flow using multiplicative weights)"
-    +> flag "-optimalmcf" no_arg ~doc:" run optimal mcf (Optimal multi-commodity flow based TE which doesn't have any operational constraints)"
-    +> flag "-raeke" no_arg ~doc:" run raeke (Raecke's oblivious routing)"
-    +> flag "-semimcfac" no_arg ~doc:" run semi mcf+ac (Applegate-Cohen's oblivious routing for path selection + restricted MCF for rate adaptation)"
-    +> flag "-semimcfecmp" no_arg ~doc:" run semi mcf+ecmp (ECMP for path selection + restricted MCF for rate adaptation)"
-    +> flag "-semimcfedksp" no_arg ~doc:" run semi mcf+edksp (Edge-disjoint k-shortest paths for path selection + restricted MCF for rate adaptation)"
-    +> flag "-semimcfksp" no_arg ~doc:" run semi mcf+ksp (k-shortest paths for path selection + restricted MCF for rate adaptation)"
-    +> flag "-semimcfkspft" no_arg ~doc:" run semi mcf+ksp with joint failure opt (k-shortest paths with fault tolerance for path selection + restricted MCF for rate adaptation)"
-    +> flag "-semimcfmcf" no_arg ~doc:" run semi mcf+mcf (MCF for path selection + restricted MCF for rate adaptation)"
-    +> flag "-semimcfmcfenv" no_arg ~doc:" run semi mcf+mcf with envelope (MCF with demand envelope for path selection + restricted MCF for rate adaptation)"
-    +> flag "-semimcfmcfftenv" no_arg ~doc:" run semi mcf+mcf with envelope and joint failure opt (MCF with demand envelope and fault tolerance for path selection + restricted MCF for rate adaptation)"
-    +> flag "-semimcfraeke" no_arg ~doc:" run semi mcf+raeke (Raecke's oblivious routing for path selection + restricted MCF for rate adaptation)"
-    +> flag "-semimcfraekeft" no_arg ~doc:" run semi mcf+raeke with joint failure opt (Raecke's oblivious routing with fault tolerance for path selection + restricted MCF for rate adaptation)"
-    +> flag "-semimcfvlb" no_arg ~doc:" run semi mcf+vlb (Valiant load balancing for path selection + restricted MCF for rate adaptation)"
-    +> flag "-spf" no_arg ~doc:" run spf (Shortest paths first)"
-    +> flag "-vlb" no_arg ~doc:" run vlb (Valiant Load Balancing)"
+    +> flag "-ac" no_arg ~doc:(" run ac : " ^ solver_to_description Ac)
+    +> flag "-akecmp" no_arg ~doc:(" run ak+ecmp : " ^ solver_to_description AkEcmp)
+    +> flag "-akksp" no_arg ~doc:(" run ak+ksp : " ^ solver_to_description AkKsp)
+    +> flag "-akmcf" no_arg ~doc:(" run ak+mcf : " ^ solver_to_description AkMcf)
+    +> flag "-akraeke" no_arg ~doc:(" run ak+raeke : " ^ solver_to_description AkRaeke)
+    +> flag "-akvlb" no_arg ~doc:(" run ak+vlb : " ^ solver_to_description AkVlb)
+    +> flag "-cspf" no_arg ~doc:(" run cspf : " ^ solver_to_description Cspf)
+    +> flag "-ecmp" no_arg ~doc:(" run ecmp : " ^ solver_to_description Ecmp)
+    +> flag "-edksp" no_arg ~doc:(" run ed-ksp : " ^ solver_to_description Edksp)
+    +> flag "-ffc" no_arg ~doc:(" run FFC+ksp : " ^ solver_to_description Ffc)
+    +> flag "-ffced" no_arg ~doc:(" run FFC+edksp : " ^ solver_to_description Ffced)
+    +> flag "-ksp" no_arg ~doc:(" run ksp : " ^ solver_to_description Ksp)
+    +> flag "-mcf" no_arg ~doc:(" run mcf : " ^ solver_to_description Mcf)
+    +> flag "-mwmcf" no_arg ~doc:(" run mwmcf : " ^ solver_to_description MwMcf)
+    +> flag "-optimalmcf" no_arg ~doc:(" run optimal mcf : " ^ solver_to_description OptimalMcf)
+    +> flag "-raeke" no_arg ~doc:(" run raeke : " ^ solver_to_description Raeke)
+    +> flag "-semimcfac" no_arg ~doc:(" run semi mcf+ac : " ^ solver_to_description SemiMcfAc)
+    +> flag "-semimcfecmp" no_arg ~doc:(" run semi mcf+ecmp : " ^ solver_to_description SemiMcfEcmp)
+    +> flag "-semimcfedksp" no_arg ~doc:(" run semi mcf+edksp : " ^ solver_to_description SemiMcfEdksp)
+    +> flag "-semimcfksp" no_arg ~doc:(" run semi mcf+ksp : " ^ solver_to_description SemiMcfKsp)
+    +> flag "-semimcfkspft" no_arg ~doc:(" run semi mcf+ksp with joint failure opt : " ^ solver_to_description SemiMcfKspFT)
+    +> flag "-semimcfmcf" no_arg ~doc:(" run semi mcf+mcf : " ^ solver_to_description SemiMcfMcf)
+    +> flag "-semimcfmcfenv" no_arg ~doc:(" run semi mcf+mcf with envelope : " ^ solver_to_description SemiMcfMcfEnv)
+    +> flag "-semimcfmcfftenv" no_arg ~doc:(" run semi mcf+mcf with envelope and joint failure opt : " ^ solver_to_description SemiMcfMcfFTEnv)
+    +> flag "-semimcfraeke" no_arg ~doc:(" run semi mcf+raeke : " ^ solver_to_description SemiMcfRaeke)
+    +> flag "-semimcfraekeft" no_arg ~doc:(" run semi mcf+raeke with joint failure opt : " ^ solver_to_description SemiMcfRaekeFT)
+    +> flag "-semimcfvlb" no_arg ~doc:(" run semi mcf+vlb : " ^ solver_to_description SemiMcfVlb)
+    +> flag "-spf" no_arg ~doc:(" run spf : " ^ solver_to_description Spf)
+    +> flag "-vlb" no_arg ~doc:(" run vlb : " ^ solver_to_description Vlb)
     +> flag "-all" no_arg ~doc:" run all schemes"
     +> flag "-keep-loops" no_arg ~doc:" keep loops in paths"
     +> flag "-limittest" no_arg ~doc:" test at what scale factor for demand matrices does atleast one link is saturated"

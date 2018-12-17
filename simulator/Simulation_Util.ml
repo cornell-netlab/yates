@@ -39,6 +39,39 @@ let solver_to_string (s:solver_type) : string =
   | Vlb -> "vlb"
   | OptimalMcf -> "optimalmcf"
 
+let solver_to_description (s:solver_type) : string =
+  match s with
+  | Ac -> "Applegate-Cohen's optimal oblivious TE"
+  | AkEcmp -> "ECMP for path selection + multiplicative weights for rate adaptation"
+  | AkKsp -> "k-shortest paths for path selection + multiplicative weights for rate adaptation"
+  | AkMcf -> "multi-commodity flow for path selection + multiplicative weights for rate adaptation"
+  | AkRaeke -> "Raecke's oblivious routing for path selection + multiplicative weights for rate adaptation"
+  | AkVlb -> "Valiant load balancing for path selection + multiplicative weights for rate adaptation"
+  | Cspf -> "Constrained Shortest Paths First"
+  | Ecmp -> "Equal-Cost Multi Path"
+  | Edksp -> "Edge-disjoint k-shortest paths"
+  | Ffc -> "Forward Fault Correction (FFC) with k-shortest paths"
+  | Ffced -> "Forward Fault Correction (FFC) with edge-disjoing k-shortest paths"
+  | Ksp -> "k-shortest paths"
+  | Mcf -> "multi-commodity flow that minimizes max. link utilization"
+  | MwMcf -> "multi-commodity flow using multiplicative weights"
+  | Raeke -> "Raecke's oblivious routing"
+  | SemiMcfAc -> "Applegate-Cohen's oblivious routing for path selection + restricted MCF for rate adaptation"
+  | SemiMcfEcmp -> "ECMP for path selection + restricted MCF for rate adaptation"
+  | SemiMcfEdksp -> "Edge-disjoint k-shortest paths for path selection + restricted MCF for rate adaptation"
+  | SemiMcfKsp -> "k-shortest paths for path selection + restricted MCF for rate adaptation"
+  | SemiMcfKspFT -> "k-shortest paths with fault tolerance for path selection + restricted MCF for rate adaptation"
+  | SemiMcfMcf -> "MCF for path selection + restricted MCF for rate adaptation"
+  | SemiMcfMcfEnv -> "MCF with demand envelope for path selection + restricted MCF for rate adaptation"
+  | SemiMcfMcfFTEnv -> "MCF with demand envelope and fault tolerance for path selection + restricted MCF for rate adaptation"
+  | SemiMcfRaeke -> "Raecke's oblivious routing for path selection + restricted MCF for rate adaptation"
+  | SemiMcfRaekeFT -> "Raecke's oblivious routing with fault tolerance for path selection + restricted MCF for rate adaptation"
+  | SemiMcfVlb -> "Valiant load balancing for path selection + restricted MCF for rate adaptation"
+  | Spf -> "Shortest paths first"
+  | Vlb -> "Valiant Load Balancing"
+  | OptimalMcf -> "Optimal multi-commodity flow based TE which doesn't have any operational constraints"
+
+
 let select_algorithm solver = match solver with
   | Ac -> Yates_routing.AC.solve
   | AkEcmp
