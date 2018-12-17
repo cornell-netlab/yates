@@ -4,6 +4,7 @@ open Simulate_Switch
 open Simulation_Types
 open Simulation_Util
 open Yates_routing.Util
+open Yates_solvers.Solvers
 open Yates_types.Types
 open Yates_utils
 (***********************************************************)

@@ -1,6 +1,13 @@
 (executables
  ((names        (Yates_simulator))
   (public_names (yates))
-  (libraries (core async frenetic yates.routing yates.types yates.utils))
+  (libraries (
+              core
+              async
+              frenetic
+              yates.routing
+              yates.types
+              yates.utils
+              yates.solvers))
   (flags (:standard -safe-string))
-))
+ ))

@@ -2,15 +2,6 @@ open Core
 open Yates_routing
 open Yates_types.Types
 
-type solver_type =
-  | Ac | Cspf | Ecmp | Edksp | Ksp | Mcf | MwMcf | Raeke | Spf | Vlb
-  | AkMcf | AkRaeke | AkEcmp | AkKsp | AkVlb
-  | Ffc | Ffced
-  | SemiMcfAc | SemiMcfEcmp | SemiMcfEdksp | SemiMcfKsp | SemiMcfKspFT
-  | SemiMcfMcf | SemiMcfMcfEnv | SemiMcfMcfFTEnv | SemiMcfRaeke
-  | SemiMcfRaekeFT | SemiMcfVlb
-  | OptimalMcf
-
 type network_iter_state = {
   ingress_link_traffic  : ((edge Array.t * int * float) list) EdgeMap.t;
   delivered       : float SrcDstMap.t;
