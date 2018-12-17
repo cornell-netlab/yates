@@ -1,7 +1,0 @@
-Demands:
-	Must specify in bps
-
-Topologies:
-	Link capacity should have proper units.
-
-Both will be converted to Mbps during MCF computation as bps cannot be used with gurobi (known issue with large numbers).
