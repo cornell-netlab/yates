@@ -14,6 +14,12 @@ open Yates_solvers.Solvers
 open Yates_types.Types
 open Yates_utils
 
+let build_info =
+  Printf.sprintf "Summary of TE systems implemented in YATES:\n%s"
+    (List.fold_left all_solver_string_descripton ~init:"\n"
+      ~f:(fun acc (key, desc) -> acc ^ key ^ ":\t" ^ desc ^ ".\n"))
+
+
 (* Set weight of a specified edge *)
 let set_weight topo edge wt : unit =
   let label = Topology.edge_to_label topo edge in
@@ -790,8 +796,7 @@ let command =
           find_ksp_budget_test topology_file subgraph_file demand_file
             host_file rtt_file ()
 
-        else
-          simulate algorithms topology_file subgraph_file demand_file
+        else simulate algorithms topology_file subgraph_file demand_file
             predict_file host_file num_tms robust vulnerability tot_scale
             fail_num is_flash flash_ba rtt_file log_paths out ()
       with _ as e ->
@@ -800,6 +805,6 @@ let command =
           exit 1
         end)
 
-let main = Command.run ~version:"0.1" command
+let main = Command.run ~version:"0.1" ~build_info command
 
 let _ = main
