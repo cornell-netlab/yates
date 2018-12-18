@@ -72,6 +72,7 @@ module Make(Solver:Yates_Routing.Algorithm) = struct
                      \tflows : print installed rules\n\
                      \tstats [switch] [port]: print port stats for [switch] and [port]\n\
                      \tdump [file]: dump all port stats to [file]\n\
+                     \texit : exit controller\n\
                      %!";
       return () in
     let switches () =

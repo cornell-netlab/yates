@@ -256,3 +256,34 @@ let initialize_scheme algorithm topo predict : unit =
   | Vlb -> Yates_routing.Vlb.initialize SrcDstMap.empty
   | _ -> ()
 
+(* Name and description of all supported TE systems *)
+let all_solver_string_descripton : (string * string) list =
+  [ (solver_to_string Ac, solver_to_description Ac) ;
+    (solver_to_string AkEcmp, solver_to_description AkEcmp) ;
+    (solver_to_string AkKsp, solver_to_description AkKsp) ;
+    (solver_to_string AkMcf, solver_to_description AkMcf) ;
+    (solver_to_string AkRaeke, solver_to_description AkRaeke) ;
+    (solver_to_string AkVlb, solver_to_description AkVlb) ;
+    (solver_to_string Cspf, solver_to_description Cspf) ;
+    (solver_to_string Ecmp, solver_to_description Ecmp) ;
+    (solver_to_string Edksp, solver_to_description Edksp) ;
+    (solver_to_string Ffc, solver_to_description Ffc) ;
+    (solver_to_string Ffced, solver_to_description Ffced) ;
+    (solver_to_string Ksp, solver_to_description Ksp) ;
+    (solver_to_string Mcf, solver_to_description Mcf) ;
+    (solver_to_string MwMcf, solver_to_description MwMcf) ;
+    (solver_to_string Raeke, solver_to_description Raeke) ;
+    (solver_to_string SemiMcfAc, solver_to_description SemiMcfAc) ;
+    (solver_to_string SemiMcfEcmp, solver_to_description SemiMcfEcmp) ;
+    (solver_to_string SemiMcfEdksp, solver_to_description SemiMcfEdksp) ;
+    (solver_to_string SemiMcfKsp, solver_to_description SemiMcfKsp) ;
+    (solver_to_string SemiMcfKspFT, solver_to_description SemiMcfKspFT) ;
+    (solver_to_string SemiMcfMcf, solver_to_description SemiMcfMcf) ;
+    (solver_to_string SemiMcfMcfEnv, solver_to_description SemiMcfMcfEnv) ;
+    (solver_to_string SemiMcfMcfFTEnv, solver_to_description SemiMcfMcfFTEnv) ;
+    (solver_to_string SemiMcfRaeke, solver_to_description SemiMcfRaeke) ;
+    (solver_to_string SemiMcfRaekeFT, solver_to_description SemiMcfRaekeFT) ;
+    (solver_to_string SemiMcfVlb, solver_to_description SemiMcfVlb) ;
+    (solver_to_string Spf, solver_to_description Spf) ;
+    (solver_to_string Vlb, solver_to_description Vlb) ;
+    (solver_to_string OptimalMcf, solver_to_description OptimalMcf) ]

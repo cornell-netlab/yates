@@ -45,7 +45,10 @@ let yates_main_cmd =
     Command.Spec.(
       empty
       +> flag "-src" no_arg ~doc:" use source routing"
-      +> flag "-alg" (required string) ~doc:" TE algorithm to use [ecmp|ksp|mcf|raeke|vlb]"
+      +> flag "-alg" (required string) ~doc:(
+        Printf.sprintf " TE algorithm to use. Options: %s"
+          (List.fold_left all_solver_string_descripton ~init:"\n"
+             ~f:(fun acc (key, desc) -> acc ^ key ^ ":\t" ^ desc ^ ".\n")))
       +> flag "-budget" (optional int) ~doc:" max paths between each pair of hosts"
       +> anon ("topology-file" %: string)
       +> anon ("actual-file" %: string)
