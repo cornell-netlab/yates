@@ -381,6 +381,19 @@ Comparing Robustness
     More Options
   </a>
   
+  <li class="md-nav__item">
+  <a href="#te-algs" title="TE Algorithms" class="md-nav__link">
+      TE Algorithms
+  </a>
+  
+</li>
+
+<li class="md-nav__item">
+  <a href="#controller" title="YATES SDN Controller" class="md-nav__link">
+      YATES SDN Controller
+  </a>
+  
+</li>
 </li>
         
       </ul>
@@ -492,6 +505,20 @@ Comparing Robustness
   </a>
   
 </li>
+<li class="md-nav__item">
+  <a href="#te-algs" title="TE Algorithms" class="md-nav__link">
+      TE Algorithms
+  </a>
+  
+</li>
+
+<li class="md-nav__item">
+  <a href="#controller" title="YATES SDN Controller" class="md-nav__link">
+      YATES SDN Controller
+  </a>
+  
+</li>
+
         
       </ul>
     </nav>
@@ -526,15 +553,28 @@ topologies and example demand traffic matrices already included with YATES.</p>
 <li><b>Topology</b>: A topology is represented as a graph and expressed using the <a href="https://en.wikipedia.org/wiki/DOT_(graph_description_language)">DOT file format</a> in YATES.
     For illustration, we will use Abilene's backbone network topology. Our example topology is represented in DOT format as
     <a href="https://github.com/cornell-netlab/yates/blob/master/data/topologies/abilene.dot"><code>data/topologies/abilene.dot</code></a>.</li>
-<li><b>Demands</b>: These are represented as a list (timeseries) of traffic matrices (TMs). Each TM represents the bandwidth requirement from a source to a destination
-    at a given time. YATES expects TMs as a single file (example: <a href="https://github.com/cornell-netlab/yates/blob/master/data/demands/actual/abilene.txt"><code>data/demands/actual/abilene.txt</code></a>),
-    with each line corresponding to one TM. Each line represents the rows of the TM concatenated together. To identify which entry in the TM corresponds to a particular source and
-    destination node pair, we also need to provide a mapping from rows/columns in the TM to the corresponding end-points in the topology
-    (example: <a href="https://github.com/cornell-netlab/yates/blob/master/data/hosts/abilene.hosts"><code>data/hosts/abilene.hosts</code></a>.
-    The line number of each node in this file is its index in the rows/columns of a TM). YATES supports specifying two timeseries for demands: one representing the operator's predicted
-    demands, while the other representing the actual value of demands that occur in practice.
+<li><b>Demands</b>: These are represented as a list (timeseries) of traffic
+    matrices (TMs). Each TM represents the bandwidth requirement (bps) from a source
+    to a destination at a given time. YATES expects TMs as a single file
+    (example: <a href="https://github.com/cornell-netlab/yates/blob/master/data/demands/actual/abilene.txt"><code>data/demands/actual/abilene.txt</code></a>),
+    with each line corresponding to one TM. Each line represents the rows of
+    the TM concatenated together. To identify which entry in the TM corresponds
+    to a particular source and destination node pair, we also need to provide a
+    mapping from rows/columns in the TM to the corresponding end-points in the
+    topology (example: <a href="https://github.com/cornell-netlab/yates/blob/master/data/hosts/abilene.hosts"><code>data/hosts/abilene.hosts</code></a>.
+    The line number of each node in this file is its index in the rows/columns
+    of a TM). YATES supports specifying two timeseries for demands:
+    <ul>
+        <li> one representing the operator's predicted demands based on observed traffic patterns </li>
+        <li> the other represents the actual value of demands that occur in practice.</li>
+    </ul>
+    Each TM (one line in the demands file) corresponds to demands over a time
+    interval (say, 5 minutes or an hour) depending on the granurality at which
+    the operator wishes to perform traffic optimization.
 </li>
 </ul>
+For more details on inputs, see the <a
+    href="https://github.com/cornell-netlab/yates/blob/master/data/README.md">documentation on GitHub</a>.
 <hr />
 <h3 id="basic-usage">Basic Usage</h3>
 <p>The following command shows how to run the YATES simulator for the above
@@ -557,6 +597,10 @@ maximum link congestion (congestion or utilization of each link is the amount
 of traffic going over the link divided by the capacity of the link) for each TM when using ECMP.
 The format of all output files is almost the same - tab-separated columns with
 headers describing the meaning of each column.</p>
+
+<h3>Output files</h3>
+<p> For a complete description of the output and how to interpret various files, see <a href="https://github.com/cornell-netlab/yates/blob/master/data/results/README.md">README on GitHub</a>.
+
 <hr />
 <h3 id="comparing-te-systems">Comparing TE systems</h3>
 <p>To compare multiple TE algorithms in the same run, they can be specified
@@ -627,17 +671,94 @@ YATES already implements this form of recovery. To enable this recovery to kick-
 <p>YATES supports a lot of other options to specify different TE systems and
 generate different kinds of workloads and operational scenarios. See the help
 in CLI for the exhaustive list.</p>
+
+
 <div class="codehilite"><pre><span></span>yates -h
 </pre></div>
-                
-                  
-                
-              
-              
-                
+<h4 id="te-algs">Traffic Engineering Algorithms </h4>
+YATES comes with various traffic engineering algorithms already implemented.
+Some of them include:
+<table style="width:100%">
+  <tr>
+    <th>Name</th>
+    <th>Description</th> 
+  </tr>
+  <tr>
+    <td>SPF</td>
+    <td>Shortest-path first</td>
+  </tr>
+  <tr>
+    <td>ECMP</td>
+    <td>Equal Cost Multipath</td>
+  </tr>
+  <tr>
+    <td>KSP</td>
+    <td>Distribute traffic equally over k-shortest paths between every source-destination pair</td>
+  </tr>
+  <tr>
+    <td>ED-KSP</td>
+    <td>Distribute traffic equally over edge-disjoint k-shortest paths between every source-destination pair</td>
+  </tr>
+  <tr>
+    <td>MCF</td>
+    <td>A multi-commodity flow based TE algorithms that minimizes the maximum
+        link utilization (MLU)</td>
+  </tr>
+  <tr>
+      <td>VLB</td>
+      <td>Valiant load balancing</td>
+  </tr>
+  <tr>
+      <td>Räcke's oblivious routing</td>
+      <td>See <a href="https://dl.acm.org/citation.cfm?id=1374415">"Optimal
+              Hierarchical Decompositions for Congestion Minimization in
+              Networks"</a></td>
+      </tr>
+      <tr>
+      <td>SMORE</td>
+      <td><a href="https://www.usenix.org/conference/nsdi18/presentation/kumar">Semi-oblivious traffic engineering</a> using Räcke's oblivious routing for path selection.</td>
+      </tr><tr>
+      <td>and more ...</td>
+      <td>To see the complete list, run: <pre>yates -show-systems</pre></td>
+  </tr>
+</table>
 
+YATES allows composing modules together to build new TE systems. For example,
+by composing the k-shortest paths (KSP) with a restricted MCF module, one can
+build a TE system that uses k-shortest paths between every pair of nodes, and
+dynamically load balances over these set of paths depending on time-varying
+demands.
 
-              
+<h3>YATES SDN Controller</h3>
+The controller performs the following functions:
+<ul>
+    <li> compute the forwarding paths based on the TE algorithm and assign a
+        physical network path identifier to each forwarding path, </li>
+    <li> install appropriate forwarding rules, </li>
+    <li> send the path-to-identifier mappings to each of the user-space
+        end-host agents in the network, and </li>
+    <li> periodically gather traffic statistics from switches. </li>
+</ul>
+To use the controller, run it as follows:
+<div class="codehilite"><pre><span></span><span class="c1"># yates.ctrl &lt;topology&gt; &lt;actual-demands&gt; &lt;predicted-demands&gt; &lt;host-mapping&gt; \</span>
+<span class="c1">#  [parameters for evaluation such as TE algorithms, budget etc.]</span>
+yates.ctrl data/topologies/abilene.dot <span class="se">\</span>
+  data/demands/actual/abilene.txt data/demands/predicted/abilene.txt <span class="se">\</span>
+  data/hosts/abilene.hosts -alg ecmp
+</pre></div>
+This will compute the set of paths to be used, and start an OpenFlow SDN
+controller. As switches connect to the controller, it will populate the
+forwarding table with corresponding entries.
+
+<p>YATES SDN controller supports two kinds of source routing schemes: i) one
+    uses a single tag per path; switches look at this tag to make forwarding
+    decisions ii) and the other assigns and id to each link and encodes the
+    path using a stack of VLAN tags; switches look at the outer most tag, and
+    forward based on that after popping the tag header. </p>
+
+<p> To see the complete description of all the options, run:</p>
+<div class="codehilite"><pre>
+yates.ctrl -h </pre></div>
             </article>
           </div>
         </div>

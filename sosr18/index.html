@@ -477,6 +477,16 @@
         href="https://github.com/cornell-netlab/yates/blob/master/data/hosts/AttMpls.hosts"><code>data/hosts/AttMpls.hosts</code></a>.
 </li>
 </ul>
+<p>See the documentation for <a
+    href="https://github.com/cornell-netlab/yates/blob/master/data/README.md">inputs</a>
+and <a
+    href="https://github.com/cornell-netlab/yates/blob/master/data/results/README.md">outputs</a>
+on GitHub for more details.</p>
+<p><b>Note:</b> Gurobi is required for reproducing all the results. See
+    <a
+        href="https://cornell-netlab.github.io/yates/installation/#gurobi">instructions</a>
+    for installing Gurobi. Otherwise, you can skip the following options which require solving an LP to generate a partial set of results.</p>
+<pre>-mcf, -scalesyn, -scale, -semimcfksp, -ffced</pre>
 <hr />
 <h3 id="congestion">Congestion Analysis</h3>
 <p>Figure 4 in the paper compares the following TE algorithms in terms of maximum
