@@ -5,6 +5,7 @@
   (libraries
     (frenetic
      yates.routing
+     yates.solvers
      yates.types
      yates.utils
     )

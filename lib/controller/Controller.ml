@@ -3,10 +3,12 @@ open Async
 open Frenetic_kernel.OpenFlow
 open Frenetic_kernel.OpenFlow0x01
 open Message
+open Util
 
 open Yates_routing
 open Yates_routing.Traffic
 open Yates_routing.Util
+open Yates_solvers.Solvers
 open Yates_types.Types
 open Yates_utils
 
@@ -17,7 +19,7 @@ let port_stats_delay = 1.0
 
 let verbose s =
   if false then
-    Core.eprintf "[kulfi]: %s\n%!" s
+    Core.eprintf "[yates]: %s\n%!" s
   else
     ()
 
@@ -130,13 +132,13 @@ module Make(Solver:Yates_Routing.Algorithm) = struct
       return () in
 
     let eof () =
-      dump (Printf.sprintf "kulfi-controller-%f.txt" (Unix.time ())) >>=
+      dump (Printf.sprintf "yates-controller-%f.txt" (Unix.time ())) >>=
       fun () -> Pervasives.exit 0 in
     let split s =
       List.filter (String.split s ' ') ((<>) "") in
 
     begin
-      Core.printf "kulfi> %!";
+      Core.printf "yates> %!";
       Reader.read_line (force Reader.stdin) >>=
         (function
           | `Eof -> eof ()
@@ -219,23 +221,6 @@ module Make(Solver:Yates_Routing.Algorithm) = struct
     | _ ->
        return ()
 
-  let initial_scheme init_str topo ic hm : scheme =
-    match init_str with
-    | None -> SrcDstMap.empty
-    | Some "mcf" ->
-       let d = next_demand ic hm in
-       Yates_Routing.Mcf.solve topo d
-    | Some "vlb" ->
-       let d = next_demand ic hm in
-       Yates_Routing.Vlb.solve topo d
-    | Some "raeke" ->
-       let d = next_demand ic hm in
-       Yates_Routing.Raeke.solve topo d
-    | Some "ecmp" ->
-       let d = next_demand ic hm in
-       Yates_Routing.Ecmp.solve topo d
-    | Some _ -> failwith  "Unrecognized initialization scheme"
-
   (* Print flow mods to be installed *)
   let dump_flow_mods (sw_flow_map : (switchId, flowMod list) Hashtbl.t) =
     Hashtbl.iteri sw_flow_map
@@ -255,7 +240,7 @@ module Make(Solver:Yates_Routing.Algorithm) = struct
       ()
 
   (* Source routing using a stack of tags (one per hop) for a path *)
-  let start_src topo_fn predict_fn host_fn init_str () =
+  let start_src topo_fn predict_fn host_fn algo () =
     (* Parse topology *)
     let topo = Frenetic_kernel.Network.Net.Parse.from_dotfile topo_fn in
     (* Create fabric *)
@@ -263,13 +248,12 @@ module Make(Solver:Yates_Routing.Algorithm) = struct
     (* Open predicted demands *)
     let (predict_host_map, predict_traffic_ic) = open_demands predict_fn host_fn topo in
     (* Helper to generate host configurations *)
-    let scheme = initial_scheme init_str topo predict_traffic_ic predict_host_map in
-    let _ = Solver.initialize scheme in
     let rec simulate i =
       try
-        let predict = next_demand predict_traffic_ic predict_host_map in
-        let scheme' = Solver.solve topo predict in
-        print_configuration topo (source_routing_configuration_of_scheme topo scheme' tag_hash) i;
+        let predict = next_demand ~wrap:false predict_traffic_ic predict_host_map in
+        if i = 0 then initialize_scheme algo topo predict;
+        let scheme = Solver.solve topo predict in
+        print_configuration topo (source_routing_configuration_of_scheme topo scheme tag_hash) i;
         simulate (i+1)
       with _ ->
         () in
@@ -282,21 +266,20 @@ module Make(Solver:Yates_Routing.Algorithm) = struct
 
 
   (* Route using single tag per path *)
-  let start_path topo_fn predict_fn host_fn init_str () =
+  let start_path topo_fn predict_fn host_fn algo () =
     (* Parse topology *)
     let topo = Net.Parse.from_dotfile topo_fn in
     (* Open predicted demands *)
     let (predict_host_map, predict_traffic_ic) = open_demands predict_fn host_fn topo in
     (* Helper to generate host configurations *)
-    let scheme = initial_scheme init_str topo predict_traffic_ic predict_host_map in
-    let _ = Solver.initialize scheme in
     let rec simulate i path_tag_map =
       try
-        let predict = next_demand predict_traffic_ic predict_host_map in
-        let scheme' = Solver.solve topo predict in
-        Core.printf "%d\n%!" (SrcDstMap.length scheme');
-        let path_tag_map = Yates_Paths.add_paths_from_scheme scheme' path_tag_map in
-        print_configuration topo (path_routing_configuration_of_scheme topo scheme' path_tag_map) i;
+        let predict = next_demand ~wrap:false predict_traffic_ic predict_host_map in
+        if i = 0 then initialize_scheme algo topo predict;
+        let scheme = Solver.solve topo predict in
+        Core.printf "%d\n%!" (SrcDstMap.length scheme);
+        let path_tag_map = Yates_Paths.add_paths_from_scheme scheme path_tag_map in
+        print_configuration topo (path_routing_configuration_of_scheme topo scheme path_tag_map) i;
         simulate (i+1) path_tag_map
       with err ->
         Core.printf "exit %d %s\n%!" i (Exn.to_string err);
@@ -314,10 +297,10 @@ module Make(Solver:Yates_Routing.Algorithm) = struct
 
 
   (* select whether to do source routing or not and start controller *)
-  let start topo_fn predict_fn host_fn init_str src_routing () =
+  let start topo_fn predict_fn host_fn algo src_routing () =
     if src_routing then
-      start_src topo_fn predict_fn host_fn init_str ()
+      start_src topo_fn predict_fn host_fn algo ()
     else
-      start_path topo_fn predict_fn host_fn init_str ()
+      start_path topo_fn predict_fn host_fn algo ()
 
 end

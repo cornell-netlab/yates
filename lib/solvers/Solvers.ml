@@ -1,6 +1,10 @@
 open Core
-open Yates_routing
+open Yates_routing.Util
+open Yates_types.Types
+open Helper
 
+
+(* List of supported TE systems *)
 type solver_type =
   | Ac | Cspf | Ecmp | Edksp | Ksp | Mcf | MwMcf | Raeke | Spf | Vlb
   | AkMcf | AkRaeke | AkEcmp | AkKsp | AkVlb
@@ -10,6 +14,7 @@ type solver_type =
   | SemiMcfRaekeFT | SemiMcfVlb
   | OptimalMcf
 
+(* TE system identifier *)
 let solver_to_string (s:solver_type) : string =
   match s with
   | Ac -> "ac"
@@ -42,6 +47,41 @@ let solver_to_string (s:solver_type) : string =
   | Vlb -> "vlb"
   | OptimalMcf -> "optimalmcf"
 
+(* TE system identifier reverse map *)
+let string_to_solver (s:string) : solver_type =
+  match s with
+  | "ac" -> Ac
+  | "akecmp" -> AkEcmp
+  | "akksp" -> AkKsp
+  | "akmcf" -> AkMcf
+  | "akraeke" -> AkRaeke
+  | "akvlb" -> AkVlb
+  | "cspf" -> Cspf
+  | "ecmp" -> Ecmp
+  | "edksp" -> Edksp
+  | "ffc" -> Ffc
+  | "ffced" -> Ffced
+  | "ksp" -> Ksp
+  | "mcf" -> Mcf
+  | "mwmcf" -> MwMcf
+  | "raeke" -> Raeke
+  | "semimcfac" -> SemiMcfAc
+  | "semimcfecmp" -> SemiMcfEcmp
+  | "semimcfedksp" -> SemiMcfEdksp
+  | "semimcfksp" -> SemiMcfKsp
+  | "semimcfkspft" -> SemiMcfKspFT
+  | "semimcfmcf" -> SemiMcfMcf
+  | "semimcfmcfenv" -> SemiMcfMcfEnv
+  | "semimcfmcfftenv" -> SemiMcfMcfFTEnv
+  | "semimcfraeke" -> SemiMcfRaeke
+  | "semimcfraekeft" -> SemiMcfRaekeFT
+  | "semimcfvlb" -> SemiMcfVlb
+  | "spf" -> Spf
+  | "vlb" -> Vlb
+  | "optimalmcf" -> OptimalMcf
+  | _ -> failwith (Printf.sprintf "Invalid solver type specified: %s" s)
+
+(* Return a brief summary of specified TE system *)
 let solver_to_description (s:solver_type) : string =
   match s with
   | Ac -> "Applegate-Cohen's optimal oblivious TE"
@@ -74,7 +114,7 @@ let solver_to_description (s:solver_type) : string =
   | Vlb -> "Valiant Load Balancing"
   | OptimalMcf -> "Optimal multi-commodity flow based TE which doesn't have any operational constraints"
 
-
+(* Select the rate adaptation method for a TE system *)
 let select_algorithm solver = match solver with
   | Ac -> Yates_routing.AC.solve
   | AkEcmp
@@ -106,6 +146,7 @@ let select_algorithm solver = match solver with
   | Spf -> Yates_routing.Spf.solve
   | Vlb -> Yates_routing.Vlb.solve
 
+(* Select the local recovery method for a TE system *)
 let select_local_recovery solver = match solver with
   | Ac -> Yates_routing.AC.local_recovery
   | AkEcmp
@@ -137,4 +178,81 @@ let select_local_recovery solver = match solver with
   | Spf -> Yates_routing.Spf.local_recovery
   | Vlb -> Yates_routing.Vlb.local_recovery
 
+let demand_envelope = ref SrcDstMap.empty
+(* Compute the initial scheme for a TE algorithm *)
+let initial_scheme algorithm topo predict : scheme =
+  match algorithm with
+  | SemiMcfAc ->
+    let _ = Yates_routing.AC.initialize SrcDstMap.empty in
+    Yates_routing.AC.solve topo SrcDstMap.empty
+  | AkEcmp
+  | SemiMcfEcmp ->
+    let _ = Yates_routing.Ecmp.initialize SrcDstMap.empty in
+    Yates_routing.Ecmp.solve topo SrcDstMap.empty
+  | Ffced
+  | SemiMcfEdksp ->
+    let _ = Yates_routing.Edksp.initialize SrcDstMap.empty in
+    Yates_routing.Edksp.solve topo SrcDstMap.empty
+  | AkKsp
+  | Ffc
+  | SemiMcfKsp ->
+    let _ = Yates_routing.Ksp.initialize SrcDstMap.empty in
+    Yates_routing.Ksp.solve topo SrcDstMap.empty
+  | SemiMcfKspFT ->
+    let _ = Yates_routing.Ksp.initialize SrcDstMap.empty in
+    all_failures_envelope Yates_routing.Ksp.solve topo SrcDstMap.empty
+  | AkMcf
+  | SemiMcfMcf ->
+    Yates_routing.Mcf.solve topo predict
+  | SemiMcfMcfEnv ->
+    Yates_routing.Mcf.solve topo !demand_envelope
+  | SemiMcfMcfFTEnv ->
+    all_failures_envelope Yates_routing.Mcf.solve topo !demand_envelope
+  | AkRaeke
+  | SemiMcfRaeke ->
+    let _ = Yates_routing.Raeke.initialize SrcDstMap.empty in
+    Yates_routing.Raeke.solve topo SrcDstMap.empty
+  | SemiMcfRaekeFT ->
+    let _ = Yates_routing.Raeke.initialize SrcDstMap.empty in
+    all_failures_envelope Yates_routing.Raeke.solve topo SrcDstMap.empty
+  | AkVlb
+  | SemiMcfVlb ->
+    let _ = Yates_routing.Vlb.initialize SrcDstMap.empty in
+    Yates_routing.Vlb.solve topo SrcDstMap.empty
+  | _ -> SrcDstMap.empty
+
+
+(* Initialize a TE algorithm *)
+let initialize_scheme algorithm topo predict : unit =
+  let start_scheme = initial_scheme algorithm topo predict in
+  let pruned_scheme =
+    if SrcDstMap.is_empty start_scheme then start_scheme
+    else prune_scheme topo start_scheme !Yates_routing.Globals.budget in
+  match algorithm with
+  | Ac -> Yates_routing.AC.initialize SrcDstMap.empty
+  | AkEcmp
+  | AkKsp
+  | AkMcf
+  | AkRaeke
+  | AkVlb -> Yates_routing.Ak.initialize pruned_scheme
+  | Cspf -> Yates_routing.Cspf.initialize SrcDstMap.empty
+  | Ecmp -> Yates_routing.Ecmp.initialize SrcDstMap.empty
+  | Edksp -> Yates_routing.Edksp.initialize SrcDstMap.empty
+  | Ffc
+  | Ffced -> Yates_routing.Ffc.initialize pruned_scheme
+  | Ksp -> Yates_routing.Ksp.initialize SrcDstMap.empty
+  | Raeke -> Yates_routing.Raeke.initialize SrcDstMap.empty
+  | SemiMcfAc
+  | SemiMcfEcmp
+  | SemiMcfEdksp
+  | SemiMcfKsp
+  | SemiMcfKspFT
+  | SemiMcfMcf
+  | SemiMcfMcfEnv
+  | SemiMcfMcfFTEnv
+  | SemiMcfRaeke
+  | SemiMcfRaekeFT
+  | SemiMcfVlb -> Yates_routing.SemiMcf.initialize pruned_scheme
+  | Vlb -> Yates_routing.Vlb.initialize SrcDstMap.empty
+  | _ -> ()
 

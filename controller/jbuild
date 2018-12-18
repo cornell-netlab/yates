@@ -1,6 +1,6 @@
 (executables
  ((names        (Yates_Controller))
   (public_names (yates.ctrl))
-  (libraries (core async frenetic yates.controller yates.types))
+  (libraries (core async frenetic yates.controller yates.types yates.solvers))
   (flags (:standard -safe-string))
 ))

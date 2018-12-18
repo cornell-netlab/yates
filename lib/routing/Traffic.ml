@@ -26,17 +26,23 @@ let open_demands (demand_file:string) (host_file:string) (topo:topology) : (inde
 let close_demands (ic:In_channel.t) : unit =
   In_channel.close ic
 
-let next_demand ?scale:(scale=1.0) (ic:In_channel.t) (host_map:index_map) : demands =
+let next_demand ?scale:(scale=1.0) ?wrap:(wrap=true) (ic:In_channel.t) (host_map:index_map) : demands =
   let line =
     try
       In_channel.input_line_exn ic
     with e ->
-      (* Wrap around when EOF is reached *)
-      Printf.printf "Wrapping around...\n";
-      In_channel.seek ic 0L;
-      In_channel.input_line_exn ic
-      (*close_in_noerr ic;
-      raise e*)
+      if wrap then
+        begin
+          (* Wrap around when EOF is reached *)
+          Printf.printf "Wrapping around...\n";
+          In_channel.seek ic 0L;
+          In_channel.input_line_exn ic
+        end
+      else
+        begin
+          In_channel.close ic;
+          raise e
+        end
   in
   let entries = Array.of_list (String.split line ~on:' ') in
   let size = Int.of_float (sqrt (Float.of_int (Array.length entries))) in
