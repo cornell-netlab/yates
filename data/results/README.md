@@ -2,11 +2,17 @@ Output format of YATES
 ----------------------
 For each topology, YATES will create a directory
 `$YATES_ROOT/data/results/<topology>/` where the results will be stored (unless
-another output directory is specified with `-out` flag). The results directory
-usually consists of the following files and sub-directories:
+another output directory is specified with `-out` flag). The ouput directory
+usually consists of the following files and sub-directories. The input contains
+a timeseries of traffic matrices where each traffic matrix corresponds to a snapshot or
+aggregated (over a time window) measurement of demands between nodes in the topology.
+YATES iterates over the list of traffic matrices in order and for each iteration (point
+in the timeseries), it generates performance statistics. As the output consists of 
+statistics for each traffic matrix, the final output is also a a timeseries,
+corresponding to the input.
 
-| File                                |  Data description                                                                               |
-| ------------------------------------|-------------------------------------------------------------------------------------------------|
+| File                                  |  Data description                                                                               |
+| --------------------------------------|-------------------------------------------------------------------------------------------------|
 | `CongestionLossVsIterations.dat`      | Timeseries of traffic dropped due to insufficient link capacity.                                |
 | `EdgeCongestionVsIterations.dat`      | Timeseries of link utilization for each edge.                                                   |
 | `EdgeExpCongestionVsIterations.dat`   | Timeseries of scheduled (assuming no traffic drops) link load for each edge.                    |
