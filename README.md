@@ -36,7 +36,7 @@ YATES is a software framework that enables rapid prototyping and evaluation of t
     
 For more details and complete install, please read the [installation guide](https://cornell-netlab.github.io/yates/installation/).
 
-Note: YATES uses [Gurobi](http://www.gurobi.com/) to be installed to solve linear programs. Please follow [this guide to install Gurobi](http://www.gurobi.com/documentation/8.0/quickstart_linux/software_installation_guid.html#section:Installation) and make sure that you have a valid license.
+Note: YATES needs [Gurobi](http://www.gurobi.com/) to be installed to solve linear programs. Please follow [this guide to install Gurobi](http://www.gurobi.com/documentation/8.0/quickstart_linux/software_installation_guid.html#section:Installation) and make sure that you have a valid license.
 
 ### Using YATES
 An example run that evaluates performance of ECMP with Internet2's Abilene backbone network.
