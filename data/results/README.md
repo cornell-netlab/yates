@@ -13,12 +13,12 @@ corresponding to the input.
 
 | File                                  |  Data description                                                                               |
 | --------------------------------------|-------------------------------------------------------------------------------------------------|
-| `CongestionLossVsIterations.dat`      | Timeseries of traffic dropped due to insufficient link capacity.                                |
-| `EdgeCongestionVsIterations.dat`      | Timeseries of link utilization for each edge.                                                   |
-| `EdgeExpCongestionVsIterations.dat`   | Timeseries of scheduled (assuming no traffic drops) link load for each edge.                    |
-| `FailureLossVsIterations.dat`         | Timeseries of traffic dropped due to failures.                                                  |
-| `k10CongestionVsIterations.dat`       | Timeseries of 10-th percentile link utilization.                                                |
-| `k10ExpCongestionVsIterations.dat`    | Timeseries of 10-th percentile scheduled link load.                                             |
+| `CongestionLossVsIterations.dat`      | Timeseries of traffic dropped due to insufficient link capacity. When a link receives more traffic than its capacity, the excess traffic is recorded as dropped. The value reported here is the fraction of total demand that was dropped in this way.                               |
+| `EdgeCongestionVsIterations.dat`      | Timeseries of link utilization for each edge. Link utilization is the ratio of traffic carried by a link to the capacity of that link. This value is always <= 1.                                                   |
+| `EdgeExpCongestionVsIterations.dat`   | Timeseries of scheduled (assuming no traffic drops) link load for each edge. Scheduled link load is the ratio of total traffic that was scheduled to be carried by a link to the capacity of the link. This value can be greater than 1 if the TE scheduled traffic on a link more than the link's capacity                   |
+| `FailureLossVsIterations.dat`         | Timeseries of traffic dropped due to failures. If traffic couldn't be routed because of failures in the topology, it is marked as dropped. The value reported here is the fraction of total demand that was dropped in this way.                                                   |
+| `k10CongestionVsIterations.dat`       | Timeseries of 10-th percentile link utilization. See definition of link utilization above. Each link has a utilization value for each iteration. For each iteration, percentiles are computed over the link utilizations for all links.                                                 |
+| `k10ExpCongestionVsIterations.dat`    | Timeseries of 10-th percentile scheduled link load. See defintion of scheduled link load above. Similar to the above computation with scheduled link loads.                                              |
 | `k20CongestionVsIterations.dat`       | Timeseries of 20-th percentile link utilization.                                                |
 | `k20ExpCongestionVsIterations.dat`    | Timeseries of 20-th percentile scheduled link load.                                             |
 | `k30CongestionVsIterations.dat`       | Timeseries of 30-th percentile link utilization.                                                |
@@ -37,21 +37,21 @@ corresponding to the input.
 | `k90ExpCongestionVsIterations.dat`    | Timeseries of 90-th percentile scheduled link load.                                             |
 | `k95CongestionVsIterations.dat`       | Timeseries of 95-th percentile link utilization.                                                |
 | `k95ExpCongestionVsIterations.dat`    | Timeseries of 95-th percentile scheduled link load.                                             |
-| `LatencyDistributionVsIterations.dat` | Timeseries of distribution of latency.                                                          |
-| `MaxCongestionVsIterations.dat`       | Timeseries of max. link utilization.                                                            |
-| `MaxExpCongestionVsIterations.dat`    | Timeseries of max. scheduled link load.                                                         |
-| `MeanCongestionVsIterations.dat`      | Timeseries of mean link utilization.                                                            |
-| `MeanExpCongestionVsIterations.dat`   | Timeseries of mean scheduled link load.                                                         |
-| `NumPathsVsIterations.dat`            | Timeseries of number of paths used.                                                             |
-| `paths`                               | Directory logging the paths used by each TE system.                                             |
-| `RecoveryChurnVsIterations.dat`       | Timeseries of path churn due to failure recovery.                                               |
+| `LatencyDistributionVsIterations.dat` | Timeseries of distribution of latency. For each iteration, this distribution shows what fraction of the total demand experienced how much latency. Latency could be in units of time, or number of hops as specified in the input.                                                           |
+| `MaxCongestionVsIterations.dat`       | Timeseries of max. link utilization. For each iteration, report the utilization of the link with the maximum value of link utilization. See definition of link utilization above.                                                             |
+| `MaxExpCongestionVsIterations.dat`    | Timeseries of max. scheduled link load. For each iteration, report the schediuled link load of the link with the maximum value of expected link load. See definition of scheduled link load above.                                                         |
+| `MeanCongestionVsIterations.dat`      | Timeseries of mean link utilization. (Similar to the max. congestion above, but report mean over all links)                                                            |
+| `MeanExpCongestionVsIterations.dat`   | Timeseries of mean scheduled link load. (Similar to the max. scheduled link load above, but report mean over all links)                                                        |
+| `NumPathsVsIterations.dat`            | Timeseries of number of paths used. For each iteration, report the toal number of paths used by a TE system to route traffic over.                                                             |
+| `paths`                               | Output directory logging the paths used by each TE system for each iteration.                                             |
+| `RecoveryChurnVsIterations.dat`       | Timeseries of path churn due to failure recovery. Recovery path churn is the number of paths that were added or removed by a TE system to handle failures.                                               |
 | `TimeVsIterations.dat`                | Timeseries of time taken to compute the routing scheme for each TM.                             |
-| `TMChurnVsIterations.dat`             | Timeseries of path churn due to recomputing routing scheme for each TM.                         |
+| `TMChurnVsIterations.dat`             | Timeseries of path churn due to recomputing routing scheme for each TM. This value is the number of paths that were added or removed by a TE system when updating the routing scheme in response to changing demands in subsequent iterations.                         |
 | `TotalSinkThroughputVsIterations.dat` | Timeseries of total throughput to the sink node in case of flash crowds.                        |
 | `TotalThroughputVsIterations.dat`     | Timeseries of normalized throughput (total traffic delivered / total demand for all node pairs).|
 
 
 Note that each file will have data for all TE systems invoked during
 simulation. The data will be concatenated and tagged with the name of the TE
-system used.  Usually, each file is in TSV format, and the header in each file
+system used. Usually, each file is in TSV format, and the header in each file
 will describe the contents in each column.
