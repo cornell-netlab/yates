@@ -6,7 +6,7 @@ script:
 - echo "yes" | sudo add-apt-repository ppa:avsm/ppa
 - sudo apt-get update -qq
 - sudo apt-get install -qq opam
-- opam init --auto-setup --compiler=4.06.0
+- opam init --auto-setup --compiler=ocaml.4.06.0
 - eval `opam config env`
 - opam pin add --yes --no-action $PACKAGE .
 - opam install --yes --deps-only $PACKAGE
