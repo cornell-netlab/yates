@@ -21,11 +21,11 @@ endif
 
 ifeq (($shell uname), Linux)
 INCLUDES  = \
- -I /usr/local/include/opencv2 
+ -I /usr/local/include/opencv2
 
 LDFLAGS   = \
  -L /usr/lib/x86_64-linux-gnu \
- -Wl,-rpath,/usr/local/lib 
+ -Wl,-rpath,/usr/local/lib
 endif
 
 

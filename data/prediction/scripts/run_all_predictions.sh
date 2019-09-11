@@ -3,12 +3,13 @@
 EXP_DIR=$( cd "$( dirname "$0" )" && pwd )
 CURR_DIR=$( pwd )
 Graph_DIR=${CURR_DIR}/graphs
-TOPO_DIR=${CURR_DIR}/../data/topologies
+TOPO_DIR=${CURR_DIR}/../topologies
 echo $EXP_DIR
 echo $CURR_DIR
 echo $TOPO_DIR
 
-for tf2 in abilene_hourly AttMpls Sprint Geant2012 Globalcenter BtNorthAmerica Janetbackbone Ntt Uunet
+# for tf2 in abilene_hourly AttMpls Sprint Geant2012 Globalcenter BtNorthAmerica Janetbackbone Ntt Uunet
+for tf2 in abilene_hourly AttMpls
 do
     tf=${TOPO_DIR}/${tf2}.dot
     base=${tf##*/}

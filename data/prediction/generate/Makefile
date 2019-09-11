@@ -38,10 +38,10 @@ LDFLAGS   = \
  -L /usr/lib/x86_64-linux-gnu \
  -L $(THISDIR)/../libpredict/bin \
  -Wl,-rpath,$(THISDIR)/../libpredict/bin \
+ -lpredict \
  -lboost_filesystem \
  -lboost_program_options \
- -lboost_system \
- -lpredict
+ -lboost_system
 
 endif
 
