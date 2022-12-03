@@ -5,7 +5,7 @@ maintainer: "Praveen Kumar <praveenk@cs.cornell.edu>"
 authors: "Praveen Kumar <praveenk@cs.cornell.edu>, Chris Yu <christoy@cs.cmu.edu>, Yang Yuan <yy528@cornell.edu>, Nate Foster <jnfoster@cs.cornell.edu>, Robert Kleinberg <rdk@cs.cornell.edu>, and Robert Soulé <robert.soule@usi.ch>"
 homepage: "https://www.cs.cornell.edu/~praveenk/yates/yates"
 bug-reports: "https://github.com/cornell-netlab/yates/issues"
-dev-repo: "https://github.com/cornell-netlab/yates.git"
+dev-repo: "git+https://github.com/cornell-netlab/yates.git"
 
 build: [
   ["dune" "subst"] {pinned}
