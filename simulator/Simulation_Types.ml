@@ -1,5 +1,4 @@
 open Core
-open Yates_routing
 open Yates_types.Types
 
 (* State used during simulation of a single TM *)

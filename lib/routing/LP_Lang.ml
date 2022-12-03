@@ -38,10 +38,10 @@ let rec string_of_aexp ae =
     Printf.sprintf "%f %s" (coeff) (string_of_aexp a2)
   | Sum (aexs) ->
     List.fold_left aexs ~init:"" ~f:(fun acc ae ->
-        if acc = "" then string_of_aexp ae else match ae with
+        if String.equal acc "" then string_of_aexp ae else match ae with
           | Times (coeff, a2) ->
-            if coeff = -1. then acc ^ " - " ^ (string_of_aexp a2)
-            else if coeff < 0. then acc ^ " - " ^
+            if Float.(=) coeff (-1.) then acc ^ " - " ^ (string_of_aexp a2)
+            else if Float.(<) coeff 0. then acc ^ " - " ^
                                    (string_of_aexp (Times (-.coeff, a2)))
             else acc ^ " + " ^ (string_of_aexp ae)
           | _ -> acc ^ " + " ^ (string_of_aexp ae))

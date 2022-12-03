@@ -1,5 +1,4 @@
 open Core
-open Frenetic_kernel.OpenFlow
 open Frenetic_kernel.OpenFlow0x01
 open Yates_types.Types
 

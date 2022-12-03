@@ -29,7 +29,7 @@ let solve (topo:topology) (_:demands) : scheme =
           (min !Globals.budget 1000) host_set in
       SrcDstMap.fold all_ksp ~init:SrcDstMap.empty
         ~f:(fun ~key:(u, v) ~data:paths acc ->
-            if u = v then acc
+            if Stdlib.(u = v) then acc
             else
               let path_map =
                 List.fold_left paths ~init:PathMap.empty

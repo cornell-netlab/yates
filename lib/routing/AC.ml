@@ -18,7 +18,7 @@ type aclink = VertexSet.t [@@ deriving sexp]
 
 module AclinkOrd = struct
   type t = aclink [@@ deriving sexp]
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 end
 module AclinkSet = Set.Make(AclinkOrd)
 
@@ -71,7 +71,7 @@ let routing_constraints (topo : Topology.t) (demand_pairs : demands)
       (* For every src, dst *)
       SrcDstMap.fold ~init:[]
         ~f:(fun ~key:(src,dst) ~data:_ sd_acc ->
-            if src = dst then sd_acc else
+            if Stdlib.(src = dst) then sd_acc else
               (* For every edge *)
               Topology.fold_edges
                 (fun edge e_acc ->
@@ -86,7 +86,7 @@ let routing_constraints (topo : Topology.t) (demand_pairs : demands)
      *   sum of src-dst flows on edges from src = 1 *)
     SrcDstMap.fold ~init:[]
       ~f:(fun ~key:(src,dst) ~data:_ sd_acc ->
-          if src = dst then sd_acc else
+          if Stdlib.(src = dst) then sd_acc else
           let out_src_edges = outgoing_edges topo src in
           let in_src_edges = incoming_edges topo src in
           let outgoing_flows = List.fold_left out_src_edges ~init:[]
@@ -108,10 +108,10 @@ let routing_constraints (topo : Topology.t) (demand_pairs : demands)
      *   net src-dst flow entering v = net src-dst flow leaving v *)
     SrcDstMap.fold ~init:[]
       ~f:(fun ~key:(src,dst) ~data:_ sd_acc ->
-          if src = dst then sd_acc
+          if Stdlib.(src = dst) then sd_acc
           else
             Topology.fold_vertexes (fun v v_acc ->
-                if v = src || v = dst then v_acc
+                if Stdlib.(v = src || v = dst) then v_acc
                 else
                   let out_v_edges = outgoing_edges topo v in
                   let in_v_edges = incoming_edges topo v in
@@ -152,7 +152,7 @@ let ac_lp_constraints (topo : Topology.t) (demand_pairs) =
     AclinkSet.fold aclinks ~init:[] ~f:(fun l_acc l ->
         SrcDstMap.fold demand_pairs ~init:l_acc
           ~f:(fun ~key:(i,j) ~data:_ ij_acc ->
-              if i = j then ij_acc
+              if Stdlib.(i = j) then ij_acc
               else
                 let f_ij_l = Sum (EdgeSet.fold (edges_of topo l) ~init:[]
                     ~f:(fun acc e -> Var (var_name topo e (i,j))::acc)) in
@@ -206,7 +206,7 @@ let ac_lp_constraints (topo : Topology.t) (demand_pairs) =
                         (string_of_link topo l)
                         (name_of_vertex topo i)
                         (name_of_vertex topo j) in
-                    if i = j then (Eq (name, pl_ij, 0.))::j_acc
+                    if Stdlib.(i = j) then (Eq (name, pl_ij, 0.))::j_acc
                     else if gurobi_auto_lb_zero then j_acc
                     else (Geq (name, pl_ij, 0.))::j_acc)
                  topo i_acc)
@@ -228,7 +228,7 @@ let ac_lp_of_graph (topo : Topology.t) =
           List.fold_left hosts ~init:u_acc
             ~f:(fun v_acc v ->
                 let dem =
-                  if u = v then 0.
+                  if Stdlib.(u = v) then 0.
                   else 1. in
                 SrcDstMap.set v_acc ~key:(u,v) ~data:dem)) in
   let routing_constrs = routing_constraints topo demand_pairs in
@@ -254,7 +254,7 @@ let solve (topo:topology) (_:demands) : scheme =
       Topology.iter_vertexes (fun vert ->
           let label = Topology.vertex_to_label topo vert in
           let name = Node.name label in
-          Hashtbl.Poly.add_exn name_table name vert) topo;
+          Hashtbl.Poly.add_exn name_table ~key:name ~data:vert) topo;
 
       let lp = ac_lp_of_graph topo in
       let rand = new_rand () in
@@ -275,11 +275,11 @@ let solve (topo:topology) (_:demands) : scheme =
         let rec read inp opt_z flows =
           let line = try In_channel.input_line_exn inp
             with End_of_file -> "" in
-          if line = "" then (opt_z,flows)
+          if String.(line = "") then (opt_z,flows)
           else
             let new_z, new_flows =
-              if line.[0] = '#' then (opt_z, flows)
-              else if line.[0] = 'Z' then
+              if Char.(line.[0] = '#') then (opt_z, flows)
+              else if Char.(line.[0] = 'Z') then
                 let ratio_str = Str.string_after line 2 in
                 let ratio = Float.of_string ratio_str in
                 (ratio *. demand_divisor /. cap_divisor, flows)
@@ -292,7 +292,7 @@ let solve (topo:topology) (_:demands) : scheme =
                    let edge_src = vertex (Str.matched_group 3 line) in
                    let edge_dst = vertex (Str.matched_group 4 line) in
                    let flow_amt = Float.of_string (Str.matched_group 5 line) in
-                   if flow_amt = 0. then (opt_z, flows)
+                   if Float.(flow_amt = 0.) then (opt_z, flows)
                    else
                      let tup = (dem_src, dem_dst, flow_amt, edge_src, edge_dst) in
                      (opt_z, (tup::flows))
@@ -310,11 +310,11 @@ let solve (topo:topology) (_:demands) : scheme =
       List.iter flows ~f:(fun (d_src, d_dst, flow, e_src, e_dst) ->
           if Hashtbl.Poly.mem flows_table (d_src, d_dst) then
             let prev_edges = Hashtbl.Poly.find_exn flows_table (d_src, d_dst) in
-            Hashtbl.Poly.set flows_table (d_src, d_dst)
-              ((e_src, e_dst, flow)::prev_edges)
+            Hashtbl.Poly.set flows_table ~key:(d_src, d_dst)
+              ~data:((e_src, e_dst, flow)::prev_edges)
           else
-            Hashtbl.Poly.add_exn flows_table (d_src, d_dst)
-              [(e_src, e_dst, flow)]);
+            Hashtbl.Poly.add_exn flows_table ~key:(d_src, d_dst)
+              ~data:[(e_src, e_dst, flow)]);
 
       Mcf.recover_paths topo flows_table in
   prev_scheme := new_scheme;

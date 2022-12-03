@@ -1,6 +1,5 @@
 open Core
 
-open Simulation_Types
 open Yates_types.Types
 open Yates_routing.Util
 open Yates_solvers.Solvers
@@ -29,7 +28,7 @@ let store_paths log_paths scheme topo out_dir algorithm n : unit =
 
 (* Return src and dst for a given path (edge list) *)
 let get_src_dst_for_path (p:path) =
-  if p = [] then None
+  if List.is_empty p then None
   else
     let src,_ = List.hd_exn p
                 |> Topology.edge_src in

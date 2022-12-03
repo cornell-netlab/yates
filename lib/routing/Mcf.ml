@@ -57,7 +57,7 @@ let conservation_constraints (topo : Topology.t) (d_pairs : demands)
       (* Every node in the topology except the source and sink has
        * conservation constraints *)
       Topology.fold_vertexes (fun v acc2 ->
-          if v = src || v = dst then acc2 else
+          if Stdlib.(v = src || v = dst) then acc2 else
             let edges = outgoing_edges topo v in
             let outgoing = List.fold_left edges ~init:[] ~f:(fun acc_vars e ->
                 (Var (var_name topo e (src,dst)))::acc_vars) in
@@ -111,7 +111,7 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
     let add topo node =
       if Hashtbl.Poly.mem node_table node then topo else
         let (new_topo, node_id) = Topology.add_vertex topo node in
-        let () = Hashtbl.Poly.add_exn node_table node node_id in
+        let () = Hashtbl.Poly.add_exn node_table ~key:node ~data:node_id in
         new_topo in
     let topo_with_src = add empty_topo d_src in
     let topo_with_src_dst = add topo_with_src d_dst in
@@ -146,7 +146,7 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
         let bottleneck = List.fold_left path ~init:Float.infinity
             ~f:(fun acc edge ->
                 let label = Topology.edge_to_label path_topo edge in
-                min acc (Link.weight label)) in
+                Stdlib.min acc (Link.weight label)) in
         (* Decrease weights by bottleneck, mark those with zero weight
            for deletion *)
         let delete_these = List.fold_left path ~init:[] ~f:(fun acc edge ->
@@ -154,7 +154,7 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
             let old_wt = Link.weight label in
             let new_wt = old_wt -. bottleneck in
             Link.set_weight label new_wt;
-            if new_wt <= 0. then edge::acc else acc) in
+            if Float.(new_wt <= 0.) then edge::acc else acc) in
         (* Delete the edges that were zeroed out *)
         let new_topo = List.fold_left delete_these ~init:path_topo
             ~f:(fun acc_topo edge ->
@@ -182,12 +182,12 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
           let (s,t) = d_pair in
           let s_v = Topology.vertex_of_label orig_topo s in
           let t_v = Topology.vertex_of_label orig_topo t in
-          let paths = if s <> t then strip_paths (s, t) edges else [] in
+          let paths = if Stdlib.(s <> t) then strip_paths (s, t) edges else [] in
           let (p,sum_rate) =
             List.fold_left
               paths
               ~init:(PathMap.empty,0.)
-              ~f:(fun (acc,sum_acc) (path,scalar) -> (PathMap.set acc path scalar, sum_acc +. scalar) ) in
+              ~f:(fun (acc,sum_acc) (path,scalar) -> (PathMap.set acc ~key:path ~data:scalar, sum_acc +. scalar) ) in
           let new_us = SrcDstMap.set us ~key:(s_v,t_v) ~data:p in
           let new_fs = SrcDstMap.set fs ~key:(s_v,t_v) ~data:sum_rate in
           (new_us, new_fs)) in
@@ -197,13 +197,13 @@ let recover_paths (orig_topo : Topology.t) (flow_table : flow_table)
       match SrcDstMap.find flow_sum (u,v) with
       | None -> assert false
       | Some sum_rate ->
-        ignore (if (sum_rate < 0.) then failwith "sum_rate leq 0. on flow" else ());
+        ignore (if Float.(sum_rate < 0.) then failwith "sum_rate leq 0. on flow" else ());
         let default_value = 1.0 /. (Float.of_int (PathMap.length f_decomp) ) in
         let normalized_f_decomp =
           PathMap.fold ~init:(PathMap.empty)
             ~f:(fun ~key:path ~data:rate acc ->
                 let normalized_rate =
-                  if sum_rate = 0. then
+                  if Float.(sum_rate = 0.) then
                     default_value
                   else
                     rate /. sum_rate in
@@ -229,7 +229,7 @@ let solve (topo:topology) (pairs:demands) : scheme =
   Topology.iter_vertexes (fun vert ->
       let label = Topology.vertex_to_label topo vert in
       let name = Node.name label in
-      Hashtbl.Poly.add_exn name_table name vert) topo;
+      Hashtbl.Poly.add_exn name_table ~key:name ~data:vert) topo;
 
   let lp = lp_of_graph topo pairs in
   let rand = new_rand () in
@@ -250,11 +250,11 @@ let solve (topo:topology) (pairs:demands) : scheme =
       (* start read fn *)
       let line = try In_channel.input_line_exn inp
         with End_of_file -> "" in
-      if line = "" then (opt_z,flows)
+      if String.(line = "") then (opt_z,flows)
       else
         let new_z, new_flows =
-          if line.[0] = '#' then (opt_z, flows)
-          else if line.[0] = 'Z' then
+          if Char.(line.[0] = '#') then (opt_z, flows)
+          else if Char.(line.[0] = 'Z') then
             let ratio_str = Str.string_after line 2 in
             let ratio = Float.of_string ratio_str in
             (ratio *. demand_divisor /. cap_divisor, flows)
@@ -267,7 +267,7 @@ let solve (topo:topology) (pairs:demands) : scheme =
                let edge_src = vertex (Str.matched_group 3 line) in
                let edge_dst = vertex (Str.matched_group 4 line) in
                let flow_amt = Float.of_string (Str.matched_group 5 line) in
-               if flow_amt = 0. then (opt_z, flows)
+               if Float.(flow_amt = 0.) then (opt_z, flows)
                else
                  let tup = (dem_src, dem_dst, flow_amt, edge_src, edge_dst) in
                  (opt_z, (tup::flows))
@@ -287,11 +287,11 @@ let solve (topo:topology) (pairs:demands) : scheme =
     List.iter flows ~f:(fun (d_src, d_dst, flow, e_src, e_dst) ->
         if Hashtbl.Poly.mem flows_table (d_src, d_dst) then
           let prev_edges = Hashtbl.Poly.find_exn flows_table (d_src, d_dst) in
-          Hashtbl.Poly.set flows_table (d_src, d_dst)
-            ((e_src, e_dst, flow)::prev_edges)
+          Hashtbl.Poly.set flows_table ~key:(d_src, d_dst)
+            ~data:((e_src, e_dst, flow)::prev_edges)
         else
-          Hashtbl.Poly.add_exn flows_table (d_src, d_dst)
-            [(e_src, e_dst, flow)]);
+          Hashtbl.Poly.add_exn flows_table ~key:(d_src, d_dst)
+            ~data:[(e_src, e_dst, flow)]);
 
     recover_paths topo flows_table
 

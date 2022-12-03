@@ -1,4 +1,3 @@
-open Frenetic.Net
 open Core
 
 module Topology = Frenetic_kernel.Network.Net.Topology
@@ -36,7 +35,7 @@ type flow_table = ((Node.t * Node.t),
 
 module PathOrd = struct
   type t = path [@@ deriving sexp]
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 end
 
 module PathMap = Map.Make(PathOrd)
@@ -63,12 +62,12 @@ module TagsMap =
   Map.Make
     (struct
       type t = Tag.t list [@@ deriving sexp]
-      let compare = Pervasives.compare (* List.compare ~cmp:(Pervasives.compare) *)
+      let compare = Stdlib.compare (* List.compare ~cmp:(Pervasives.compare) *)
     end)
 
 module VertexOrd = struct
   type t = Topology.vertex [@@ deriving sexp]
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 end
 
 module VertexMap = Map.Make(VertexOrd)
@@ -76,7 +75,7 @@ module VertexMap = Map.Make(VertexOrd)
 (* TODO(rjs): Give a better name. VertexPair map? *)
 module SrcDstOrd = struct
   type t = Topology.vertex * Topology.vertex [@@ deriving sexp]
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 end
 
 module SrcDstMap = Map.Make(SrcDstOrd)
@@ -86,7 +85,7 @@ type node_map = Node.t StringMap.t
 
 module EdgeOrd = struct
   type t = edge [@@ deriving sexp]
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 end
 
 module EdgeMap = Map.Make(EdgeOrd)
@@ -95,7 +94,7 @@ type uid = int [@@ deriving sexp]
 
 module UidOrd = struct
   type t = uid [@@ deriving sexp]
-  let compare = Pervasives.compare
+  let compare = Stdlib.compare
 end
 
 module UidMap = Map.Make(UidOrd)
@@ -126,3 +125,9 @@ type demands = demand SrcDstMap.t
 type scheme = flow_decomp SrcDstMap.t
 
 type configuration = (probability TagsMap.t) SrcDstMap.t
+
+module type Algorithm = sig
+    val initialize : scheme -> unit
+    val local_recovery : scheme -> topology -> failure -> demands -> scheme
+    val solve : topology -> demands -> scheme
+end

@@ -1,8 +1,6 @@
 open Core
-open Async
 
 open Yates_types.Types
-open Yates_routing.Util
 
 let drop : Frenetic_kernel.OpenFlow0x01.flowMod =
   let open Frenetic_kernel.OpenFlow0x01 in
@@ -79,14 +77,14 @@ let create (t:topology) =
             let sw = Node.id lbl in
             let tag = !tag_cell in
             incr tag_cell;
-            Hashtbl.Poly.add_exn tag_hash edge tag;
-            Core.printf "LINK: %s -> %d\n" (dump_edges t [edge]) tag;
+            Hashtbl.Poly.add_exn tag_hash ~key:edge ~data:tag;
+            (* Core.printf "LINK: %s -> %d\n" (dump_edges t [edge]) tag; *)
             let flow_mod = mk_flow_mod tag (Int32.to_int_exn port) in
             match Hashtbl.Poly.find flow_hash sw with
               | None ->
-                Hashtbl.Poly.add_exn flow_hash sw [flow_mod; drop]
+                Hashtbl.Poly.add_exn flow_hash ~key:sw ~data:[flow_mod; drop]
               | Some flow_mods ->
-                Hashtbl.Poly.set flow_hash sw (flow_mod::flow_mods)
+                Hashtbl.Poly.set flow_hash ~key:sw ~data:(flow_mod::flow_mods)
           end
         | _ ->
           ()) t;

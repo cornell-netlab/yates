@@ -7,7 +7,6 @@ open Util
 
 open Yates_routing
 open Yates_routing.Traffic
-open Yates_routing.Util
 open Yates_solvers.Solvers
 open Yates_types.Types
 open Yates_utils
@@ -42,7 +41,7 @@ let string_of_stats (sw:switchId) ((time:Int64.t), (ps:Frenetic_kernel.OpenFlow.
     ps.port_rx_frame_err ps.port_rx_over_err ps.port_rx_crc_err
     ps.port_collisions
 
-module Make(Solver:Yates_Routing.Algorithm) = struct
+module Make(Solver:Algorithm) = struct
 
   type switch_state =
     { ports : portId list;
@@ -106,7 +105,7 @@ module Make(Solver:Yates_Routing.Algorithm) = struct
            ~f:(fun ~key:sw ~data:st acc ->
                Printf.sprintf
                  "%sswitch %Ld:\n%s"
-                 (if acc = "" then "" else acc ^ "\n\n")
+                 (if String.(acc = "") then "" else acc ^ "\n\n")
                  sw
                  (Util.intercalate Frenetic_kernel.OpenFlow0x01.FlowMod.to_string "\n" st.flows)));
       return () in
@@ -134,9 +133,9 @@ module Make(Solver:Yates_Routing.Algorithm) = struct
 
     let eof () =
       dump (Printf.sprintf "yates-controller-%f.txt" (Unix.time ())) >>=
-      fun () -> Pervasives.exit 0 in
+      fun () -> Stdlib.exit 0 in
     let split s =
-      List.filter (String.split s ' ') ((<>) "") in
+      List.filter (String.split s ~on:' ') ~f:(String.(<>) "") in
 
     begin
       Core.printf "yates> %!";
@@ -187,8 +186,8 @@ module Make(Solver:Yates_Routing.Algorithm) = struct
 
   let safe_add hash k v f =
     match Hashtbl.Poly.find hash k with
-    | None -> Hashtbl.Poly.add_exn hash k v
-    | Some v' -> Hashtbl.Poly.set hash k (f v v')
+    | None -> Hashtbl.Poly.add_exn hash ~key:k ~data:v
+    | Some v' -> Hashtbl.Poly.set hash ~key:k ~data:(f v v')
 
   let handler flow_hash evt =
     match evt with
@@ -208,7 +207,7 @@ module Make(Solver:Yates_Routing.Algorithm) = struct
          send (sw, xid (), BarrierRequest) >>= fun () ->
          Deferred.all_unit
            (List.map sw_state.flows
-                     (fun flow -> send (sw, xid (), FlowModMsg flow)))
+                     ~f:(fun flow -> send (sw, xid (), FlowModMsg flow)))
        end
     | SwitchDown sw ->
        verbose (Printf.sprintf "switch %Ld disconnected" sw);
@@ -236,8 +235,8 @@ module Make(Solver:Yates_Routing.Algorithm) = struct
       Core.eprintf "[Yates: running...]\n%!";
       don't_wait_for (cli ());
       don't_wait_for (port_stats_loop ());
-      don't_wait_for (Pipe.iter FreneticController.events (handler sw_flows_map));
-      don't_wait_for (Pipe.iter msgs send);
+      don't_wait_for (Pipe.iter FreneticController.events ~f:(handler sw_flows_map));
+      don't_wait_for (Pipe.iter msgs ~f:send);
       ()
 
   (* Source routing using a stack of tags (one per hop) for a path *)
@@ -258,7 +257,6 @@ module Make(Solver:Yates_Routing.Algorithm) = struct
         simulate (i+1)
       with _ ->
         () in
-    let open Deferred in
     (* Main code *)
     Core.eprintf "[Yates: generating configurations]\n%!";
     simulate 0;
@@ -285,7 +283,6 @@ module Make(Solver:Yates_Routing.Algorithm) = struct
       with err ->
         Core.printf "exit %d %s\n%!" i (Exn.to_string err);
         path_tag_map in
-    let open Deferred in
     (* Main code *)
     Core.eprintf "[Yates: generating configurations]\n%!";
     (* Generate schemes for each iteration and create a tag for every path *)

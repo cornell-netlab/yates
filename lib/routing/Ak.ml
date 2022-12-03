@@ -136,7 +136,7 @@ let solve (topo:topology) (d:demands) : scheme =
       let dpi = find_or_die delta_plus (u,v) in
       (* Retrieve demand for the commodity with source u, dest v *)
       let d_i = SrcDstMap.fold d ~init:0.0 ~f:(fun ~key:(uu,vv) ~data:r acc3 ->
-	   if ( uu = u && vv = v ) then acc3 +. r else acc3) in
+	   if Stdlib.( uu = u && vv = v ) then acc3 +. r else acc3) in
       (* Specify initial target amount that we want to reroute.
          This is the combined \Delta^-_i value over all edges
 	 leaving the source node, u. *)
@@ -144,7 +144,7 @@ let solve (topo:topology) (d:demands) : scheme =
         EdgeMap.fold
 	  ~init:0.0
 	  ~f:(fun ~key:e ~data:x acc ->
-	      if ( ( fst (Topology.edge_src e) ) = u ) then acc +. x else acc)
+	      if Stdlib.( ( fst (Topology.edge_src e) ) = u ) then acc +. x else acc)
           dmi in
       (* Find the path on which we would adjust flow, if we are allowed to.
          This is the argmin in step 1 of the "do" block of the "while" loop
@@ -160,7 +160,7 @@ let solve (topo:topology) (d:demands) : scheme =
 		                | None -> assert false
 				| Some x -> x
 		     in
-		     acc2 && (lbe >. 0.0)
+		     acc2 && Float.(lbe > 0.0)
                    ) in
 		 (* Compute the sum on the RHS of the weird derivative test *)
 		 let rhs = EdgeMap.fold
@@ -170,9 +170,9 @@ let solve (topo:topology) (d:demands) : scheme =
 			     ff in
 		 let grad = ( path_gradient p !mu f topo ) in
 		 let test2 = (* Weird derivative test *)
-		   (d_i *. ( 1. +. (alpha topo) ) *. grad) <. rhs
+		   Float.((d_i *. ( 1. +. (alpha topo) ) *. grad) < rhs)
 		 in
-		 if (test1 && test2 && ( grad <. (snd acc) )) then
+		 if (test1 && test2 && Float.( grad < (snd acc) )) then
 		   (p,grad)
 		 else
 		   acc
@@ -194,8 +194,7 @@ let solve (topo:topology) (d:demands) : scheme =
 			 | Some x -> x
 	      in ( Float.min_inan acc ube ) )
 	    p in
-	if (target >. 0. && ( List.length p ) > 0)
-	  then
+	if Float.(target >. 0.) && not (List.is_empty p) then
 	  let delta = Float.min_inan bottleneck_rate target in
 	  let new_target = target -. delta in
 	  let scale_factor = 1. -. (delta /. d_i) in

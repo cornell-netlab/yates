@@ -42,7 +42,7 @@ let all_failures_envelope solver (topo:topology) (envelope:demands) : scheme =
       SrcDstMap.fold edge_scheme
         ~init:agg
         ~f:(fun ~key:(s,d) ~data:f_pp_map res ->
-          if s = d then res else
+          if Stdlib.(s = d) then res else
           let acc_pp_map = match SrcDstMap.find res (s,d) with
             | None -> PathMap.empty
             | Some x -> x in

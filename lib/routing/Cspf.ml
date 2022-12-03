@@ -4,7 +4,7 @@ open Apsp
 open Util
 open Yates_types.Types
 
-module PQueue = Core_kernel.Heap
+module PQueue = Pairing_heap
 
 let prev_scheme = ref SrcDstMap.empty
 
@@ -49,8 +49,8 @@ module LeastFillTB : Tiebreaker = struct
                   let avail_cap = EdgeMap.find_exn available_bw e in
                   let cap = capacity_of_edge topo e in
                   let util = (cap -. avail_cap) /. cap in
-                  max acc util) in
-            if max_util < acc_fill then
+                  Stdlib.max acc util) in
+            if Float.(max_util < acc_fill) then
               (max_util, path)
             else
               (acc_fill, acc_path)) in
@@ -70,8 +70,8 @@ module MostFillTB : Tiebreaker = struct
                   let avail_cap = EdgeMap.find_exn available_bw e in
                   let cap = capacity_of_edge topo e in
                   let util = (cap -. avail_cap) /. cap in
-                  max acc util) in
-            if max_util < acc_fill then
+                  Stdlib.max acc util) in
+            if Float.(max_util < acc_fill) then
               (acc_fill, acc_path)
             else
               (max_util, path)) in
@@ -97,26 +97,26 @@ let least_hop_paths = function
 (* Find a constrained shortest path from src to dst which has at least `bw`
    unreserved bandwidth *)
 let constrained_shortest_path (full_topo:topology) (avail_bw:float EdgeMap.t) src dst bw =
-  if src = dst then [[]]
+  if Stdlib.(src = dst) then [[]]
   else
     (* Remove other hosts to prevent routing through them *)
     let hosts = get_hosts_set full_topo in
     let topo = VertexSet.fold hosts ~init:full_topo
       ~f:(fun acc h ->
-          if src = h || dst = h then acc
+          if Stdlib.(src = h || dst = h) then acc
           else Topology.remove_vertex acc h) in
     let prev_table = Hashtbl.Poly.create () in
     let dist_table = Hashtbl.Poly.create () in
     let pq_tokens = Hashtbl.Poly.create () in
     let p_queue = PQueue.create
                     ~min_size:(Topology.num_vertexes topo)
-                    ~cmp:(fun (dist1,_) (dist2,_) -> compare dist1 dist2) () in
+                    ~cmp:(fun (dist1,_) (dist2,_) -> Stdlib.compare dist1 dist2) () in
     Topology.iter_vertexes
       (fun v ->
-         let dist = if v = src then 0. else Float.infinity in
+         let dist = if Stdlib.(v = src) then 0. else Float.infinity in
          let pq_token = PQueue.add_removable p_queue (dist, v) in
-         Hashtbl.Poly.add_exn dist_table v dist;
-         Hashtbl.Poly.add_exn pq_tokens v pq_token) topo;
+         Hashtbl.Poly.add_exn dist_table ~key:v ~data:dist;
+         Hashtbl.Poly.add_exn pq_tokens ~key:v ~data:pq_token) topo;
 
     (* Modified Dijkstra's algorithm to compute all shortest paths that satisfy
        the bandwidth constraints *)
@@ -132,7 +132,7 @@ let constrained_shortest_path (full_topo:topology) (avail_bw:float EdgeMap.t) sr
                (* Consider an edge only if it has enough available
                   bandwidth *)
                (* Printf.printf "%f %f\n" (edge_avail_bw/.1e9) (bw/.1e9); *)
-               if edge_avail_bw >= bw then
+               if Float.(edge_avail_bw >= bw) then
                  let weight = Link.weight (Topology.edge_to_label topo edge) in
                  let new_dist = dist +. weight in
                  let (neighbor, _) = Topology.edge_dst edge in
@@ -142,23 +142,23 @@ let constrained_shortest_path (full_topo:topology) (avail_bw:float EdgeMap.t) sr
                  (* (Node.name (Topology.vertex_to_label topo neighbor)); *)
                  let old_dist = Hashtbl.Poly.find_exn dist_table neighbor in
                  (* update paths if needed *)
-                 if new_dist < old_dist then
+                 if Float.(new_dist < old_dist) then
                    (* found shorter path,
                       update distance and replace old paths *)
                    let pq_token = Hashtbl.Poly.find_exn pq_tokens neighbor in
                    let new_pq_token = PQueue.update p_queue pq_token
                                         (new_dist, neighbor) in
-                   (Hashtbl.Poly.set pq_tokens neighbor new_pq_token;
-                    Hashtbl.Poly.set dist_table neighbor new_dist;
-                    Hashtbl.Poly.set prev_table neighbor [vert])
-                 else if new_dist = old_dist && new_dist < Float.infinity then
+                   (Hashtbl.Poly.set pq_tokens ~key:neighbor ~data:new_pq_token;
+                    Hashtbl.Poly.set dist_table ~key:neighbor ~data:new_dist;
+                    Hashtbl.Poly.set prev_table ~key:neighbor ~data:[vert])
+                 else if Float.(new_dist = old_dist && new_dist < Float.infinity) then
                    (* found equally short path, add it to existing paths *)
                    let old_prevs =
                      if Hashtbl.Poly.mem prev_table neighbor then
                        Hashtbl.Poly.find_exn prev_table neighbor
                      else [] in
                    (* Printf.printf "%f = %f\n" new_dist old_dist; *)
-                   Hashtbl.Poly.set prev_table neighbor (vert::old_prevs)
+                   Hashtbl.Poly.set prev_table ~key:neighbor ~data:(vert::old_prevs)
                  else ()
                else ()) topo vert in
         find_paths () in
@@ -170,7 +170,7 @@ let constrained_shortest_path (full_topo:topology) (avail_bw:float EdgeMap.t) sr
     (* Obtain all shortest paths from src to dst. Note that, while the edges
        themselves are properly oriented, the list is in reverse order. *)
     let rec get_paths dst =
-      if src = dst then [[]]
+      if Stdlib.(src = dst) then [[]]
       else if Hashtbl.Poly.mem memo_table dst then
         Hashtbl.Poly.find_exn memo_table dst
       else
@@ -193,7 +193,7 @@ let constrained_shortest_path (full_topo:topology) (avail_bw:float EdgeMap.t) sr
                     let edge = Topology.find_edge topo p dst in
                     edge::l) in
               new_paths @ acc) in
-        (Hashtbl.Poly.add_exn memo_table dst all_paths; all_paths) in
+        (Hashtbl.Poly.add_exn memo_table ~key: dst ~data:all_paths; all_paths) in
 
     get_paths dst
     |> List.map ~f:List.rev
@@ -214,7 +214,7 @@ let solve (topo:topology) (pairs:demands) : scheme =
         |> List.map ~f:snd
         |> get_max_congestion in
     (* Printf.printf "\n%f\n" cmax; *)
-    if cmax < max_thresh *. max_util_cap then
+    if Float.(cmax < max_thresh *. max_util_cap) then
       !prev_scheme
     else
       (* Recompute cSPF paths only if previous routing scheme would lead to

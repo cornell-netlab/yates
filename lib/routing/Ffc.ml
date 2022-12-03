@@ -67,7 +67,7 @@ let grantedbw_constraints (pmap : path_uid_map)
                           (base_path_set : (path List.t) SrcDstMap.t)
                           (init_acc : constrain list) : constrain list =
     SrcDstMap.fold ~init:init_acc ~f:(fun ~key:(src,dst) ~data:(demand) acc ->
-      if (src = dst) then acc else
+      if Stdlib.(src = dst) then acc else
       (* We need to add up the rates for all paths in pmap(src,dst) *)
       let granted_bw_var = granted_bw_var_name topo (src,dst) in
       let name = Printf.sprintf "grant-%s-%s" (name_of_vertex topo src)
@@ -178,8 +178,8 @@ let solve_ffc_lp (pmap:int PathMap.t) (emap:int list EdgeMap.t) (topo:topology)
                 match line with
                 | "" -> (opt_z,flows)
                 | _ ->
-                  if line.[0] = '#' then (opt_z, flows)
-                  else if line.[0] = 'Z' then
+                  if Char.(line.[0] = '#') then (opt_z, flows)
+                  else if Char.(line.[0] = 'Z') then
                     let ratio_str = Str.string_after line 2 in
                     let ratio = Float.of_string ratio_str in
                     (ratio *. demand_divisor /. cap_divisor, flows)
@@ -220,7 +220,7 @@ let ffc_mcf (topo:topology) (d:demands) (base_path_set : (path List.t) SrcDstMap
       ~init:(UidMap.empty, PathMap.empty, EdgeMap.empty)
       (* for every pair of hosts u,v *)
       ~f:(fun ~key:(u,v) ~data:path_list acc ->
-          if (u = v) then acc
+          if Stdlib.(u = v) then acc
           else
             begin
               (* get the possible paths, and for every path *)

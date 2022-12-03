@@ -2,7 +2,7 @@ open Core
 open Yates_types.Types
 
 let is_nan x =
-  Float.classify x = Float.Class.Nan
+  Stdlib.(Base.Float.classify x = Base.Float.Class.Nan)
 
 (* Calculate fair share of flows *)
 let fair_share_at_edge (capacity:float) (in_flows: float PathMap.t) : (float PathMap.t) =
@@ -14,7 +14,7 @@ let fair_share_at_edge (capacity:float) (in_flows: float PathMap.t) : (float Pat
       ~init:(PathMap.empty, capacity, List.length sorted_pdlist)
       ~f:(fun acc (p,d) ->
         let (curr_share, spare_cap, n_rem_flows) = acc in
-        if d *. (Float.of_int n_rem_flows) <= spare_cap then
+        if Float.(d *. (of_int n_rem_flows) <= spare_cap) then
           let new_share = PathMap.set curr_share ~key:p ~data:d in
           (new_share, spare_cap -. d, n_rem_flows - 1)
         else
@@ -36,7 +36,7 @@ let fair_share_at_edge_arr (capacity:float) (in_flows: (edge Array.t * int * flo
       ~init:([], capacity, Array.length path_dem_list)
       ~f:(fun _ acc (p,dist,d) ->
         let (curr_share, spare_cap, n_rem_flows) = acc in
-        if d *. (Float.of_int n_rem_flows) <= spare_cap then
+        if Float.(d *. (of_int n_rem_flows) <= spare_cap) then
           let new_share =  (p,dist,d)::curr_share in
           (new_share, spare_cap -. d, n_rem_flows - 1)
         else

@@ -10,7 +10,7 @@ let rec get_all_shortest_paths (u:Topology.vertex) (v:Topology.vertex)
           (topo:topology)
           (apsp: (bool * int * (Topology.vertex * float) List.t) SrcDstMap.t)
           (max_num_paths: int) : (Topology.edge List.t) List.t =
-  if u = v then [[]]
+  if Stdlib.(u = v) then [[]]
   else
     let _,_,nhop_list= SrcDstMap.find_exn apsp (u, v) in
     List.fold_left nhop_list ~init: []
@@ -40,11 +40,11 @@ let solve_thresh (topo:topology) (_:demands) : scheme =
       SrcDstMap.fold all_ksp
         ~init: SrcDstMap.empty
         ~f:(fun ~key:(u,v) ~data:paths acc ->
-          if (u = v) then acc
+          if Stdlib.(u = v) then acc
           else
           if List.is_empty paths then acc
           else
-            let sorted_paths = List.sort ~compare:(fun x y -> Pervasives.compare (get_path_weight topo x) (get_path_weight topo y)) paths in
+            let sorted_paths = List.sort ~compare:(fun x y -> Stdlib.compare (get_path_weight topo x) (get_path_weight topo y)) paths in
             let shortest_path_weight = get_path_weight topo
                                          (match List.hd sorted_paths with
                                           | None -> assert false
@@ -52,7 +52,7 @@ let solve_thresh (topo:topology) (_:demands) : scheme =
             let selected_paths =
               List.filter sorted_paths
                 ~f:(fun p ->
-                  (get_path_weight topo p) <= (thresh *. shortest_path_weight)) in
+                  Float.((get_path_weight topo p) <= (thresh *. shortest_path_weight))) in
             let prob = 1. /. Float.of_int (List.length selected_paths) in
             let path_dist =
               List.fold_left selected_paths ~init: PathMap.empty

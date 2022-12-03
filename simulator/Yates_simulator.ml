@@ -1,7 +1,6 @@
 open Core
 
 open ExperimentalData
-open Simulate_Demands
 open Simulate_Exps
 open Simulate_Failure
 open Simulate_TM
@@ -12,7 +11,6 @@ open Yates_routing.Util
 open Yates_routing.Traffic
 open Yates_solvers.Solvers
 open Yates_types.Types
-open Yates_utils
 
 let build_info =
   Printf.sprintf "Summary of TE systems implemented in YATES:\n%s"
@@ -113,7 +111,7 @@ let calculate_demand_envelope (topo:topology) (predict_file:string)
           let env_sd = match SrcDstMap.find acc (s,d) with
             | None -> 0.
             | Some x -> x in
-          SrcDstMap.set ~key:(s,d) ~data:(max env_sd pred) acc)) in
+          SrcDstMap.set ~key:(s,d) ~data:(Float.max env_sd pred) acc)) in
   close_demands predict_ic;
   envelope
 

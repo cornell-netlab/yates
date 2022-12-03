@@ -51,7 +51,7 @@ let conservation_constraints_st (topo : Topology.t) (src : Topology.vertex) (dst
     (init_acc : constrain list) : constrain list =
   (* Every node in the topology except the source and sink has conservation constraints *)
   Topology.fold_vertexes (fun v acc ->
-   if v = src || v = dst then acc else
+   if Stdlib.(v = src || v = dst) then acc else
       let edges = outgoing_edges topo v in
       let outgoing = List.fold_left edges ~init:[] ~f:(fun acc_vars e ->
         (Var (var_name topo e (src,dst)))::acc_vars) in
@@ -166,7 +166,7 @@ let solve_lp (topo:topology) : scheme =
   Topology.iter_vertexes (fun vert ->
     let label = Topology.vertex_to_label topo vert in
     let name = Node.name label in
-        Hashtbl.Poly.add_exn name_table name vert) topo;
+        Hashtbl.Poly.add_exn name_table ~key:name ~data:vert) topo;
 
   let max_budget =
     if use_min_cut then
@@ -191,11 +191,11 @@ let solve_lp (topo:topology) : scheme =
      let rec read inp opt_z flows =
        let line = try In_channel.input_line_exn inp
          with End_of_file -> "" in
-       if line = "" then (opt_z,flows)
+       if String.(line = "") then (opt_z,flows)
        else
          let new_z, new_flows =
-           if line.[0] = '#' then (opt_z, flows)
-           else if line.[0] = 'Z' then
+           if Char.(line.[0] = '#') then (opt_z, flows)
+           else if Char.(line.[0] = 'Z') then
              let ratio_str = Str.string_after line 2 in
              let ratio = Float.of_string ratio_str in
              (ratio *. demand_divisor /. cap_divisor, flows)
@@ -208,7 +208,7 @@ let solve_lp (topo:topology) : scheme =
                 let edge_src = vertex (Str.matched_group 3 line) in
                 let edge_dst = vertex (Str.matched_group 4 line) in
                 let flow_amt = Float.of_string (Str.matched_group 5 line) in
-                if flow_amt = 0. then (opt_z, flows)
+                if Float.(flow_amt = 0.) then (opt_z, flows)
                 else
                   let tup = (dem_src, dem_dst, flow_amt, edge_src, edge_dst) in
                   (opt_z, (tup::flows))
@@ -227,11 +227,11 @@ let solve_lp (topo:topology) : scheme =
     List.iter flows ~f:(fun (d_src, d_dst, flow, e_src, e_dst) ->
         if Hashtbl.Poly.mem flows_table (d_src, d_dst) then
           let prev_edges = Hashtbl.Poly.find_exn flows_table (d_src, d_dst) in
-          Hashtbl.Poly.set flows_table (d_src, d_dst)
-            ((e_src, e_dst, flow)::prev_edges)
+          Hashtbl.Poly.set flows_table ~key:(d_src, d_dst)
+            ~data:((e_src, e_dst, flow)::prev_edges)
         else
-          Hashtbl.Poly.add_exn flows_table (d_src, d_dst)
-            [(e_src, e_dst, flow)]);
+          Hashtbl.Poly.add_exn flows_table ~key:(d_src, d_dst)
+            ~data:[(e_src, e_dst, flow)]);
     (* tmp_scheme has paths for only src->dst *)
     let tmp_scheme = Mcf.recover_paths topo flows_table in
     let st_ppmap = SrcDstMap.find tmp_scheme (src,dst) in

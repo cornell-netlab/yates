@@ -1,10 +1,8 @@
 open Core
 open Async
-open Command
 
 open Yates_controller
 open Yates_solvers.Solvers
-open Yates_types.Types
 open Yates_routing
 
 let main algo topo_fn actual_fn predicted_fn hosts_fn src_routing () =

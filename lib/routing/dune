@@ -1,0 +1,27 @@
+(library
+  (name yates_routing)
+  (public_name yates.routing)
+  (libraries
+     frenetic
+     core
+     base64
+     cstruct
+     ocamlgraph
+     tcpip
+     yojson
+     ipaddr
+     sedlex
+     sexplib
+     str
+     yates.types
+  )
+  (preprocess (pps ppx_cstruct
+                   ppx_deriving.std
+                   ppx_enumerate
+                   ppx_compare
+                   ppx_fields_conv
+                   ppx_sexp_conv
+                   ppx_hash
+                   sedlex.ppx))
+)
+

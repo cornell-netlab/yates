@@ -1,8 +1,6 @@
-open Core
-
-open Yates_routing
 open Yates_solvers
+open Yates_types
 
-module Make(A:Yates_Routing.Algorithm) : sig
+module Make(A:Types.Algorithm) : sig
   val start : string -> string -> string -> Solvers.solver_type  -> bool -> unit -> unit
 end

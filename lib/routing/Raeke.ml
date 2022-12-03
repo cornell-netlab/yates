@@ -3,7 +3,6 @@ open Core
 open Util
 open Yates_Frt
 open Yates_Mw
-open Yates_Rrt
 open Yates_types.Types
 
 (* multiplicative weights input *)
@@ -77,7 +76,7 @@ let solve (topo:topology) (d:demands) : scheme =
             end_points
             ~init:acc
             ~f:(fun acc dst ->
-              if src <> dst then
+              if Stdlib.(src <> dst) then
                 SrcDstMap.set acc ~key:(src, dst) ~data:(paths src dst)
               else
                 SrcDstMap.set acc ~key:(src, dst) ~data:(PathMap.singleton [] 1.0))) in
@@ -90,7 +89,7 @@ let solve (topo:topology) (d:demands) : scheme =
                 VertexSet.fold hosts
                   ~init:acc
                   ~f:(fun acc dst ->
-                      if src <> dst then
+                      if Stdlib.(src <> dst) then
                         let ingress_links = outgoing_edges topo src in
                         let egress_links = incoming_edges topo dst in
                         let pps = List.fold_left ingress_links

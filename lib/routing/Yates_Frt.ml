@@ -95,7 +95,6 @@ struct
     List.map sorted ~f:fst
 
   let make_frt_tree (topo : Topology.t) : frt_tree =
-    let open Topology in
     let vertices = Topology.fold_vertexes (fun v acc -> v::acc) topo [] in
     let permuted_vs = permute vertices in
     let permuted_sets = List.map permuted_vs ~f:(fun v -> (v, VertexSet.empty)) in
@@ -105,16 +104,16 @@ struct
         ~f:(fun x y -> true) in
     let vlist_table = Hashtbl.Poly.create () ~size:8 in
     let max_diameter = List.fold_left paths_list ~init:0. ~f:(fun acc (c,v1,v2,p) ->
-        Hashtbl.add_exn vlist_table (v1,v2) (c,p);
-        max acc c) in
+        Hashtbl.add_exn vlist_table ~key:(v1,v2) ~data:(c,p);
+        Float.max acc c) in
 
     let dist v1 v2 =
       let c,_ =
         try Hashtbl.find_exn vlist_table (v1,v2)
         with Not_found_s _ ->
           failwith (Printf.sprintf "No distance between %s and %s\n"
-                      (Node.name (vertex_to_label topo v1))
-                      (Node.name (vertex_to_label topo v2))) in
+                      (Node.name (Topology.vertex_to_label topo v1))
+                      (Node.name (Topology.vertex_to_label topo v2))) in
       c in
 
     (* Given a cluster of vertices, performs one iteration of
@@ -128,7 +127,7 @@ struct
           let rec search l acc = match l with
             | [] -> failwith "find_first_within"
             | (h, set)::t ->
-              if (dist h v) <= radius then
+              if Float.(<=) (dist h v) radius then
                 let new_hd = (h, VertexSet.add set v) in
                 List.rev_append t (new_hd::acc)
               else search t ((h, set)::acc) in
@@ -171,22 +170,21 @@ struct
           | Leaf (_,_) -> failwith "leaf found"
           | Single (_) -> true
           | Node (_,_,children) ->
-            if children = [] then failwith "node with no children" else
+            if List.is_empty children then failwith "node with no children" else
               List.fold_left children ~init:true ~f:(fun acc x -> acc && check x) in
       check tree
 
     let check_tree_laminar ((tree,_) : frt_tree) : bool =
       let rec check tr =
-        let open Topology in
         match tr with
         | Single (_) -> true
         | Leaf (_,_) -> true
         | Node (_,set,children) ->
           let result1 = List.fold_left children ~init:true
               ~f:(fun acc c -> acc && match c with
-                | Single (set2) -> Topology.VertexSet.is_subset set2 set
-                | Leaf (_,set2) -> Topology.VertexSet.is_subset set2 set
-                | Node (_,set2,_) -> Topology.VertexSet.is_subset set2 set) in
+                | Single (set2) -> Topology.VertexSet.is_subset set2 ~of_:set
+                | Leaf (_,set2) -> Topology.VertexSet.is_subset set2 ~of_:set
+                | Node (_,set2,_) -> Topology.VertexSet.is_subset set2 ~of_:set) in
           result1 && (List.fold_left children ~init:true ~f:(fun acc x ->
               acc && check x)) in
       check tree
@@ -223,7 +221,7 @@ struct
         | Node (v,_,_) -> v
 
     let cluster_subset (vset : Topology.VertexSet.t) (c : cut_decomp) =
-      Topology.VertexSet.is_subset vset (get_cluster c)
+      Topology.VertexSet.is_subset vset ~of_:(get_cluster c)
 
     let cluster_inter (vset : Topology.VertexSet.t) (c : cut_decomp) =
       Topology.VertexSet.inter vset (get_cluster c)
@@ -243,7 +241,7 @@ struct
 
       let add_path src dst =
         let _,path = Hashtbl.find_exn vlist_table (src, dst) in
-        Hashtbl.add tree_table (src,dst) path in
+        Hashtbl.add tree_table ~key:(src,dst) ~data:path in
 
       let shortest_path src dst =
         Hashtbl.find_exn tree_table (src,dst) in
@@ -310,7 +308,7 @@ struct
                 if Hashtbl.mem usage_table edge then
                   Hashtbl.find_exn usage_table edge
                 else Int64.zero in
-              Hashtbl.set usage_table edge (Int64.(+) old_usage amount) in
+              Hashtbl.set usage_table ~key:edge ~data:(Int64.(+) old_usage amount) in
             add_to edge;
             match Topology.inverse_edge orig_topo edge with
               | Some inv -> add_to inv
@@ -322,7 +320,7 @@ struct
           (* Recursively convert the rest of the tree *)
           let subtree = map_and_compute_usage next in
           subtree::acc) in
-        let init = if root_children = [] then set else VertexSet.empty in
+        let init = if List.is_empty root_children then set else VertexSet.empty in
         let reduced_set = List.fold_left root_children ~init:init
             ~f:(fun acc child ->
                 let RTNode (_,c_set,_) = child in
@@ -349,8 +347,8 @@ struct
             else
               let src = edge_src next in
               let dst = edge_dst next in
-              if src = v then (acc,true)
-              else if dst = v then (next::acc, true) else (next::acc, false))) in
+              if Stdlib.(src = v) then (acc,true)
+              else if Stdlib.(dst = v) then (next::acc, true) else (next::acc, false))) in
       let rec check path acc seen = match path with
         | [] -> acc
         | h::t ->
@@ -373,8 +371,8 @@ struct
 
     let rec construct_path_down tree dst =
       let RTNode (center,_,children) = tree in
-      if children = [] then
-        if center = dst then [] else failwith "get_path: dst not in tree"
+      if List.is_empty children then
+        if Stdlib.(center = dst) then [] else failwith "get_path: dst not in tree"
       else
         let child = try List.find_exn children ~f:(fun c ->
           match c with RTNode(_,set,_) ->
@@ -488,9 +486,9 @@ struct
           let () = if Hashtbl.mem level_table center then
               let old_level = Hashtbl.find_exn level_table center in
               let new_level = min old_level level in
-              Hashtbl.set level_table center new_level
+              Hashtbl.set level_table ~key:center ~data:new_level
             else
-              Hashtbl.add_exn level_table center level in
+              Hashtbl.add_exn level_table ~key:center ~data:level in
           List.fold_left children ~init:(VertexSet.singleton center)
             ~f:(fun acc next ->
               let child_verts = get_verts next (level + 1) in

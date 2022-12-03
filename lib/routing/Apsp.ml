@@ -3,13 +3,13 @@ open Core
 open Util
 open Yates_types.Types
 
-module PQueue = Core_kernel.Heap
+module PQueue = Pairing_heap
 
 (**************************************************************)
 (* All pair multiple shortest paths *)
 (**************************************************************)
 let abs_fl (n:float) =
-  if n > 0.0 then n else -.n
+  if Float.(n > 0.0) then n else -.n
 let rec calc_num_paths (i:Topology.vertex) (j:Topology.vertex)
           (topo:topology) (dist: float SrcDstMap.t)
           (numpath: (bool * int * (Topology.vertex * float) List.t) SrcDstMap.t)
@@ -19,7 +19,7 @@ let rec calc_num_paths (i:Topology.vertex) (j:Topology.vertex)
   let  (_, n, l) = SrcDstMap.find_exn numpath (i,j) in
   let numpath = SrcDstMap.set numpath ~key:(i,j) ~data:(true, n, l) in
   let d_ij = SrcDstMap.find_exn dist (i,j) in
-  if d_ij = Float.infinity then
+  if Float.(d_ij = Float.infinity) then
     SrcDstMap.set numpath ~key:(i,j) ~data:(true, 0, [])
   else
     let neighbors = Topology.neighbors topo i in
@@ -29,13 +29,13 @@ let rec calc_num_paths (i:Topology.vertex) (j:Topology.vertex)
       VertexSet.fold neighbors ~init:numpath
         ~f:(fun acc neighbor ->
             let label = Topology.vertex_to_label topo neighbor in
-            if Node.device label = Node.Host && neighbor <> j then acc
+            if Stdlib.(Node.device label = Node.Host && neighbor <> j) then acc
             else
               (* Neighbor must not be a host, unless it is the destination. *)
               let out_edge = Topology.find_edge topo i neighbor in
               let wt_in = Link.weight (Topology.edge_to_label topo out_edge) in
               let d_nj = SrcDstMap.find_exn dist (neighbor,j) in
-              if (abs_fl (wt_in +. d_nj -. d_ij) < 0.00001) then
+              if Float.(abs_fl (wt_in +. d_nj -. d_ij) < 0.00001) then
                 (* if it is in a shortest i-j path *)
                 let t_visited,_,_ = SrcDstMap.find_exn acc (neighbor,j) in
                 let numpath =
@@ -70,7 +70,7 @@ let all_pairs_multi_shortest_path (topo:topology) :
     (fun i acc -> Topology.fold_vertexes
         (fun j acc ->
           let dist =
-            if i = j then 0.0
+            if Stdlib.(i = j) then 0.0
             else Float.infinity in
           SrcDstMap.set acc ~key:(i, j) ~data:dist)
         topo
@@ -98,7 +98,7 @@ let all_pairs_multi_shortest_path (topo:topology) :
             let dij = SrcDstMap.find_exn acc (i,j)  in
             let dik = SrcDstMap.find_exn acc (i,k)  in
             let dkj = SrcDstMap.find_exn acc (k,j)  in
-            if (dik +. dkj < dij) then
+            if Float.(dik +. dkj < dij) then
               SrcDstMap.set acc ~key:(i, j) ~data:(dik +. dkj)
             else acc)
           topo acc)
@@ -112,8 +112,8 @@ let all_pairs_multi_shortest_path (topo:topology) :
          Topology.fold_vertexes
            (fun j acc ->
               (* if i == j, then visited is true, and num_paths = 1 *)
-              let visited = (i = j) in
-              let num_paths = if (i = j) then 1 else 0 in
+              let visited = Stdlib.(i = j) in
+              let num_paths = if visited then 1 else 0 in
               SrcDstMap.set acc ~key:(i, j) ~data:(visited, num_paths, []))
            topo acc)
       topo SrcDstMap.empty in
@@ -160,13 +160,13 @@ let get_random_path (i:Topology.vertex) (j:Topology.vertex) (topo:topology)
       let chosen_hop,_ = List.fold_left nhop_list
           ~init:(i,false)
           ~f:(fun acc (nhop, prob) ->
-              if prob < (rand -. 0.00001) then acc
+              if Float.(prob < (rand -. 0.00001)) then acc
               else let _, found_bool = acc in
                 if not found_bool then (nhop,true)
                 else acc) in
       p := List.append !p [chosen_hop];
       curr := chosen_hop;
-      stop_cond := if !curr = j then true else false;
+      stop_cond := if Stdlib.(!curr = j) then true else false;
     done;
     let v_path = !p in
 
@@ -175,7 +175,7 @@ let get_random_path (i:Topology.vertex) (j:Topology.vertex) (topo:topology)
       List.fold_left v_path
         ~init:i
         ~f:(fun last_v curr_v ->
-            if last_v = curr_v then curr_v
+            if Stdlib.(last_v = curr_v) then curr_v
             else let e = Topology.find_edge topo last_v curr_v in
               e_path := List.append !e_path [e];
               curr_v) in
@@ -188,17 +188,17 @@ let get_random_path (i:Topology.vertex) (j:Topology.vertex) (topo:topology)
 (* Yen's algorithm to compute k-shortest paths *)
 let k_shortest_paths (full_topo:topology) (s:Topology.vertex) (t:Topology.vertex)
       (k:int) : path list =
-  if s = t then []
+  if Stdlib.(s = t) then []
   else
     let hosts = get_hosts_set full_topo in
     let topo = VertexSet.fold hosts ~init:full_topo
       ~f:(fun acc h ->
-          if s = h || t = h then acc
+          if Stdlib.(s = h || t = h) then acc
           else Topology.remove_vertex acc h) in
     let bheap =
       PQueue.create
         ~min_size:(Topology.num_vertexes topo)
-        ~cmp:(fun (dist1,_) (dist2,_) -> compare dist1 dist2) () in
+        ~cmp:(fun (dist1,_) (dist2,_) -> Stdlib.compare dist1 dist2) () in
     let pq_tokens = Hashtbl.Poly.create () in
     let rec yens_explore j ksp =
       if j = k then ksp
@@ -214,7 +214,7 @@ let k_shortest_paths (full_topo:topology) (s:Topology.vertex) (t:Topology.vertex
                   ~f:(fun acc path ->
                     let sub_path =
                       List.slice path 0 (min root_path_len (List.length path)) in
-                    if root_path = sub_path then
+                    if List.equal Stdlib.(=) root_path sub_path then
                       match List.nth path root_path_len with
                       | None -> acc
                       | Some e ->
@@ -225,7 +225,7 @@ let k_shortest_paths (full_topo:topology) (s:Topology.vertex) (t:Topology.vertex
                 List.fold root_path ~init:restricted_topo
                   ~f:(fun acc e ->
                     let root_path_node,_ = Topology.edge_src e in
-                    if root_path_node = spur_node then acc
+                    if Stdlib.(root_path_node = spur_node) then acc
                     else Topology.remove_vertex acc root_path_node) in
 
               let new_root_path = root_path@[spur_edge] in
@@ -240,7 +240,7 @@ let k_shortest_paths (full_topo:topology) (s:Topology.vertex) (t:Topology.vertex
                     PQueue.add_removable bheap (path_weight, total_path)
                   | Some token ->
                     PQueue.update bheap token (path_weight, total_path) in
-                Hashtbl.Poly.set pq_tokens total_path new_token;
+                Hashtbl.Poly.set pq_tokens ~key:total_path ~data:new_token;
                 new_root_path) in
         if PQueue.is_empty bheap then ksp
         else
@@ -250,7 +250,7 @@ let k_shortest_paths (full_topo:topology) (s:Topology.vertex) (t:Topology.vertex
             match PQueue.pop bheap with
             | None -> None
             | Some (_, path) ->
-              if List.mem ksp path ~equal:(=) then find_non_dup ()
+              if List.mem ksp path ~equal:Stdlib.(=) then find_non_dup ()
               else Some path in
           match find_non_dup () with
           | None -> ksp

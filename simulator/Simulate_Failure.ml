@@ -1,6 +1,5 @@
 open Core
 
-open Simulation_Util
 open Yates_routing.Traffic
 open Yates_routing.Util
 open Yates_types.Types
@@ -19,21 +18,21 @@ let rec get_util_based_failure_scenario (topo:topology) (alpha:float) (utils:con
   let total_weight = List.fold_left failure_weights
     ~init:0.
     ~f:(fun acc (_,w) -> acc +. w) in
-  if total_weight = 0. then EdgeSet.empty
+  if Float.(total_weight = 0.)then EdgeSet.empty
   else
     let rand = Random.float total_weight in
     let first_el = List.hd_exn failure_weights in
     let (e,_),_ = List.fold_left failure_weights
       ~init:(first_el, rand)
       ~f:(fun (selected,sum) (e,w) ->
-        if sum <= 0. then (selected,sum)
+        if Float.(sum <= 0.) then (selected,sum)
         else ((e,w), sum -. w)) in
     let fail = bidir_failure topo e in
     if check_connectivity_after_failure topo fail then fail
     else get_util_based_failure_scenario topo alpha utils
 
 (* Given link congestions, select top n links that do not partition the network *)
-let rec get_max_util_failure (topo:topology) (num_fail:int) (utils: congestion EdgeMap.t): failure =
+let get_max_util_failure (topo:topology) (num_fail:int) (utils: congestion EdgeMap.t): failure =
   (* don't fail links connecting hosts *)
   let sorted_edge_utils = utils
       |> EdgeMap.to_alist
@@ -96,13 +95,16 @@ let rec get_random_failure (topo:topology) (num_fail:int) : failure =
 
 (* Create a test failure scenario failing edges uniformly based on SPF congestion *)
 let rec get_test_failure_scenario (topo:topology) (actual:demands) (iter_pos:float) (num_fail:int): failure =
-  if (Float.of_int (Topology.num_edges topo))/.2. -.
-  (Float.of_int(Topology.num_vertexes topo)) < (Float.of_int (num_fail)) then failwith "Not good enough topo for num_fail failures"
+  let m = Float.of_int (Topology.num_edges topo) in 
+  let n = Float.of_int (Topology.num_vertexes topo) in 
+  let f = Float.of_int num_fail in 
+  if Float.(m /. 2. -. n < f) then
+    failwith "Not good enough topo for num_fail failures"
   else
   if num_fail = 0 then EdgeSet.empty else
   if num_fail > 1 then get_random_failure topo num_fail else
 
-  let iter_pos = min 1. iter_pos in
+  let iter_pos = Float.min 1. iter_pos in
   let sorted_edge_utils =
     Yates_routing.Spf.solve topo SrcDstMap.empty
     |> congestion_of_paths topo actual
@@ -116,7 +118,7 @@ let rec get_test_failure_scenario (topo:topology) (actual:demands) (iter_pos:flo
   let f = bidir_failure topo e in
   if check_connectivity_after_failure topo f then f
   else
-    if iter_pos >= 1. then EdgeSet.empty
+    if Float.(iter_pos >= 1.) then EdgeSet.empty
     else
       get_test_failure_scenario topo actual (iter_pos +. (1. /. Float.of_int (List.length sorted_edge_utils))) num_fail
 

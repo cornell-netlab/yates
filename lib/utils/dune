@@ -1,0 +1,10 @@
+(library
+  (name yates_utils)
+  (public_name yates.utils)
+  (c_names time_stubs)
+  (libraries
+     core
+     base64
+     cstruct
+     str)
+)

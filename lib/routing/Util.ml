@@ -51,7 +51,8 @@ let edge_connects_switches (e:edge) (topo:topology) : bool =
   let src_label = Topology.vertex_to_label topo src in
   let dst,_ = Topology.edge_dst e in
   let dst_label = Topology.vertex_to_label topo dst in
-  Node.device src_label = Node.Switch && Node.device dst_label = Node.Switch
+  Stdlib.(=) (Node.device src_label) Node.Switch && 
+  Stdlib.(=) (Node.device dst_label) Node.Switch
 
 
 let capacity_of_edge topo edge =
@@ -71,13 +72,13 @@ let normalize_scheme_fs (s : scheme) (fs: float SrcDstMap.t) : scheme =
               ~init:0.
               ~f:(fun ~key:_ ~data:r acc -> acc +. r) )
         | Some sr -> sr in
-      ignore (if (sum_rate < 0.) then failwith "sum_rate leq 0. on flow" else ());
+      ignore (if Float.(sum_rate < 0.) then failwith "sum_rate leq 0. on flow" else ());
       let default_value = 1.0 /. (Float.of_int (PathMap.length f_decomp) ) in
       let normalized_f_decomp =
         PathMap.fold ~init:(PathMap.empty)
           ~f:(fun ~key:path ~data:rate acc ->
             let normalized_rate =
-              if sum_rate = 0. then
+              if Float.(sum_rate = 0.) then
                 default_value
               else
                 rate /. sum_rate in
@@ -99,7 +100,7 @@ let normalize_paths_prob paths =
   PathMap.fold paths ~init:PathMap.empty
     ~f:(fun ~key:path ~data:prob acc ->
       let new_prob =
-        if (total_prob = 0.) then
+        if Float.(total_prob = 0.) then
           1. /. (Float.of_int (PathMap.length paths))
         else
           prob /. total_prob in
@@ -134,7 +135,7 @@ let get_switch_set (topo:topology) : VertexSet.t =
   VertexSet.filter (Topology.vertexes topo)
   ~f:(fun v ->
     let label = Topology.vertex_to_label topo v in
-    Node.device label = Node.Switch)
+    Stdlib.(Node.device label = Node.Switch))
 
 
 (* Set of host nodes *)
@@ -142,7 +143,7 @@ let get_hosts_set (topo:topology) : VertexSet.t =
   VertexSet.filter (Topology.vertexes topo)
   ~f:(fun v ->
     let label = Topology.vertex_to_label topo v in
-    Node.device label = Node.Host)
+    Stdlib.(Node.device label = Node.Host))
 
 (* List of host nodes *)
 let get_hosts (topo:topology) =
@@ -154,12 +155,12 @@ let get_srcdst_pairs (topo:topology) =
   let hosts = get_hosts topo in
   List.fold_left hosts ~init:[] ~f:(fun acc u ->
     List.fold_left hosts ~init:acc ~f:(fun acc v ->
-      if u = v then acc else
+      if Stdlib.(u = v) then acc else
       (u,v)::acc))
 
 (* check if a vertex u is one of edge e's endpoints *)
 let is_incident (e:Topology.edge) (u:Topology.vertex) : bool =
-  u = (fst (Topology.edge_src e)) || u = (fst (Topology.edge_dst e))
+  Stdlib.(u = (fst (Topology.edge_src e)) || u = (fst (Topology.edge_dst e)))
 
 (* Latency for a path *)
 let get_path_weight (topo:topology) (p:path) : float =
@@ -203,7 +204,7 @@ let dump_path_prob_set (t:topology) (pps:probability PathMap.t) : string =
   let buf = Buffer.create 101 in
   let sorted_paths = PathMap.keys pps
                      |> List.sort ~compare:(fun p1 p2 ->
-                       Pervasives.compare
+                       Stdlib.compare
                          (get_path_weight t p1) (get_path_weight t p2)) in
   List.iter sorted_paths
     ~f:(fun path -> let prob = PathMap.find_exn pps path in
@@ -253,7 +254,7 @@ let rec list_next l elem = match l with
 
 let rec next_hop (t:topology) (p:path) (e:edge) = match p with
   (* Assumes no duplicate elems in list *)
-  | hd::tl -> if (string_of_edge t hd) = (string_of_edge t e) then List.hd tl
+  | hd::tl -> if Stdlib.((string_of_edge t hd) = (string_of_edge t e)) then List.hd tl
               else next_hop t tl e
   | [] -> failwith "not found"
 
@@ -270,7 +271,7 @@ let average_list l =
 let rec max_list = function
   | [] -> failwith "empty list"
   | [h] -> h
-  | h::t -> max h (max_list t)
+  | h::t -> Stdlib.max h (max_list t)
 
 
 let next_hop_arr (p:edge Array.t) (dist:int) : edge option =
@@ -288,7 +289,7 @@ let is_int v =
   let p = (Float.modf v) in
   let f = Float.Parts.fractional p in
   let c = Float.classify f in
-  c = Float.Class.Zero
+  Stdlib.(c = Base.Float.Class.Zero)
 
 (* assumes l is sorted *)
 let kth_percentile (l:float list) (k:float) : float =
@@ -342,7 +343,7 @@ let incoming_edges topo dst =
 (* Find a host's neighboring switch *)
 let ingress_switch topo host =
   let label = Topology.vertex_to_label topo host in
-  assert (Node.device label = Node.Host);
+  assert Stdlib.(Node.device label = Node.Host);
   VertexSet.choose_exn (Topology.neighbors topo host)
 
 
@@ -366,7 +367,7 @@ let all_pairs_connectivity topo hosts scheme : bool =
     ~init:true ~f:(fun acc u ->
       List.fold_left hosts
         ~init:acc ~f:(fun acc v ->
-          if u = v then acc
+          if Stdlib.(u = v) then acc
           else
             match SrcDstMap.find scheme (u,v) with
             | None -> Printf.printf "No route for pair (%s, %s)\n%!"
@@ -382,7 +383,7 @@ let paths_are_nonempty (s:scheme) : bool =
     ~init:true
     (* for every pair of hosts u,v *)
     ~f:(fun ~key:(u,v) ~data:paths acc ->
-      if u = v then true && acc
+      if Stdlib.(u = v) then true && acc
       else
         PathMap.fold paths
           ~init:acc
@@ -394,13 +395,13 @@ let probabilities_sum_to_one (s:scheme) : bool =
   SrcDstMap.fold s
     ~init:true
     ~f:(fun ~key:(u,v) ~data:f_decomp acc ->
-      if u = v then acc
+      if Stdlib.(u = v) then acc
       else
         let sum_rate =
           PathMap.fold f_decomp
             ~init:0.
             ~f:(fun ~key:path ~data:r acc -> acc +. r) in
-        acc && (sum_rate > 1.-.1e-4) && (sum_rate < 1.+.1e-4) )
+        acc && Float.(sum_rate > 1.-.1e-4) && Float.(sum_rate < 1.+.1e-4) )
 
 
 (* Check if the queried scheme contains all paths from the base scheme *)
@@ -426,7 +427,7 @@ let prune_scheme (t:topology) (s:scheme) (budget:int) : scheme =
   let new_scheme = SrcDstMap.fold s
     ~init:SrcDstMap.empty
     ~f:(fun ~key:(src,dst) ~data:paths acc ->
-      if src = dst then acc else
+      if Stdlib.(src = dst) then acc else
       let pruned_paths =
         if PathMap.length paths <= budget then paths
         else
@@ -522,7 +523,7 @@ let get_all_possible_failures (topo:topology) (num_failures:int) : (failure List
         ~f:(fun acc partial_fl ->
           List.fold_left all_single_failures ~init:acc
             ~f:(fun acc single_fl ->
-              if EdgeSet.is_subset single_fl partial_fl then acc
+              if EdgeSet.is_subset single_fl ~of_:partial_fl then acc
               else
                 let new_failure = EdgeSet.union partial_fl single_fl in
                 if List.mem ~equal:EdgeSet.equal acc new_failure then acc else

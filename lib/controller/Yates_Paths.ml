@@ -1,5 +1,4 @@
 open Core
-open Async
 
 open Yates_types.Types
 open Yates_routing.Util
@@ -99,9 +98,9 @@ let create_sw_flows_map topo (path_tag_map:Tag.t PathMap.t) :
             let flow_mod = mk_flow_mod_fw tag (Int32.to_int_exn port) in
             match Hashtbl.Poly.find sw_flow_map sw_id with
               | None ->
-                  Hashtbl.Poly.add_exn sw_flow_map sw_id [flow_mod; drop]
+                  Hashtbl.Poly.add_exn sw_flow_map ~key:sw_id ~data:[flow_mod; drop]
               | Some flow_mods ->
-                Hashtbl.Poly.set sw_flow_map sw_id (flow_mod::flow_mods))
+                Hashtbl.Poly.set sw_flow_map ~key:sw_id ~data:(flow_mod::flow_mods))
         end
     | _ -> ());
     sw_flow_map

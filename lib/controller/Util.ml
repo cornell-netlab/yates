@@ -8,7 +8,7 @@ let source_routing_configuration_of_scheme (topo:topology) (scm:scheme)
   SrcDstMap.fold scm
     ~init:SrcDstMap.empty
     ~f:(fun ~key:(src,dst) ~data:paths acc ->
-        if src = dst then acc
+        if Stdlib.(src = dst) then acc
         else
           let tags = PathMap.fold paths ~init:TagsMap.empty
               ~f:(fun ~key:path ~data:prob acc ->
@@ -30,7 +30,7 @@ let path_routing_configuration_of_scheme (topo:topology) (scm:scheme)
   SrcDstMap.fold scm
     ~init:SrcDstMap.empty
     ~f:(fun ~key:(src,dst) ~data:path_prob_map acc ->
-        if src = dst then acc
+        if Stdlib.(src = dst) then acc
         else
           let tag_prob_map = PathMap.fold path_prob_map ~init:TagsMap.empty
               ~f:(fun ~key:path ~data:prob acc ->
@@ -45,7 +45,7 @@ let bprint_tags (buf:Buffer.t) (tag_dist:probability TagsMap.t) : unit =
     ~f:(fun ~key:tags ~data:prob ->
         Printf.bprintf buf "%d " (Float.to_int (1000.0 *. prob));
         Printf.bprintf buf "%d " (List.length tags);
-        List.iter tags (Printf.bprintf buf "%d "))
+        List.iter tags ~f:(Printf.bprintf buf "%d "))
 
 let bprint_configuration (topo:topology) (bufs:(Topology.vertex,Buffer.t) Hashtbl.t)
     (conf:configuration) : unit =
@@ -69,7 +69,7 @@ let bprint_configuration (topo:topology) (bufs:(Topology.vertex,Buffer.t) Hashtb
           | Some buf -> buf
           | None ->
             let buf = Buffer.create 101 in
-            Hashtbl.add_exn bufs src buf;
+            Hashtbl.add_exn bufs ~key:src ~data:buf;
             let count =
               match VertexMap.find dstCount src with
               | None -> 0

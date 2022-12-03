@@ -1,0 +1,13 @@
+(library
+ (name yates_controller)
+ (public_name yates.controller)
+ (wrapped true)
+ (libraries
+    frenetic
+     yates.routing
+     yates.solvers
+     yates.types
+     yates.utils
+    
+  )
+)

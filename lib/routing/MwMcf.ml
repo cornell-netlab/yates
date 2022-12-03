@@ -1,9 +1,7 @@
 open Core
 
 open Util
-open Yates_Frt
 open Yates_Mw
-open Yates_Rrt
 open Yates_types.Types
 
 (* multiplicative weights input *)
@@ -70,7 +68,7 @@ let solve (t:topology) (d:demands) : scheme =
       let end_points =
         VertexSet.filter (Topology.vertexes t)
           ~f:(fun v -> let label = Topology.vertex_to_label t v in
-               Node.device label = Node.Host) in
+               Stdlib.(Node.device label = Node.Host)) in
       let _,mw_solution,_ = MWAlg.hedge_iterations epsilon t d end_points in
       let (unnormalized_scheme,flow_sum) =
         List.fold_left mw_solution

@@ -1,6 +1,5 @@
 open Core
 
-open Frenetic.Net
 open Yates_routing
 open Yates_types.Types
 
@@ -38,8 +37,8 @@ type demand_model =
 (* Updates all demands in the matrix to be random integers in [0,limit) *)
 let update_random matrix =
   let host_array, demand_array = matrix in
-  Array.iteri host_array (fun i _ ->
-      Array.iteri host_array (fun j _ ->
+  Array.iteri host_array ~f:(fun i _ ->
+      Array.iteri host_array ~f:(fun j _ ->
         demand_array.(i).(j) <-
           (if i = j then 0 else
              let d = power_law () in
@@ -51,9 +50,9 @@ let update_random matrix =
    [-diff_amt, diff_amt]. Demands have a max of limit *)
 let update_sparse matrix prob diff_amt =
   let host_array, demand_array = matrix in
-  Array.iteri host_array (fun i _ ->
-      Array.iteri host_array (fun j _ ->
-          if Random.float 1.0 > prob then ()
+  Array.iteri host_array ~f:(fun i _ ->
+      Array.iteri host_array ~f:(fun j _ ->
+          if Float.(Random.float 1.0 > prob) then ()
           else if i = j then ()
           else
             let new_dem = power_law () in
@@ -72,9 +71,9 @@ let update model =
 let create_power_law hosts =
   let host_array = Array.of_list hosts in
   let num_hosts = List.length hosts in
-  let demand_array = Array.make_matrix num_hosts num_hosts 0 in
-  Array.iteri host_array (fun i _ ->
-      Array.iteri host_array (fun j _ ->
+  let demand_array = Array.make_matrix ~dimx:num_hosts ~dimy:num_hosts 0 in
+  Array.iteri host_array ~f:(fun i _ ->
+      Array.iteri host_array ~f:(fun j _ ->
           if i = j then () else
             let d = power_law () in
             demand_array.(i).(j) <- Int.of_float d)
@@ -85,14 +84,14 @@ let create_power_law hosts =
 let create_random hosts =
   let host_array = Array.of_list hosts in
   let num_hosts = List.length hosts in
-  let demand_array = Array.make_matrix num_hosts num_hosts 0 in
+  let demand_array = Array.make_matrix ~dimx:num_hosts ~dimy:num_hosts 0 in
   let random_matrix = update_random (host_array, demand_array) in
   IIDRandom (random_matrix)
 
 let create_sparse hosts prob diff =
   let host_array = Array.of_list hosts in
   let num_hosts = List.length hosts in
-  let demand_array = Array.make_matrix num_hosts num_hosts 0 in
+  let demand_array = Array.make_matrix ~dimx:num_hosts ~dimy:num_hosts 0 in
   let random_matrix = update_random (host_array, demand_array) in
   SparseDiff (prob, diff, random_matrix)
 
@@ -103,9 +102,9 @@ let create_periodic hosts limit period =
     (random_phase (), float (1 + Random.int limit)) in
   let host_array = Array.of_list hosts in
   let num_hosts = List.length hosts in
-  let demand_array = Array.make_matrix num_hosts num_hosts (0., 0.) in
-  Array.iteri host_array (fun i _ ->
-      Array.iteri host_array (fun j _ ->
+  let demand_array = Array.make_matrix ~dimx:num_hosts ~dimy:num_hosts (0., 0.) in
+  Array.iteri host_array ~f:(fun i _ ->
+      Array.iteri host_array ~f:(fun j _ ->
           if i = j then () else
             demand_array.(i).(j) <- (random_sinusoid ()))
         );
@@ -116,8 +115,8 @@ let get_demands model =
   | Static ((hosts, ds))
   | IIDRandom ((hosts, ds)) | SparseDiff (_,_,(hosts,ds)) ->
     let lst = ref [] in
-    Array.iteri  hosts (fun i h_i ->
-        Array.iteri hosts (fun j h_j ->
+    Array.iteri  hosts ~f:(fun i h_i ->
+        Array.iteri hosts ~f:(fun j h_j ->
             let d = ds.(i).(j) in
             if i = j || d = 0 then () else
               lst := (hosts.(i), hosts.(j), float d)::(!lst))
@@ -125,13 +124,13 @@ let get_demands model =
     !lst
   | Periodic (freq,time,(hosts, demand_fns)) ->
     let lst = ref [] in
-    Array.iteri hosts (fun i h_i ->
-        Array.iteri hosts (fun j h_j ->
+    Array.iteri hosts ~f:(fun i h_i ->
+        Array.iteri hosts ~f:(fun j h_j ->
             if i = j then () else
               let (phase,amp) = demand_fns.(i).(j) in
               let t = float time in
               let d = phase *. Float.sin (freq *. (t +. phase)) in
-              if d = 0. then () else
+              if Float.(d = 0.) then () else
                 lst := (hosts.(i), hosts.(j), d)::(!lst))
           );
     !lst

@@ -261,7 +261,7 @@ let flash_demand_t x t total_t d =
 let total_flow_to_sink (sink) (topo:topology) (actual:demands) : float =
   let hosts = get_hosts_set topo in
   VertexSet.fold hosts ~init:0.
-    ~f:(fun acc src -> if (src = sink) then acc else
+    ~f:(fun acc src -> if Stdlib.(src = sink) then acc else
       let d = SrcDstMap.find_exn actual (src,sink) in
       acc +. d)
 
@@ -271,7 +271,7 @@ let update_flash_demand topo sink dem flash_t per_src_flash_factor total_t: dema
     let hosts = get_hosts_set topo in
     VertexSet.fold hosts ~init:dem
       ~f:(fun acc src ->
-        if src = sink then acc
+        if Stdlib.(src = sink) then acc
         else
           let sd_dem =
             SrcDstMap.find_exn dem (src,sink)
@@ -294,7 +294,7 @@ let sum_demands (d:demands) : float =
 let sum_sink_demands (d:demands) sink : float =
   SrcDstMap.fold d ~init:0.
     ~f:(fun ~key:(src,dst) ~data:x acc ->
-      if dst = sink then acc +. x
+      if Stdlib.(dst = sink) then acc +. x
       else acc)
 
 (***********************************************************)
@@ -556,7 +556,7 @@ let simulate_tm (start_scheme:scheme)
 
                   (* calculate each flow's fair share *)
                   let fs_in_queue_edge =
-                    if demand_on_link <= current_edge_capacity then
+                    if Float.(demand_on_link <= current_edge_capacity) then
                       in_queue_edge
                     else
                       fair_share_at_edge_arr current_edge_capacity in_queue_edge in
@@ -725,7 +725,7 @@ let simulate_tm (start_scheme:scheme)
       if is_flash then SrcDstMap.fold final_network_state.delivered
           ~init:0.0
           ~f:(fun ~key:(src,dst) ~data:dlvd acc ->
-              if dst = flash_sink then
+              if Stdlib.(dst = flash_sink) then
                 acc +. dlvd /. (Float.of_int num_iterations) /. !agg_sink_dem
               else acc)
       else 0.0;

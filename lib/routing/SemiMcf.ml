@@ -50,11 +50,11 @@ let demand_constraints (pmap : path_uid_map) (emap : edge_uidlist_map)
   SrcDstMap.fold
     ~init:init_acc
     ~f:(fun ~key:(src,dst) ~data:(demand) acc ->
-      if (src = dst) then acc
+      if Stdlib.(src = dst) then acc
       else
         (* We need to add up the rates for all paths in pmap(src,dst) *)
         match SrcDstMap.find base_path_set (src,dst) with
-        | None -> if (demand <= 0.) then acc else (assert false)
+        | None -> if Float.(demand <= 0.) then acc else (assert false)
         | Some path_list ->
           let all_flows =
             List.fold_left
@@ -119,8 +119,8 @@ let solve_lp (pmap:int PathMap.t) (emap:int list EdgeMap.t) (topo:topology)
             match line with
             | "" -> (opt_z,flows)
             | _ ->
-              if line.[0] = '#' then (opt_z, flows)
-              else if line.[0] = 'Z' then
+              if Char.(line.[0] = '#') then (opt_z, flows)
+              else if Char.(line.[0] = 'Z') then
                 let ratio_str = Str.string_after line 2 in
                 let ratio = Float.of_string ratio_str in
                 (ratio *. demand_divisor /. cap_divisor, flows)
@@ -170,14 +170,14 @@ let normalize (unnormalized_scheme:scheme) (flow_sum:float SrcDstMap.t) : scheme
        match SrcDstMap.find flow_sum (u,v) with
        | None -> assert false
        | Some sum_rate ->
-           ignore (if (sum_rate <= 0.) then Printf.printf "sum_rate = %f on flow\n" sum_rate);
+           ignore (if Float.(sum_rate <= 0.) then Printf.printf "sum_rate = %f on flow\n" sum_rate);
            let default_value = 1.0 /. (Float.of_int (PathMap.length f_decomp) ) in
            let normalized_f_decomp =
              PathMap.fold
              ~init:(PathMap.empty)
              ~f:(fun ~key:path ~data:rate acc ->
                let normalized_rate =
-                 if sum_rate <= 0. then
+                 if Float.(sum_rate <= 0.) then
                    default_value
                  else
                    rate /. sum_rate in
@@ -209,7 +209,7 @@ let restricted_mcf (topo:topology) (d:demands)
       ~init:(UidMap.empty, PathMap.empty, EdgeMap.empty)
       (* for every pair of hosts u,v *)
       ~f:(fun ~key:(u,v) ~data:path_list acc ->
-        if (u = v) then acc
+        if Stdlib.(u = v) then acc
         else
           begin
             List.fold_left

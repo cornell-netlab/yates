@@ -1,0 +1,5 @@
+(executable
+  (public_name yates.crtl)
+  (name Yates_Controller)
+  (libraries core async frenetic yates.controller yates.types yates.solvers)
+)
