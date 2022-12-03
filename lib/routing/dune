@@ -12,7 +12,6 @@
      ipaddr
      sedlex
      sexplib
-     str
      yates.types
   )
   (preprocess (pps ppx_cstruct
